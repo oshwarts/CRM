@@ -1,0 +1,318 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
+  public: {
+    Tables: {
+      companies: {
+        Row: { created_at: string; id: string; name: string }
+        Insert: { created_at?: string; id?: string; name: string }
+        Update: { created_at?: string; id?: string; name?: string }
+        Relationships: []
+      }
+      doctor_companies: {
+        Row: { company_id: string; doctor_id: string }
+        Insert: { company_id: string; doctor_id: string }
+        Update: { company_id?: string; doctor_id?: string }
+        Relationships: []
+      }
+      doctor_hospitals: {
+        Row: {
+          doctor_id: string
+          hospital_id: string
+          id: string
+          role_at_hospital: string
+          sector: string
+        }
+        Insert: {
+          doctor_id: string
+          hospital_id: string
+          id?: string
+          role_at_hospital?: string
+          sector?: string
+        }
+        Update: {
+          doctor_id?: string
+          hospital_id?: string
+          id?: string
+          role_at_hospital?: string
+          sector?: string
+        }
+        Relationships: []
+      }
+      doctor_preop_plans: {
+        Row: {
+          created_at: string
+          doctor_id: string
+          id: string
+          procedure_id: string | null
+          required_equipment: string
+          surgeon_preferences: string
+          surgical_approach: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          doctor_id: string
+          id?: string
+          procedure_id?: string | null
+          required_equipment?: string
+          surgeon_preferences?: string
+          surgical_approach?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          doctor_id?: string
+          id?: string
+          procedure_id?: string | null
+          required_equipment?: string
+          surgeon_preferences?: string
+          surgical_approach?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      doctor_procedures: {
+        Row: { doctor_id: string; procedure_id: string }
+        Insert: { doctor_id: string; procedure_id: string }
+        Update: { doctor_id?: string; procedure_id?: string }
+        Relationships: []
+      }
+      doctors: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          email: string
+          id: string
+          name: string
+          notes: string
+          phone: string
+          position: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          email?: string
+          id?: string
+          name: string
+          notes?: string
+          phone?: string
+          position?: string
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          email?: string
+          id?: string
+          name?: string
+          notes?: string
+          phone?: string
+          position?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      favorites: {
+        Row: { created_at: string; doctor_id: string; user_id: string }
+        Insert: { created_at?: string; doctor_id: string; user_id: string }
+        Update: { created_at?: string; doctor_id?: string; user_id?: string }
+        Relationships: []
+      }
+      hospital_agents: {
+        Row: { agent_id: string; hospital_id: string }
+        Insert: { agent_id: string; hospital_id: string }
+        Update: { agent_id?: string; hospital_id?: string }
+        Relationships: []
+      }
+      hospitals: {
+        Row: {
+          address: string
+          city: string
+          created_at: string
+          id: string
+          lat: number | null
+          lng: number | null
+          name: string
+          sector: string
+        }
+        Insert: {
+          address?: string
+          city?: string
+          created_at?: string
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          name: string
+          sector?: string
+        }
+        Update: {
+          address?: string
+          city?: string
+          created_at?: string
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          name?: string
+          sector?: string
+        }
+        Relationships: []
+      }
+      meeting_doctors: {
+        Row: { doctor_id: string; meeting_id: string }
+        Insert: { doctor_id: string; meeting_id: string }
+        Update: { doctor_id?: string; meeting_id?: string }
+        Relationships: []
+      }
+      meeting_tasks: {
+        Row: {
+          created_at: string
+          description: string
+          due_date: string | null
+          id: string
+          is_done: boolean
+          meeting_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          due_date?: string | null
+          id?: string
+          is_done?: boolean
+          meeting_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          due_date?: string | null
+          id?: string
+          is_done?: boolean
+          meeting_id?: string
+        }
+        Relationships: []
+      }
+      meetings: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          decisions: string
+          id: string
+          location: string
+          meeting_date: string | null
+          meeting_time: string | null
+          next_followup_date: string | null
+          responsible_agent_id: string | null
+          status: string
+          subject: string
+          summary: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          decisions?: string
+          id?: string
+          location?: string
+          meeting_date?: string | null
+          meeting_time?: string | null
+          next_followup_date?: string | null
+          responsible_agent_id?: string | null
+          status?: string
+          subject?: string
+          summary?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          decisions?: string
+          id?: string
+          location?: string
+          meeting_date?: string | null
+          meeting_time?: string | null
+          next_followup_date?: string | null
+          responsible_agent_id?: string | null
+          status?: string
+          subject?: string
+          summary?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      procedures: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          is_mako: boolean
+          name: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          id?: string
+          is_mako?: boolean
+          name: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          is_mako?: boolean
+          name?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          role: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string
+          full_name?: string
+          id: string
+          role?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          role?: string
+        }
+        Relationships: []
+      }
+    }
+    Views: { [_ in never]: never }
+    Functions: { is_admin: { Args: Record<string, never>; Returns: boolean } }
+    Enums: { [_ in never]: never }
+    CompositeTypes: { [_ in never]: never }
+  }
+}
+
+type PublicSchema = Database["public"]
+
+export type Tables<T extends keyof PublicSchema["Tables"]> =
+  PublicSchema["Tables"][T]["Row"]
+export type TablesInsert<T extends keyof PublicSchema["Tables"]> =
+  PublicSchema["Tables"][T]["Insert"]
+export type TablesUpdate<T extends keyof PublicSchema["Tables"]> =
+  PublicSchema["Tables"][T]["Update"]
