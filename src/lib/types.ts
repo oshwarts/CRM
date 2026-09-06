@@ -9,6 +9,17 @@ export type PreopPlan = Tables<'doctor_preop_plans'>
 export type Meeting = Tables<'meetings'>
 export type MeetingTask = Tables<'meeting_tasks'>
 export type Contact = Tables<'contacts'>
+export type CaseVolume = Tables<'case_volumes'>
+
+export const CURRENT_YEAR = new Date().getFullYear()
+export const YEAR_OPTIONS = [0, 1, 2, 3, 4].map((n) => CURRENT_YEAR - n)
+
+export type CaseVolumeRow = CaseVolume & {
+  doctor: Pick<Doctor, 'id' | 'name' | 'title'> | null
+  hospital: Pick<Hospital, 'id' | 'name' | 'city'> | null
+  procedure: Pick<Procedure, 'id' | 'name' | 'category'> | null
+  company: Pick<Company, 'id' | 'name'> | null
+}
 
 export const CONTACT_ROLES = [
   'אחות אחראית',
@@ -20,7 +31,6 @@ export const CONTACT_ROLES = [
   'רכזת ניתוחים',
   'אחר',
 ] as const
-export type ProcedureStat = { procedure_id: string; volume: number; updated_at: string }
 
 export type DoctorHospitalLink = Tables<'doctor_hospitals'> & {
   hospital: Hospital | null
@@ -35,14 +45,12 @@ export type DoctorWithRelations = Doctor & {
   doctor_hospitals: DoctorHospitalLink[]
   doctor_procedures: { procedure: Procedure | null }[]
   doctor_preop_plans: PreopPlanWithProcedure[]
-  doctor_procedure_stats: ProcedureStat[]
 }
 
 export type DoctorListItem = Doctor & {
   doctor_companies: { company_id: string }[]
   doctor_hospitals: { hospital_id: string; hospital: Hospital | null }[]
   doctor_procedures: { procedure_id: string }[]
-  doctor_procedure_stats: ProcedureStat[]
 }
 
 export type MeetingWithRelations = Meeting & {

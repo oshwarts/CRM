@@ -171,45 +171,36 @@ export type Database = {
         }
         Relationships: []
       }
-      doctor_procedure_stats: {
+      case_volumes: {
         Row: {
+          company_id: string | null
+          count: number
           doctor_id: string
+          hospital_id: string
+          id: string
           procedure_id: string
           updated_at: string
-          volume: number
+          year: number
         }
         Insert: {
+          company_id?: string | null
+          count?: number
           doctor_id: string
+          hospital_id: string
+          id?: string
           procedure_id: string
           updated_at?: string
-          volume?: number
+          year: number
         }
         Update: {
+          company_id?: string | null
+          count?: number
           doctor_id?: string
-          procedure_id?: string
-          updated_at?: string
-          volume?: number
-        }
-        Relationships: []
-      }
-      hospital_procedure_stats: {
-        Row: {
-          hospital_id: string
-          procedure_id: string
-          updated_at: string
-          volume: number
-        }
-        Insert: {
-          hospital_id: string
-          procedure_id: string
-          updated_at?: string
-          volume?: number
-        }
-        Update: {
           hospital_id?: string
+          id?: string
           procedure_id?: string
           updated_at?: string
-          volume?: number
+          year?: number
         }
         Relationships: []
       }

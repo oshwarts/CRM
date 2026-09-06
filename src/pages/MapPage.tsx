@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { MapContainer, Marker, TileLayer, Tooltip } from 'react-leaflet'
 import L from 'leaflet'
 import { Activity, Building2, Phone, Stethoscope, User } from 'lucide-react'
-import { useMapData, useProcedures, type MapHospital } from '../lib/api'
+import { useMapData, type MapHospital } from '../lib/api'
 import { ErrorState, Spinner } from '../components/ui'
 import { DOCTOR_STATUS_LABELS, SECTOR_LABELS } from '../lib/types'
 
@@ -100,16 +100,23 @@ export default function MapPage() {
 }
 
 function HospitalPanel({ hospital }: { hospital: MapHospital }) {
-  const procedures = useProcedures()
   const agents = hospital.hospital_agents
     .map((a) => a.agent?.full_name)
     .filter(Boolean)
 
-  const procName = (id: string) =>
-    (procedures.data ?? []).find((p) => p.id === id)?.name ?? '—'
-  const stats = [...hospital.hospital_procedure_stats]
-    .filter((s) => s.volume > 0)
-    .sort((a, b) => b.volume - a.volume)
+  const latestYear = hospital.case_volumes.reduce(
+    (max, v) => Math.max(max, v.year),
+    0,
+  )
+  const statsMap: Record<string, number> = {}
+  for (const v of hospital.case_volumes) {
+    if (v.year !== latestYear) continue
+    const name = v.procedure?.name ?? '—'
+    statsMap[name] = (statsMap[name] ?? 0) + v.count
+  }
+  const stats = Object.entries(statsMap)
+    .filter(([, n]) => n > 0)
+    .sort((a, b) => b[1] - a[1])
 
   return (
     <div className="space-y-4">
@@ -170,13 +177,13 @@ function HospitalPanel({ hospital }: { hospital: MapHospital }) {
       {stats.length > 0 && (
         <div>
           <p className="mb-1 flex items-center gap-1 text-xs font-medium uppercase text-slate-400">
-            <Activity size={12} /> כמות ניתוחים
+            <Activity size={12} /> כמות מקרים {latestYear}
           </p>
           <ul className="space-y-1 text-sm">
-            {stats.map((s) => (
-              <li key={s.procedure_id} className="flex justify-between text-slate-600">
-                <span>{procName(s.procedure_id)}</span>
-                <span className="font-medium">{s.volume}</span>
+            {stats.map(([name, n]) => (
+              <li key={name} className="flex justify-between text-slate-600">
+                <span>{name}</span>
+                <span className="font-medium">{n}</span>
               </li>
             ))}
           </ul>

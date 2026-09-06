@@ -48,11 +48,6 @@ function initialData(doctor?: DoctorWithRelations): DoctorFormData {
     procedureIds: compact(
       doctor?.doctor_procedures.map((p) => p.procedure?.id) ?? [],
     ),
-    procedureStats:
-      doctor?.doctor_procedure_stats.map((s) => ({
-        procedure_id: s.procedure_id,
-        volume: s.volume,
-      })) ?? [],
     hospitals:
       doctor?.doctor_hospitals.map((h) => ({
         hospital_id: h.hospital_id,
@@ -97,22 +92,6 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
     }))
   }
 
-  function setVolume(procedureId: string, volume: number) {
-    setData((d) => {
-      const rest = d.procedureStats.filter((s) => s.procedure_id !== procedureId)
-      return {
-        ...d,
-        procedureStats:
-          volume > 0
-            ? [...rest, { procedure_id: procedureId, volume }]
-            : rest,
-      }
-    })
-  }
-
-  const volumeOf = (procedureId: string) =>
-    data.procedureStats.find((s) => s.procedure_id === procedureId)?.volume ?? 0
-
   async function submit() {
     setError(null)
     if (!data.name.trim()) {
@@ -143,7 +122,7 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
         <TabList>
           <Tab id="general">פרטים כלליים</Tab>
           <Tab id="hospitals">בתי חולים</Tab>
-          <Tab id="procedures">הליכים וכמויות</Tab>
+          <Tab id="procedures">הליכים</Tab>
           <Tab id="preop">תכנון טרום ניתוחי</Tab>
         </TabList>
 
@@ -325,43 +304,30 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
 
         <TabPanel id="procedures">
           <p className="text-sm text-slate-500">
-            סמן את ההליכים שהרופא מבצע והזן כמות ניתוחים מצטברת לכל הליך.
+            סמן את ההליכים שהרופא מבצע. כמויות מקרים שנתיות נערכות בטאב "כמויות
+            מקרים" בכרטיס הרופא לאחר השמירה.
           </p>
           <div className="space-y-1">
             {(procedures.data ?? []).map((p) => {
               const on = data.procedureIds.includes(p.id)
               return (
-                <div
+                <label
                   key={p.id}
-                  className="flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 hover:bg-slate-50"
+                  className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
                 >
-                  <label className="flex items-center gap-2 text-sm text-slate-700">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4"
-                      checked={on}
-                      onChange={() => toggleProcedure(p.id)}
-                    />
-                    {p.name}
-                    {p.is_mako && (
-                      <span className="chip border-brand-200 bg-brand-50 text-brand-600">
-                        MAKO
-                      </span>
-                    )}
-                  </label>
-                  <div className="flex items-center gap-1 text-xs text-slate-400">
-                    כמות
-                    <input
-                      type="number"
-                      min={0}
-                      className="input w-20 py-1 text-center"
-                      value={volumeOf(p.id) || ''}
-                      onChange={(e) =>
-                        setVolume(p.id, Math.max(0, Number(e.target.value) || 0))
-                      }
-                    />
-                  </div>
-                </div>
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    checked={on}
+                    onChange={() => toggleProcedure(p.id)}
+                  />
+                  {p.name}
+                  {p.is_mako && (
+                    <span className="chip border-brand-200 bg-brand-50 text-brand-600">
+                      MAKO
+                    </span>
+                  )}
+                </label>
               )
             })}
           </div>

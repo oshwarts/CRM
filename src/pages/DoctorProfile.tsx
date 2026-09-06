@@ -22,6 +22,7 @@ import {
 import { DoctorFormModal } from '../components/DoctorFormModal'
 import { MeetingFormModal } from '../components/MeetingFormModal'
 import { ContactsSection } from '../components/ContactsSection'
+import { CaseVolumesEditor } from '../components/CaseVolumesEditor'
 import {
   ConfirmButton,
   EmptyState,
@@ -153,6 +154,7 @@ export default function DoctorProfile() {
           <Tab id="details">פרטים</Tab>
           <Tab id="hospitals">בתי חולים</Tab>
           <Tab id="procedures">הליכים</Tab>
+          <Tab id="volumes">כמויות מקרים</Tab>
           <Tab id="preop">תכנון טרום ניתוחי</Tab>
           <Tab id="contacts">אנשי קשר</Tab>
           <Tab id="meetings">פגישות ({meetings.data?.length ?? 0})</Tab>
@@ -199,26 +201,33 @@ export default function DoctorProfile() {
           {d.doctor_procedures.length === 0 ? (
             <EmptyState title="לא נבחרו הליכים" />
           ) : (
-            <div className="card divide-y divide-slate-100 p-2">
-              {d.doctor_procedures.map((p) => {
-                const vol = d.doctor_procedure_stats.find(
-                  (s) => s.procedure_id === p.procedure?.id,
-                )
-                return (
-                  <div
-                    key={p.procedure?.id}
-                    className="flex items-center justify-between px-3 py-2 text-sm"
-                  >
-                    <span className="text-slate-700">{p.procedure?.name}</span>
-                    <span className="text-slate-400">
-                      {vol && vol.volume > 0
-                        ? `${vol.volume} ניתוחים · עודכן ${formatDate(vol.updated_at)}`
-                        : 'לא הוזנה כמות'}
-                    </span>
-                  </div>
-                )
-              })}
+            <div className="flex flex-wrap gap-2">
+              {d.doctor_procedures.map((p) => (
+                <span
+                  key={p.procedure?.id}
+                  className="chip border-brand-200 bg-brand-50 text-brand-700"
+                >
+                  {p.procedure?.name}
+                </span>
+              ))}
             </div>
+          )}
+        </TabPanel>
+
+        <TabPanel id="volumes">
+          {d.doctor_hospitals.length === 0 ? (
+            <EmptyState
+              title="שייך תחילה בתי חולים"
+              hint="כמויות המקרים מוזנות לפי בית חולים"
+            />
+          ) : (
+            <CaseVolumesEditor
+              doctorId={d.id}
+              entityOptions={d.doctor_hospitals.map((h) => ({
+                id: h.hospital_id,
+                label: h.hospital?.name ?? '—',
+              }))}
+            />
           )}
         </TabPanel>
 

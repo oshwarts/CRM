@@ -5,6 +5,7 @@ import {
 } from '@tanstack/react-query'
 import { supabase } from './supabase'
 import type {
+  CaseVolumeRow,
   Company,
   Contact,
   Doctor,
@@ -68,10 +69,10 @@ export function useHospitals() {
 /* ============================ Doctors ============================ */
 
 const DOCTOR_LIST_SELECT =
-  '*, doctor_companies(company_id), doctor_procedures(procedure_id), doctor_procedure_stats(procedure_id, volume, updated_at), doctor_hospitals(hospital_id, hospital:hospitals(*))'
+  '*, doctor_companies(company_id), doctor_procedures(procedure_id), doctor_hospitals(hospital_id, hospital:hospitals(*))'
 
 const DOCTOR_FULL_SELECT =
-  '*, doctor_companies(company:companies(*)), doctor_procedures(procedure:procedures(*)), doctor_procedure_stats(procedure_id, volume, updated_at), doctor_hospitals(*, hospital:hospitals(*)), doctor_preop_plans(*, procedure:procedures(*))'
+  '*, doctor_companies(company:companies(*)), doctor_procedures(procedure:procedures(*)), doctor_hospitals(*, hospital:hospitals(*)), doctor_preop_plans(*, procedure:procedures(*))'
 
 export function useDoctors() {
   return useQuery({
@@ -112,7 +113,6 @@ export type DoctorFormData = {
   tracking_notes: string
   companyIds: string[]
   procedureIds: string[]
-  procedureStats: { procedure_id: string; volume: number }[]
   hospitals: { hospital_id: string; role_at_hospital: string; sector: string }[]
 }
 
@@ -135,18 +135,6 @@ async function saveDoctorRelations(doctorId: string, d: DoctorFormData) {
         ),
     )
 
-  await supabase.from('doctor_procedure_stats').delete().eq('doctor_id', doctorId)
-  const stats = d.procedureStats.filter((s) => s.volume > 0)
-  if (stats.length)
-    unwrap(
-      await supabase.from('doctor_procedure_stats').insert(
-        stats.map((s) => ({
-          doctor_id: doctorId,
-          procedure_id: s.procedure_id,
-          volume: s.volume,
-        })),
-      ),
-    )
 
   await supabase.from('doctor_hospitals').delete().eq('doctor_id', doctorId)
   if (d.hospitals.length)
@@ -630,53 +618,6 @@ export function useHospitalAgents() {
   })
 }
 
-export function useHospitalProcedureStats(hospitalId: string | undefined) {
-  return useQuery({
-    queryKey: ['hospital-procedure-stats', hospitalId],
-    enabled: !!hospitalId,
-    queryFn: async () =>
-      unwrap<{ procedure_id: string; volume: number; updated_at: string }[]>(
-        await supabase
-          .from('hospital_procedure_stats')
-          .select('procedure_id, volume, updated_at')
-          .eq('hospital_id', hospitalId!),
-      ),
-  })
-}
-
-export function useSetHospitalProcedureStats() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async ({
-      hospitalId,
-      stats,
-    }: {
-      hospitalId: string
-      stats: { procedure_id: string; volume: number }[]
-    }) => {
-      await supabase
-        .from('hospital_procedure_stats')
-        .delete()
-        .eq('hospital_id', hospitalId)
-      const rows = stats.filter((s) => s.volume > 0)
-      if (rows.length)
-        unwrap(
-          await supabase.from('hospital_procedure_stats').insert(
-            rows.map((s) => ({
-              hospital_id: hospitalId,
-              procedure_id: s.procedure_id,
-              volume: s.volume,
-            })),
-          ),
-        )
-    },
-    onSuccess: (_d, v) => {
-      qc.invalidateQueries({ queryKey: ['hospital-procedure-stats', v.hospitalId] })
-      qc.invalidateQueries({ queryKey: ['map-data'] })
-    },
-  })
-}
-
 export function useUpdateProfileRole() {
   const qc = useQueryClient()
   return useMutation({
@@ -690,7 +631,12 @@ export function useUpdateProfileRole() {
 
 export type MapHospital = Hospital & {
   hospital_agents: { agent: Pick<Profile, 'id' | 'full_name'> | null }[]
-  hospital_procedure_stats: { procedure_id: string; volume: number }[]
+  case_volumes: {
+    procedure_id: string
+    year: number
+    count: number
+    procedure: { name: string } | null
+  }[]
   contacts: Contact[]
   doctor_hospitals: {
     role_at_hospital: string
@@ -707,7 +653,7 @@ export function useMapData() {
         await supabase
           .from('hospitals')
           .select(
-            '*, hospital_agents(agent:profiles(id, full_name)), hospital_procedure_stats(procedure_id, volume), contacts(*), doctor_hospitals(role_at_hospital, sector, doctor:doctors(id, name, title, position, status))',
+            '*, hospital_agents(agent:profiles(id, full_name)), case_volumes(procedure_id, year, count, procedure:procedures(name)), contacts(*), doctor_hospitals(role_at_hospital, sector, doctor:doctors(id, name, title, position, status))',
           )
           .order('name'),
       ),
@@ -789,43 +735,93 @@ export function useDoctorActivity() {
   })
 }
 
-/* ============================ Reports ============================ */
+/* ============================ Case volumes ============================ */
 
-export type ProcedureReportRow = {
-  volume: number
-  updated_at: string
-  procedure: { name: string; category: string } | null
+const CASE_VOLUME_SELECT =
+  '*, doctor:doctors(id, name, title), hospital:hospitals(id, name, city), procedure:procedures(id, name, category), company:companies(id, name)'
+
+export function useCaseVolumes(filter: {
+  doctorId?: string
+  hospitalId?: string
+}) {
+  const { doctorId, hospitalId } = filter
+  return useQuery({
+    queryKey: ['case-volumes', doctorId ?? null, hospitalId ?? null],
+    enabled: !!doctorId || !!hospitalId,
+    queryFn: async () => {
+      let q = supabase.from('case_volumes').select(CASE_VOLUME_SELECT)
+      if (doctorId) q = q.eq('doctor_id', doctorId)
+      if (hospitalId) q = q.eq('hospital_id', hospitalId)
+      return unwrap<CaseVolumeRow[]>(
+        await q.order('year', { ascending: false }),
+      )
+    },
+  })
 }
 
-export function useDoctorProcedureReport() {
+export function useAllCaseVolumes() {
   return useQuery({
-    queryKey: ['report-doctor-procedures'],
+    queryKey: ['case-volumes-all'],
     queryFn: async () =>
-      unwrap<
-        (ProcedureReportRow & { doctor: { name: string; title: string } | null })[]
-      >(
+      unwrap<CaseVolumeRow[]>(
         await supabase
-          .from('doctor_procedure_stats')
-          .select(
-            'volume, updated_at, doctor:doctors(name, title), procedure:procedures(name, category)',
-          ),
+          .from('case_volumes')
+          .select(CASE_VOLUME_SELECT)
+          .order('year', { ascending: false }),
       ),
   })
 }
 
-export function useHospitalProcedureReport() {
-  return useQuery({
-    queryKey: ['report-hospital-procedures'],
-    queryFn: async () =>
-      unwrap<
-        (ProcedureReportRow & { hospital: { name: string; city: string } | null })[]
-      >(
-        await supabase
-          .from('hospital_procedure_stats')
-          .select(
-            'volume, updated_at, hospital:hospitals(name, city), procedure:procedures(name, category)',
-          ),
-      ),
+export type CaseVolumeInput = {
+  id?: string
+  doctor_id: string
+  hospital_id: string
+  procedure_id: string
+  company_id: string | null
+  year: number
+  count: number
+}
+
+function invalidateCaseVolumes(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ['case-volumes'] })
+  qc.invalidateQueries({ queryKey: ['case-volumes-all'] })
+  qc.invalidateQueries({ queryKey: ['map-data'] })
+}
+
+export function useUpsertCaseVolume() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (v: CaseVolumeInput) => {
+      const payload = {
+        doctor_id: v.doctor_id,
+        hospital_id: v.hospital_id,
+        procedure_id: v.procedure_id,
+        company_id: v.company_id,
+        year: v.year,
+        count: v.count,
+      }
+      if (v.id) {
+        unwrap(await supabase.from('case_volumes').update(payload).eq('id', v.id))
+      } else {
+        const res = await supabase.from('case_volumes').insert(payload)
+        if (res.error) {
+          const code = (res.error as { code?: string }).code
+          if (code === '23505')
+            throw new Error('כבר קיימת רשומה עם אותו רופא / בי״ח / הליך / חברה / שנה')
+          throw res.error
+        }
+      }
+    },
+    onSuccess: () => invalidateCaseVolumes(qc),
+  })
+}
+
+export function useDeleteCaseVolume() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) =>
+      unwrap(await supabase.from('case_volumes').delete().eq('id', id)),
+    onSuccess: () => invalidateCaseVolumes(qc),
   })
 }
 

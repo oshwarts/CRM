@@ -10,11 +10,9 @@ import {
   useDeleteProcedure,
   useDoctors,
   useHospitalAgents,
-  useHospitalProcedureStats,
   useHospitals,
   useProcedures,
   useSetHospitalAgents,
-  useSetHospitalProcedureStats,
   useUpdateProfileRole,
   useUpsertCompany,
   useUpsertContact,
@@ -23,6 +21,7 @@ import {
 } from '../lib/api'
 import { useAuth } from '../context/AuthProvider'
 import { ContactsSection } from '../components/ContactsSection'
+import { CaseVolumesEditor } from '../components/CaseVolumesEditor'
 import {
   ConfirmButton,
   Field,
@@ -290,12 +289,10 @@ function HospitalModal({
   onClose: () => void
 }) {
   const agents = useAgents()
-  const procedures = useProcedures()
+  const doctors = useDoctors()
   const hospitalAgents = useHospitalAgents()
-  const procStatsQuery = useHospitalProcedureStats(hospital?.id)
   const upsert = useUpsertHospital()
   const setAgents = useSetHospitalAgents()
-  const setProcStats = useSetHospitalProcedureStats()
 
   const [form, setForm] = useState({
     name: hospital?.name ?? '',
@@ -306,7 +303,6 @@ function HospitalModal({
     lng: hospital?.lng != null ? String(hospital.lng) : '',
   })
   const [agentIds, setAgentIds] = useState<string[]>([])
-  const [volumes, setVolumes] = useState<Record<string, number>>({})
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -318,11 +314,11 @@ function HospitalModal({
     )
   }, [hospital, hospitalAgents.data])
 
-  useEffect(() => {
-    const map: Record<string, number> = {}
-    for (const s of procStatsQuery.data ?? []) map[s.procedure_id] = s.volume
-    setVolumes(map)
-  }, [procStatsQuery.data])
+  const hospitalDoctors = (doctors.data ?? []).filter((d) =>
+    hospital
+      ? d.doctor_hospitals.some((h) => h.hospital_id === hospital.id)
+      : false,
+  )
 
   async function save() {
     setError(null)
@@ -341,13 +337,6 @@ function HospitalModal({
         lng: form.lng ? Number(form.lng) : null,
       })
       await setAgents.mutateAsync({ hospitalId: saved.id, agentIds })
-      await setProcStats.mutateAsync({
-        hospitalId: saved.id,
-        stats: Object.entries(volumes).map(([procedure_id, volume]) => ({
-          procedure_id,
-          volume,
-        })),
-      })
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'שמירה נכשלה')
@@ -433,32 +422,25 @@ function HospitalModal({
         </Field>
       </div>
 
-      <div className="mt-4">
-        <Field label="כמות ניתוחים לפי הליך (מצטבר)">
-          <div className="space-y-1">
-            {(procedures.data ?? []).map((p) => (
-              <div
-                key={p.id}
-                className="flex items-center justify-between gap-3 text-sm"
-              >
-                <span className="text-slate-600">{p.name}</span>
-                <input
-                  type="number"
-                  min={0}
-                  className="input w-24 py-1 text-center"
-                  value={volumes[p.id] || ''}
-                  onChange={(e) =>
-                    setVolumes((cur) => ({
-                      ...cur,
-                      [p.id]: Math.max(0, Number(e.target.value) || 0),
-                    }))
-                  }
-                />
-              </div>
-            ))}
-          </div>
-        </Field>
-      </div>
+      {hospital && (
+        <div className="mt-4 border-t border-slate-200 pt-4">
+          <p className="mb-2 text-sm font-medium text-slate-600">כמויות מקרים</p>
+          {hospitalDoctors.length === 0 ? (
+            <p className="text-sm text-slate-400">
+              אין רופאים משויכים לבית חולים זה. שייך רופא (בכרטיס הרופא) כדי
+              להזין כמויות.
+            </p>
+          ) : (
+            <CaseVolumesEditor
+              hospitalId={hospital.id}
+              entityOptions={hospitalDoctors.map((d) => ({
+                id: d.id,
+                label: `${d.title} ${d.name}`,
+              }))}
+            />
+          )}
+        </div>
+      )}
 
       {hospital && (
         <div className="mt-4 border-t border-slate-200 pt-4">
@@ -479,7 +461,7 @@ function HospitalModal({
         <button
           className="btn-primary"
           onClick={save}
-          disabled={upsert.isPending || setAgents.isPending || setProcStats.isPending}
+          disabled={upsert.isPending || setAgents.isPending}
         >
           שמירה
         </button>

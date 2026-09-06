@@ -1,20 +1,31 @@
 import { useMemo, useState } from 'react'
 import { Download } from 'lucide-react'
-import {
-  useDoctorProcedureReport,
-  useHospitalProcedureReport,
-} from '../lib/api'
+import { useAllCaseVolumes } from '../lib/api'
 import { EmptyState, ErrorState, Spinner } from '../components/ui'
+import type { CaseVolumeRow } from '../lib/types'
 import { classNames } from '../lib/utils'
 
-type Row = { label: string; sub: string; byProc: Record<string, number>; total: number }
+type GroupBy = 'hospital' | 'doctor' | 'company'
+
+const GROUP_LABEL: Record<GroupBy, string> = {
+  hospital: 'בית חולים',
+  doctor: 'רופא',
+  company: 'חברה',
+}
+
+function keyOf(r: CaseVolumeRow, by: GroupBy): string {
+  if (by === 'hospital') return r.hospital?.name ?? '—'
+  if (by === 'doctor')
+    return `${r.doctor?.title ?? ''} ${r.doctor?.name ?? '—'}`.trim()
+  return r.company?.name ?? 'ללא חברה'
+}
 
 function downloadCsv(filename: string, headers: string[], rows: (string | number)[][]) {
-  const escape = (v: string | number) => {
+  const esc = (v: string | number) => {
     const s = String(v)
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
   }
-  const csv = [headers, ...rows].map((r) => r.map(escape).join(',')).join('\n')
+  const csv = [headers, ...rows].map((r) => r.map(esc).join(',')).join('\n')
   const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -25,63 +36,65 @@ function downloadCsv(filename: string, headers: string[], rows: (string | number
 }
 
 export default function Reports() {
-  const [mode, setMode] = useState<'hospital' | 'doctor'>('hospital')
-  const hospitalReport = useHospitalProcedureReport()
-  const doctorReport = useDoctorProcedureReport()
+  const volumes = useAllCaseVolumes()
+  const [groupBy, setGroupBy] = useState<GroupBy>('hospital')
+  const [year, setYear] = useState<string>('')
 
-  const query = mode === 'hospital' ? hospitalReport : doctorReport
+  const years = useMemo(() => {
+    const s = new Set<number>()
+    for (const r of volumes.data ?? []) s.add(r.year)
+    return [...s].sort((a, b) => b - a)
+  }, [volumes.data])
 
-  const { procedures, rows, grandTotal } = useMemo(() => {
+  const { procedures, rows, procTotals, grand } = useMemo(() => {
+    const data = (volumes.data ?? []).filter(
+      (r) => !year || String(r.year) === year,
+    )
     const procSet = new Set<string>()
-    const grouped = new Map<string, Row>()
-
-    for (const r of (query.data ?? []) as Array<{
-      volume: number
-      procedure: { name: string } | null
-      hospital?: { name: string; city: string } | null
-      doctor?: { name: string; title: string } | null
-    }>) {
-      const procName = r.procedure?.name ?? '—'
-      procSet.add(procName)
-      const key =
-        mode === 'hospital'
-          ? r.hospital?.name ?? '—'
-          : `${r.doctor?.title ?? ''} ${r.doctor?.name ?? '—'}`.trim()
-      const sub = mode === 'hospital' ? r.hospital?.city ?? '' : ''
-      const cur =
-        grouped.get(key) ?? { label: key, sub, byProc: {}, total: 0 }
-      cur.byProc[procName] = (cur.byProc[procName] ?? 0) + r.volume
-      cur.total += r.volume
-      grouped.set(key, cur)
+    const grouped = new Map<
+      string,
+      { label: string; byProc: Record<string, number>; total: number }
+    >()
+    for (const r of data) {
+      const proc = r.procedure?.name ?? '—'
+      procSet.add(proc)
+      const k = keyOf(r, groupBy)
+      const cur = grouped.get(k) ?? { label: k, byProc: {}, total: 0 }
+      cur.byProc[proc] = (cur.byProc[proc] ?? 0) + r.count
+      cur.total += r.count
+      grouped.set(k, cur)
     }
-
     const procedures = [...procSet].sort()
     const rows = [...grouped.values()].sort((a, b) => b.total - a.total)
-    const grandTotal = rows.reduce((s, r) => s + r.total, 0)
-    return { procedures, rows, grandTotal }
-  }, [query.data, mode])
+    const procTotals: Record<string, number> = {}
+    for (const p of procedures)
+      procTotals[p] = rows.reduce((s, r) => s + (r.byProc[p] ?? 0), 0)
+    const grand = rows.reduce((s, r) => s + r.total, 0)
+    return { procedures, rows, procTotals, grand }
+  }, [volumes.data, groupBy, year])
 
   function exportCsv() {
-    const headers = [
-      mode === 'hospital' ? 'בית חולים' : 'רופא',
-      ...procedures,
-      'סה״כ',
-    ]
-    const data = rows.map((r) => [
-      r.label + (r.sub ? ` (${r.sub})` : ''),
+    const headers = [GROUP_LABEL[groupBy], ...procedures, 'סה״כ']
+    const body = rows.map((r) => [
+      r.label,
       ...procedures.map((p) => r.byProc[p] ?? 0),
       r.total,
     ])
-    downloadCsv(`דוח-כמויות-${mode === 'hospital' ? 'בתי-חולים' : 'רופאים'}.csv`, headers, data)
+    body.push(['סה״כ', ...procedures.map((p) => procTotals[p]), grand])
+    downloadCsv(
+      `דוח-כמויות-${GROUP_LABEL[groupBy]}${year ? `-${year}` : ''}.csv`,
+      headers,
+      body,
+    )
   }
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">דוח כמויות ניתוחים</h1>
+          <h1 className="text-2xl font-bold text-slate-800">דוח כמויות מקרים</h1>
           <p className="text-sm text-slate-400">
-            סיכום כמויות מצטברות לפי הליך
+            כל מקרה משויך לרופא ולבית חולים – הסכומים מתאזנים
           </p>
         </div>
         <button
@@ -94,29 +107,43 @@ export default function Reports() {
         </button>
       </div>
 
-      <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
-        {(['hospital', 'doctor'] as const).map((m) => (
-          <button
-            key={m}
-            onClick={() => setMode(m)}
-            className={classNames(
-              'rounded-lg px-4 py-1.5 text-sm font-medium transition',
-              mode === m
-                ? 'bg-white text-brand-600 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700',
-            )}
-          >
-            {m === 'hospital' ? 'לפי בית חולים' : 'לפי רופא'}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
+          {(Object.keys(GROUP_LABEL) as GroupBy[]).map((g) => (
+            <button
+              key={g}
+              onClick={() => setGroupBy(g)}
+              className={classNames(
+                'rounded-lg px-4 py-1.5 text-sm font-medium transition',
+                groupBy === g
+                  ? 'bg-white text-brand-600 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700',
+              )}
+            >
+              לפי {GROUP_LABEL[g]}
+            </button>
+          ))}
+        </div>
+        <select
+          className="input max-w-40"
+          value={year}
+          onChange={(e) => setYear(e.target.value)}
+        >
+          <option value="">כל השנים</option>
+          {years.map((y) => (
+            <option key={y} value={y}>
+              {y}
+            </option>
+          ))}
+        </select>
       </div>
 
-      {query.isLoading && <Spinner />}
-      {query.error && <ErrorState error={query.error} />}
-      {query.data && rows.length === 0 && (
+      {volumes.isLoading && <Spinner />}
+      {volumes.error && <ErrorState error={volumes.error} />}
+      {volumes.data && rows.length === 0 && (
         <EmptyState
           title="אין נתוני כמויות"
-          hint="הזן כמות ניתוחים בכרטיסי הרופאים או בהגדרות בתי החולים"
+          hint="הזן כמויות מקרים בטאב 'כמויות מקרים' בכרטיס רופא או בעריכת בית חולים"
         />
       )}
 
@@ -126,7 +153,7 @@ export default function Reports() {
             <thead>
               <tr className="border-b border-slate-200 text-slate-500">
                 <th className="p-3 text-right font-medium">
-                  {mode === 'hospital' ? 'בית חולים' : 'רופא'}
+                  {GROUP_LABEL[groupBy]}
                 </th>
                 {procedures.map((p) => (
                   <th key={p} className="p-3 text-center font-medium">
@@ -139,12 +166,7 @@ export default function Reports() {
             <tbody>
               {rows.map((r) => (
                 <tr key={r.label} className="border-b border-slate-100">
-                  <td className="p-3 text-slate-700">
-                    {r.label}
-                    {r.sub && (
-                      <span className="mr-1 text-xs text-slate-400">{r.sub}</span>
-                    )}
-                  </td>
+                  <td className="p-3 text-slate-700">{r.label}</td>
                   {procedures.map((p) => (
                     <td key={p} className="p-3 text-center text-slate-500">
                       {r.byProc[p] || ''}
@@ -161,10 +183,10 @@ export default function Reports() {
                 <td className="p-3">סה״כ</td>
                 {procedures.map((p) => (
                   <td key={p} className="p-3 text-center">
-                    {rows.reduce((s, r) => s + (r.byProc[p] ?? 0), 0) || ''}
+                    {procTotals[p] || ''}
                   </td>
                 ))}
-                <td className="p-3 text-center">{grandTotal}</td>
+                <td className="p-3 text-center">{grand}</td>
               </tr>
             </tfoot>
           </table>
