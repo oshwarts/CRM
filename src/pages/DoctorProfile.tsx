@@ -21,6 +21,7 @@ import {
 } from '../lib/api'
 import { DoctorFormModal } from '../components/DoctorFormModal'
 import { MeetingFormModal } from '../components/MeetingFormModal'
+import { ContactsSection } from '../components/ContactsSection'
 import {
   ConfirmButton,
   EmptyState,
@@ -38,7 +39,7 @@ import {
   SECTOR_LABELS,
   type PreopPlanWithProcedure,
 } from '../lib/types'
-import { classNames, formatDate } from '../lib/utils'
+import { classNames, daysUntil, formatDate } from '../lib/utils'
 
 export default function DoctorProfile() {
   const { id } = useParams<{ id: string }>()
@@ -59,6 +60,14 @@ export default function DoctorProfile() {
 
   const d = doctor.data
   const isFav = (favorites.data ?? []).includes(d.id)
+  const sortedMeetingDates = (meetings.data ?? [])
+    .map((m) => m.meeting_date)
+    .filter((x): x is string => !!x)
+    .sort()
+  const lastMeetingDate =
+    sortedMeetingDates[sortedMeetingDates.length - 1] ?? null
+  const daysSince =
+    lastMeetingDate != null ? -(daysUntil(lastMeetingDate) ?? 0) : null
 
   return (
     <div className="space-y-5">
@@ -99,6 +108,17 @@ export default function DoctorProfile() {
                 {d.doctor_companies.map((c) => c.company?.name).filter(Boolean).join(' · ')}
               </span>
             )}
+            <span
+              className={classNames(
+                'inline-flex items-center gap-1',
+                daysSince != null && daysSince > 90 && 'text-amber-600',
+              )}
+            >
+              פעילות אחרונה:{' '}
+              {lastMeetingDate
+                ? `${formatDate(lastMeetingDate)} (לפני ${daysSince} ימים)`
+                : 'אין פגישות'}
+            </span>
           </div>
         </div>
         <div className="flex gap-2">
@@ -134,6 +154,7 @@ export default function DoctorProfile() {
           <Tab id="hospitals">בתי חולים</Tab>
           <Tab id="procedures">הליכים</Tab>
           <Tab id="preop">תכנון טרום ניתוחי</Tab>
+          <Tab id="contacts">אנשי קשר</Tab>
           <Tab id="meetings">פגישות ({meetings.data?.length ?? 0})</Tab>
         </TabList>
 
@@ -203,6 +224,10 @@ export default function DoctorProfile() {
 
         <TabPanel id="preop">
           <PreopSection doctorId={d.id} plans={d.doctor_preop_plans} />
+        </TabPanel>
+
+        <TabPanel id="contacts">
+          <ContactsSection doctorId={d.id} />
         </TabPanel>
 
         <TabPanel id="meetings">

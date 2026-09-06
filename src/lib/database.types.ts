@@ -18,6 +18,45 @@ export type Database = {
         Update: { created_at?: string; id?: string; name?: string }
         Relationships: []
       }
+      contacts: {
+        Row: {
+          created_at: string
+          doctor_id: string | null
+          email: string
+          hospital_id: string | null
+          id: string
+          name: string
+          notes: string
+          phone: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          doctor_id?: string | null
+          email?: string
+          hospital_id?: string | null
+          id?: string
+          name: string
+          notes?: string
+          phone?: string
+          role?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          doctor_id?: string | null
+          email?: string
+          hospital_id?: string | null
+          id?: string
+          name?: string
+          notes?: string
+          phone?: string
+          role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       doctor_companies: {
         Row: { company_id: string; doctor_id: string }
         Insert: { company_id: string; doctor_id: string }

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Heart, Plus, Search } from 'lucide-react'
 import {
   useCompanies,
+  useDoctorActivity,
   useDoctors,
   useFavorites,
   useHospitals,
@@ -12,7 +13,7 @@ import {
 import { DoctorFormModal } from '../components/DoctorFormModal'
 import { EmptyState, ErrorState, Spinner } from '../components/ui'
 import { DOCTOR_STATUS_LABELS } from '../lib/types'
-import { classNames } from '../lib/utils'
+import { classNames, formatDate } from '../lib/utils'
 
 export default function Doctors() {
   const doctors = useDoctors()
@@ -20,6 +21,7 @@ export default function Doctors() {
   const procedures = useProcedures()
   const hospitals = useHospitals()
   const favorites = useFavorites()
+  const activity = useDoctorActivity()
   const toggleFav = useToggleFavorite()
 
   const [showAdd, setShowAdd] = useState(false)
@@ -121,6 +123,7 @@ export default function Doctors() {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((d) => {
           const isFav = favSet.has(d.id)
+          const lastMeeting = activity.data?.[d.id]?.lastMeeting ?? null
           return (
             <div key={d.id} className="card flex flex-col gap-3 p-4">
               <div className="flex items-start justify-between">
@@ -166,6 +169,11 @@ export default function Doctors() {
                   </span>
                 )}
               </div>
+
+              <p className="text-xs text-slate-400">
+                פעילות אחרונה:{' '}
+                {lastMeeting ? formatDate(lastMeeting) : 'אין פגישות'}
+              </p>
 
               <Link
                 to={`/doctors/${d.id}`}

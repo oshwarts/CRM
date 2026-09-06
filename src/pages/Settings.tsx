@@ -3,9 +3,12 @@ import { Pencil, Plus, Trash2 } from 'lucide-react'
 import {
   useAgents,
   useCompanies,
+  useContacts,
   useDeleteCompany,
+  useDeleteContact,
   useDeleteHospital,
   useDeleteProcedure,
+  useDoctors,
   useHospitalAgents,
   useHospitalProcedureStats,
   useHospitals,
@@ -14,10 +17,12 @@ import {
   useSetHospitalProcedureStats,
   useUpdateProfileRole,
   useUpsertCompany,
+  useUpsertContact,
   useUpsertHospital,
   useUpsertProcedure,
 } from '../lib/api'
 import { useAuth } from '../context/AuthProvider'
+import { ContactsSection } from '../components/ContactsSection'
 import {
   ConfirmButton,
   Field,
@@ -30,6 +35,7 @@ import {
   Tabs,
 } from '../components/ui'
 import {
+  CONTACT_ROLES,
   PROCEDURE_CATEGORY_LABELS,
   SECTOR_LABELS,
   type Hospital,
@@ -48,6 +54,7 @@ export default function Settings() {
           <Tab id="companies">חברות</Tab>
           <Tab id="procedures">הליכים</Tab>
           <Tab id="hospitals">בתי חולים</Tab>
+          <Tab id="contacts">אנשי קשר</Tab>
           <Tab id="users">משתמשים</Tab>
         </TabList>
 
@@ -59,6 +66,9 @@ export default function Settings() {
         </TabPanel>
         <TabPanel id="hospitals">
           <HospitalsSettings />
+        </TabPanel>
+        <TabPanel id="contacts">
+          <ContactsSettings />
         </TabPanel>
         <TabPanel id="users">
           <UsersSettings isAdmin={isAdmin} />
@@ -450,6 +460,12 @@ function HospitalModal({
         </Field>
       </div>
 
+      {hospital && (
+        <div className="mt-4 border-t border-slate-200 pt-4">
+          <ContactsSection hospitalId={hospital.id} />
+        </div>
+      )}
+
       {error && (
         <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
           {error}
@@ -469,6 +485,216 @@ function HospitalModal({
         </button>
       </div>
     </Modal>
+  )
+}
+
+/* ---------------- Contacts ---------------- */
+
+const EMPTY_CONTACT = {
+  name: '',
+  role: '',
+  phone: '',
+  email: '',
+  notes: '',
+  hospital_id: '',
+  doctor_id: '',
+}
+
+function ContactsSettings() {
+  const contacts = useContacts()
+  const hospitals = useHospitals()
+  const doctors = useDoctors()
+  const upsert = useUpsertContact()
+  const del = useDeleteContact()
+  const [draft, setDraft] = useState<
+    (typeof EMPTY_CONTACT & { id?: string }) | null
+  >(null)
+
+  const hospitalName = (id: string | null) =>
+    hospitals.data?.find((h) => h.id === id)?.name
+  const doctorName = (id: string | null) => {
+    const d = doctors.data?.find((x) => x.id === id)
+    return d ? `${d.title} ${d.name}` : undefined
+  }
+
+  async function save() {
+    if (!draft || !draft.name.trim()) return
+    await upsert.mutateAsync({
+      id: draft.id,
+      name: draft.name.trim(),
+      role: draft.role,
+      phone: draft.phone,
+      email: draft.email,
+      notes: draft.notes,
+      hospital_id: draft.hospital_id || null,
+      doctor_id: draft.doctor_id || null,
+    })
+    setDraft(null)
+  }
+
+  return (
+    <div className="card p-5">
+      <div className="mb-4 flex justify-end">
+        <button
+          className="btn-primary"
+          onClick={() => setDraft({ ...EMPTY_CONTACT })}
+        >
+          <Plus size={16} />
+          איש קשר חדש
+        </button>
+      </div>
+
+      {draft && (
+        <div className="mb-4 space-y-3 rounded-xl border border-brand-200 p-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="שם">
+              <input
+                className="input"
+                value={draft.name}
+                onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+              />
+            </Field>
+            <Field label="תפקיד">
+              <input
+                className="input"
+                list="settings-contact-roles"
+                value={draft.role}
+                onChange={(e) => setDraft({ ...draft, role: e.target.value })}
+              />
+              <datalist id="settings-contact-roles">
+                {CONTACT_ROLES.map((r) => (
+                  <option key={r} value={r} />
+                ))}
+              </datalist>
+            </Field>
+            <Field label="טלפון">
+              <input
+                dir="ltr"
+                className="input text-right"
+                value={draft.phone}
+                onChange={(e) => setDraft({ ...draft, phone: e.target.value })}
+              />
+            </Field>
+            <Field label="אימייל">
+              <input
+                dir="ltr"
+                className="input text-right"
+                value={draft.email}
+                onChange={(e) => setDraft({ ...draft, email: e.target.value })}
+              />
+            </Field>
+            <Field label="שיוך לבית חולים">
+              <select
+                className="input"
+                value={draft.hospital_id}
+                onChange={(e) =>
+                  setDraft({ ...draft, hospital_id: e.target.value })
+                }
+              >
+                <option value="">— ללא —</option>
+                {(hospitals.data ?? []).map((h) => (
+                  <option key={h.id} value={h.id}>
+                    {h.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="שיוך לרופא">
+              <select
+                className="input"
+                value={draft.doctor_id}
+                onChange={(e) =>
+                  setDraft({ ...draft, doctor_id: e.target.value })
+                }
+              >
+                <option value="">— ללא —</option>
+                {(doctors.data ?? []).map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.title} {d.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="הערות" className="sm:col-span-2">
+              <input
+                className="input"
+                value={draft.notes}
+                onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
+              />
+            </Field>
+          </div>
+          <div className="flex justify-end gap-2">
+            <button className="btn-secondary" onClick={() => setDraft(null)}>
+              ביטול
+            </button>
+            <button
+              className="btn-primary"
+              onClick={save}
+              disabled={!draft.name.trim()}
+            >
+              שמירה
+            </button>
+          </div>
+        </div>
+      )}
+
+      {contacts.isLoading ? (
+        <Spinner />
+      ) : (
+        <ul className="divide-y divide-slate-100">
+          {(contacts.data ?? []).map((c) => (
+            <li
+              key={c.id}
+              className="flex items-center justify-between gap-2 py-2 text-sm"
+            >
+              <div>
+                <p className="text-slate-700">
+                  {c.name}
+                  {c.role && (
+                    <span className="mr-2 text-xs text-slate-400">{c.role}</span>
+                  )}
+                </p>
+                <p className="text-xs text-slate-400">
+                  {[c.phone, hospitalName(c.hospital_id), doctorName(c.doctor_id)]
+                    .filter(Boolean)
+                    .join(' · ') || '—'}
+                </p>
+              </div>
+              <div className="flex gap-1">
+                <button
+                  className="btn-ghost !px-2"
+                  onClick={() =>
+                    setDraft({
+                      id: c.id,
+                      name: c.name,
+                      role: c.role,
+                      phone: c.phone,
+                      email: c.email,
+                      notes: c.notes,
+                      hospital_id: c.hospital_id ?? '',
+                      doctor_id: c.doctor_id ?? '',
+                    })
+                  }
+                >
+                  <Pencil size={15} />
+                </button>
+                <ConfirmButton
+                  className="btn-ghost !px-2 text-red-500"
+                  onConfirm={() => del.mutate(c.id)}
+                >
+                  <Trash2 size={15} />
+                </ConfirmButton>
+              </div>
+            </li>
+          ))}
+          {(contacts.data ?? []).length === 0 && (
+            <li className="py-4 text-center text-sm text-slate-400">
+              אין אנשי קשר. אפשר להוסיף גם דרך כרטיס רופא או עריכת בית חולים.
+            </li>
+          )}
+        </ul>
+      )}
+    </div>
   )
 }
 

@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
+  BarChart3,
   CalendarDays,
   Home,
   LogOut,
@@ -8,6 +10,7 @@ import {
   Stethoscope,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthProvider'
+import { ProfileModal } from './ProfileModal'
 import { classNames } from '../lib/utils'
 
 const NAV = [
@@ -15,12 +18,14 @@ const NAV = [
   { to: '/doctors', label: 'רופאים', icon: Stethoscope, end: false },
   { to: '/meetings', label: 'פגישות', icon: CalendarDays, end: false },
   { to: '/map', label: 'מפה', icon: MapIcon, end: false },
+  { to: '/reports', label: 'דוחות', icon: BarChart3, end: false },
   { to: '/settings', label: 'הגדרות', icon: Settings, end: false },
 ]
 
 export function Layout() {
   const { profile, signOut } = useAuth()
   const navigate = useNavigate()
+  const [showProfile, setShowProfile] = useState(false)
 
   async function handleSignOut() {
     await signOut()
@@ -62,10 +67,14 @@ export function Layout() {
         </nav>
 
         <div className="border-t border-slate-200 p-3">
-          <p className="px-2 pb-2 text-xs text-slate-400">
-            {profile?.full_name || profile?.email}
+          <button
+            className="mb-1 w-full rounded-lg px-2 py-1.5 text-right text-xs text-slate-500 hover:bg-slate-100"
+            onClick={() => setShowProfile(true)}
+          >
+            {profile?.full_name || profile?.email || 'הפרופיל שלי'}
             {profile?.role === 'admin' && ' · מנהל'}
-          </p>
+            <span className="block text-[11px] text-brand-500">עריכת פרופיל</span>
+          </button>
           <button className="btn-ghost w-full justify-start" onClick={handleSignOut}>
             <LogOut size={16} />
             התנתקות
@@ -78,6 +87,8 @@ export function Layout() {
           <Outlet />
         </div>
       </main>
+
+      {showProfile && <ProfileModal onClose={() => setShowProfile(false)} />}
     </div>
   )
 }

@@ -6,6 +6,7 @@ import {
 import { supabase } from './supabase'
 import type {
   Company,
+  Contact,
   Doctor,
   DoctorListItem,
   DoctorWithRelations,
@@ -690,6 +691,7 @@ export function useUpdateProfileRole() {
 export type MapHospital = Hospital & {
   hospital_agents: { agent: Pick<Profile, 'id' | 'full_name'> | null }[]
   hospital_procedure_stats: { procedure_id: string; volume: number }[]
+  contacts: Contact[]
   doctor_hospitals: {
     role_at_hospital: string
     sector: string
@@ -705,9 +707,143 @@ export function useMapData() {
         await supabase
           .from('hospitals')
           .select(
-            '*, hospital_agents(agent:profiles(id, full_name)), hospital_procedure_stats(procedure_id, volume), doctor_hospitals(role_at_hospital, sector, doctor:doctors(id, name, title, position, status))',
+            '*, hospital_agents(agent:profiles(id, full_name)), hospital_procedure_stats(procedure_id, volume), contacts(*), doctor_hospitals(role_at_hospital, sector, doctor:doctors(id, name, title, position, status))',
           )
           .order('name'),
       ),
+  })
+}
+
+/* ============================ Contacts ============================ */
+
+export function useContacts() {
+  return useQuery({
+    queryKey: ['contacts'],
+    queryFn: async () =>
+      unwrap<Contact[]>(
+        await supabase.from('contacts').select('*').order('name'),
+      ),
+  })
+}
+
+export function useUpsertContact() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (c: Partial<Contact> & { name: string }) => {
+      const payload = {
+        name: c.name,
+        role: c.role ?? '',
+        phone: c.phone ?? '',
+        email: c.email ?? '',
+        notes: c.notes ?? '',
+        hospital_id: c.hospital_id ?? null,
+        doctor_id: c.doctor_id ?? null,
+      }
+      if (c.id) unwrap(await supabase.from('contacts').update(payload).eq('id', c.id))
+      else unwrap(await supabase.from('contacts').insert(payload))
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contacts'] })
+      qc.invalidateQueries({ queryKey: ['map-data'] })
+    },
+  })
+}
+
+export function useDeleteContact() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) =>
+      unwrap(await supabase.from('contacts').delete().eq('id', id)),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contacts'] })
+      qc.invalidateQueries({ queryKey: ['map-data'] })
+    },
+  })
+}
+
+/* ============================ Doctor activity ============================ */
+
+export type DoctorActivity = { lastMeeting: string | null; count: number }
+
+export function useDoctorActivity() {
+  return useQuery({
+    queryKey: ['doctor-activity'],
+    queryFn: async () => {
+      const rows = unwrap<
+        { doctor_id: string; meeting: { meeting_date: string | null } | null }[]
+      >(
+        await supabase
+          .from('meeting_doctors')
+          .select('doctor_id, meeting:meetings(meeting_date)'),
+      )
+      const map: Record<string, DoctorActivity> = {}
+      for (const r of rows) {
+        const cur = map[r.doctor_id] ?? { lastMeeting: null, count: 0 }
+        cur.count += 1
+        const d = r.meeting?.meeting_date ?? null
+        if (d && (!cur.lastMeeting || d > cur.lastMeeting)) cur.lastMeeting = d
+        map[r.doctor_id] = cur
+      }
+      return map
+    },
+  })
+}
+
+/* ============================ Reports ============================ */
+
+export type ProcedureReportRow = {
+  volume: number
+  updated_at: string
+  procedure: { name: string; category: string } | null
+}
+
+export function useDoctorProcedureReport() {
+  return useQuery({
+    queryKey: ['report-doctor-procedures'],
+    queryFn: async () =>
+      unwrap<
+        (ProcedureReportRow & { doctor: { name: string; title: string } | null })[]
+      >(
+        await supabase
+          .from('doctor_procedure_stats')
+          .select(
+            'volume, updated_at, doctor:doctors(name, title), procedure:procedures(name, category)',
+          ),
+      ),
+  })
+}
+
+export function useHospitalProcedureReport() {
+  return useQuery({
+    queryKey: ['report-hospital-procedures'],
+    queryFn: async () =>
+      unwrap<
+        (ProcedureReportRow & { hospital: { name: string; city: string } | null })[]
+      >(
+        await supabase
+          .from('hospital_procedure_stats')
+          .select(
+            'volume, updated_at, hospital:hospitals(name, city), procedure:procedures(name, category)',
+          ),
+      ),
+  })
+}
+
+/* ============================ My profile ============================ */
+
+export function useUpdateMyProfile() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (fullName: string) => {
+      const { data: userRes } = await supabase.auth.getUser()
+      if (!userRes.user) throw new Error('לא מחובר')
+      unwrap(
+        await supabase
+          .from('profiles')
+          .update({ full_name: fullName })
+          .eq('id', userRes.user.id),
+      )
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['agents'] }),
   })
 }

@@ -8,6 +8,18 @@ export type Doctor = Tables<'doctors'>
 export type PreopPlan = Tables<'doctor_preop_plans'>
 export type Meeting = Tables<'meetings'>
 export type MeetingTask = Tables<'meeting_tasks'>
+export type Contact = Tables<'contacts'>
+
+export const CONTACT_ROLES = [
+  'אחות אחראית',
+  'אחות חדר ניתוח',
+  'טכנאי / מהנדס',
+  'מנהל רכש',
+  'מזכירה רפואית',
+  'מנהל מחלקה',
+  'רכזת ניתוחים',
+  'אחר',
+] as const
 export type ProcedureStat = { procedure_id: string; volume: number; updated_at: string }
 
 export type DoctorHospitalLink = Tables<'doctor_hospitals'> & {

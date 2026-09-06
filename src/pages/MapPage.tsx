@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MapContainer, Marker, TileLayer, Tooltip } from 'react-leaflet'
 import L from 'leaflet'
-import { Activity, Building2, Stethoscope, User } from 'lucide-react'
+import { Activity, Building2, Phone, Stethoscope, User } from 'lucide-react'
 import { useMapData, useProcedures, type MapHospital } from '../lib/api'
 import { ErrorState, Spinner } from '../components/ui'
 import { DOCTOR_STATUS_LABELS, SECTOR_LABELS } from '../lib/types'
@@ -145,6 +145,27 @@ function HospitalPanel({ hospital }: { hospital: MapHospital }) {
           <p className="text-sm text-slate-400">לא הוגדר (ניתן להגדיר בהגדרות)</p>
         )}
       </div>
+
+      {hospital.contacts.length > 0 && (
+        <div>
+          <p className="mb-1 flex items-center gap-1 text-xs font-medium uppercase text-slate-400">
+            <Phone size={12} /> אנשי קשר
+          </p>
+          <ul className="space-y-1 text-sm">
+            {hospital.contacts.map((c) => (
+              <li key={c.id} className="text-slate-600">
+                <span className="font-medium">{c.name}</span>
+                {c.role ? ` · ${c.role}` : ''}
+                {c.phone ? (
+                  <a href={`tel:${c.phone}`} dir="ltr" className="block text-xs text-slate-400">
+                    {c.phone}
+                  </a>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {stats.length > 0 && (
         <div>
