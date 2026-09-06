@@ -97,7 +97,9 @@ export type Database = {
           notes: string
           phone: string
           position: string
+          status: string
           title: string
+          tracking_notes: string
           updated_at: string
         }
         Insert: {
@@ -109,7 +111,9 @@ export type Database = {
           notes?: string
           phone?: string
           position?: string
+          status?: string
           title?: string
+          tracking_notes?: string
           updated_at?: string
         }
         Update: {
@@ -121,8 +125,52 @@ export type Database = {
           notes?: string
           phone?: string
           position?: string
+          status?: string
           title?: string
+          tracking_notes?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      doctor_procedure_stats: {
+        Row: {
+          doctor_id: string
+          procedure_id: string
+          updated_at: string
+          volume: number
+        }
+        Insert: {
+          doctor_id: string
+          procedure_id: string
+          updated_at?: string
+          volume?: number
+        }
+        Update: {
+          doctor_id?: string
+          procedure_id?: string
+          updated_at?: string
+          volume?: number
+        }
+        Relationships: []
+      }
+      hospital_procedure_stats: {
+        Row: {
+          hospital_id: string
+          procedure_id: string
+          updated_at: string
+          volume: number
+        }
+        Insert: {
+          hospital_id: string
+          procedure_id: string
+          updated_at?: string
+          volume?: number
+        }
+        Update: {
+          hospital_id?: string
+          procedure_id?: string
+          updated_at?: string
+          volume?: number
         }
         Relationships: []
       }

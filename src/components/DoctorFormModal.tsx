@@ -8,7 +8,12 @@ import {
   useUpdateDoctor,
   type DoctorFormData,
 } from '../lib/api'
-import { SECTOR_LABELS, TITLES, type DoctorWithRelations } from '../lib/types'
+import {
+  DOCTOR_STATUS_LABELS,
+  SECTOR_LABELS,
+  TITLES,
+  type DoctorWithRelations,
+} from '../lib/types'
 import {
   Field,
   Modal,
@@ -37,12 +42,17 @@ function initialData(doctor?: DoctorWithRelations): DoctorFormData {
     phone: doctor?.phone ?? '',
     email: doctor?.email ?? '',
     notes: doctor?.notes ?? '',
-    companyIds: compact(
-      doctor?.doctor_companies.map((c) => c.company?.id) ?? [],
-    ),
+    status: doctor?.status ?? 'client',
+    tracking_notes: doctor?.tracking_notes ?? '',
+    companyIds: compact(doctor?.doctor_companies.map((c) => c.company?.id) ?? []),
     procedureIds: compact(
       doctor?.doctor_procedures.map((p) => p.procedure?.id) ?? [],
     ),
+    procedureStats:
+      doctor?.doctor_procedure_stats.map((s) => ({
+        procedure_id: s.procedure_id,
+        volume: s.volume,
+      })) ?? [],
     hospitals:
       doctor?.doctor_hospitals.map((h) => ({
         hospital_id: h.hospital_id,
@@ -69,14 +79,39 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
     setData((d) => ({ ...d, ...p }))
   }
 
-  function toggle(list: 'companyIds' | 'procedureIds', id: string) {
+  function toggleCompany(id: string) {
     setData((d) => ({
       ...d,
-      [list]: d[list].includes(id)
-        ? d[list].filter((x) => x !== id)
-        : [...d[list], id],
+      companyIds: d.companyIds.includes(id)
+        ? d.companyIds.filter((x) => x !== id)
+        : [...d.companyIds, id],
     }))
   }
+
+  function toggleProcedure(id: string) {
+    setData((d) => ({
+      ...d,
+      procedureIds: d.procedureIds.includes(id)
+        ? d.procedureIds.filter((x) => x !== id)
+        : [...d.procedureIds, id],
+    }))
+  }
+
+  function setVolume(procedureId: string, volume: number) {
+    setData((d) => {
+      const rest = d.procedureStats.filter((s) => s.procedure_id !== procedureId)
+      return {
+        ...d,
+        procedureStats:
+          volume > 0
+            ? [...rest, { procedure_id: procedureId, volume }]
+            : rest,
+      }
+    })
+  }
+
+  const volumeOf = (procedureId: string) =>
+    data.procedureStats.find((s) => s.procedure_id === procedureId)?.volume ?? 0
 
   async function submit() {
     setError(null)
@@ -108,7 +143,7 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
         <TabList>
           <Tab id="general">פרטים כלליים</Tab>
           <Tab id="hospitals">בתי חולים</Tab>
-          <Tab id="procedures">הליכים</Tab>
+          <Tab id="procedures">הליכים וכמויות</Tab>
           <Tab id="preop">תכנון טרום ניתוחי</Tab>
         </TabList>
 
@@ -150,7 +185,7 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
                 placeholder="הזן מספר טלפון"
               />
             </Field>
-            <Field label="אימייל" className="sm:col-span-2">
+            <Field label="אימייל">
               <input
                 dir="ltr"
                 className="input text-right"
@@ -158,19 +193,39 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
                 onChange={(e) => patch({ email: e.target.value })}
               />
             </Field>
-            <Field label="הערות" className="sm:col-span-2">
+            <Field label="סטטוס">
+              <select
+                className="input"
+                value={data.status}
+                onChange={(e) => patch({ status: e.target.value })}
+              >
+                {Object.entries(DOCTOR_STATUS_LABELS).map(([v, l]) => (
+                  <option key={v} value={v}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="הערות מעקב (תהליך מול רופא פוטנציאלי)" className="sm:col-span-2">
               <textarea
-                className="input min-h-24"
+                className="input min-h-20"
+                value={data.tracking_notes}
+                onChange={(e) => patch({ tracking_notes: e.target.value })}
+                placeholder="איפה עומד התהליך, מה הצעד הבא…"
+              />
+            </Field>
+            <Field label="הערות כלליות" className="sm:col-span-2">
+              <textarea
+                className="input min-h-20"
                 value={data.notes}
                 onChange={(e) => patch({ notes: e.target.value })}
-                placeholder="הערות כלליות"
               />
             </Field>
             <Field label="חברות" className="sm:col-span-2">
               <MultiSelectChips
                 options={companies.data ?? []}
                 selected={data.companyIds}
-                onToggle={(id) => toggle('companyIds', id)}
+                onToggle={toggleCompany}
                 labelOf={(c) => c.name}
               />
             </Field>
@@ -191,9 +246,9 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
                   className="input"
                   value={h.hospital_id}
                   onChange={(e) => {
-                    const hospitals = [...data.hospitals]
-                    hospitals[i] = { ...h, hospital_id: e.target.value }
-                    patch({ hospitals })
+                    const next = [...data.hospitals]
+                    next[i] = { ...h, hospital_id: e.target.value }
+                    patch({ hospitals: next })
                   }}
                 >
                   <option value="">בחר בית חולים…</option>
@@ -215,9 +270,9 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
                   placeholder="תפקיד בבית החולים"
                   value={h.role_at_hospital}
                   onChange={(e) => {
-                    const hospitals = [...data.hospitals]
-                    hospitals[i] = { ...h, role_at_hospital: e.target.value }
-                    patch({ hospitals })
+                    const next = [...data.hospitals]
+                    next[i] = { ...h, role_at_hospital: e.target.value }
+                    patch({ hospitals: next })
                   }}
                 />
                 <div className="flex items-center gap-2">
@@ -225,9 +280,9 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
                     className="input"
                     value={h.sector}
                     onChange={(e) => {
-                      const hospitals = [...data.hospitals]
-                      hospitals[i] = { ...h, sector: e.target.value }
-                      patch({ hospitals })
+                      const next = [...data.hospitals]
+                      next[i] = { ...h, sector: e.target.value }
+                      patch({ hospitals: next })
                     }}
                   >
                     {Object.entries(SECTOR_LABELS).map(([v, l]) => (
@@ -269,14 +324,47 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
         </TabPanel>
 
         <TabPanel id="procedures">
-          <Field label="הליכים שהרופא מבצע">
-            <MultiSelectChips
-              options={procedures.data ?? []}
-              selected={data.procedureIds}
-              onToggle={(id) => toggle('procedureIds', id)}
-              labelOf={(p) => p.name}
-            />
-          </Field>
+          <p className="text-sm text-slate-500">
+            סמן את ההליכים שהרופא מבצע והזן כמות ניתוחים מצטברת לכל הליך.
+          </p>
+          <div className="space-y-1">
+            {(procedures.data ?? []).map((p) => {
+              const on = data.procedureIds.includes(p.id)
+              return (
+                <div
+                  key={p.id}
+                  className="flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 hover:bg-slate-50"
+                >
+                  <label className="flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4"
+                      checked={on}
+                      onChange={() => toggleProcedure(p.id)}
+                    />
+                    {p.name}
+                    {p.is_mako && (
+                      <span className="chip border-brand-200 bg-brand-50 text-brand-600">
+                        MAKO
+                      </span>
+                    )}
+                  </label>
+                  <div className="flex items-center gap-1 text-xs text-slate-400">
+                    כמות
+                    <input
+                      type="number"
+                      min={0}
+                      className="input w-20 py-1 text-center"
+                      value={volumeOf(p.id) || ''}
+                      onChange={(e) =>
+                        setVolume(p.id, Math.max(0, Number(e.target.value) || 0))
+                      }
+                    />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </TabPanel>
 
         <TabPanel id="preop">

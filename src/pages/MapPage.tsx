@@ -2,10 +2,10 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MapContainer, Marker, TileLayer, Tooltip } from 'react-leaflet'
 import L from 'leaflet'
-import { Building2, Stethoscope, User } from 'lucide-react'
-import { useMapData, type MapHospital } from '../lib/api'
+import { Activity, Building2, Stethoscope, User } from 'lucide-react'
+import { useMapData, useProcedures, type MapHospital } from '../lib/api'
 import { ErrorState, Spinner } from '../components/ui'
-import { SECTOR_LABELS } from '../lib/types'
+import { DOCTOR_STATUS_LABELS, SECTOR_LABELS } from '../lib/types'
 
 function pinIcon(active: boolean, count: number) {
   const color = active ? '#2f4bb8' : count > 0 ? '#4f7cf7' : '#94a3b8'
@@ -100,9 +100,16 @@ export default function MapPage() {
 }
 
 function HospitalPanel({ hospital }: { hospital: MapHospital }) {
+  const procedures = useProcedures()
   const agents = hospital.hospital_agents
     .map((a) => a.agent?.full_name)
     .filter(Boolean)
+
+  const procName = (id: string) =>
+    (procedures.data ?? []).find((p) => p.id === id)?.name ?? '—'
+  const stats = [...hospital.hospital_procedure_stats]
+    .filter((s) => s.volume > 0)
+    .sort((a, b) => b.volume - a.volume)
 
   return (
     <div className="space-y-4">
@@ -139,6 +146,22 @@ function HospitalPanel({ hospital }: { hospital: MapHospital }) {
         )}
       </div>
 
+      {stats.length > 0 && (
+        <div>
+          <p className="mb-1 flex items-center gap-1 text-xs font-medium uppercase text-slate-400">
+            <Activity size={12} /> כמות ניתוחים
+          </p>
+          <ul className="space-y-1 text-sm">
+            {stats.map((s) => (
+              <li key={s.procedure_id} className="flex justify-between text-slate-600">
+                <span>{procName(s.procedure_id)}</span>
+                <span className="font-medium">{s.volume}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div>
         <p className="mb-1 flex items-center gap-1 text-xs font-medium uppercase text-slate-400">
           <Stethoscope size={12} /> רופאים ({hospital.doctor_hospitals.length})
@@ -157,6 +180,11 @@ function HospitalPanel({ hospital }: { hospital: MapHospital }) {
                     >
                       <span className="font-medium text-slate-700">
                         {dh.doctor.title} {dh.doctor.name}
+                        {dh.doctor.status === 'potential' && (
+                          <span className="chip mr-1 border-amber-200 bg-amber-50 text-amber-700">
+                            {DOCTOR_STATUS_LABELS.potential}
+                          </span>
+                        )}
                       </span>
                       <span className="block text-xs text-slate-400">
                         {dh.role_at_hospital || dh.doctor.position || '—'}

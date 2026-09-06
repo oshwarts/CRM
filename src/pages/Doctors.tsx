@@ -11,6 +11,7 @@ import {
 } from '../lib/api'
 import { DoctorFormModal } from '../components/DoctorFormModal'
 import { EmptyState, ErrorState, Spinner } from '../components/ui'
+import { DOCTOR_STATUS_LABELS } from '../lib/types'
 import { classNames } from '../lib/utils'
 
 export default function Doctors() {
@@ -26,6 +27,7 @@ export default function Doctors() {
   const [companyId, setCompanyId] = useState('')
   const [procedureId, setProcedureId] = useState('')
   const [hospitalId, setHospitalId] = useState('')
+  const [status, setStatus] = useState('')
 
   const favSet = new Set(favorites.data ?? [])
 
@@ -34,6 +36,7 @@ export default function Doctors() {
     return list.filter((d) => {
       if (q && !`${d.title} ${d.name} ${d.position}`.toLowerCase().includes(q.toLowerCase()))
         return false
+      if (status && d.status !== status) return false
       if (companyId && !d.doctor_companies.some((c) => c.company_id === companyId))
         return false
       if (procedureId && !d.doctor_procedures.some((p) => p.procedure_id === procedureId))
@@ -42,7 +45,7 @@ export default function Doctors() {
         return false
       return true
     })
-  }, [doctors.data, q, companyId, procedureId, hospitalId])
+  }, [doctors.data, q, status, companyId, procedureId, hospitalId])
 
   return (
     <div className="space-y-5">
@@ -59,7 +62,7 @@ export default function Doctors() {
         </button>
       </div>
 
-      <div className="card grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="card grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-5">
         <div className="relative">
           <Search
             size={16}
@@ -72,6 +75,14 @@ export default function Doctors() {
             onChange={(e) => setQ(e.target.value)}
           />
         </div>
+        <select className="input" value={status} onChange={(e) => setStatus(e.target.value)}>
+          <option value="">כל הסטטוסים</option>
+          {Object.entries(DOCTOR_STATUS_LABELS).map(([v, l]) => (
+            <option key={v} value={v}>
+              {l}
+            </option>
+          ))}
+        </select>
         <select className="input" value={hospitalId} onChange={(e) => setHospitalId(e.target.value)}>
           <option value="">כל בתי החולים</option>
           {(hospitals.data ?? []).map((h) => (
@@ -120,6 +131,11 @@ export default function Doctors() {
                   <p className="truncate text-sm text-slate-500">
                     {d.position || '—'}
                   </p>
+                  {d.status === 'potential' && (
+                    <span className="chip mt-1 border-amber-200 bg-amber-50 text-amber-700">
+                      {DOCTOR_STATUS_LABELS.potential}
+                    </span>
+                  )}
                 </Link>
                 <button
                   className={classNames(

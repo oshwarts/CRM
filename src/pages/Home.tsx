@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Building2, Clock, Heart, Stethoscope, X } from 'lucide-react'
+import { Building2, Clock, Heart, Stethoscope, Target, X } from 'lucide-react'
 import {
   useDoctors,
   useFavorites,
@@ -23,6 +23,7 @@ export default function Home() {
   const favSet = new Set(favIds)
   const allDoctors = doctors.data ?? []
   const favDoctors = allDoctors.filter((d) => favSet.has(d.id))
+  const potentialDoctors = allDoctors.filter((d) => d.status === 'potential')
 
   const nextMeetingByDoctor = useMemo(() => {
     const map = new Map<string, string>()
@@ -110,6 +111,41 @@ export default function Home() {
           </ul>
         )}
       </section>
+
+      {/* potential doctors */}
+      {potentialDoctors.length > 0 && (
+        <section className="card p-5">
+          <h2 className="mb-3 flex items-center gap-2 font-semibold text-slate-800">
+            <Target size={18} className="text-amber-500" />
+            רופאים פוטנציאליים במעקב ({potentialDoctors.length})
+          </h2>
+          <ul className="divide-y divide-slate-100">
+            {potentialDoctors.map((d) => (
+              <li key={d.id} className="py-2">
+                <Link
+                  to={`/doctors/${d.id}`}
+                  className="block rounded-lg px-2 py-1 hover:bg-slate-50"
+                >
+                  <p className="text-sm font-medium text-slate-700">
+                    {d.title} {d.name}
+                    <span className="mr-2 text-xs font-normal text-slate-400">
+                      {d.doctor_hospitals
+                        .map((h) => h.hospital?.name)
+                        .filter(Boolean)
+                        .join(', ')}
+                    </span>
+                  </p>
+                  {d.tracking_notes && (
+                    <p className="truncate text-xs text-slate-500">
+                      {d.tracking_notes}
+                    </p>
+                  )}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* favorites picker */}
       <section className="card p-5">

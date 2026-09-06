@@ -33,6 +33,7 @@ import {
   Tabs,
 } from '../components/ui'
 import {
+  DOCTOR_STATUS_LABELS,
   MEETING_STATUS_LABELS,
   SECTOR_LABELS,
   type PreopPlanWithProcedure,
@@ -71,9 +72,21 @@ export default function DoctorProfile() {
 
       <div className="card flex flex-wrap items-start justify-between gap-4 p-5">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">
-            {d.title} {d.name}
-          </h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-bold text-slate-800">
+              {d.title} {d.name}
+            </h1>
+            <span
+              className={classNames(
+                'chip',
+                d.status === 'potential'
+                  ? 'border-amber-200 bg-amber-50 text-amber-700'
+                  : 'border-green-200 bg-green-50 text-green-700',
+              )}
+            >
+              {DOCTOR_STATUS_LABELS[d.status] ?? d.status}
+            </span>
+          </div>
           <p className="text-slate-500">{d.position || '—'}</p>
           <div className="mt-2 flex flex-wrap gap-3 text-sm text-slate-500">
             {d.phone && (
@@ -125,8 +138,13 @@ export default function DoctorProfile() {
         </TabList>
 
         <TabPanel id="details">
-          <div className="card p-5">
-            <Field label="הערות">
+          <div className="card space-y-4 p-5">
+            <Field label="הערות מעקב (תהליך)">
+              <p className="whitespace-pre-wrap text-sm text-slate-600">
+                {d.tracking_notes || 'אין הערות מעקב'}
+              </p>
+            </Field>
+            <Field label="הערות כלליות">
               <p className="whitespace-pre-wrap text-sm text-slate-600">
                 {d.notes || 'אין הערות'}
               </p>
@@ -160,15 +178,25 @@ export default function DoctorProfile() {
           {d.doctor_procedures.length === 0 ? (
             <EmptyState title="לא נבחרו הליכים" />
           ) : (
-            <div className="flex flex-wrap gap-2">
-              {d.doctor_procedures.map((p) => (
-                <span
-                  key={p.procedure?.id}
-                  className="chip border-brand-200 bg-brand-50 text-brand-700"
-                >
-                  {p.procedure?.name}
-                </span>
-              ))}
+            <div className="card divide-y divide-slate-100 p-2">
+              {d.doctor_procedures.map((p) => {
+                const vol = d.doctor_procedure_stats.find(
+                  (s) => s.procedure_id === p.procedure?.id,
+                )
+                return (
+                  <div
+                    key={p.procedure?.id}
+                    className="flex items-center justify-between px-3 py-2 text-sm"
+                  >
+                    <span className="text-slate-700">{p.procedure?.name}</span>
+                    <span className="text-slate-400">
+                      {vol && vol.volume > 0
+                        ? `${vol.volume} ניתוחים · עודכן ${formatDate(vol.updated_at)}`
+                        : 'לא הוזנה כמות'}
+                    </span>
+                  </div>
+                )
+              })}
             </div>
           )}
         </TabPanel>

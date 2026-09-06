@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import {
   useAgents,
@@ -7,9 +7,11 @@ import {
   useDeleteHospital,
   useDeleteProcedure,
   useHospitalAgents,
+  useHospitalProcedureStats,
   useHospitals,
   useProcedures,
   useSetHospitalAgents,
+  useSetHospitalProcedureStats,
   useUpdateProfileRole,
   useUpsertCompany,
   useUpsertHospital,
@@ -278,9 +280,12 @@ function HospitalModal({
   onClose: () => void
 }) {
   const agents = useAgents()
+  const procedures = useProcedures()
   const hospitalAgents = useHospitalAgents()
+  const procStatsQuery = useHospitalProcedureStats(hospital?.id)
   const upsert = useUpsertHospital()
   const setAgents = useSetHospitalAgents()
+  const setProcStats = useSetHospitalProcedureStats()
 
   const [form, setForm] = useState({
     name: hospital?.name ?? '',
@@ -290,14 +295,24 @@ function HospitalModal({
     lat: hospital?.lat != null ? String(hospital.lat) : '',
     lng: hospital?.lng != null ? String(hospital.lng) : '',
   })
-  const [agentIds, setAgentIds] = useState<string[]>(
-    hospital
-      ? (hospitalAgents.data ?? [])
-          .filter((ha) => ha.hospital_id === hospital.id)
-          .map((ha) => ha.agent_id)
-      : [],
-  )
+  const [agentIds, setAgentIds] = useState<string[]>([])
+  const [volumes, setVolumes] = useState<Record<string, number>>({})
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!hospital) return
+    setAgentIds(
+      (hospitalAgents.data ?? [])
+        .filter((ha) => ha.hospital_id === hospital.id)
+        .map((ha) => ha.agent_id),
+    )
+  }, [hospital, hospitalAgents.data])
+
+  useEffect(() => {
+    const map: Record<string, number> = {}
+    for (const s of procStatsQuery.data ?? []) map[s.procedure_id] = s.volume
+    setVolumes(map)
+  }, [procStatsQuery.data])
 
   async function save() {
     setError(null)
@@ -316,6 +331,13 @@ function HospitalModal({
         lng: form.lng ? Number(form.lng) : null,
       })
       await setAgents.mutateAsync({ hospitalId: saved.id, agentIds })
+      await setProcStats.mutateAsync({
+        hospitalId: saved.id,
+        stats: Object.entries(volumes).map(([procedure_id, volume]) => ({
+          procedure_id,
+          volume,
+        })),
+      })
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'שמירה נכשלה')
@@ -401,6 +423,33 @@ function HospitalModal({
         </Field>
       </div>
 
+      <div className="mt-4">
+        <Field label="כמות ניתוחים לפי הליך (מצטבר)">
+          <div className="space-y-1">
+            {(procedures.data ?? []).map((p) => (
+              <div
+                key={p.id}
+                className="flex items-center justify-between gap-3 text-sm"
+              >
+                <span className="text-slate-600">{p.name}</span>
+                <input
+                  type="number"
+                  min={0}
+                  className="input w-24 py-1 text-center"
+                  value={volumes[p.id] || ''}
+                  onChange={(e) =>
+                    setVolumes((cur) => ({
+                      ...cur,
+                      [p.id]: Math.max(0, Number(e.target.value) || 0),
+                    }))
+                  }
+                />
+              </div>
+            ))}
+          </div>
+        </Field>
+      </div>
+
       {error && (
         <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
           {error}
@@ -414,7 +463,7 @@ function HospitalModal({
         <button
           className="btn-primary"
           onClick={save}
-          disabled={upsert.isPending || setAgents.isPending}
+          disabled={upsert.isPending || setAgents.isPending || setProcStats.isPending}
         >
           שמירה
         </button>

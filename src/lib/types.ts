@@ -8,6 +8,7 @@ export type Doctor = Tables<'doctors'>
 export type PreopPlan = Tables<'doctor_preop_plans'>
 export type Meeting = Tables<'meetings'>
 export type MeetingTask = Tables<'meeting_tasks'>
+export type ProcedureStat = { procedure_id: string; volume: number; updated_at: string }
 
 export type DoctorHospitalLink = Tables<'doctor_hospitals'> & {
   hospital: Hospital | null
@@ -22,12 +23,14 @@ export type DoctorWithRelations = Doctor & {
   doctor_hospitals: DoctorHospitalLink[]
   doctor_procedures: { procedure: Procedure | null }[]
   doctor_preop_plans: PreopPlanWithProcedure[]
+  doctor_procedure_stats: ProcedureStat[]
 }
 
 export type DoctorListItem = Doctor & {
   doctor_companies: { company_id: string }[]
   doctor_hospitals: { hospital_id: string; hospital: Hospital | null }[]
   doctor_procedures: { procedure_id: string }[]
+  doctor_procedure_stats: ProcedureStat[]
 }
 
 export type MeetingWithRelations = Meeting & {
@@ -37,6 +40,11 @@ export type MeetingWithRelations = Meeting & {
 }
 
 export const TITLES = ['דוקטור', 'פרופסור', 'מר', 'גברת'] as const
+
+export const DOCTOR_STATUS_LABELS: Record<string, string> = {
+  client: 'לקוח',
+  potential: 'פוטנציאלי',
+}
 
 export const MEETING_STATUS_LABELS: Record<string, string> = {
   scheduled: 'מתוכננת',
