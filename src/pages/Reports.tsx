@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
-import { Download } from 'lucide-react'
+import { Download, PencilLine, Table2 } from 'lucide-react'
 import { useAllCaseVolumes } from '../lib/api'
+import { CaseVolumesManager } from '../components/CaseVolumesManager'
 import { EmptyState, ErrorState, Spinner } from '../components/ui'
 import type { CaseVolumeRow } from '../lib/types'
 import { classNames } from '../lib/utils'
@@ -37,6 +38,7 @@ function downloadCsv(filename: string, headers: string[], rows: (string | number
 
 export default function Reports() {
   const volumes = useAllCaseVolumes()
+  const [view, setView] = useState<'report' | 'edit'>('report')
   const [groupBy, setGroupBy] = useState<GroupBy>('hospital')
   const [year, setYear] = useState<string>('')
 
@@ -92,21 +94,54 @@ export default function Reports() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">דוח כמויות מקרים</h1>
+          <h1 className="text-2xl font-bold text-slate-800">כמויות מקרים</h1>
           <p className="text-sm text-slate-400">
             כל מקרה משויך לרופא ולבית חולים – הסכומים מתאזנים
           </p>
         </div>
+        {view === 'report' && (
+          <button
+            className="btn-secondary"
+            onClick={exportCsv}
+            disabled={rows.length === 0}
+          >
+            <Download size={16} />
+            ייצוא ל-Excel (CSV)
+          </button>
+        )}
+      </div>
+
+      <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
         <button
-          className="btn-secondary"
-          onClick={exportCsv}
-          disabled={rows.length === 0}
+          onClick={() => setView('report')}
+          className={classNames(
+            'flex items-center gap-1 rounded-lg px-4 py-1.5 text-sm font-medium transition',
+            view === 'report'
+              ? 'bg-white text-brand-600 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700',
+          )}
         >
-          <Download size={16} />
-          ייצוא ל-Excel (CSV)
+          <Table2 size={15} />
+          דוח
+        </button>
+        <button
+          onClick={() => setView('edit')}
+          className={classNames(
+            'flex items-center gap-1 rounded-lg px-4 py-1.5 text-sm font-medium transition',
+            view === 'edit'
+              ? 'bg-white text-brand-600 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700',
+          )}
+        >
+          <PencilLine size={15} />
+          הוספה ועריכה
         </button>
       </div>
 
+      {view === 'edit' && <CaseVolumesManager />}
+
+      {view === 'report' && (
+        <>
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
           {(Object.keys(GROUP_LABEL) as GroupBy[]).map((g) => (
@@ -143,7 +178,13 @@ export default function Reports() {
       {volumes.data && rows.length === 0 && (
         <EmptyState
           title="אין נתוני כמויות"
-          hint="הזן כמויות מקרים בטאב 'כמויות מקרים' בכרטיס רופא או בעריכת בית חולים"
+          hint="הזן כמויות מקרים כדי לראות את הדוח"
+          action={
+            <button className="btn-primary mt-2" onClick={() => setView('edit')}>
+              <PencilLine size={16} />
+              הוספה ועריכה
+            </button>
+          }
         />
       )}
 
@@ -191,6 +232,8 @@ export default function Reports() {
             </tfoot>
           </table>
         </div>
+      )}
+        </>
       )}
     </div>
   )
