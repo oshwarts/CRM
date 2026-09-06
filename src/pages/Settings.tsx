@@ -7,17 +7,24 @@ import {
   useDeleteCompany,
   useDeleteContact,
   useDeleteHospital,
+  useDeleteOrganization,
   useDeleteProcedure,
+  useDeleteRoboticSystem,
   useDoctors,
   useHospitalAgents,
   useHospitals,
+  useOrganizations,
   useProcedures,
+  useRoboticSystems,
   useSetHospitalAgents,
+  useSetHospitalRoboticSystems,
   useUpdateProfileRole,
   useUpsertCompany,
   useUpsertContact,
   useUpsertHospital,
+  useUpsertOrganization,
   useUpsertProcedure,
+  useUpsertRoboticSystem,
 } from '../lib/api'
 import { useAuth } from '../context/AuthProvider'
 import { ContactsSection } from '../components/ContactsSection'
@@ -37,12 +44,12 @@ import {
   CONTACT_ROLES,
   PROCEDURE_CATEGORY_LABELS,
   SECTOR_LABELS,
-  type Hospital,
+  type HospitalListItem,
 } from '../lib/types'
 
 export default function Settings() {
   const { isAdmin } = useAuth()
-  const [tab, setTab] = useState('companies')
+  const [tab, setTab] = useState('lists')
 
   return (
     <div className="space-y-5">
@@ -50,15 +57,37 @@ export default function Settings() {
 
       <Tabs value={tab} onChange={setTab}>
         <TabList>
-          <Tab id="companies">חברות</Tab>
+          <Tab id="lists">רשימות</Tab>
           <Tab id="procedures">הליכים</Tab>
           <Tab id="hospitals">בתי חולים</Tab>
           <Tab id="contacts">אנשי קשר</Tab>
           <Tab id="users">משתמשים</Tab>
         </TabList>
 
-        <TabPanel id="companies">
-          <CompaniesSettings />
+        <TabPanel id="lists">
+          <div className="grid gap-4 md:grid-cols-2">
+            <SimpleListSettings
+              title="חברות"
+              placeholder="שם חברה חדשה"
+              useList={useCompanies}
+              useUpsert={useUpsertCompany}
+              useDelete={useDeleteCompany}
+            />
+            <SimpleListSettings
+              title="ארגוני בתי חולים"
+              placeholder="כללית / ממשלתי / פרטי / מדיקה…"
+              useList={useOrganizations}
+              useUpsert={useUpsertOrganization}
+              useDelete={useDeleteOrganization}
+            />
+            <SimpleListSettings
+              title="מערכות רובוטיקה"
+              placeholder="MAKO / VELYS / ROSA…"
+              useList={useRoboticSystems}
+              useUpsert={useUpsertRoboticSystem}
+              useDelete={useDeleteRoboticSystem}
+            />
+          </div>
         </TabPanel>
         <TabPanel id="procedures">
           <ProceduresSettings />
@@ -77,25 +106,43 @@ export default function Settings() {
   )
 }
 
-/* ---------------- Companies ---------------- */
+/* ---------------- Simple name-only lists ---------------- */
 
-function CompaniesSettings() {
-  const companies = useCompanies()
-  const upsert = useUpsertCompany()
-  const del = useDeleteCompany()
+type NamedRow = { id: string; name: string }
+type ListHook = () => { data?: NamedRow[]; isLoading: boolean }
+type UpsertHook = () => { mutate: (v: { id?: string; name: string }) => void }
+type DeleteHook = () => { mutate: (id: string) => void }
+
+function SimpleListSettings({
+  title,
+  placeholder,
+  useList,
+  useUpsert,
+  useDelete,
+}: {
+  title: string
+  placeholder: string
+  useList: ListHook
+  useUpsert: UpsertHook
+  useDelete: DeleteHook
+}) {
+  const list = useList()
+  const upsert = useUpsert()
+  const del = useDelete()
   const [name, setName] = useState('')
 
   return (
     <div className="card p-5">
-      <div className="mb-4 flex gap-2">
+      <h3 className="mb-3 font-semibold text-slate-800">{title}</h3>
+      <div className="mb-3 flex gap-2">
         <input
-          className="input max-w-xs"
-          placeholder="שם חברה חדשה"
+          className="input"
+          placeholder={placeholder}
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
         <button
-          className="btn-primary"
+          className="btn-primary shrink-0"
           disabled={!name.trim()}
           onClick={() => {
             upsert.mutate({ name: name.trim() })
@@ -106,11 +153,11 @@ function CompaniesSettings() {
           הוסף
         </button>
       </div>
-      {companies.isLoading ? (
+      {list.isLoading ? (
         <Spinner />
       ) : (
         <ul className="divide-y divide-slate-100">
-          {(companies.data ?? []).map((c) => (
+          {(list.data ?? []).map((c) => (
             <Row
               key={c.id}
               label={c.name}
@@ -209,7 +256,7 @@ function HospitalsSettings() {
   const agents = useAgents()
   const hospitalAgents = useHospitalAgents()
   const del = useDeleteHospital()
-  const [editing, setEditing] = useState<Hospital | 'new' | null>(null)
+  const [editing, setEditing] = useState<HospitalListItem | 'new' | null>(null)
 
   return (
     <div className="card p-5">
@@ -241,7 +288,8 @@ function HospitalsSettings() {
                   <p className="text-slate-700">
                     {h.name}
                     <span className="mr-2 text-xs text-slate-400">
-                      {h.city} · {SECTOR_LABELS[h.sector] ?? h.sector}
+                      {h.city}
+                      {h.organization ? ` · ${h.organization.name}` : ''}
                       {h.lat == null ? ' · ללא מיקום' : ''}
                     </span>
                   </p>
@@ -285,24 +333,31 @@ function HospitalModal({
   hospital,
   onClose,
 }: {
-  hospital?: Hospital
+  hospital?: HospitalListItem
   onClose: () => void
 }) {
   const agents = useAgents()
   const doctors = useDoctors()
+  const organizations = useOrganizations()
+  const roboticSystems = useRoboticSystems()
   const hospitalAgents = useHospitalAgents()
   const upsert = useUpsertHospital()
   const setAgents = useSetHospitalAgents()
+  const setSystems = useSetHospitalRoboticSystems()
 
   const [form, setForm] = useState({
     name: hospital?.name ?? '',
     city: hospital?.city ?? '',
     sector: hospital?.sector ?? 'public',
+    organization_id: hospital?.organization_id ?? '',
     address: hospital?.address ?? '',
     lat: hospital?.lat != null ? String(hospital.lat) : '',
     lng: hospital?.lng != null ? String(hospital.lng) : '',
   })
   const [agentIds, setAgentIds] = useState<string[]>([])
+  const [systemIds, setSystemIds] = useState<string[]>(
+    hospital?.hospital_robotic_systems.map((r) => r.system_id) ?? [],
+  )
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -332,11 +387,13 @@ function HospitalModal({
         name: form.name.trim(),
         city: form.city.trim(),
         sector: form.sector,
+        organization_id: form.organization_id || null,
         address: form.address.trim(),
         lat: form.lat ? Number(form.lat) : null,
         lng: form.lng ? Number(form.lng) : null,
       })
       await setAgents.mutateAsync({ hospitalId: saved.id, agentIds })
+      await setSystems.mutateAsync({ hospitalId: saved.id, systemIds })
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'שמירה נכשלה')
@@ -364,6 +421,22 @@ function HospitalModal({
             onChange={(e) => setForm({ ...form, city: e.target.value })}
           />
         </Field>
+        <Field label="ארגון">
+          <select
+            className="input"
+            value={form.organization_id}
+            onChange={(e) =>
+              setForm({ ...form, organization_id: e.target.value })
+            }
+          >
+            <option value="">— ללא —</option>
+            {(organizations.data ?? []).map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.name}
+              </option>
+            ))}
+          </select>
+        </Field>
         <Field label="סקטור">
           <select
             className="input"
@@ -377,7 +450,7 @@ function HospitalModal({
             ))}
           </select>
         </Field>
-        <Field label="כתובת">
+        <Field label="כתובת" className="sm:col-span-2">
           <input
             className="input"
             value={form.address}
@@ -422,6 +495,21 @@ function HospitalModal({
         </Field>
       </div>
 
+      <div className="mt-4">
+        <Field label="רובוטיקה בבית החולים">
+          <MultiSelectChips
+            options={roboticSystems.data ?? []}
+            selected={systemIds}
+            onToggle={(id) =>
+              setSystemIds((cur) =>
+                cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id],
+              )
+            }
+            labelOf={(o) => o.name}
+          />
+        </Field>
+      </div>
+
       {hospital && (
         <div className="mt-4 border-t border-slate-200 pt-4">
           <p className="mb-2 text-sm font-medium text-slate-600">כמויות מקרים</p>
@@ -461,7 +549,9 @@ function HospitalModal({
         <button
           className="btn-primary"
           onClick={save}
-          disabled={upsert.isPending || setAgents.isPending}
+          disabled={
+            upsert.isPending || setAgents.isPending || setSystems.isPending
+          }
         >
           שמירה
         </button>

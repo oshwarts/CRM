@@ -8,6 +8,7 @@ import Doctors from './pages/Doctors'
 import DoctorProfile from './pages/DoctorProfile'
 import Meetings from './pages/Meetings'
 import MapPage from './pages/MapPage'
+import Pipeline from './pages/Pipeline'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 
@@ -40,6 +41,7 @@ export default function App() {
         <Route path="/doctors/:id" element={<DoctorProfile />} />
         <Route path="/meetings" element={<Meetings />} />
         <Route path="/map" element={<MapPage />} />
+        <Route path="/pipeline" element={<Pipeline />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/" replace />} />

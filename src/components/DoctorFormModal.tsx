@@ -5,11 +5,13 @@ import {
   useCreateDoctor,
   useHospitals,
   useProcedures,
+  useRoboticSystems,
   useUpdateDoctor,
   type DoctorFormData,
 } from '../lib/api'
 import {
   DOCTOR_STATUS_LABELS,
+  PIPELINE_STAGES,
   SECTOR_LABELS,
   TITLES,
   type DoctorWithRelations,
@@ -44,9 +46,14 @@ function initialData(doctor?: DoctorWithRelations): DoctorFormData {
     notes: doctor?.notes ?? '',
     status: doctor?.status ?? 'client',
     tracking_notes: doctor?.tracking_notes ?? '',
+    pipeline_stage: doctor?.pipeline_stage ?? '',
+    next_step_date: doctor?.next_step_date ?? null,
     companyIds: compact(doctor?.doctor_companies.map((c) => c.company?.id) ?? []),
     procedureIds: compact(
       doctor?.doctor_procedures.map((p) => p.procedure?.id) ?? [],
+    ),
+    roboticSystemIds: compact(
+      doctor?.doctor_robotic_systems.map((r) => r.system?.id) ?? [],
     ),
     hospitals:
       doctor?.doctor_hospitals.map((h) => ({
@@ -66,6 +73,7 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
   const companies = useCompanies()
   const procedures = useProcedures()
   const hospitals = useHospitals()
+  const roboticSystems = useRoboticSystems()
   const createDoctor = useCreateDoctor()
   const updateDoctor = useUpdateDoctor(doctor?.id ?? '')
   const saving = createDoctor.isPending || updateDoctor.isPending
@@ -74,12 +82,12 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
     setData((d) => ({ ...d, ...p }))
   }
 
-  function toggleCompany(id: string) {
+  function toggleId(list: 'companyIds' | 'roboticSystemIds', id: string) {
     setData((d) => ({
       ...d,
-      companyIds: d.companyIds.includes(id)
-        ? d.companyIds.filter((x) => x !== id)
-        : [...d.companyIds, id],
+      [list]: d[list].includes(id)
+        ? d[list].filter((x) => x !== id)
+        : [...d[list], id],
     }))
   }
 
@@ -185,7 +193,44 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
                 ))}
               </select>
             </Field>
-            <Field label="הערות מעקב (תהליך מול רופא פוטנציאלי)" className="sm:col-span-2">
+
+            {data.status === 'potential' && (
+              <>
+                <Field label="שלב בתהליך">
+                  <input
+                    className="input"
+                    list="pipeline-stages"
+                    value={data.pipeline_stage}
+                    onChange={(e) => patch({ pipeline_stage: e.target.value })}
+                    placeholder="לדוגמה: הדגמת מוצר"
+                  />
+                  <datalist id="pipeline-stages">
+                    {PIPELINE_STAGES.map((s) => (
+                      <option key={s} value={s} />
+                    ))}
+                  </datalist>
+                </Field>
+                <Field label="תאריך צעד הבא">
+                  <input
+                    type="date"
+                    className="input"
+                    value={data.next_step_date ?? ''}
+                    onChange={(e) =>
+                      patch({ next_step_date: e.target.value || null })
+                    }
+                  />
+                </Field>
+              </>
+            )}
+
+            <Field
+              label={
+                data.status === 'potential'
+                  ? 'הערות מעקב (התהליך מול הרופא)'
+                  : 'הערות מעקב'
+              }
+              className="sm:col-span-2"
+            >
               <textarea
                 className="input min-h-20"
                 value={data.tracking_notes}
@@ -204,8 +249,16 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
               <MultiSelectChips
                 options={companies.data ?? []}
                 selected={data.companyIds}
-                onToggle={toggleCompany}
+                onToggle={(id) => toggleId('companyIds', id)}
                 labelOf={(c) => c.name}
+              />
+            </Field>
+            <Field label="רובוטיקה בשימוש" className="sm:col-span-2">
+              <MultiSelectChips
+                options={roboticSystems.data ?? []}
+                selected={data.roboticSystemIds}
+                onToggle={(id) => toggleId('roboticSystemIds', id)}
+                labelOf={(r) => r.name}
               />
             </Field>
           </div>

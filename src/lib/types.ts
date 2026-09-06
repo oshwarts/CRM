@@ -10,9 +10,21 @@ export type Meeting = Tables<'meetings'>
 export type MeetingTask = Tables<'meeting_tasks'>
 export type Contact = Tables<'contacts'>
 export type CaseVolume = Tables<'case_volumes'>
+export type Organization = Tables<'organizations'>
+export type RoboticSystem = Tables<'robotic_systems'>
 
 export const CURRENT_YEAR = new Date().getFullYear()
 export const YEAR_OPTIONS = [0, 1, 2, 3, 4].map((n) => CURRENT_YEAR - n)
+
+export const PIPELINE_STAGES = [
+  'זיהוי ראשוני',
+  'יצירת קשר',
+  'פגישת היכרות',
+  'הדגמת מוצר',
+  'ניתוח ניסיון',
+  'משא ומתן',
+  'סגירה / הפיכה ללקוח',
+] as const
 
 export type CaseVolumeRow = CaseVolume & {
   doctor: Pick<Doctor, 'id' | 'name' | 'title'> | null
@@ -32,8 +44,17 @@ export const CONTACT_ROLES = [
   'אחר',
 ] as const
 
+export type HospitalWithOrg = Hospital & {
+  organization: Organization | null
+}
+
+export type HospitalListItem = Hospital & {
+  organization: Organization | null
+  hospital_robotic_systems: { system_id: string }[]
+}
+
 export type DoctorHospitalLink = Tables<'doctor_hospitals'> & {
-  hospital: Hospital | null
+  hospital: HospitalWithOrg | null
 }
 
 export type PreopPlanWithProcedure = PreopPlan & {
@@ -45,12 +66,14 @@ export type DoctorWithRelations = Doctor & {
   doctor_hospitals: DoctorHospitalLink[]
   doctor_procedures: { procedure: Procedure | null }[]
   doctor_preop_plans: PreopPlanWithProcedure[]
+  doctor_robotic_systems: { system: RoboticSystem | null }[]
 }
 
 export type DoctorListItem = Doctor & {
   doctor_companies: { company_id: string }[]
   doctor_hospitals: { hospital_id: string; hospital: Hospital | null }[]
   doctor_procedures: { procedure_id: string }[]
+  doctor_robotic_systems: { system_id: string }[]
 }
 
 export type MeetingWithRelations = Meeting & {

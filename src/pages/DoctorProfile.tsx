@@ -109,6 +109,15 @@ export default function DoctorProfile() {
                 {d.doctor_companies.map((c) => c.company?.name).filter(Boolean).join(' · ')}
               </span>
             )}
+            {d.doctor_robotic_systems.length > 0 && (
+              <span className="inline-flex items-center gap-1">
+                רובוטיקה:{' '}
+                {d.doctor_robotic_systems
+                  .map((r) => r.system?.name)
+                  .filter(Boolean)
+                  .join(' · ')}
+              </span>
+            )}
             <span
               className={classNames(
                 'inline-flex items-center gap-1',
@@ -120,6 +129,14 @@ export default function DoctorProfile() {
                 ? `${formatDate(lastMeetingDate)} (לפני ${daysSince} ימים)`
                 : 'אין פגישות'}
             </span>
+            {d.status === 'potential' && d.pipeline_stage && (
+              <span className="inline-flex items-center gap-1 text-brand-600">
+                שלב: {d.pipeline_stage}
+                {d.next_step_date
+                  ? ` · צעד הבא ${formatDate(d.next_step_date)}`
+                  : ''}
+              </span>
+            )}
           </div>
         </div>
         <div className="flex gap-2">

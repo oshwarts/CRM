@@ -8,6 +8,7 @@ import {
   Map as MapIcon,
   Settings,
   Stethoscope,
+  Target,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthProvider'
 import { ProfileModal } from './ProfileModal'
@@ -18,6 +19,7 @@ const NAV = [
   { to: '/doctors', label: 'רופאים', icon: Stethoscope, end: false },
   { to: '/meetings', label: 'פגישות', icon: CalendarDays, end: false },
   { to: '/map', label: 'מפה', icon: MapIcon, end: false },
+  { to: '/pipeline', label: 'פוטנציאליים', icon: Target, end: false },
   { to: '/reports', label: 'דוחות', icon: BarChart3, end: false },
   { to: '/settings', label: 'הגדרות', icon: Settings, end: false },
 ]

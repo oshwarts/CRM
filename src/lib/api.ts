@@ -12,10 +12,13 @@ import type {
   DoctorListItem,
   DoctorWithRelations,
   Hospital,
+  HospitalListItem,
   MeetingTask,
   MeetingWithRelations,
+  Organization,
   Procedure,
   Profile,
+  RoboticSystem,
 } from './types'
 import type { TablesInsert, TablesUpdate } from './database.types'
 
@@ -60,8 +63,31 @@ export function useHospitals() {
   return useQuery({
     queryKey: ['hospitals'],
     queryFn: async () =>
-      unwrap<Hospital[]>(
-        await supabase.from('hospitals').select('*').order('name'),
+      unwrap<HospitalListItem[]>(
+        await supabase
+          .from('hospitals')
+          .select('*, organization:organizations(*), hospital_robotic_systems(system_id)')
+          .order('name'),
+      ),
+  })
+}
+
+export function useOrganizations() {
+  return useQuery({
+    queryKey: ['organizations'],
+    queryFn: async () =>
+      unwrap<Organization[]>(
+        await supabase.from('organizations').select('*').order('name'),
+      ),
+  })
+}
+
+export function useRoboticSystems() {
+  return useQuery({
+    queryKey: ['robotic-systems'],
+    queryFn: async () =>
+      unwrap<RoboticSystem[]>(
+        await supabase.from('robotic_systems').select('*').order('name'),
       ),
   })
 }
@@ -69,10 +95,10 @@ export function useHospitals() {
 /* ============================ Doctors ============================ */
 
 const DOCTOR_LIST_SELECT =
-  '*, doctor_companies(company_id), doctor_procedures(procedure_id), doctor_hospitals(hospital_id, hospital:hospitals(*))'
+  '*, doctor_companies(company_id), doctor_procedures(procedure_id), doctor_robotic_systems(system_id), doctor_hospitals(hospital_id, hospital:hospitals(*))'
 
 const DOCTOR_FULL_SELECT =
-  '*, doctor_companies(company:companies(*)), doctor_procedures(procedure:procedures(*)), doctor_hospitals(*, hospital:hospitals(*)), doctor_preop_plans(*, procedure:procedures(*))'
+  '*, doctor_companies(company:companies(*)), doctor_procedures(procedure:procedures(*)), doctor_robotic_systems(system:robotic_systems(*)), doctor_hospitals(*, hospital:hospitals(*, organization:organizations(*))), doctor_preop_plans(*, procedure:procedures(*))'
 
 export function useDoctors() {
   return useQuery({
@@ -111,8 +137,11 @@ export type DoctorFormData = {
   notes: string
   status: string
   tracking_notes: string
+  pipeline_stage: string
+  next_step_date: string | null
   companyIds: string[]
   procedureIds: string[]
+  roboticSystemIds: string[]
   hospitals: { hospital_id: string; role_at_hospital: string; sector: string }[]
 }
 
@@ -135,6 +164,15 @@ async function saveDoctorRelations(doctorId: string, d: DoctorFormData) {
         ),
     )
 
+  await supabase.from('doctor_robotic_systems').delete().eq('doctor_id', doctorId)
+  if (d.roboticSystemIds.length)
+    unwrap(
+      await supabase
+        .from('doctor_robotic_systems')
+        .insert(
+          d.roboticSystemIds.map((system_id) => ({ doctor_id: doctorId, system_id })),
+        ),
+    )
 
   await supabase.from('doctor_hospitals').delete().eq('doctor_id', doctorId)
   if (d.hospitals.length)
@@ -164,6 +202,8 @@ export function useCreateDoctor() {
         notes: d.notes,
         status: d.status,
         tracking_notes: d.tracking_notes,
+        pipeline_stage: d.pipeline_stage,
+        next_step_date: d.next_step_date,
         created_by: userRes.user?.id ?? null,
       }
       const created = unwrap<Doctor>(
@@ -191,6 +231,8 @@ export function useUpdateDoctor(id: string) {
         notes: d.notes,
         status: d.status,
         tracking_notes: d.tracking_notes,
+        pipeline_stage: d.pipeline_stage,
+        next_step_date: d.next_step_date,
       }
       unwrap(await supabase.from('doctors').update(row).eq('id', id))
       await saveDoctorRelations(id, d)
@@ -546,6 +588,7 @@ export function useUpsertHospital() {
         name: h.name,
         city: h.city ?? '',
         sector: h.sector ?? 'public',
+        organization_id: h.organization_id ?? null,
         address: h.address ?? '',
         lat: h.lat ?? null,
         lng: h.lng ?? null,
@@ -618,6 +661,76 @@ export function useHospitalAgents() {
   })
 }
 
+export function useSetHospitalRoboticSystems() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      hospitalId,
+      systemIds,
+    }: {
+      hospitalId: string
+      systemIds: string[]
+    }) => {
+      await supabase
+        .from('hospital_robotic_systems')
+        .delete()
+        .eq('hospital_id', hospitalId)
+      if (systemIds.length)
+        unwrap(
+          await supabase
+            .from('hospital_robotic_systems')
+            .insert(
+              systemIds.map((system_id) => ({ hospital_id: hospitalId, system_id })),
+            ),
+        )
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['hospitals'] })
+      qc.invalidateQueries({ queryKey: ['map-data'] })
+    },
+  })
+}
+
+function refListHooks(table: 'organizations' | 'robotic_systems', key: string) {
+  return {
+    useUpsert() {
+      const qc = useQueryClient()
+      return useMutation({
+        mutationFn: async (c: { id?: string; name: string }) => {
+          if (c.id)
+            unwrap(await supabase.from(table).update({ name: c.name }).eq('id', c.id))
+          else unwrap(await supabase.from(table).insert({ name: c.name }))
+        },
+        onSuccess: () => {
+          qc.invalidateQueries({ queryKey: [key] })
+          qc.invalidateQueries({ queryKey: ['hospitals'] })
+          qc.invalidateQueries({ queryKey: ['map-data'] })
+        },
+      })
+    },
+    useDelete() {
+      const qc = useQueryClient()
+      return useMutation({
+        mutationFn: async (id: string) =>
+          unwrap(await supabase.from(table).delete().eq('id', id)),
+        onSuccess: () => {
+          qc.invalidateQueries({ queryKey: [key] })
+          qc.invalidateQueries({ queryKey: ['hospitals'] })
+          qc.invalidateQueries({ queryKey: ['map-data'] })
+        },
+      })
+    },
+  }
+}
+
+const orgHooks = refListHooks('organizations', 'organizations')
+export const useUpsertOrganization = orgHooks.useUpsert
+export const useDeleteOrganization = orgHooks.useDelete
+
+const roboticHooks = refListHooks('robotic_systems', 'robotic-systems')
+export const useUpsertRoboticSystem = roboticHooks.useUpsert
+export const useDeleteRoboticSystem = roboticHooks.useDelete
+
 export function useUpdateProfileRole() {
   const qc = useQueryClient()
   return useMutation({
@@ -630,7 +743,9 @@ export function useUpdateProfileRole() {
 /* ============================ Map data ============================ */
 
 export type MapHospital = Hospital & {
+  organization: Organization | null
   hospital_agents: { agent: Pick<Profile, 'id' | 'full_name'> | null }[]
+  hospital_robotic_systems: { system: RoboticSystem | null }[]
   case_volumes: {
     procedure_id: string
     year: number
@@ -653,7 +768,7 @@ export function useMapData() {
         await supabase
           .from('hospitals')
           .select(
-            '*, hospital_agents(agent:profiles(id, full_name)), case_volumes(procedure_id, year, count, procedure:procedures(name)), contacts(*), doctor_hospitals(role_at_hospital, sector, doctor:doctors(id, name, title, position, status))',
+            '*, organization:organizations(*), hospital_agents(agent:profiles(id, full_name)), hospital_robotic_systems(system:robotic_systems(*)), case_volumes(procedure_id, year, count, procedure:procedures(name)), contacts(*), doctor_hospitals(role_at_hospital, sector, doctor:doctors(id, name, title, position, status))',
           )
           .order('name'),
       ),
@@ -822,6 +937,37 @@ export function useDeleteCaseVolume() {
     mutationFn: async (id: string) =>
       unwrap(await supabase.from('case_volumes').delete().eq('id', id)),
     onSuccess: () => invalidateCaseVolumes(qc),
+  })
+}
+
+/* ============================ Pipeline (potential doctors) ============================ */
+
+export type PipelineDoctor = Doctor & {
+  doctor_hospitals: { hospital: { id: string; name: string } | null }[]
+  doctor_companies: { company: { id: string; name: string } | null }[]
+  doctor_robotic_systems: { system: { id: string; name: string } | null }[]
+  case_volumes: {
+    year: number
+    count: number
+    company: { name: string } | null
+    procedure: { name: string } | null
+    hospital: { name: string } | null
+  }[]
+}
+
+export function usePipelineDoctors() {
+  return useQuery({
+    queryKey: ['pipeline-doctors'],
+    queryFn: async () =>
+      unwrap<PipelineDoctor[]>(
+        await supabase
+          .from('doctors')
+          .select(
+            '*, doctor_hospitals(hospital:hospitals(id, name)), doctor_companies(company:companies(id, name)), doctor_robotic_systems(system:robotic_systems(id, name)), case_volumes(year, count, company:companies(name), procedure:procedures(name), hospital:hospitals(name))',
+          )
+          .eq('status', 'potential')
+          .order('name'),
+      ),
   })
 }
 

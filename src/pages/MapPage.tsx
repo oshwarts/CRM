@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MapContainer, Marker, TileLayer, Tooltip } from 'react-leaflet'
 import L from 'leaflet'
-import { Activity, Building2, Phone, Stethoscope, User } from 'lucide-react'
+import { Activity, Bot, Building2, Phone, Stethoscope, User } from 'lucide-react'
 import { useMapData, type MapHospital } from '../lib/api'
 import { ErrorState, Spinner } from '../components/ui'
 import { DOCTOR_STATUS_LABELS, SECTOR_LABELS } from '../lib/types'
@@ -25,10 +25,25 @@ function pinIcon(active: boolean, count: number) {
 export default function MapPage() {
   const map = useMapData()
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [orgFilter, setOrgFilter] = useState('')
+
+  const orgNames = useMemo(() => {
+    const s = new Set<string>()
+    for (const h of map.data ?? []) if (h.organization) s.add(h.organization.name)
+    return [...s].sort()
+  }, [map.data])
+
+  const filtered = useMemo(
+    () =>
+      (map.data ?? []).filter(
+        (h) => !orgFilter || h.organization?.name === orgFilter,
+      ),
+    [map.data, orgFilter],
+  )
 
   const withCoords = useMemo(
-    () => (map.data ?? []).filter((h) => h.lat != null && h.lng != null),
-    [map.data],
+    () => filtered.filter((h) => h.lat != null && h.lng != null),
+    [filtered],
   )
 
   const selected =
@@ -39,11 +54,25 @@ export default function MapPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800">מפת בתי חולים</h1>
-        <p className="text-sm text-slate-400">
-          לחיצה על בית חולים מציגה את הרופאים המשויכים והסוכן המטפל
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">מפת בתי חולים</h1>
+          <p className="text-sm text-slate-400">
+            לחיצה על בית חולים מציגה את הרופאים, הסוכן המטפל והרובוטיקה
+          </p>
+        </div>
+        <select
+          className="input max-w-48"
+          value={orgFilter}
+          onChange={(e) => setOrgFilter(e.target.value)}
+        >
+          <option value="">כל הארגונים</option>
+          {orgNames.map((n) => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
@@ -77,9 +106,9 @@ export default function MapPage() {
           ) : (
             <div className="space-y-2">
               <p className="text-sm font-medium text-slate-600">
-                כל בתי החולים
+                בתי חולים ({filtered.length})
               </p>
-              {(map.data ?? []).map((h) => (
+              {filtered.map((h) => (
                 <button
                   key={h.id}
                   onClick={() => setSelectedId(h.id)}
@@ -102,6 +131,9 @@ export default function MapPage() {
 function HospitalPanel({ hospital }: { hospital: MapHospital }) {
   const agents = hospital.hospital_agents
     .map((a) => a.agent?.full_name)
+    .filter(Boolean)
+  const robotics = hospital.hospital_robotic_systems
+    .map((r) => r.system?.name)
     .filter(Boolean)
 
   const latestYear = hospital.case_volumes.reduce(
@@ -127,11 +159,30 @@ function HospitalPanel({ hospital }: { hospital: MapHospital }) {
         </p>
         <p className="text-sm text-slate-500">
           {hospital.city}
+          {hospital.organization ? ` · ${hospital.organization.name}` : ''}
           {hospital.sector
             ? ` · ${SECTOR_LABELS[hospital.sector] ?? hospital.sector}`
             : ''}
         </p>
       </div>
+
+      {robotics.length > 0 && (
+        <div>
+          <p className="mb-1 flex items-center gap-1 text-xs font-medium uppercase text-slate-400">
+            <Bot size={12} /> רובוטיקה
+          </p>
+          <div className="flex flex-wrap gap-1">
+            {robotics.map((r) => (
+              <span
+                key={r}
+                className="chip border-brand-200 bg-brand-50 text-brand-700"
+              >
+                {r}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div>
         <p className="mb-1 flex items-center gap-1 text-xs font-medium uppercase text-slate-400">

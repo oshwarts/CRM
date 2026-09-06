@@ -133,8 +133,10 @@ export type Database = {
           email: string
           id: string
           name: string
+          next_step_date: string | null
           notes: string
           phone: string
+          pipeline_stage: string
           position: string
           status: string
           title: string
@@ -147,8 +149,10 @@ export type Database = {
           email?: string
           id?: string
           name: string
+          next_step_date?: string | null
           notes?: string
           phone?: string
+          pipeline_stage?: string
           position?: string
           status?: string
           title?: string
@@ -161,14 +165,40 @@ export type Database = {
           email?: string
           id?: string
           name?: string
+          next_step_date?: string | null
           notes?: string
           phone?: string
+          pipeline_stage?: string
           position?: string
           status?: string
           title?: string
           tracking_notes?: string
           updated_at?: string
         }
+        Relationships: []
+      }
+      organizations: {
+        Row: { created_at: string; id: string; name: string }
+        Insert: { created_at?: string; id?: string; name: string }
+        Update: { created_at?: string; id?: string; name?: string }
+        Relationships: []
+      }
+      robotic_systems: {
+        Row: { created_at: string; id: string; name: string }
+        Insert: { created_at?: string; id?: string; name: string }
+        Update: { created_at?: string; id?: string; name?: string }
+        Relationships: []
+      }
+      hospital_robotic_systems: {
+        Row: { hospital_id: string; system_id: string }
+        Insert: { hospital_id: string; system_id: string }
+        Update: { hospital_id?: string; system_id?: string }
+        Relationships: []
+      }
+      doctor_robotic_systems: {
+        Row: { doctor_id: string; system_id: string }
+        Insert: { doctor_id: string; system_id: string }
+        Update: { doctor_id?: string; system_id?: string }
         Relationships: []
       }
       case_volumes: {
@@ -225,6 +255,7 @@ export type Database = {
           lat: number | null
           lng: number | null
           name: string
+          organization_id: string | null
           sector: string
         }
         Insert: {
@@ -235,6 +266,7 @@ export type Database = {
           lat?: number | null
           lng?: number | null
           name: string
+          organization_id?: string | null
           sector?: string
         }
         Update: {
@@ -245,6 +277,7 @@ export type Database = {
           lat?: number | null
           lng?: number | null
           name?: string
+          organization_id?: string | null
           sector?: string
         }
         Relationships: []
