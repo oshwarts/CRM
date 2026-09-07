@@ -261,37 +261,38 @@ export function useDeleteDoctor() {
 
 /* ============================ Pre-op plans ============================ */
 
+export type PreopPlanInput = {
+  id?: string
+  procedure_id: string | null
+  surgeon_preferences: string
+  surgical_approach: string
+  required_equipment: string
+  plan_data: Record<string, unknown>
+}
+
 export function useSavePreopPlan(doctorId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (plan: {
-      id?: string
-      procedure_id: string | null
-      surgeon_preferences: string
-      surgical_approach: string
-      required_equipment: string
-    }) => {
+    mutationFn: async (plan: PreopPlanInput) => {
+      const fields = {
+        procedure_id: plan.procedure_id,
+        surgeon_preferences: plan.surgeon_preferences,
+        surgical_approach: plan.surgical_approach,
+        required_equipment: plan.required_equipment,
+        plan_data: plan.plan_data as never,
+      }
       if (plan.id) {
         unwrap(
           await supabase
             .from('doctor_preop_plans')
-            .update({
-              procedure_id: plan.procedure_id,
-              surgeon_preferences: plan.surgeon_preferences,
-              surgical_approach: plan.surgical_approach,
-              required_equipment: plan.required_equipment,
-            })
+            .update(fields)
             .eq('id', plan.id),
         )
       } else {
         unwrap(
-          await supabase.from('doctor_preop_plans').insert({
-            doctor_id: doctorId,
-            procedure_id: plan.procedure_id,
-            surgeon_preferences: plan.surgeon_preferences,
-            surgical_approach: plan.surgical_approach,
-            required_equipment: plan.required_equipment,
-          }),
+          await supabase
+            .from('doctor_preop_plans')
+            .insert({ doctor_id: doctorId, ...fields }),
         )
       }
     },

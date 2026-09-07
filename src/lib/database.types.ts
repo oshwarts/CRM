@@ -92,6 +92,7 @@ export type Database = {
           created_at: string
           doctor_id: string
           id: string
+          plan_data: Json
           procedure_id: string | null
           required_equipment: string
           surgeon_preferences: string
@@ -102,6 +103,7 @@ export type Database = {
           created_at?: string
           doctor_id: string
           id?: string
+          plan_data?: Json
           procedure_id?: string | null
           required_equipment?: string
           surgeon_preferences?: string
@@ -112,6 +114,7 @@ export type Database = {
           created_at?: string
           doctor_id?: string
           id?: string
+          plan_data?: Json
           procedure_id?: string | null
           required_equipment?: string
           surgeon_preferences?: string
@@ -424,6 +427,7 @@ export type Database = {
           id: string
           is_mako: boolean
           name: string
+          planning_template: string
         }
         Insert: {
           category?: string
@@ -431,6 +435,7 @@ export type Database = {
           id?: string
           is_mako?: boolean
           name: string
+          planning_template?: string
         }
         Update: {
           category?: string
@@ -438,6 +443,7 @@ export type Database = {
           id?: string
           is_mako?: boolean
           name?: string
+          planning_template?: string
         }
         Relationships: []
       }
