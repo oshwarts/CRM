@@ -1,6 +1,6 @@
 // Schematic CT-slice views in the MAKO Case-Planning style: magenta bone outline
-// + green implant overlay on near-black, with a teal cross-hair. Not real CT —
-// enough to recognise the plane and where the implant sits.
+// + green implant overlay on near-black. The implant group can be tilted /
+// shifted so it visibly responds to the plan values.
 
 const OUTLINE = '#ff3ad0'
 const IMPLANT = '#37e23a'
@@ -22,12 +22,20 @@ export function MakoBoneSVG({
   view,
   className,
   refLines = false,
+  implantTilt = 0,
+  implantShift = 0,
+  mirror = false,
 }: {
   bone: 'tibia' | 'femur' | 'pelvis'
   view: 'transverse' | 'axial' | 'coronal' | 'sagittal' | 'model'
   className?: string
-  /** show MAKO alignment / rotation reference lines (total-knee grid) */
   refLines?: boolean
+  /** degrees to rotate the implant overlay (varus / rotation / flexion / slope) */
+  implantTilt?: number
+  /** px to shift the implant along the cut (resection depth) */
+  implantShift?: number
+  /** flip horizontally (right-knee anterior view) */
+  mirror?: boolean
 }) {
   const svg = {
     className,
@@ -39,114 +47,139 @@ export function MakoBoneSVG({
   }
   const key = `${bone}-${view}`
 
+  // implant transform, rotated about a plausible joint centre per view
+  const centre: Record<string, [number, number]> = {
+    'femur-coronal': [110, 55],
+    'femur-axial': [110, 70],
+    'femur-transverse': [110, 70],
+    'femur-sagittal': [104, 70],
+    'tibia-coronal': [110, 44],
+    'tibia-axial': [100, 82],
+    'tibia-transverse': [100, 82],
+    'tibia-sagittal': [104, 52],
+  }
+  const [cx, cy] = centre[key] ?? [110, 85]
+  const implantG = `translate(0 ${implantShift}) rotate(${implantTilt} ${cx} ${cy})`
+  const rootT = mirror ? 'translate(220 0) scale(-1 1)' : undefined
+
+  const wrap = (bg: React.ReactNode, implant: React.ReactNode, extra?: React.ReactNode) => (
+    <svg {...svg}>
+      <g transform={rootT}>
+        {bg}
+        <g transform={implantG}>{implant}</g>
+        {extra}
+      </g>
+    </svg>
+  )
+
   switch (key) {
     /* ---- TIBIA ---- */
     case 'tibia-transverse':
     case 'tibia-axial':
-      return (
-        <svg {...svg}>
-          <path d="M40 62 q10 -34 70 -34 q60 0 72 34 q8 22 -6 44 q-16 26 -66 26 q-50 0 -66 -26 q-14 -22 -4 -44 z" fill={FILL} stroke={OUTLINE} strokeWidth="2" />
-          <path d="M52 52 q22 -14 46 -8 l4 66 q-30 6 -48 -14 q-10 -20 -2 -44 z" fill={IMPLANT} stroke={IMPLANT_D} />
-          {refLines && (
-            <ellipse cx="176" cy="96" rx="12" ry="14" fill={FILL} stroke={OUTLINE} strokeWidth="2" />
-          )}
+      return wrap(
+        <path d="M40 62 q10 -34 70 -34 q60 0 72 34 q8 22 -6 44 q-16 26 -66 26 q-50 0 -66 -26 q-14 -22 -4 -44 z" fill={FILL} stroke={OUTLINE} strokeWidth="2" />,
+        <path d="M52 52 q22 -14 46 -8 l4 66 q-30 6 -48 -14 q-10 -20 -2 -44 z" fill={IMPLANT} stroke={IMPLANT_D} />,
+        <>
+          {refLines && <ellipse cx="176" cy="96" rx="12" ry="14" fill={FILL} stroke={OUTLINE} strokeWidth="2" />}
           <Crosshair x={82} y={82} />
-        </svg>
+        </>,
       )
     case 'tibia-coronal':
-      return (
-        <svg {...svg}>
+      return wrap(
+        <>
           <path d="M46 28 q60 -16 128 0 q6 20 2 30 h-132 q-4 -12 2 -30 z" fill={FILL} stroke={OUTLINE} strokeWidth="2" />
           <path d="M84 58 q22 60 20 92 h12 q-4 -30 22 -92 z" fill={FILL} stroke={OUTLINE} strokeWidth="2" />
-          <path d="M46 30 q40 -8 66 -4 v20 h-64 q-4 -8 -2 -16 z" fill={IMPLANT} stroke={IMPLANT_D} />
-          <rect x="70" y="48" width="8" height="20" fill={IMPLANT} stroke={IMPLANT_D} />
-          <Crosshair x={80} y={40} />
-        </svg>
+        </>,
+        <>
+          <path d="M46 30 q64 -10 128 0 v18 h-128 z" fill={IMPLANT} stroke={IMPLANT_D} />
+          <rect x="104" y="46" width="8" height="22" fill={IMPLANT} stroke={IMPLANT_D} />
+        </>,
+        <Crosshair x={110} y={40} />,
       )
     case 'tibia-sagittal':
-      return (
-        <svg {...svg}>
+      return wrap(
+        <>
           <path d="M40 34 q70 -22 140 8 l-6 34 q-64 16 -128 0 z" fill={FILL} stroke={OUTLINE} strokeWidth="2" />
           <path d="M80 74 q20 56 16 84 h12 q-4 -32 20 -76 z" fill={FILL} stroke={OUTLINE} strokeWidth="2" />
+        </>,
+        <>
           <path d="M44 40 l128 12 v14 l-126 6 z" fill={IMPLANT} stroke={IMPLANT_D} />
-          <path d="M96 66 v22" stroke={IMPLANT_D} strokeWidth="5" />
-          <Crosshair x={104} y={54} />
-        </svg>
+          <path d="M104 66 v22" stroke={IMPLANT_D} strokeWidth="5" />
+        </>,
+        <Crosshair x={104} y={54} />,
       )
 
     /* ---- FEMUR ---- */
     case 'femur-transverse':
     case 'femur-axial':
-      return (
-        <svg {...svg}>
+      return wrap(
+        <>
           <path d="M34 60 q54 -34 96 -30 q28 2 52 22 q14 12 8 40 q-8 34 -40 44 q-20 8 -50 6 q-40 -2 -56 -30 q-14 -26 -10 -52 z" fill={FILL} stroke={OUTLINE} strokeWidth="2" />
-          <path d="M96 40 q10 30 0 62 M116 40 q-10 30 0 62" stroke={OUTLINE} strokeWidth="1.5" fill="none" />
-          <path d="M40 66 q24 -22 44 -16 l2 66 q-30 4 -44 -18 q-8 -18 -2 -32 z" fill={IMPLANT} stroke={IMPLANT_D} />
+          <path d="M100 40 q10 30 0 62 M120 40 q-10 30 0 62" stroke={OUTLINE} strokeWidth="1.5" fill="none" />
+        </>,
+        <path d="M40 66 q80 -22 140 0 l0 30 q-70 20 -140 0 z" fill={IMPLANT} stroke={IMPLANT_D} opacity="0.9" />,
+        <>
           {refLines && (
             <>
-              <line x1="30" y1="78" x2="196" y2="70" stroke="#4ea0ff" strokeWidth="2.5" />
-              <line x1="30" y1="66" x2="196" y2="62" stroke="#ffffff" strokeWidth="1.5" />
+              <line x1="30" y1="82" x2="196" y2="74" stroke="#4ea0ff" strokeWidth="2.5" />
+              <line x1="30" y1="70" x2="196" y2="66" stroke="#ffffff" strokeWidth="1.5" />
             </>
           )}
-          <Crosshair x={72} y={78} />
-        </svg>
+          <Crosshair x={110} y={78} />
+        </>,
       )
     case 'femur-coronal':
-      return (
-        <svg {...svg}>
+      return wrap(
+        <>
           <path d="M52 22 q56 -14 116 0 q10 24 4 44 q-8 26 -30 34 q-16 6 -42 6 q-26 0 -42 -6 q-22 -8 -30 -34 q-6 -20 4 -44 z" fill={FILL} stroke={OUTLINE} strokeWidth="2" />
           <path d="M100 30 v70 M120 30 v70" stroke={OUTLINE} strokeWidth="1.5" />
-          <path d="M52 24 q34 -8 56 -4 q4 40 -6 66 q-14 8 -26 6 q-22 -4 -28 -30 q-6 -20 4 -38 z" fill={IMPLANT} stroke={IMPLANT_D} />
+        </>,
+        <path d="M50 66 q60 -16 120 0 q4 20 -2 34 q-14 8 -34 8 h-14 q-20 0 -34 -8 q-6 -14 -2 -34 z" fill={IMPLANT} stroke={IMPLANT_D} />,
+        <>
           {refLines && (
             <>
-              <line x1="108" y1="12" x2="102" y2="112" stroke="#4ea0ff" strokeWidth="2" />
-              <line x1="112" y1="12" x2="112" y2="112" stroke="#ffffff" strokeWidth="1.5" />
+              <line x1="112" y1="10" x2="104" y2="118" stroke="#4ea0ff" strokeWidth="2" />
+              <line x1="116" y1="10" x2="116" y2="118" stroke="#ffffff" strokeWidth="1.5" />
             </>
           )}
-          <Crosshair x={78} y={64} />
-        </svg>
+          <Crosshair x={110} y={70} />
+        </>,
       )
     case 'femur-sagittal':
-      return (
-        <svg {...svg}>
-          <path d="M56 20 q60 -8 92 30 q18 24 6 58 q-14 34 -54 40 q-30 4 -50 -18 q-16 -20 -12 -50 q4 -34 12 -60 z" fill={FILL} stroke={OUTLINE} strokeWidth="2" />
-          <path d="M60 30 q56 -4 82 34 q14 22 4 50 q-24 -6 -40 -22 q-30 -30 -46 -62 z" fill={IMPLANT} stroke={IMPLANT_D} opacity="0.92" />
-          <path d="M62 96 q30 26 62 8" stroke={IMPLANT_D} strokeWidth="5" fill="none" />
-          <Crosshair x={100} y={78} />
-        </svg>
+      return wrap(
+        <path d="M56 20 q60 -8 92 30 q18 24 6 58 q-14 34 -54 40 q-30 4 -50 -18 q-16 -20 -12 -50 q4 -34 12 -60 z" fill={FILL} stroke={OUTLINE} strokeWidth="2" />,
+        <path d="M60 40 q50 -8 78 26 q14 20 8 46 q-6 22 -30 30 q-22 8 -42 -8 q-16 -14 -18 -40 q-2 -30 26 -50 z" fill="none" stroke={IMPLANT} strokeWidth="7" />,
+        <Crosshair x={104} y={72} />,
       )
 
     /* ---- PELVIS ---- */
     case 'pelvis-transverse':
-      return (
-        <svg {...svg}>
-          <path d="M24 84 q84 -70 172 0 q-84 52 -172 0 z" fill={FILL} stroke={OUTLINE} strokeWidth="2" />
+      return wrap(
+        <path d="M24 84 q84 -70 172 0 q-84 52 -172 0 z" fill={FILL} stroke={OUTLINE} strokeWidth="2" />,
+        <>
           <ellipse cx="110" cy="78" rx="40" ry="20" fill="none" stroke={IMPLANT} strokeWidth="6" />
           <path d="M110 78 l34 -16" stroke="#3ee6d6" strokeWidth="3" />
-          <Crosshair x={110} y={78} />
-        </svg>
+        </>,
+        <Crosshair x={110} y={78} />,
       )
     case 'pelvis-coronal':
-      return (
-        <svg {...svg}>
-          <path d="M30 26 q46 -16 80 6 q34 -22 80 -6 q12 44 -16 74 q-28 26 -64 26 q-36 0 -64 -26 q-28 -30 -16 -74 z" fill={FILL} stroke={OUTLINE} strokeWidth="2" />
-          <path d="M110 88 m-34 0 a34 34 0 1 1 68 0" fill="none" stroke={IMPLANT} strokeWidth="7" />
-          <Crosshair x={110} y={88} />
-        </svg>
+      return wrap(
+        <path d="M30 26 q46 -16 80 6 q34 -22 80 -6 q12 44 -16 74 q-28 26 -64 26 q-36 0 -64 -26 q-28 -30 -16 -74 z" fill={FILL} stroke={OUTLINE} strokeWidth="2" />,
+        <path d="M110 88 m-34 0 a34 34 0 1 1 68 0" fill="none" stroke={IMPLANT} strokeWidth="7" />,
+        <Crosshair x={110} y={88} />,
       )
     case 'pelvis-sagittal':
-      return (
-        <svg {...svg}>
-          <path d="M40 40 q60 -26 120 6 q20 30 4 70 q-20 40 -70 44 q-40 2 -56 -28 q-14 -28 -2 -92 z" fill={FILL} stroke={OUTLINE} strokeWidth="2" />
+      return wrap(
+        <path d="M40 40 q60 -26 120 6 q20 30 4 70 q-20 40 -70 44 q-40 2 -56 -28 q-14 -28 -2 -92 z" fill={FILL} stroke={OUTLINE} strokeWidth="2" />,
+        <>
           <path d="M100 96 m-30 0 a30 30 0 1 1 60 0" fill="none" stroke={IMPLANT} strokeWidth="7" />
           <path d="M100 96 l26 -12" stroke="#3ee6d6" strokeWidth="3" />
-          <Crosshair x={100} y={96} />
-        </svg>
+        </>,
+        <Crosshair x={100} y={96} />,
       )
 
     /* ---- 3D MODEL ---- */
     default: {
-      // "model" view — white 3D reconstruction with green implant
       if (bone === 'femur')
         return (
           <svg {...svg}>

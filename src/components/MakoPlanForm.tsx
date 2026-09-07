@@ -11,6 +11,7 @@ import type {
 } from '../lib/makoTemplates'
 import { componentFieldKey } from '../lib/makoTemplates'
 import { MakoBoneSVG } from './MakoBoneSVG'
+import { MakoKneePlanner } from './MakoKneePlanner'
 import { classNames } from '../lib/utils'
 
 type Values = Record<string, unknown>
@@ -92,6 +93,17 @@ export function MakoPlanForm(props: {
 }) {
   const { template, values, onChange, readOnly = false } = props
   const set: Setter = (key, v) => onChange?.({ ...values, [key]: v })
+
+  if (template.layout === 'knee') {
+    return (
+      <div className="space-y-2">
+        <MakoKneePlanner values={values} onChange={onChange} readOnly={readOnly} />
+        <div className="overflow-hidden rounded-2xl border border-slate-700 bg-[#12151a]">
+          <ExtrasBlock template={template} values={values} set={set} readOnly={readOnly} />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div dir="ltr" className="overflow-hidden rounded-2xl border border-slate-700 bg-[#0b0d10] text-slate-100">

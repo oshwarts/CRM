@@ -1,10 +1,9 @@
 // MAKO SmartRobotics "Case Planning" style templates.
-// Two layouts, matched to the real screens:
 //   - 'quad'  : RESTORIS MCK partial knee — Transverse / 3D / Coronal / Sagittal,
 //               Implant-View toggle, blue right rail (Size / Poly / Proud).
-//   - 'grid'  : Triathlon total knee — 2x3 (Femur row / Tibia row x Coronal /
-//               Axial / Sagittal), dual alignment/rotation values, resection mm,
-//               dark right rail (Femur / Tibia / Poly component sizes).
+//   - 'knee'  : Triathlon total knee — a small biomechanical model (see
+//               kneeModel.ts) rendered as the 2x3 Femur/Tibia Case-Planning grid.
+import { KNEE_DEFAULTS } from './kneeModel'
 
 /* ============================== shared ============================== */
 
@@ -83,7 +82,7 @@ export type RailStepper = { key: string; label: string; default: number; prefix?
 export type MakoTemplate = {
   id: 'mako_tka' | 'mako_pka' | 'mako_tha'
   label: string
-  layout: 'quad' | 'grid'
+  layout: 'quad' | 'grid' | 'knee'
   greenHeader: string
   // quad
   components?: MakoComponentView[]
@@ -181,110 +180,32 @@ const pka: MakoTemplate = {
   ],
 }
 
-/* ============================== TKA (grid) ============================== */
-
-const angle = (
-  key: string,
-  posLabel: string,
-  negLabel: string,
-  def: number,
-  ref?: string,
-): CellValue => ({ kind: 'angle', key, posLabel, negLabel, ref, step: 0.5, default: def })
-
-const mm = (key: string, label: string, def: number): CellValue => ({
-  kind: 'mm',
-  key,
-  label,
-  step: 0.5,
-  default: def,
-})
+/* ============================== TKA (knee model) ============================== */
 
 const tka: MakoTemplate = {
   id: 'mako_tka',
-  layout: 'grid',
+  layout: 'knee',
   label: 'MAKO – החלפת ברך מלאה',
   greenHeader: 'Triathlon CS Primary (PCL Protect)',
-  rows: [
-    {
-      label: 'Femur',
-      cells: [
-        {
-          bone: 'femur',
-          plane: 'coronal',
-          top: [
-            angle('fem_valgus_aa', 'Valgus', 'Varus', 9.7, 'AA'),
-            angle('fem_valgus_ma', 'Valgus', 'Varus', 3.0, 'MA'),
-          ],
-          bottom: [
-            mm('fem_distal_lat', 'L', 5.5),
-            mm('fem_distal_med', 'M', 6.5),
-            mm('fem_ant_lat', 'L', 6.5),
-            mm('fem_ant_med', 'M', 6.5),
-          ],
-        },
-        {
-          bone: 'femur',
-          plane: 'axial',
-          top: [
-            angle('fem_rot_pca', 'External', 'Internal', 1.0, 'PCA'),
-            angle('fem_rot_tea', 'External', 'Internal', 3.5, 'TEA'),
-          ],
-          bottom: [mm('fem_post_lat', 'L', 5.5), mm('fem_post_med', 'M', 6.5)],
-        },
-        {
-          bone: 'femur',
-          plane: 'sagittal',
-          top: [angle('fem_flexion', 'Flexion', 'Extension', 3.5)],
-        },
-      ],
-    },
-    {
-      label: 'Tibia',
-      cells: [
-        {
-          bone: 'tibia',
-          plane: 'coronal',
-          bottom: [angle('tib_varus', 'Varus', 'Valgus', 4.0)],
-        },
-        {
-          bone: 'tibia',
-          plane: 'axial',
-          bottom: [angle('tib_rotation', 'External', 'Internal', 0.0)],
-        },
-        {
-          bone: 'tibia',
-          plane: 'sagittal',
-          bottom: [angle('tib_slope', 'P. Slope', 'P. Slope', 4.0)],
-        },
-      ],
-    },
-  ],
-  rail: [
-    { key: 'fem_size', label: 'Femur', default: 7, prefix: 'Post.' },
-    { key: 'tib_size', label: 'Tibia', default: 7 },
-    { key: 'poly_size', label: 'Poly', default: 9 },
-  ],
   extras: [
     {
       title: 'מערכת ויישור',
       columns: 3,
       fields: [
-        { key: 'operative_side', label: 'צד מנותח', type: 'select', options: ['left', 'right'], default: 'left' },
         { key: 'implant_system', label: 'מערכת שתל', type: 'select', options: ['Triathlon CR', 'Triathlon PS', 'Triathlon CS', 'Triathlon TS', 'Triathlon Cementless CR', 'Triathlon Cementless PS'], default: 'Triathlon CS' },
         { key: 'alignment', label: 'פילוסופיית יישור', type: 'select', options: ['Mechanical', 'Adjusted Mechanical', 'Kinematic', 'Restricted Kinematic', 'Functional'], default: 'Mechanical' },
         { key: 'patella', label: 'פיקה', type: 'select', options: ['Resurface', 'Non-resurface', 'Selective'], default: 'Resurface' },
         { key: 'approach', label: 'גישה ניתוחית', type: 'select', options: ['Medial Parapatellar', 'Subvastus', 'Midvastus', 'Quad-sparing'], default: 'Medial Parapatellar' },
         { key: 'fem_rotation_ref', label: 'ייחוס סיבוב Femur', type: 'select', options: ['PCA', 'TEA', 'Whiteside', 'Balanced'], default: 'Balanced' },
+        { key: 'cr_pcl', label: 'CR / PS', type: 'select', options: ['CR (PCL Retain)', 'CS (PCL Protect)', 'PS (PCL Substitute)'], default: 'CS (PCL Protect)' },
       ],
     },
     {
-      title: 'איזון מרווחים (Gap Balance)',
+      title: 'אנטומיית מטופל (מתקדם)',
       columns: 2,
       fields: [
-        { key: 'ext_gap_med', label: 'הזדקפות – מדיאלי', type: 'stepper', unit: 'mm', step: 0.5, default: 18 },
-        { key: 'ext_gap_lat', label: 'הזדקפות – לטרלי', type: 'stepper', unit: 'mm', step: 0.5, default: 18 },
-        { key: 'flex_gap_med', label: 'כיפוף 90° – מדיאלי', type: 'stepper', unit: 'mm', step: 0.5, default: 18 },
-        { key: 'flex_gap_lat', label: 'כיפוף 90° – לטרלי', type: 'stepper', unit: 'mm', step: 0.5, default: 19 },
+        { key: 'aa_ma_offset', label: 'הפרש AA–MA (°)', type: 'stepper', unit: '°', step: 0.5, default: 6.7 },
+        { key: 'pca_tea_offset', label: 'הפרש PCA–TEA (°)', type: 'stepper', unit: '°', step: 0.5, default: 4.5 },
       ],
     },
     NOTES,
@@ -362,7 +283,9 @@ export function componentFieldKey(componentId: string, key: string): string {
 export function defaultsFor(t: MakoTemplate): Record<string, string | number> {
   const out: Record<string, string | number> = {}
 
-  if (t.layout === 'quad') {
+  if (t.layout === 'knee') {
+    Object.assign(out, KNEE_DEFAULTS)
+  } else if (t.layout === 'quad') {
     for (const c of t.components ?? []) {
       out[componentFieldKey(c.id, c.transverse.key)] = c.transverse.default
       out[componentFieldKey(c.id, c.coronal.key)] = c.coronal.default
