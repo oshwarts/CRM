@@ -10,7 +10,9 @@ import type {
   Contact,
   Doctor,
   DoctorListItem,
+  DoctorProcedureEquipmentRow,
   DoctorWithRelations,
+  EquipmentItemWithCompany,
   Hospital,
   HospitalListItem,
   MeetingTask,
@@ -968,6 +970,126 @@ export function usePipelineDoctors() {
           .eq('status', 'potential')
           .order('name'),
       ),
+  })
+}
+
+/* ============================ Equipment ============================ */
+
+export function useEquipmentItems() {
+  return useQuery({
+    queryKey: ['equipment-items'],
+    queryFn: async () =>
+      unwrap<EquipmentItemWithCompany[]>(
+        await supabase
+          .from('equipment_items')
+          .select('*, company:companies(id, name)')
+          .order('name'),
+      ),
+  })
+}
+
+export function useUpsertEquipmentItem() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (e: {
+      id?: string
+      name: string
+      catalog_number: string
+      company_id: string | null
+    }) => {
+      const payload = {
+        name: e.name,
+        catalog_number: e.catalog_number,
+        company_id: e.company_id,
+      }
+      if (e.id)
+        unwrap(await supabase.from('equipment_items').update(payload).eq('id', e.id))
+      else unwrap(await supabase.from('equipment_items').insert(payload))
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['equipment-items'] })
+      qc.invalidateQueries({ queryKey: ['doctor-equipment'] })
+    },
+  })
+}
+
+export function useDeleteEquipmentItem() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) =>
+      unwrap(await supabase.from('equipment_items').delete().eq('id', id)),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['equipment-items'] })
+      qc.invalidateQueries({ queryKey: ['doctor-equipment'] })
+    },
+  })
+}
+
+export function useDoctorEquipment(doctorId: string | undefined) {
+  return useQuery({
+    queryKey: ['doctor-equipment', doctorId],
+    enabled: !!doctorId,
+    queryFn: async () =>
+      unwrap<DoctorProcedureEquipmentRow[]>(
+        await supabase
+          .from('doctor_procedure_equipment')
+          .select(
+            '*, procedure:procedures(id, name), item:equipment_items(*, company:companies(id, name))',
+          )
+          .eq('doctor_id', doctorId!),
+      ),
+  })
+}
+
+export function useUpsertDoctorEquipment(doctorId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (r: {
+      id?: string
+      procedure_id: string
+      item_id: string
+      qty_per_case: number
+      scales_with_cases: boolean
+    }) => {
+      const payload = {
+        doctor_id: doctorId,
+        procedure_id: r.procedure_id,
+        item_id: r.item_id,
+        qty_per_case: r.qty_per_case,
+        scales_with_cases: r.scales_with_cases,
+      }
+      if (r.id) {
+        unwrap(
+          await supabase
+            .from('doctor_procedure_equipment')
+            .update(payload)
+            .eq('id', r.id),
+        )
+      } else {
+        const res = await supabase
+          .from('doctor_procedure_equipment')
+          .insert(payload)
+        if (res.error) {
+          if ((res.error as { code?: string }).code === '23505')
+            throw new Error('הפריט כבר קיים בתוכנית של הליך זה')
+          throw res.error
+        }
+      }
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ['doctor-equipment', doctorId] }),
+  })
+}
+
+export function useDeleteDoctorEquipment(doctorId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) =>
+      unwrap(
+        await supabase.from('doctor_procedure_equipment').delete().eq('id', id),
+      ),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ['doctor-equipment', doctorId] }),
   })
 }
 

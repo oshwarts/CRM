@@ -4,6 +4,7 @@ import {
   ArrowRight,
   Building2,
   Heart,
+  Package,
   Pencil,
   Phone,
   Plus,
@@ -23,6 +24,8 @@ import { DoctorFormModal } from '../components/DoctorFormModal'
 import { MeetingFormModal } from '../components/MeetingFormModal'
 import { ContactsSection } from '../components/ContactsSection'
 import { CaseVolumesEditor } from '../components/CaseVolumesEditor'
+import { EquipmentPlanEditor } from '../components/EquipmentPlanEditor'
+import { PickingListModal } from '../components/PickingListModal'
 import {
   ConfirmButton,
   EmptyState,
@@ -54,6 +57,7 @@ export default function DoctorProfile() {
   const [tab, setTab] = useState('details')
   const [editing, setEditing] = useState(false)
   const [addMeeting, setAddMeeting] = useState(false)
+  const [picking, setPicking] = useState(false)
 
   if (doctor.isLoading) return <Spinner />
   if (doctor.error) return <ErrorState error={doctor.error} />
@@ -150,6 +154,10 @@ export default function DoctorProfile() {
             <Heart size={16} fill={isFav ? 'currentColor' : 'none'} />
             {isFav ? 'במועדפים' : 'הוסף למועדפים'}
           </button>
+          <button className="btn-secondary" onClick={() => setPicking(true)}>
+            <Package size={16} />
+            רשימת ליקוט
+          </button>
           <button className="btn-secondary" onClick={() => setEditing(true)}>
             <Pencil size={16} />
             עריכה
@@ -172,6 +180,7 @@ export default function DoctorProfile() {
           <Tab id="hospitals">בתי חולים</Tab>
           <Tab id="procedures">הליכים</Tab>
           <Tab id="volumes">כמויות מקרים</Tab>
+          <Tab id="equipment">ציוד לניתוח</Tab>
           <Tab id="preop">תכנון טרום ניתוחי</Tab>
           <Tab id="contacts">אנשי קשר</Tab>
           <Tab id="meetings">פגישות ({meetings.data?.length ?? 0})</Tab>
@@ -248,6 +257,16 @@ export default function DoctorProfile() {
           )}
         </TabPanel>
 
+        <TabPanel id="equipment">
+          <EquipmentPlanEditor
+            doctorId={d.id}
+            procedures={d.doctor_procedures
+              .map((p) => p.procedure)
+              .filter((p): p is NonNullable<typeof p> => !!p)
+              .map((p) => ({ id: p.id, name: p.name }))}
+          />
+        </TabPanel>
+
         <TabPanel id="preop">
           <PreopSection doctorId={d.id} plans={d.doctor_preop_plans} />
         </TabPanel>
@@ -305,6 +324,13 @@ export default function DoctorProfile() {
           open={addMeeting}
           onClose={() => setAddMeeting(false)}
           defaultDoctorId={d.id}
+        />
+      )}
+      {picking && (
+        <PickingListModal
+          doctorId={d.id}
+          doctorName={`${d.title} ${d.name}`}
+          onClose={() => setPicking(false)}
         />
       )}
     </div>

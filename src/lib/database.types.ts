@@ -183,6 +183,60 @@ export type Database = {
         Update: { created_at?: string; id?: string; name?: string }
         Relationships: []
       }
+      equipment_items: {
+        Row: {
+          catalog_number: string
+          company_id: string | null
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          catalog_number?: string
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          catalog_number?: string
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      doctor_procedure_equipment: {
+        Row: {
+          created_at: string
+          doctor_id: string
+          id: string
+          item_id: string
+          procedure_id: string
+          qty_per_case: number
+          scales_with_cases: boolean
+        }
+        Insert: {
+          created_at?: string
+          doctor_id: string
+          id?: string
+          item_id: string
+          procedure_id: string
+          qty_per_case?: number
+          scales_with_cases?: boolean
+        }
+        Update: {
+          created_at?: string
+          doctor_id?: string
+          id?: string
+          item_id?: string
+          procedure_id?: string
+          qty_per_case?: number
+          scales_with_cases?: boolean
+        }
+        Relationships: []
+      }
       robotic_systems: {
         Row: { created_at: string; id: string; name: string }
         Insert: { created_at?: string; id?: string; name: string }

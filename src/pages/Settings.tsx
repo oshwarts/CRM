@@ -6,11 +6,13 @@ import {
   useContacts,
   useDeleteCompany,
   useDeleteContact,
+  useDeleteEquipmentItem,
   useDeleteHospital,
   useDeleteOrganization,
   useDeleteProcedure,
   useDeleteRoboticSystem,
   useDoctors,
+  useEquipmentItems,
   useHospitalAgents,
   useHospitals,
   useOrganizations,
@@ -21,6 +23,7 @@ import {
   useUpdateProfileRole,
   useUpsertCompany,
   useUpsertContact,
+  useUpsertEquipmentItem,
   useUpsertHospital,
   useUpsertOrganization,
   useUpsertProcedure,
@@ -59,6 +62,7 @@ export default function Settings() {
         <TabList>
           <Tab id="lists">רשימות</Tab>
           <Tab id="procedures">הליכים</Tab>
+          <Tab id="equipment">ציוד</Tab>
           <Tab id="hospitals">בתי חולים</Tab>
           <Tab id="contacts">אנשי קשר</Tab>
           <Tab id="users">משתמשים</Tab>
@@ -91,6 +95,9 @@ export default function Settings() {
         </TabPanel>
         <TabPanel id="procedures">
           <ProceduresSettings />
+        </TabPanel>
+        <TabPanel id="equipment">
+          <EquipmentSettings />
         </TabPanel>
         <TabPanel id="hospitals">
           <HospitalsSettings />
@@ -243,6 +250,92 @@ function ProceduresSettings() {
               </ConfirmButton>
             </li>
           ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+/* ---------------- Equipment catalog ---------------- */
+
+function EquipmentSettings() {
+  const items = useEquipmentItems()
+  const companies = useCompanies()
+  const upsert = useUpsertEquipmentItem()
+  const del = useDeleteEquipmentItem()
+  const [form, setForm] = useState({ name: '', catalog_number: '', company_id: '' })
+
+  function submit() {
+    if (!form.name.trim()) return
+    upsert.mutate({
+      name: form.name.trim(),
+      catalog_number: form.catalog_number.trim(),
+      company_id: form.company_id || null,
+    })
+    setForm({ name: '', catalog_number: '', company_id: '' })
+  }
+
+  return (
+    <div className="card p-5">
+      <div className="mb-4 grid gap-2 sm:grid-cols-[1.5fr_1fr_1fr_auto]">
+        <input
+          className="input"
+          placeholder="שם הפריט"
+          value={form.name}
+          onChange={(e) => setForm({ ...form, name: e.target.value })}
+        />
+        <input
+          className="input text-right"
+          dir="ltr"
+          placeholder="מק״ט"
+          value={form.catalog_number}
+          onChange={(e) => setForm({ ...form, catalog_number: e.target.value })}
+        />
+        <select
+          className="input"
+          value={form.company_id}
+          onChange={(e) => setForm({ ...form, company_id: e.target.value })}
+        >
+          <option value="">חברה…</option>
+          {(companies.data ?? []).map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+        <button className="btn-primary" disabled={!form.name.trim()} onClick={submit}>
+          <Plus size={16} />
+          הוסף
+        </button>
+      </div>
+      {items.isLoading ? (
+        <Spinner />
+      ) : (
+        <ul className="divide-y divide-slate-100">
+          {(items.data ?? []).map((it) => (
+            <li
+              key={it.id}
+              className="flex items-center justify-between gap-2 py-2 text-sm"
+            >
+              <span className="text-slate-700">
+                {it.name}
+                <span className="mr-2 text-xs text-slate-400" dir="ltr">
+                  {[it.catalog_number, it.company?.name].filter(Boolean).join(' · ')}
+                </span>
+              </span>
+              <ConfirmButton
+                className="btn-ghost !px-2 text-red-500"
+                onConfirm={() => del.mutate(it.id)}
+              >
+                <Trash2 size={15} />
+              </ConfirmButton>
+            </li>
+          ))}
+          {(items.data ?? []).length === 0 && (
+            <li className="py-4 text-center text-sm text-slate-400">
+              הקטלוג ריק. הוסף פריטים כדי לשייך אותם להליכים בכרטיסי הרופאים.
+            </li>
+          )}
         </ul>
       )}
     </div>

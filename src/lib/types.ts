@@ -12,6 +12,16 @@ export type Contact = Tables<'contacts'>
 export type CaseVolume = Tables<'case_volumes'>
 export type Organization = Tables<'organizations'>
 export type RoboticSystem = Tables<'robotic_systems'>
+export type EquipmentItem = Tables<'equipment_items'>
+
+export type EquipmentItemWithCompany = EquipmentItem & {
+  company: Pick<Company, 'id' | 'name'> | null
+}
+
+export type DoctorProcedureEquipmentRow = Tables<'doctor_procedure_equipment'> & {
+  item: EquipmentItemWithCompany | null
+  procedure: Pick<Procedure, 'id' | 'name'> | null
+}
 
 export const CURRENT_YEAR = new Date().getFullYear()
 export const YEAR_OPTIONS = [0, 1, 2, 3, 4].map((n) => CURRENT_YEAR - n)
