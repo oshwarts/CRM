@@ -82,7 +82,7 @@ export function Layout() {
             התנתקות
           </button>
           <p className="mt-1 px-2 text-center text-[10px] text-slate-300">
-            v8 · מסך MAKO
+            v9 · MAKO 4-רביעים
           </p>
         </div>
       </aside>
