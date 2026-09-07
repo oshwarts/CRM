@@ -1,32 +1,12 @@
 // MAKO SmartRobotics "Case Planning" style templates.
-// The planner shows a 2x2 view (Transverse / 3D / Coronal / Sagittal) for the
-// currently selected implant component, plus a right rail (Size / Poly / Proud /
-// Operative Side). `extras` holds the remaining setup fields shown below.
+// Two layouts, matched to the real screens:
+//   - 'quad'  : RESTORIS MCK partial knee — Transverse / 3D / Coronal / Sagittal,
+//               Implant-View toggle, blue right rail (Size / Poly / Proud).
+//   - 'grid'  : Triathlon total knee — 2x3 (Femur row / Tibia row x Coronal /
+//               Axial / Sagittal), dual alignment/rotation values, resection mm,
+//               dark right rail (Femur / Tibia / Poly component sizes).
 
-export type QuadField = {
-  key: string
-  unit: '°' | 'mm'
-  step: number
-  default: number
-  /** label when value >= 0 / value < 0 (e.g. External / Internal, Valgus / Varus) */
-  posLabel: string
-  negLabel: string
-}
-
-export type PanelField =
-  | { key: string; label: string; type: 'select'; options: string[]; default: string }
-  | { key: string; label: string; type: 'proud'; step: number; default: number }
-  | { key: string; label: string; type: 'text'; default?: string }
-
-export type MakoComponentView = {
-  id: string
-  label: string // shown in the "Implant View" dropdown
-  bone: 'tibia' | 'femur' | 'pelvis'
-  transverse: QuadField
-  coronal: QuadField
-  sagittal: QuadField
-  panel: PanelField[]
-}
+/* ============================== shared ============================== */
 
 export type MakoField =
   | {
@@ -44,18 +24,76 @@ export type MakoField =
 
 export type MakoSection = { title: string; columns?: 2 | 3; fields: MakoField[] }
 
-export type MakoTemplate = {
-  id: 'mako_tka' | 'mako_pka' | 'mako_tha'
-  label: string
-  greenHeader: string
-  components: MakoComponentView[]
-  extras: MakoSection[]
-}
-
 const NOTES: MakoSection = {
   title: 'העדפות מנתח / הערות',
   fields: [{ key: 'surgeon_notes', label: 'הערות חופשיות', type: 'textarea' }],
 }
+
+/* ============================== quad ============================== */
+
+export type QuadField = {
+  key: string
+  unit: '°' | 'mm'
+  step: number
+  default: number
+  posLabel: string
+  negLabel: string
+}
+
+export type PanelField =
+  | { key: string; label: string; type: 'select'; options: string[]; default: string }
+  | { key: string; label: string; type: 'proud'; step: number; default: number }
+  | { key: string; label: string; type: 'text'; default?: string }
+
+export type MakoComponentView = {
+  id: string
+  label: string
+  bone: 'tibia' | 'femur' | 'pelvis'
+  transverse: QuadField
+  coronal: QuadField
+  sagittal: QuadField
+  panel: PanelField[]
+}
+
+/* ============================== grid ============================== */
+
+export type CellValue =
+  | {
+      kind: 'angle'
+      key: string
+      posLabel: string
+      negLabel: string
+      ref?: string
+      step: number
+      default: number
+    }
+  | { kind: 'mm'; key: string; label: string; step: number; default: number }
+
+export type GridCell = {
+  bone: 'femur' | 'tibia'
+  plane: 'coronal' | 'axial' | 'sagittal'
+  top?: CellValue[]
+  bottom?: CellValue[]
+}
+
+export type GridRow = { label: string; cells: GridCell[] }
+
+export type RailStepper = { key: string; label: string; default: number; prefix?: string }
+
+export type MakoTemplate = {
+  id: 'mako_tka' | 'mako_pka' | 'mako_tha'
+  label: string
+  layout: 'quad' | 'grid'
+  greenHeader: string
+  // quad
+  components?: MakoComponentView[]
+  // grid
+  rows?: GridRow[]
+  rail?: RailStepper[]
+  extras: MakoSection[]
+}
+
+/* --------------------------- quad helpers --------------------------- */
 
 const rot = (key: string, def = 0): QuadField => ({
   key,
@@ -82,10 +120,11 @@ const slope = (key: string, label: string, def: number): QuadField => ({
   negLabel: label,
 })
 
-/* --------------------------------------------------------------- PKA */
+/* ============================== PKA (quad) ============================== */
 
 const pka: MakoTemplate = {
   id: 'mako_pka',
+  layout: 'quad',
   label: 'MAKO – החלפת ברך חלקית / יוני',
   greenHeader: 'RESTORIS® MCK Medial Onlay PKA',
   components: [
@@ -106,7 +145,7 @@ const pka: MakoTemplate = {
       id: 'tibia',
       label: 'Medial Tibia – Primary',
       bone: 'tibia',
-      transverse: { ...rot('tib_rotation', 0.1), posLabel: 'External', negLabel: 'Internal' },
+      transverse: rot('tib_rotation', 0.1),
       coronal: varus('tib_varus', 1),
       sagittal: slope('tib_slope', 'P. Slope', 7),
       panel: [
@@ -142,42 +181,88 @@ const pka: MakoTemplate = {
   ],
 }
 
-/* --------------------------------------------------------------- TKA */
+/* ============================== TKA (grid) ============================== */
+
+const angle = (
+  key: string,
+  posLabel: string,
+  negLabel: string,
+  def: number,
+  ref?: string,
+): CellValue => ({ kind: 'angle', key, posLabel, negLabel, ref, step: 0.5, default: def })
+
+const mm = (key: string, label: string, def: number): CellValue => ({
+  kind: 'mm',
+  key,
+  label,
+  step: 0.5,
+  default: def,
+})
 
 const tka: MakoTemplate = {
   id: 'mako_tka',
+  layout: 'grid',
   label: 'MAKO – החלפת ברך מלאה',
-  greenHeader: 'Triathlon Total Knee',
-  components: [
+  greenHeader: 'Triathlon CS Primary (PCL Protect)',
+  rows: [
     {
-      id: 'femur',
-      label: 'Femoral – Primary',
-      bone: 'femur',
-      transverse: rot('fem_rotation', 0),
-      coronal: varus('fem_varus', 0),
-      sagittal: slope('fem_flexion', 'Flexion', 3),
-      panel: [
-        { key: 'fem_size', label: 'Size', type: 'select', options: ['1', '2', '3', '4', '5', '6', '7', '8'], default: '4' },
-        { key: 'fem_distal_med', label: 'Distal Med', type: 'text', default: '8.0' },
-        { key: 'fem_distal_lat', label: 'Distal Lat', type: 'text', default: '8.0' },
-        { key: 'fem_post_med', label: 'Post Med', type: 'text', default: '8.0' },
-        { key: 'fem_post_lat', label: 'Post Lat', type: 'text', default: '7.0' },
+      label: 'Femur',
+      cells: [
+        {
+          bone: 'femur',
+          plane: 'coronal',
+          top: [
+            angle('fem_valgus_aa', 'Valgus', 'Varus', 9.7, 'AA'),
+            angle('fem_valgus_ma', 'Valgus', 'Varus', 3.0, 'MA'),
+          ],
+          bottom: [
+            mm('fem_distal_lat', 'L', 5.5),
+            mm('fem_distal_med', 'M', 6.5),
+            mm('fem_ant_lat', 'L', 6.5),
+            mm('fem_ant_med', 'M', 6.5),
+          ],
+        },
+        {
+          bone: 'femur',
+          plane: 'axial',
+          top: [
+            angle('fem_rot_pca', 'External', 'Internal', 1.0, 'PCA'),
+            angle('fem_rot_tea', 'External', 'Internal', 3.5, 'TEA'),
+          ],
+          bottom: [mm('fem_post_lat', 'L', 5.5), mm('fem_post_med', 'M', 6.5)],
+        },
+        {
+          bone: 'femur',
+          plane: 'sagittal',
+          top: [angle('fem_flexion', 'Flexion', 'Extension', 3.5)],
+        },
       ],
     },
     {
-      id: 'tibia',
-      label: 'Tibial – Primary',
-      bone: 'tibia',
-      transverse: rot('tib_rotation', 0),
-      coronal: varus('tib_varus', 0),
-      sagittal: slope('tib_slope', 'P. Slope', 3),
-      panel: [
-        { key: 'tib_size', label: 'Size', type: 'select', options: ['1', '2', '3', '4', '5', '6', '7', '8'], default: '4' },
-        { key: 'insert_thickness', label: 'Poly', type: 'select', options: ['9 mm', '11 mm', '13 mm', '16 mm', '19 mm'], default: '9 mm' },
-        { key: 'tib_resection_med', label: 'Resection Med', type: 'text', default: '2.0' },
-        { key: 'tib_resection_lat', label: 'Resection Lat', type: 'text', default: '6.0' },
+      label: 'Tibia',
+      cells: [
+        {
+          bone: 'tibia',
+          plane: 'coronal',
+          bottom: [angle('tib_varus', 'Varus', 'Valgus', 4.0)],
+        },
+        {
+          bone: 'tibia',
+          plane: 'axial',
+          bottom: [angle('tib_rotation', 'External', 'Internal', 0.0)],
+        },
+        {
+          bone: 'tibia',
+          plane: 'sagittal',
+          bottom: [angle('tib_slope', 'P. Slope', 'P. Slope', 4.0)],
+        },
       ],
     },
+  ],
+  rail: [
+    { key: 'fem_size', label: 'Femur', default: 7, prefix: 'Post.' },
+    { key: 'tib_size', label: 'Tibia', default: 7 },
+    { key: 'poly_size', label: 'Poly', default: 9 },
   ],
   extras: [
     {
@@ -185,11 +270,11 @@ const tka: MakoTemplate = {
       columns: 3,
       fields: [
         { key: 'operative_side', label: 'צד מנותח', type: 'select', options: ['left', 'right'], default: 'left' },
-        { key: 'implant_system', label: 'מערכת שתל', type: 'select', options: ['Triathlon CR', 'Triathlon PS', 'Triathlon CS', 'Triathlon TS', 'Triathlon Cementless CR', 'Triathlon Cementless PS'], default: 'Triathlon CR' },
+        { key: 'implant_system', label: 'מערכת שתל', type: 'select', options: ['Triathlon CR', 'Triathlon PS', 'Triathlon CS', 'Triathlon TS', 'Triathlon Cementless CR', 'Triathlon Cementless PS'], default: 'Triathlon CS' },
         { key: 'alignment', label: 'פילוסופיית יישור', type: 'select', options: ['Mechanical', 'Adjusted Mechanical', 'Kinematic', 'Restricted Kinematic', 'Functional'], default: 'Mechanical' },
         { key: 'patella', label: 'פיקה', type: 'select', options: ['Resurface', 'Non-resurface', 'Selective'], default: 'Resurface' },
         { key: 'approach', label: 'גישה ניתוחית', type: 'select', options: ['Medial Parapatellar', 'Subvastus', 'Midvastus', 'Quad-sparing'], default: 'Medial Parapatellar' },
-        { key: 'fem_rotation_ref', label: 'ייחוס סיבוב Femur', type: 'select', options: ['PCA', 'TEA', 'Whiteside'], default: 'PCA' },
+        { key: 'fem_rotation_ref', label: 'ייחוס סיבוב Femur', type: 'select', options: ['PCA', 'TEA', 'Whiteside', 'Balanced'], default: 'Balanced' },
       ],
     },
     {
@@ -206,10 +291,11 @@ const tka: MakoTemplate = {
   ],
 }
 
-/* --------------------------------------------------------------- THA */
+/* ============================== THA (quad) ============================== */
 
 const tha: MakoTemplate = {
   id: 'mako_tha',
+  layout: 'quad',
   label: 'MAKO – החלפת מפרק ירך',
   greenHeader: 'MAKO Total Hip',
   components: [
@@ -269,26 +355,32 @@ export function templateFor(key: string | null | undefined): MakoTemplate | null
   return MAKO_TEMPLATES[key] ?? null
 }
 
-function qKey(componentId: string, field: QuadField | PanelField): string {
-  return `${componentId}__${field.key}`
-}
-
 export function componentFieldKey(componentId: string, key: string): string {
   return `${componentId}__${key}`
 }
 
 export function defaultsFor(t: MakoTemplate): Record<string, string | number> {
   const out: Record<string, string | number> = {}
-  for (const c of t.components) {
-    out[qKey(c.id, c.transverse)] = c.transverse.default
-    out[qKey(c.id, c.coronal)] = c.coronal.default
-    out[qKey(c.id, c.sagittal)] = c.sagittal.default
-    for (const p of c.panel) {
-      if (p.type === 'select') out[qKey(c.id, p)] = p.default
-      else if (p.type === 'proud') out[qKey(c.id, p)] = p.default
-      else if (p.default != null) out[qKey(c.id, p)] = p.default
+
+  if (t.layout === 'quad') {
+    for (const c of t.components ?? []) {
+      out[componentFieldKey(c.id, c.transverse.key)] = c.transverse.default
+      out[componentFieldKey(c.id, c.coronal.key)] = c.coronal.default
+      out[componentFieldKey(c.id, c.sagittal.key)] = c.sagittal.default
+      for (const p of c.panel) {
+        if (p.type === 'select' || p.type === 'proud')
+          out[componentFieldKey(c.id, p.key)] = p.default
+        else if (p.default != null) out[componentFieldKey(c.id, p.key)] = p.default
+      }
     }
+  } else {
+    for (const row of t.rows ?? [])
+      for (const cell of row.cells)
+        for (const v of [...(cell.top ?? []), ...(cell.bottom ?? [])])
+          out[v.key] = v.default
+    for (const s of t.rail ?? []) out[s.key] = s.default
   }
+
   for (const s of t.extras)
     for (const f of s.fields) {
       if (f.type === 'stepper' || f.type === 'select') out[f.key] = f.default

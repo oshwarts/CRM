@@ -21,10 +21,13 @@ export function MakoBoneSVG({
   bone,
   view,
   className,
+  refLines = false,
 }: {
   bone: 'tibia' | 'femur' | 'pelvis'
-  view: 'transverse' | 'coronal' | 'sagittal' | 'model'
+  view: 'transverse' | 'axial' | 'coronal' | 'sagittal' | 'model'
   className?: string
+  /** show MAKO alignment / rotation reference lines (total-knee grid) */
+  refLines?: boolean
 }) {
   const svg = {
     className,
@@ -39,10 +42,14 @@ export function MakoBoneSVG({
   switch (key) {
     /* ---- TIBIA ---- */
     case 'tibia-transverse':
+    case 'tibia-axial':
       return (
         <svg {...svg}>
           <path d="M40 62 q10 -34 70 -34 q60 0 72 34 q8 22 -6 44 q-16 26 -66 26 q-50 0 -66 -26 q-14 -22 -4 -44 z" fill={FILL} stroke={OUTLINE} strokeWidth="2" />
           <path d="M52 52 q22 -14 46 -8 l4 66 q-30 6 -48 -14 q-10 -20 -2 -44 z" fill={IMPLANT} stroke={IMPLANT_D} />
+          {refLines && (
+            <ellipse cx="176" cy="96" rx="12" ry="14" fill={FILL} stroke={OUTLINE} strokeWidth="2" />
+          )}
           <Crosshair x={82} y={82} />
         </svg>
       )
@@ -69,11 +76,18 @@ export function MakoBoneSVG({
 
     /* ---- FEMUR ---- */
     case 'femur-transverse':
+    case 'femur-axial':
       return (
         <svg {...svg}>
           <path d="M34 60 q54 -34 96 -30 q28 2 52 22 q14 12 8 40 q-8 34 -40 44 q-20 8 -50 6 q-40 -2 -56 -30 q-14 -26 -10 -52 z" fill={FILL} stroke={OUTLINE} strokeWidth="2" />
           <path d="M96 40 q10 30 0 62 M116 40 q-10 30 0 62" stroke={OUTLINE} strokeWidth="1.5" fill="none" />
           <path d="M40 66 q24 -22 44 -16 l2 66 q-30 4 -44 -18 q-8 -18 -2 -32 z" fill={IMPLANT} stroke={IMPLANT_D} />
+          {refLines && (
+            <>
+              <line x1="30" y1="78" x2="196" y2="70" stroke="#4ea0ff" strokeWidth="2.5" />
+              <line x1="30" y1="66" x2="196" y2="62" stroke="#ffffff" strokeWidth="1.5" />
+            </>
+          )}
           <Crosshair x={72} y={78} />
         </svg>
       )
@@ -83,6 +97,12 @@ export function MakoBoneSVG({
           <path d="M52 22 q56 -14 116 0 q10 24 4 44 q-8 26 -30 34 q-16 6 -42 6 q-26 0 -42 -6 q-22 -8 -30 -34 q-6 -20 4 -44 z" fill={FILL} stroke={OUTLINE} strokeWidth="2" />
           <path d="M100 30 v70 M120 30 v70" stroke={OUTLINE} strokeWidth="1.5" />
           <path d="M52 24 q34 -8 56 -4 q4 40 -6 66 q-14 8 -26 6 q-22 -4 -28 -30 q-6 -20 4 -38 z" fill={IMPLANT} stroke={IMPLANT_D} />
+          {refLines && (
+            <>
+              <line x1="108" y1="12" x2="102" y2="112" stroke="#4ea0ff" strokeWidth="2" />
+              <line x1="112" y1="12" x2="112" y2="112" stroke="#ffffff" strokeWidth="1.5" />
+            </>
+          )}
           <Crosshair x={78} y={64} />
         </svg>
       )
