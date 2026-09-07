@@ -1,14 +1,5 @@
 import { useState } from 'react'
-import {
-  ArrowDown,
-  ArrowLeft,
-  ArrowRight,
-  ArrowUp,
-  ArrowUpLeft,
-  ArrowUpRight,
-  Minus,
-  Plus,
-} from 'lucide-react'
+import { ChevronDown, ChevronUp, Minus, Plus } from 'lucide-react'
 import type {
   CellValue,
   GridCell,
@@ -31,49 +22,60 @@ const num = (v: unknown, d = 0) => {
 }
 const round = (n: number) => Math.round(n * 100) / 100
 
-const PAD: [React.ReactNode, number, number][] = [
-  [<ArrowUpLeft size={12} />, 1, -1],
-  [<ArrowUp size={12} />, 1, 0],
-  [<ArrowUpRight size={12} />, 1, 1],
-  [<ArrowLeft size={12} />, 0, -1],
-  [<ArrowDown size={12} />, -1, 0],
-  [<ArrowRight size={12} />, 0, 1],
-]
-
-function ArrowPad({ onNudge }: { onNudge: (a: number, p: number) => void }) {
-  return (
-    <div className="grid grid-cols-3 gap-0.5">
-      {PAD.map(([icon, a, p], i) => (
-        <button
-          key={i}
-          type="button"
-          className="rounded bg-slate-700/70 p-0.5 text-slate-300 hover:bg-slate-600"
-          onClick={() => onNudge(a, p)}
-        >
-          {icon}
-        </button>
-      ))}
-    </div>
-  )
-}
-
-function ValueBox({
+/** A MAKO-style value box with its own up / down steppers. */
+function StepBox({
   label,
   axisRef,
   value,
   unit,
+  step,
+  onStep,
+  readOnly,
+  size = 'md',
 }: {
-  label: string
+  label?: string
   axisRef?: string
   value: number
   unit: string
+  step: number
+  onStep: (next: number) => void
+  readOnly: boolean
+  size?: 'sm' | 'md'
 }) {
+  const digits = unit === '°' ? 1 : 1
   return (
     <div className="text-center">
-      <div className="text-[10px] text-slate-400">{label}</div>
-      <div className="min-w-[62px] rounded border border-slate-600 bg-black px-2 py-1 font-mono text-base tabular-nums text-slate-100">
-        {Math.abs(value).toFixed(1)}
-        <span className="ml-0.5 text-[9px] text-slate-500">{unit}</span>
+      {label && <div className="text-[10px] text-slate-400">{label}</div>}
+      <div className="flex items-stretch justify-center gap-0.5">
+        <div
+          className={classNames(
+            'rounded border border-slate-600 bg-black font-mono tabular-nums text-slate-100',
+            size === 'md' ? 'min-w-[58px] px-2 py-1 text-base' : 'min-w-[46px] px-1.5 py-0.5 text-xs',
+          )}
+        >
+          {Math.abs(value).toFixed(digits)}
+          <span className="ml-0.5 text-[8px] text-slate-500">{unit}</span>
+        </div>
+        {!readOnly && (
+          <div className="flex flex-col">
+            <button
+              type="button"
+              className="flex-1 rounded-t border border-slate-700 bg-slate-700/60 px-1 hover:bg-slate-600"
+              onClick={() => onStep(round(value + step))}
+              aria-label="הגדל"
+            >
+              <ChevronUp size={10} />
+            </button>
+            <button
+              type="button"
+              className="flex-1 rounded-b border border-slate-700 bg-slate-700/60 px-1 hover:bg-slate-600"
+              onClick={() => onStep(round(value - step))}
+              aria-label="הקטן"
+            >
+              <ChevronDown size={10} />
+            </button>
+          </div>
+        )}
       </div>
       {axisRef && (
         <div className="text-[9px] font-semibold text-pink-400">{axisRef}</div>
@@ -126,9 +128,6 @@ function GridPlanner({
   set: Setter
   readOnly: boolean
 }) {
-  const nudgeAngle = (v: Extract<CellValue, { kind: 'angle' }>, d: number) =>
-    set(v.key, round(num(values[v.key], v.default) + d * v.step))
-
   return (
     <div className="grid gap-2 p-2 lg:grid-cols-[1fr_180px]">
       <div className="space-y-2">
@@ -144,7 +143,7 @@ function GridPlanner({
                   cell={cell}
                   values={values}
                   readOnly={readOnly}
-                  onAngle={nudgeAngle}
+                  set={set}
                 />
               ))}
             </div>
@@ -203,42 +202,42 @@ function GridCellView({
   cell,
   values,
   readOnly,
-  onAngle,
+  set,
 }: {
   cell: GridCell
   values: Values
   readOnly: boolean
-  onAngle: (v: Extract<CellValue, { kind: 'angle' }>, d: number) => void
+  set: Setter
 }) {
-  const angleTop = (cell.top ?? []).filter((v) => v.kind === 'angle') as Extract<
-    CellValue,
-    { kind: 'angle' }
-  >[]
-  const firstAngle = angleTop[0] ?? (cell.bottom ?? []).find((v) => v.kind === 'angle')
-
-  const renderValues = (list: CellValue[]) => (
-    <div className="flex flex-wrap justify-center gap-1.5">
-      {list.map((v) =>
-        v.kind === 'angle' ? (
-          <ValueBox
+  const renderValues = (list: CellValue[], small = false) => (
+    <div className="flex flex-wrap justify-center gap-2">
+      {list.map((v) => {
+        const val = num(values[v.key], v.default)
+        return v.kind === 'angle' ? (
+          <StepBox
             key={v.key}
-            label={
-              num(values[v.key], v.default) >= 0 ? v.posLabel : v.negLabel
-            }
+            label={val >= 0 ? v.posLabel : v.negLabel}
             axisRef={v.ref}
-            value={num(values[v.key], v.default)}
+            value={val}
             unit="°"
+            step={v.step}
+            readOnly={readOnly}
+            size={small ? 'sm' : 'md'}
+            onStep={(n) => set(v.key, n)}
           />
         ) : (
-          <div key={v.key} className="text-center">
-            <div className="rounded border border-slate-600 bg-black px-2 py-0.5 font-mono text-xs text-slate-100">
-              {num(values[v.key], v.default).toFixed(1)}
-              <span className="text-[8px] text-slate-500">mm</span>
-            </div>
-            <div className="text-[9px] text-slate-500">{v.label}</div>
-          </div>
-        ),
-      )}
+          <StepBox
+            key={v.key}
+            label={v.label}
+            value={val}
+            unit="mm"
+            step={v.step}
+            readOnly={readOnly}
+            size="sm"
+            onStep={(n) => set(v.key, Math.max(0, n))}
+          />
+        )
+      })}
     </div>
   )
 
@@ -247,13 +246,6 @@ function GridCellView({
       <span className="absolute left-1.5 top-1 z-10 text-[9px] font-semibold uppercase tracking-wide text-slate-400">
         {cell.plane}
       </span>
-      {!readOnly && firstAngle && (
-        <div className="absolute right-1 top-1 z-10">
-          <ArrowPad
-            onNudge={(a) => firstAngle.kind === 'angle' && onAngle(firstAngle, a)}
-          />
-        </div>
-      )}
 
       {cell.top && <div className="mb-1 mt-4">{renderValues(cell.top)}</div>}
 
@@ -261,7 +253,7 @@ function GridCellView({
         <MakoBoneSVG bone={cell.bone} view={cell.plane} refLines />
       </div>
 
-      {cell.bottom && <div className="mt-1">{renderValues(cell.bottom)}</div>}
+      {cell.bottom && <div className="mt-1">{renderValues(cell.bottom, true)}</div>}
     </div>
   )
 }
@@ -284,21 +276,12 @@ function QuadPlanner({
     template.components!.find((c) => c.id === activeId) ?? template.components![0]
   const ck = (k: string) => componentFieldKey(active.id, k)
 
-  function nudge(q: QuadField, dAngle: number, dPos: number) {
-    if (dAngle) set(ck(q.key), round(num(values[ck(q.key)], q.default) + dAngle * q.step))
-    if (dPos) {
-      const pk = ck(q.key + '__pos')
-      set(pk, round(num(values[pk]) + dPos))
-    }
-  }
-
   return (
     <div className="grid gap-2 p-2 lg:grid-cols-[1fr_190px]">
       <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
         <QuadCell title="TRANSVERSE" sideLabel="Med" bone={active.bone} view="transverse" q={active.transverse}
           value={num(values[ck(active.transverse.key)], active.transverse.default)}
-          pos={num(values[ck(active.transverse.key + '__pos')])}
-          readOnly={readOnly} onNudge={(a, p) => nudge(active.transverse, a, p)} />
+          readOnly={readOnly} onStep={(n) => set(ck(active.transverse.key), n)} />
         <div className="relative rounded-lg border border-slate-800 bg-black p-1">
           <span className="absolute left-2 top-1 text-[10px] text-slate-500">3D</span>
           <div className="mx-auto h-full max-h-40 w-full">
@@ -307,12 +290,10 @@ function QuadPlanner({
         </div>
         <QuadCell title="CORONAL" sideLabel="Med" bone={active.bone} view="coronal" q={active.coronal}
           value={num(values[ck(active.coronal.key)], active.coronal.default)}
-          pos={num(values[ck(active.coronal.key + '__pos')])}
-          readOnly={readOnly} onNudge={(a, p) => nudge(active.coronal, a, p)} />
+          readOnly={readOnly} onStep={(n) => set(ck(active.coronal.key), n)} />
         <QuadCell title="SAGITTAL" sideLabel="P" bone={active.bone} view="sagittal" q={active.sagittal}
           value={num(values[ck(active.sagittal.key)], active.sagittal.default)}
-          pos={num(values[ck(active.sagittal.key + '__pos')])}
-          readOnly={readOnly} onNudge={(a, p) => nudge(active.sagittal, a, p)} />
+          readOnly={readOnly} onStep={(n) => set(ck(active.sagittal.key), n)} />
       </div>
 
       <div className="rounded-lg bg-gradient-to-b from-[#2a3a56] to-[#1c2740] p-2 text-xs">
@@ -348,7 +329,7 @@ function QuadPlanner({
 }
 
 function QuadCell({
-  title, sideLabel, bone, view, q, value, pos, readOnly, onNudge,
+  title, sideLabel, bone, view, q, value, readOnly, onStep,
 }: {
   title: string
   sideLabel: string
@@ -356,9 +337,8 @@ function QuadCell({
   view: 'transverse' | 'coronal' | 'sagittal'
   q: QuadField
   value: number
-  pos: number
   readOnly: boolean
-  onNudge: (dAngle: number, dPos: number) => void
+  onStep: (next: number) => void
 }) {
   const label = value >= 0 ? q.posLabel : q.negLabel
   return (
@@ -366,22 +346,19 @@ function QuadCell({
       <span className="absolute left-2 top-1 z-10 text-[10px] font-semibold tracking-wide text-slate-300">
         {title}
       </span>
-      {!readOnly && (
-        <div className="absolute right-1 top-1 z-10">
-          <ArrowPad onNudge={onNudge} />
-        </div>
-      )}
       <div className="mx-auto mt-4 h-28 w-full max-w-[190px]">
         <MakoBoneSVG bone={bone} view={view} />
       </div>
       <span className="absolute bottom-9 left-2 text-[10px] text-slate-500">{sideLabel}</span>
-      <div className="mt-1 flex items-end gap-2 px-1">
-        <ValueBox label={label} value={value} unit={q.unit} />
-        {pos !== 0 && (
-          <div className="pb-1 text-[10px] text-slate-500">
-            pos {pos > 0 ? '+' : ''}{pos.toFixed(1)}mm
-          </div>
-        )}
+      <div className="mt-1 flex justify-center px-1">
+        <StepBox
+          label={label}
+          value={value}
+          unit={q.unit}
+          step={q.step}
+          readOnly={readOnly}
+          onStep={onStep}
+        />
       </div>
     </div>
   )
