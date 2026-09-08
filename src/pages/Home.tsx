@@ -1,23 +1,46 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Building2, Clock, Heart, Stethoscope, Target, X } from 'lucide-react'
+import {
+  Building2,
+  Clock,
+  Heart,
+  ScanLine,
+  Stethoscope,
+  Target,
+  X,
+} from 'lucide-react'
 import {
   useDoctors,
   useFavorites,
   useMeetings,
+  usePatientScans,
   useToggleFavorite,
 } from '../lib/api'
 import { useAuth } from '../context/AuthProvider'
 import { EmptyState, Spinner } from '../components/ui'
-import { classNames, formatDate, isOverdue } from '../lib/utils'
+import { classNames, daysUntil, formatDate, isOverdue, todayISO } from '../lib/utils'
 
 export default function Home() {
   const { user, profile } = useAuth()
   const doctors = useDoctors()
   const favorites = useFavorites()
   const meetings = useMeetings()
+  const scans = usePatientScans()
   const toggleFav = useToggleFavorite()
   const [toAdd, setToAdd] = useState('')
+
+  const scanAlerts = useMemo(() => {
+    const t = todayISO()
+    const list = scans.data ?? []
+    return {
+      upcoming: list.filter(
+        (s) => s.ct_date && s.ct_date >= t && (daysUntil(s.ct_date) ?? 99) <= 7 && !s.scanned,
+      ),
+      overdue: list.filter(
+        (s) => s.ct_date && s.ct_date < t && !s.scanned && s.status !== 'cancelled',
+      ),
+    }
+  }, [scans.data])
 
   const favIds = favorites.data ?? []
   const favSet = new Set(favIds)
@@ -108,6 +131,66 @@ export default function Home() {
                 </li>
               )
             })}
+          </ul>
+        )}
+      </section>
+
+      {/* MAKO scans */}
+      <section className="card p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="flex items-center gap-2 font-semibold text-slate-800">
+            <ScanLine size={18} className="text-brand-500" />
+            סריקות MAKO
+          </h2>
+          <Link to="/scans" className="text-sm font-medium text-brand-600 hover:underline">
+            לכל הסריקות →
+          </Link>
+        </div>
+        {scans.isLoading ? (
+          <Spinner />
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Link to="/scans" className="rounded-lg bg-slate-50 p-3 text-center hover:bg-slate-100">
+              <p className="text-2xl font-bold text-slate-800">{scans.data?.length ?? 0}</p>
+              <p className="text-xs text-slate-400">סה״כ מטופלים</p>
+            </Link>
+            <Link
+              to="/scans"
+              className={classNames(
+                'rounded-lg p-3 text-center',
+                scanAlerts.upcoming.length ? 'bg-amber-50 hover:bg-amber-100' : 'bg-slate-50',
+              )}
+            >
+              <p className="text-2xl font-bold text-amber-600">{scanAlerts.upcoming.length}</p>
+              <p className="text-xs text-slate-400">CT בשבוע הקרוב</p>
+            </Link>
+            <Link
+              to="/scans"
+              className={classNames(
+                'rounded-lg p-3 text-center',
+                scanAlerts.overdue.length ? 'bg-red-50 hover:bg-red-100' : 'bg-slate-50',
+              )}
+            >
+              <p className="text-2xl font-bold text-red-600">{scanAlerts.overdue.length}</p>
+              <p className="text-xs text-slate-400">CT עבר — טרם נסרק</p>
+            </Link>
+          </div>
+        )}
+        {scanAlerts.upcoming.length > 0 && (
+          <ul className="mt-3 divide-y divide-slate-100 text-sm">
+            {scanAlerts.upcoming.slice(0, 5).map((s) => (
+              <li key={s.id} className="flex items-center justify-between py-1.5">
+                <span className="text-slate-700">
+                  {s.patient_name}
+                  <span className="mr-2 text-xs text-slate-400">
+                    {s.hospital?.name}
+                  </span>
+                </span>
+                <span className="chip border-amber-200 bg-amber-50 text-amber-700">
+                  CT {formatDate(s.ct_date)}
+                </span>
+              </li>
+            ))}
           </ul>
         )}
       </section>

@@ -186,6 +186,90 @@ export type Database = {
         Update: { created_at?: string; id?: string; name?: string }
         Relationships: []
       }
+      implant_options: {
+        Row: { category: string; created_at: string; id: string; sort: number; value: string }
+        Insert: { category: string; created_at?: string; id?: string; sort?: number; value: string }
+        Update: { category?: string; created_at?: string; id?: string; sort?: number; value?: string }
+        Relationships: []
+      }
+      patient_scans: {
+        Row: {
+          anaesthesia_note: string
+          created_at: string
+          created_by: string | null
+          ct_date: string | null
+          ct_time: string | null
+          entry_date: string | null
+          health_fund: string
+          hospital_id: string
+          id: string
+          implant_data: Json
+          insurance: string
+          notes: string
+          patient_dob: string | null
+          patient_id_number: string
+          patient_name: string
+          patient_phone: string
+          procedure_type: string
+          scanned: boolean
+          side: string
+          status: string
+          surgeon_id: string | null
+          updated_at: string
+          uploaded: boolean
+        }
+        Insert: {
+          anaesthesia_note?: string
+          created_at?: string
+          created_by?: string | null
+          ct_date?: string | null
+          ct_time?: string | null
+          entry_date?: string | null
+          health_fund?: string
+          hospital_id: string
+          id?: string
+          implant_data?: Json
+          insurance?: string
+          notes?: string
+          patient_dob?: string | null
+          patient_id_number?: string
+          patient_name?: string
+          patient_phone?: string
+          procedure_type?: string
+          scanned?: boolean
+          side?: string
+          status?: string
+          surgeon_id?: string | null
+          updated_at?: string
+          uploaded?: boolean
+        }
+        Update: {
+          anaesthesia_note?: string
+          created_at?: string
+          created_by?: string | null
+          ct_date?: string | null
+          ct_time?: string | null
+          entry_date?: string | null
+          health_fund?: string
+          hospital_id?: string
+          id?: string
+          implant_data?: Json
+          insurance?: string
+          notes?: string
+          patient_dob?: string | null
+          patient_id_number?: string
+          patient_name?: string
+          patient_phone?: string
+          procedure_type?: string
+          scanned?: boolean
+          side?: string
+          status?: string
+          surgeon_id?: string | null
+          updated_at?: string
+          uploaded?: boolean
+        }
+        Relationships: []
+      }
       equipment_items: {
         Row: {
           catalog_number: string

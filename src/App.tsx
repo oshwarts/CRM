@@ -10,6 +10,7 @@ import Meetings from './pages/Meetings'
 import MapPage from './pages/MapPage'
 import Pipeline from './pages/Pipeline'
 import Reports from './pages/Reports'
+import Scans from './pages/Scans'
 import Settings from './pages/Settings'
 
 export default function App() {
@@ -42,6 +43,7 @@ export default function App() {
         <Route path="/meetings" element={<Meetings />} />
         <Route path="/map" element={<MapPage />} />
         <Route path="/pipeline" element={<Pipeline />} />
+        <Route path="/scans" element={<Scans />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/" replace />} />

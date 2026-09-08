@@ -15,9 +15,12 @@ import type {
   EquipmentItemWithCompany,
   Hospital,
   HospitalListItem,
+  ImplantOption,
   MeetingTask,
   MeetingWithRelations,
   Organization,
+  PatientScan,
+  PatientScanRow,
   Procedure,
   Profile,
   RoboticSystem,
@@ -1091,6 +1094,144 @@ export function useDeleteDoctorEquipment(doctorId: string) {
       ),
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: ['doctor-equipment', doctorId] }),
+  })
+}
+
+/* ============================ Patient scans (MAKO) ============================ */
+
+export function useMakoHospitals() {
+  return useQuery({
+    queryKey: ['mako-hospitals'],
+    queryFn: async () => {
+      const rows = unwrap<
+        {
+          hospital: { id: string; name: string } | null
+          system: { name: string } | null
+        }[]
+      >(
+        await supabase
+          .from('hospital_robotic_systems')
+          .select('hospital:hospitals(id, name), system:robotic_systems(name)'),
+      )
+      const seen = new Set<string>()
+      const out: { id: string; name: string }[] = []
+      for (const r of rows)
+        if (
+          r.hospital &&
+          r.system?.name?.toUpperCase().includes('MAKO') &&
+          !seen.has(r.hospital.id)
+        ) {
+          seen.add(r.hospital.id)
+          out.push(r.hospital)
+        }
+      return out.sort((a, b) => a.name.localeCompare(b.name, 'he'))
+    },
+  })
+}
+
+export function useImplantOptions() {
+  return useQuery({
+    queryKey: ['implant-options'],
+    queryFn: async () =>
+      unwrap<ImplantOption[]>(
+        await supabase
+          .from('implant_options')
+          .select('*')
+          .order('category')
+          .order('sort'),
+      ),
+  })
+}
+
+export function useUpsertImplantOption() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (o: { id?: string; category: string; value: string }) => {
+      if (o.id)
+        unwrap(await supabase.from('implant_options').update({ value: o.value }).eq('id', o.id))
+      else unwrap(await supabase.from('implant_options').insert({ category: o.category, value: o.value }))
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['implant-options'] }),
+  })
+}
+
+export function useDeleteImplantOption() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) =>
+      unwrap(await supabase.from('implant_options').delete().eq('id', id)),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['implant-options'] }),
+  })
+}
+
+const SCAN_SELECT =
+  '*, hospital:hospitals(id, name), surgeon:doctors(id, name, title)'
+
+export function usePatientScans() {
+  return useQuery({
+    queryKey: ['patient-scans'],
+    queryFn: async () =>
+      unwrap<PatientScanRow[]>(
+        await supabase
+          .from('patient_scans')
+          .select(SCAN_SELECT)
+          .order('ct_date', { ascending: false, nullsFirst: false }),
+      ),
+  })
+}
+
+export type PatientScanInput = Record<string, unknown> & {
+  id?: string
+  hospital_id: string
+}
+
+export function useUpsertPatientScan() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (s: PatientScanInput) => {
+      const { id, hospital, surgeon, ...rest } = s
+      void hospital
+      void surgeon
+      if (id) {
+        unwrap(
+          await supabase
+            .from('patient_scans')
+            .update(rest as never)
+            .eq('id', id),
+        )
+      } else {
+        const { data: userRes } = await supabase.auth.getUser()
+        unwrap(
+          await supabase
+            .from('patient_scans')
+            .insert({ ...rest, created_by: userRes.user?.id ?? null } as never),
+        )
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['patient-scans'] }),
+  })
+}
+
+export function usePatchPatientScan() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      id,
+      patch,
+    }: {
+      id: string
+      patch: Partial<PatientScan>
+    }) => unwrap(await supabase.from('patient_scans').update(patch).eq('id', id)),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['patient-scans'] }),
+  })
+}
+
+export function useDeletePatientScan() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) =>
+      unwrap(await supabase.from('patient_scans').delete().eq('id', id)),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['patient-scans'] }),
   })
 }
 

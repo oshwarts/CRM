@@ -12,6 +12,53 @@ export type Contact = Tables<'contacts'>
 export type CaseVolume = Tables<'case_volumes'>
 export type Organization = Tables<'organizations'>
 export type RoboticSystem = Tables<'robotic_systems'>
+export type ImplantOption = Tables<'implant_options'>
+export type PatientScan = Tables<'patient_scans'>
+
+export type PatientScanRow = PatientScan & {
+  hospital: Pick<Hospital, 'id' | 'name'> | null
+  surgeon: Pick<Doctor, 'id' | 'name' | 'title'> | null
+}
+
+export const SCAN_PROCEDURE_LABELS: Record<string, string> = {
+  knee: 'ברך',
+  uni: 'יוני',
+  hip: 'ירך',
+}
+
+export const SCAN_STATUS_LABELS: Record<string, string> = {
+  planned: 'מתוכנן',
+  in_progress: 'בתהליך',
+  done: 'בוצע',
+  cancelled: 'בוטל',
+}
+
+export const HEALTH_FUNDS = ['מכבי', 'כללית', 'לאומית', 'מאוחדת'] as const
+
+// implant fields shown per procedure type; each maps to an implant_options category
+export const IMPLANT_FIELDS: Record<
+  string,
+  { key: string; label: string; category: string }[]
+> = {
+  knee: [
+    { key: 'femur', label: 'Femur', category: 'knee_femur' },
+    { key: 'tibia', label: 'Tibia', category: 'knee_tibia' },
+    { key: 'insert', label: 'Insert', category: 'knee_insert' },
+  ],
+  uni: [
+    { key: 'uni_femur', label: 'UNI Femur', category: 'uni_femur' },
+    { key: 'uni_tibia', label: 'UNI Tibia', category: 'uni_tibia' },
+    { key: 'uni_insert', label: 'Insert', category: 'uni_insert' },
+    { key: 'uni_side', label: 'צד', category: 'uni_side' },
+  ],
+  hip: [
+    { key: 'cup', label: 'Cup', category: 'hip_cup' },
+    { key: 'stem', label: 'Stem', category: 'hip_stem' },
+    { key: 'head', label: 'Head', category: 'hip_head' },
+    { key: 'neck', label: 'Neck', category: 'hip_neck' },
+    { key: 'mps', label: 'MPS', category: 'mps' },
+  ],
+}
 export type EquipmentItem = Tables<'equipment_items'>
 
 export type EquipmentItemWithCompany = EquipmentItem & {
