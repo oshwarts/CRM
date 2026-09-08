@@ -13,11 +13,10 @@ import {
   type PatientScanRow,
 } from '../lib/types'
 import { Field, Modal } from './ui'
-import { todayISO } from '../lib/utils'
 
 type Draft = {
   hospital_id: string
-  entry_date: string
+  surgery_date: string
   patient_name: string
   patient_phone: string
   patient_id_number: string
@@ -40,7 +39,7 @@ type Draft = {
 function toDraft(s?: PatientScanRow): Draft {
   return {
     hospital_id: s?.hospital_id ?? '',
-    entry_date: s?.entry_date ?? todayISO(),
+    surgery_date: s?.surgery_date ?? '',
     patient_name: s?.patient_name ?? '',
     patient_phone: s?.patient_phone ?? '',
     patient_id_number: s?.patient_id_number ?? '',
@@ -94,7 +93,7 @@ export function ScanFormModal({
       await save.mutateAsync({
         id: scan?.id,
         hospital_id: d.hospital_id,
-        entry_date: d.entry_date || null,
+        surgery_date: d.surgery_date || null,
         patient_name: d.patient_name.trim(),
         patient_phone: d.patient_phone.trim(),
         patient_id_number: d.patient_id_number.trim(),
@@ -131,8 +130,8 @@ export function ScanFormModal({
               ))}
             </select>
           </Field>
-          <Field label="תאריך הזנה">
-            <input type="date" className="input" value={d.entry_date} onChange={(e) => set({ entry_date: e.target.value })} />
+          <Field label="תאריך ניתוח">
+            <input type="date" className="input" value={d.surgery_date} onChange={(e) => set({ surgery_date: e.target.value })} />
           </Field>
           <Field label="סטטוס">
             <select className="input" value={d.status} onChange={(e) => set({ status: e.target.value })}>

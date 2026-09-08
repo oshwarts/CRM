@@ -28,12 +28,18 @@ export const SCAN_PROCEDURE_LABELS: Record<string, string> = {
 
 export const SCAN_STATUS_LABELS: Record<string, string> = {
   planned: 'מתוכנן',
-  in_progress: 'בתהליך',
   done: 'בוצע',
   cancelled: 'בוטל',
 }
 
 export const HEALTH_FUNDS = ['מכבי', 'כללית', 'לאומית', 'מאוחדת'] as const
+
+/** procedure_type -> the MAKO procedure name used in case_volumes */
+export const SCAN_PROCEDURE_TO_NAME: Record<string, string> = {
+  knee: 'החלפת ברך – MAKO',
+  uni: 'החלפת ברך חלקית (יוני) – MAKO',
+  hip: 'החלפת ירך – MAKO',
+}
 
 // implant fields shown per procedure type; each maps to an implant_options category
 export const IMPLANT_FIELDS: Record<
@@ -41,17 +47,20 @@ export const IMPLANT_FIELDS: Record<
   { key: string; label: string; category: string }[]
 > = {
   knee: [
+    { key: 'type', label: 'סוג (CR/CS/PS)', category: 'knee_type' },
     { key: 'femur', label: 'Femur', category: 'knee_femur' },
     { key: 'tibia', label: 'Tibia', category: 'knee_tibia' },
     { key: 'insert', label: 'Insert', category: 'knee_insert' },
   ],
   uni: [
+    { key: 'type', label: 'סוג (Onlay/Inlay)', category: 'uni_type' },
     { key: 'uni_femur', label: 'UNI Femur', category: 'uni_femur' },
     { key: 'uni_tibia', label: 'UNI Tibia', category: 'uni_tibia' },
     { key: 'uni_insert', label: 'Insert', category: 'uni_insert' },
     { key: 'uni_side', label: 'צד', category: 'uni_side' },
   ],
   hip: [
+    { key: 'bearing', label: 'משטח נשיאה', category: 'hip_bearing' },
     { key: 'cup', label: 'Cup', category: 'hip_cup' },
     { key: 'stem', label: 'Stem', category: 'hip_stem' },
     { key: 'head', label: 'Head', category: 'hip_head' },

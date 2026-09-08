@@ -25,6 +25,7 @@ import type {
   Profile,
   RoboticSystem,
 } from './types'
+import { SCAN_PROCEDURE_TO_NAME } from './types'
 import type { TablesInsert, TablesUpdate } from './database.types'
 
 function unwrap<T>(res: { data: unknown; error: unknown }): T {
@@ -1232,6 +1233,59 @@ export function useDeletePatientScan() {
     mutationFn: async (id: string) =>
       unwrap(await supabase.from('patient_scans').delete().eq('id', id)),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['patient-scans'] }),
+  })
+}
+
+export type DoneScanCount = {
+  surgeon_id: string
+  hospital_id: string
+  procedure_name: string
+  year: number
+  count: number
+}
+
+/** completed MAKO surgeries counted from patient_scans (status = done) */
+export function useDoneScanCounts() {
+  return useQuery({
+    queryKey: ['done-scan-counts'],
+    queryFn: async () => {
+      const rows = unwrap<
+        {
+          surgeon_id: string | null
+          hospital_id: string
+          procedure_type: string
+          surgery_date: string | null
+          ct_date: string | null
+        }[]
+      >(
+        await supabase
+          .from('patient_scans')
+          .select('surgeon_id, hospital_id, procedure_type, surgery_date, ct_date')
+          .eq('status', 'done'),
+      )
+      const map = new Map<string, DoneScanCount>()
+      for (const r of rows) {
+        if (!r.surgeon_id) continue
+        const procedure_name = SCAN_PROCEDURE_TO_NAME[r.procedure_type]
+        if (!procedure_name) continue
+        const dateStr = r.surgery_date ?? r.ct_date
+        const year = dateStr
+          ? new Date(dateStr).getFullYear()
+          : new Date().getFullYear()
+        const key = `${r.surgeon_id}|${r.hospital_id}|${procedure_name}|${year}`
+        const cur =
+          map.get(key) ?? {
+            surgeon_id: r.surgeon_id,
+            hospital_id: r.hospital_id,
+            procedure_name,
+            year,
+            count: 0,
+          }
+        cur.count += 1
+        map.set(key, cur)
+      }
+      return [...map.values()]
+    },
   })
 }
 

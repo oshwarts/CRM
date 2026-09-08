@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Download, Pencil, Plus, Trash2 } from 'lucide-react'
 import {
   useDeletePatientScan,
+  useMakoHospitals,
   usePatchPatientScan,
   usePatientScans,
 } from '../lib/api'
@@ -13,7 +15,21 @@ import {
   SCAN_STATUS_LABELS,
   type PatientScanRow,
 } from '../lib/types'
-import { classNames, daysUntil, formatDate, formatTime, todayISO } from '../lib/utils'
+import {
+  classNames,
+  daysUntil,
+  formatDate,
+  formatTime,
+  plusDaysISO,
+  todayISO,
+} from '../lib/utils'
+
+const WINDOW_LABELS: Record<string, string> = {
+  all: 'כל התאריכים',
+  month: 'החודש הקרוב',
+  week: 'השבוע הקרוב',
+  past: 'עבר',
+}
 
 function implantSummary(s: PatientScanRow): string {
   const fields = IMPLANT_FIELDS[s.procedure_type] ?? []
@@ -26,34 +42,50 @@ function implantSummary(s: PatientScanRow): string {
 
 export default function Scans() {
   const scans = usePatientScans()
+  const makoHospitals = useMakoHospitals()
   const del = useDeletePatientScan()
   const patch = usePatchPatientScan()
+
+  const [params] = useSearchParams()
+  const hospitalParam = params.get('hospital') ?? ''
 
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState<PatientScanRow | null>(null)
   const [q, setQ] = useState('')
-  const [hospital, setHospital] = useState('')
+  const [hospital, setHospital] = useState(hospitalParam)
   const [status, setStatus] = useState('')
+  // arriving from a hospital → default to the coming month
+  const [window, setWindow] = useState(hospitalParam ? 'month' : 'all')
 
   const today = todayISO()
+  const monthEnd = plusDaysISO(30)
+  const weekEnd = plusDaysISO(7)
 
   const hospitals = useMemo(() => {
     const m = new Map<string, string>()
+    for (const h of makoHospitals.data ?? []) m.set(h.id, h.name)
     for (const s of scans.data ?? []) if (s.hospital) m.set(s.hospital.id, s.hospital.name)
-    return [...m.entries()]
-  }, [scans.data])
+    return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1], 'he'))
+  }, [scans.data, makoHospitals.data])
 
   const rows = useMemo(() => {
     return (scans.data ?? []).filter((s) => {
       if (hospital && s.hospital_id !== hospital) return false
       if (status && s.status !== status) return false
+      if (window !== 'all') {
+        const c = s.ct_date
+        if (!c) return false
+        if (window === 'month' && !(c >= today && c <= monthEnd)) return false
+        if (window === 'week' && !(c >= today && c <= weekEnd)) return false
+        if (window === 'past' && !(c < today)) return false
+      }
       if (q) {
         const hay = `${s.patient_name} ${s.patient_id_number} ${s.patient_phone} ${s.surgeon?.name ?? ''}`.toLowerCase()
         if (!hay.includes(q.toLowerCase())) return false
       }
       return true
     })
-  }, [scans.data, hospital, status, q])
+  }, [scans.data, hospital, status, q, window, today, monthEnd, weekEnd])
 
   const upcoming = (scans.data ?? []).filter(
     (s) => s.ct_date && s.ct_date >= today && (daysUntil(s.ct_date) ?? 99) <= 7 && !s.scanned,
@@ -64,11 +96,11 @@ export default function Scans() {
 
   function exportCsv() {
     const head = [
-      'תאריך', 'בית חולים', 'שם מלא', 'תז', 'טלפון', 'תאריך לידה', 'קופה', 'ביטוח',
+      'תאריך ניתוח', 'בית חולים', 'שם מלא', 'תז', 'טלפון', 'תאריך לידה', 'קופה', 'ביטוח',
       'מנתח', 'סוג', 'רגל', 'תאריך CT', 'שעת CT', 'מרדים', 'נסרק', 'הועלה', 'מידות שתל', 'סטטוס', 'הערות',
     ]
     const body = rows.map((s) => [
-      formatDate(s.entry_date), s.hospital?.name ?? '', s.patient_name, s.patient_id_number,
+      formatDate(s.surgery_date), s.hospital?.name ?? '', s.patient_name, s.patient_id_number,
       s.patient_phone, formatDate(s.patient_dob), s.health_fund, s.insurance,
       s.surgeon ? `${s.surgeon.title} ${s.surgeon.name}` : '',
       SCAN_PROCEDURE_LABELS[s.procedure_type] ?? s.procedure_type, s.side,
@@ -128,12 +160,17 @@ export default function Scans() {
         )}
       </div>
 
-      <div className="card grid gap-3 p-4 sm:grid-cols-3">
+      <div className="card grid gap-3 p-4 sm:grid-cols-4">
         <input className="input" placeholder="חיפוש שם / ת״ז / טלפון / מנתח" value={q} onChange={(e) => setQ(e.target.value)} />
         <select className="input" value={hospital} onChange={(e) => setHospital(e.target.value)}>
           <option value="">כל בתי החולים</option>
           {hospitals.map(([id, name]) => (
             <option key={id} value={id}>{name}</option>
+          ))}
+        </select>
+        <select className="input" value={window} onChange={(e) => setWindow(e.target.value)}>
+          {Object.entries(WINDOW_LABELS).map(([v, l]) => (
+            <option key={v} value={v}>{l}</option>
           ))}
         </select>
         <select className="input" value={status} onChange={(e) => setStatus(e.target.value)}>
@@ -155,7 +192,7 @@ export default function Scans() {
           <table className="w-full min-w-[1100px] text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-right text-slate-500">
-                {['תאריך', 'בית חולים', 'שם מלא', 'ת״ז', 'טלפון', 'קופה', 'מנתח', 'סוג', 'רגל', 'CT', 'מרדים', 'נסרק', 'הועלה', 'מידות שתל', 'סטטוס', ''].map((h) => (
+                {['ניתוח', 'בית חולים', 'שם מלא', 'ת״ז', 'טלפון', 'קופה', 'מנתח', 'סוג', 'רגל', 'CT', 'מרדים', 'נסרק', 'הועלה', 'מידות שתל', 'סטטוס', ''].map((h) => (
                   <th key={h} className="whitespace-nowrap p-2 font-medium">{h}</th>
                 ))}
               </tr>
@@ -173,7 +210,7 @@ export default function Scans() {
                       soon && !overdueRow && 'bg-amber-50/60',
                     )}
                   >
-                    <td className="whitespace-nowrap p-2 text-slate-500">{formatDate(s.entry_date)}</td>
+                    <td className="whitespace-nowrap p-2 text-slate-500">{formatDate(s.surgery_date)}</td>
                     <td className="whitespace-nowrap p-2 text-slate-700">{s.hospital?.name}</td>
                     <td className="whitespace-nowrap p-2 font-medium text-slate-800">{s.patient_name}</td>
                     <td className="whitespace-nowrap p-2 text-slate-500" dir="ltr">{s.patient_id_number}</td>

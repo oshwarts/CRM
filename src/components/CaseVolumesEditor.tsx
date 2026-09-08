@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, ScanLine, Trash2 } from 'lucide-react'
 import {
   useCaseVolumes,
   useCompanies,
   useDeleteCaseVolume,
+  useDoneScanCounts,
   useProcedures,
   useUpsertCaseVolume,
 } from '../lib/api'
@@ -27,6 +28,7 @@ export function CaseVolumesEditor(props: Props) {
   })
   const procedures = useProcedures()
   const companies = useCompanies()
+  const doneScans = useDoneScanCounts()
   const upsert = useUpsertCaseVolume()
   const del = useDeleteCaseVolume()
 
@@ -40,6 +42,55 @@ export function CaseVolumesEditor(props: Props) {
   const [error, setError] = useState<string | null>(null)
 
   const rows = volumes.data ?? []
+
+  const procByName = useMemo(() => {
+    const m: Record<string, string> = {}
+    for (const p of procedures.data ?? []) m[p.name] = p.id
+    return m
+  }, [procedures.data])
+
+  const scanCounts = useMemo(
+    () =>
+      (doneScans.data ?? [])
+        .filter((s) =>
+          isDoctorMode ? s.surgeon_id === props.doctorId : s.hospital_id === props.hospitalId,
+        )
+        .map((s) => ({
+          ...s,
+          otherId: isDoctorMode ? s.hospital_id : s.surgeon_id,
+          otherLabel:
+            entityOptions.find(
+              (o) => o.id === (isDoctorMode ? s.hospital_id : s.surgeon_id),
+            )?.label ?? '—',
+          procedure_id: procByName[s.procedure_name],
+        }))
+        .sort((a, b) => b.year - a.year),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [doneScans.data, procByName, entityOptions, isDoctorMode],
+  )
+
+  async function applyScanCount(s: (typeof scanCounts)[number]) {
+    if (!s.procedure_id || !s.otherId) return
+    const doctor_id = isDoctorMode ? props.doctorId! : s.otherId
+    const hospital_id = isDoctorMode ? s.otherId : props.hospitalId!
+    const existing = rows.find(
+      (r) =>
+        r.doctor_id === doctor_id &&
+        r.hospital_id === hospital_id &&
+        r.procedure_id === s.procedure_id &&
+        !r.company_id &&
+        r.year === s.year,
+    )
+    await upsert.mutateAsync({
+      id: existing?.id,
+      doctor_id,
+      hospital_id,
+      procedure_id: s.procedure_id,
+      company_id: null,
+      year: s.year,
+      count: s.count,
+    })
+  }
 
   const totalsByYear = useMemo(() => {
     const m: Record<number, number> = {}
@@ -218,6 +269,43 @@ export function CaseVolumesEditor(props: Props) {
                 ))}
             </tfoot>
           </table>
+        </div>
+      )}
+
+      {scanCounts.length > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <p className="mb-2 flex items-center gap-1.5 text-sm font-medium text-slate-600">
+            <ScanLine size={15} className="text-brand-500" />
+            ניתוחי MAKO שבוצעו (מתוך עמוד הסריקות)
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[480px] text-sm">
+              <tbody>
+                {scanCounts.map((s, i) => (
+                  <tr key={i} className="border-b border-slate-200 last:border-0">
+                    <td className="p-1.5 text-slate-700">{s.otherLabel}</td>
+                    <td className="p-1.5 text-slate-500">{s.procedure_name}</td>
+                    <td className="p-1.5 text-center text-slate-500">{s.year}</td>
+                    <td className="p-1.5 text-center font-semibold text-slate-800">
+                      {s.count}
+                    </td>
+                    <td className="p-1.5 text-center">
+                      <button
+                        className="btn-secondary !py-1 !text-xs"
+                        disabled={!s.procedure_id || upsert.isPending}
+                        onClick={() => applyScanCount(s)}
+                      >
+                        עדכן כמות
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-1 text-xs text-slate-400">
+            "עדכן כמות" מעדכן את הכמות הידנית שלמעלה לפי מספר הניתוחים שבוצעו.
+          </p>
         </div>
       )}
     </div>

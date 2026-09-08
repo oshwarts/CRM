@@ -84,7 +84,7 @@ export function Layout() {
             התנתקות
           </button>
           <p className="mt-1 px-2 text-center text-[10px] text-slate-300">
-            v12 · MAKO ברך אנטומי
+            v14 · סריקות + סנכרון
           </p>
         </div>
       </aside>

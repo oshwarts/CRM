@@ -181,6 +181,14 @@ function HospitalPanel({ hospital }: { hospital: MapHospital }) {
               </span>
             ))}
           </div>
+          {robotics.some((r) => r?.toUpperCase().includes('MAKO')) && (
+            <Link
+              to={`/scans?hospital=${hospital.id}`}
+              className="mt-2 inline-block text-sm font-medium text-brand-600 hover:underline"
+            >
+              סריקות MAKO בבית חולים זה →
+            </Link>
+          )}
         </div>
       )}
 

@@ -199,7 +199,7 @@ export type Database = {
           created_by: string | null
           ct_date: string | null
           ct_time: string | null
-          entry_date: string | null
+          surgery_date: string | null
           health_fund: string
           hospital_id: string
           id: string
@@ -224,7 +224,7 @@ export type Database = {
           created_by?: string | null
           ct_date?: string | null
           ct_time?: string | null
-          entry_date?: string | null
+          surgery_date?: string | null
           health_fund?: string
           hospital_id: string
           id?: string
@@ -249,7 +249,7 @@ export type Database = {
           created_by?: string | null
           ct_date?: string | null
           ct_time?: string | null
-          entry_date?: string | null
+          surgery_date?: string | null
           health_fund?: string
           hospital_id?: string
           id?: string
