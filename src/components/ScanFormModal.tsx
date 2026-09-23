@@ -30,6 +30,7 @@ type Draft = {
   ct_time: string
   anaesthesia_note: string
   scanned: boolean
+  disk_collected: boolean
   uploaded: boolean
   status: string
   implant_data: Record<string, string>
@@ -53,6 +54,7 @@ function toDraft(s?: PatientScanRow): Draft {
     ct_time: s?.ct_time?.slice(0, 5) ?? '',
     anaesthesia_note: s?.anaesthesia_note ?? '',
     scanned: s?.scanned ?? false,
+    disk_collected: s?.disk_collected ?? false,
     uploaded: s?.uploaded ?? false,
     status: s?.status ?? 'planned',
     implant_data: (s?.implant_data as Record<string, string>) ?? {},
@@ -107,6 +109,7 @@ export function ScanFormModal({
         ct_time: d.ct_time || null,
         anaesthesia_note: d.anaesthesia_note.trim(),
         scanned: d.scanned,
+        disk_collected: d.disk_collected,
         uploaded: d.uploaded,
         status: d.status,
         implant_data: d.implant_data,
@@ -210,6 +213,10 @@ export function ScanFormModal({
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" className="h-4 w-4" checked={d.scanned} onChange={(e) => set({ scanned: e.target.checked })} />
             נסרק
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" className="h-4 w-4" checked={d.disk_collected} onChange={(e) => set({ disk_collected: e.target.checked })} />
+            דיסק נאסף
           </label>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" className="h-4 w-4" checked={d.uploaded} onChange={(e) => set({ uploaded: e.target.checked })} />

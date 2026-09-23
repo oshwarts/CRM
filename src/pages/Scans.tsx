@@ -93,11 +93,28 @@ export default function Scans() {
   const overdue = (scans.data ?? []).filter(
     (s) => s.ct_date && s.ct_date < today && !s.scanned && s.status !== 'cancelled',
   ).length
+  const noCtSoonCount = (scans.data ?? []).filter(
+    (s) =>
+      s.status !== 'cancelled' &&
+      s.surgery_date &&
+      s.surgery_date >= today &&
+      (daysUntil(s.surgery_date) ?? 99) <= 7 &&
+      !s.ct_date,
+  ).length
+  const noDiskSoonCount = (scans.data ?? []).filter(
+    (s) =>
+      s.status !== 'cancelled' &&
+      s.surgery_date &&
+      s.surgery_date >= today &&
+      (daysUntil(s.surgery_date) ?? 99) <= 7 &&
+      !!s.ct_date &&
+      !s.disk_collected,
+  ).length
 
   function exportCsv() {
     const head = [
       'תאריך ניתוח', 'בית חולים', 'שם מלא', 'תז', 'טלפון', 'תאריך לידה', 'קופה', 'ביטוח',
-      'מנתח', 'סוג', 'רגל', 'תאריך CT', 'שעת CT', 'מרדים', 'נסרק', 'הועלה', 'מידות שתל', 'סטטוס', 'הערות',
+      'מנתח', 'סוג', 'רגל', 'תאריך CT', 'שעת CT', 'מרדים', 'נסרק', 'דיסק נאסף', 'הועלה', 'מידות שתל', 'סטטוס', 'הערות',
     ]
     const body = rows.map((s) => [
       formatDate(s.surgery_date), s.hospital?.name ?? '', s.patient_name, s.patient_id_number,
@@ -105,7 +122,7 @@ export default function Scans() {
       s.surgeon ? `${s.surgeon.title} ${s.surgeon.name}` : '',
       SCAN_PROCEDURE_LABELS[s.procedure_type] ?? s.procedure_type, s.side,
       formatDate(s.ct_date), formatTime(s.ct_time), s.anaesthesia_note,
-      s.scanned ? 'כן' : 'לא', s.uploaded ? 'כן' : 'לא',
+      s.scanned ? 'כן' : 'לא', s.disk_collected ? 'כן' : 'לא', s.uploaded ? 'כן' : 'לא',
       implantSummary(s), SCAN_STATUS_LABELS[s.status] ?? s.status, s.notes,
     ])
     const csv = [head, ...body]
@@ -158,6 +175,16 @@ export default function Scans() {
             CT עבר וטרם נסרק · {overdue}
           </span>
         )}
+        {noCtSoonCount > 0 && (
+          <span className="chip border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700">
+            ניתוח השבוע ללא CT מתואם · {noCtSoonCount}
+          </span>
+        )}
+        {noDiskSoonCount > 0 && (
+          <span className="chip border-orange-200 bg-orange-50 text-orange-700">
+            ניתוח השבוע — דיסק לא נאסף · {noDiskSoonCount}
+          </span>
+        )}
       </div>
 
       <div className="card grid gap-3 p-4 sm:grid-cols-4">
@@ -192,7 +219,7 @@ export default function Scans() {
           <table className="w-full min-w-[1100px] text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-right text-slate-500">
-                {['ניתוח', 'בית חולים', 'שם מלא', 'ת״ז', 'טלפון', 'קופה', 'מנתח', 'סוג', 'רגל', 'CT', 'מרדים', 'נסרק', 'הועלה', 'מידות שתל', 'סטטוס', ''].map((h) => (
+                {['ניתוח', 'בית חולים', 'שם מלא', 'ת״ז', 'טלפון', 'קופה', 'מנתח', 'סוג', 'רגל', 'CT', 'מרדים', 'נסרק', 'דיסק', 'הועלה', 'מידות שתל', 'סטטוס', ''].map((h) => (
                   <th key={h} className="whitespace-nowrap p-2 font-medium">{h}</th>
                 ))}
               </tr>
@@ -201,16 +228,43 @@ export default function Scans() {
               {rows.map((s) => {
                 const overdueRow = s.ct_date && s.ct_date < today && !s.scanned && s.status !== 'cancelled'
                 const soon = s.ct_date && s.ct_date >= today && (daysUntil(s.ct_date) ?? 99) <= 3 && !s.scanned
+                const active = s.status !== 'cancelled'
+                const surgerySoon =
+                  !!s.surgery_date &&
+                  s.surgery_date >= today &&
+                  (daysUntil(s.surgery_date) ?? 99) <= 7
+                const noCtSoon = active && surgerySoon && !s.ct_date
+                const noDiskSoon = active && surgerySoon && !!s.ct_date && !s.disk_collected
                 return (
                   <tr
                     key={s.id}
                     className={classNames(
                       'border-b border-slate-100 align-top',
-                      overdueRow && 'bg-red-50/60',
-                      soon && !overdueRow && 'bg-amber-50/60',
+                      noCtSoon && 'bg-fuchsia-50/60',
+                      !noCtSoon && noDiskSoon && 'bg-orange-50/60',
+                      !noCtSoon && !noDiskSoon && overdueRow && 'bg-red-50/60',
+                      !noCtSoon && !noDiskSoon && !overdueRow && soon && 'bg-amber-50/60',
                     )}
                   >
-                    <td className="whitespace-nowrap p-2 text-slate-500">{formatDate(s.surgery_date)}</td>
+                    <td className="whitespace-nowrap p-2 text-slate-500">
+                      {formatDate(s.surgery_date)}
+                      {noCtSoon && (
+                        <span
+                          title="ניתוח בשבוע הקרוב — אין תאריך CT מתואם"
+                          className="mr-1 chip border-fuchsia-200 bg-fuchsia-100 text-fuchsia-700"
+                        >
+                          אין CT
+                        </span>
+                      )}
+                      {!noCtSoon && noDiskSoon && (
+                        <span
+                          title="ניתוח בשבוע הקרוב — הדיסק לא נאסף"
+                          className="mr-1 chip border-orange-200 bg-orange-100 text-orange-700"
+                        >
+                          אין דיסק
+                        </span>
+                      )}
+                    </td>
                     <td className="whitespace-nowrap p-2 text-slate-700">{s.hospital?.name}</td>
                     <td className="whitespace-nowrap p-2 font-medium text-slate-800">{s.patient_name}</td>
                     <td className="whitespace-nowrap p-2 text-slate-500" dir="ltr">{s.patient_id_number}</td>
@@ -226,6 +280,10 @@ export default function Scans() {
                     <td className="p-2 text-center">
                       <input type="checkbox" className="h-4 w-4" checked={s.scanned}
                         onChange={(e) => patch.mutate({ id: s.id, patch: { scanned: e.target.checked } })} />
+                    </td>
+                    <td className="p-2 text-center">
+                      <input type="checkbox" className="h-4 w-4" checked={s.disk_collected}
+                        onChange={(e) => patch.mutate({ id: s.id, patch: { disk_collected: e.target.checked } })} />
                     </td>
                     <td className="p-2 text-center">
                       <input type="checkbox" className="h-4 w-4" checked={s.uploaded}

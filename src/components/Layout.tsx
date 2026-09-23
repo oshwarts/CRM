@@ -84,7 +84,7 @@ export function Layout() {
             התנתקות
           </button>
           <p className="mt-1 px-2 text-center text-[10px] text-slate-300">
-            v14 · סריקות + סנכרון
+            v15 · תיקון פריסה + דיסק
           </p>
         </div>
       </aside>

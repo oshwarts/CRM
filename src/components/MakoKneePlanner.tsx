@@ -235,12 +235,15 @@ export function MakoKneePlanner({
         <span className="ml-auto text-slate-500">MAKO – החלפת ברך מלאה</span>
       </div>
 
-      <div className="grid gap-2 p-2 lg:grid-cols-[1fr_170px]">
+      {/* fixed layout matching the real screen, regardless of sidebar width —
+          scrolls horizontally instead of ever stacking the rail below */}
+      <div className="overflow-x-auto">
+        <div className="grid min-w-[760px] grid-cols-[1fr_170px] gap-2 p-2">
         <div className="space-y-2">
           {/* FEMUR */}
           <div className="rounded-lg bg-black/40 p-1.5">
             <p className="mb-1 px-1 text-[11px] font-semibold text-slate-400">Femur</p>
-            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
+            <div className="grid grid-cols-3 gap-1.5">
               <Cell
                 plane="Coronal"
                 bone="femur"
@@ -294,7 +297,7 @@ export function MakoKneePlanner({
           {/* TIBIA */}
           <div className="rounded-lg bg-black/40 p-1.5">
             <p className="mb-1 px-1 text-[11px] font-semibold text-slate-400">Tibia</p>
-            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
+            <div className="grid grid-cols-3 gap-1.5">
               <Cell
                 plane="Coronal"
                 bone="tibia"
@@ -367,6 +370,7 @@ export function MakoKneePlanner({
               ))}
             </div>
           )}
+        </div>
         </div>
       </div>
 

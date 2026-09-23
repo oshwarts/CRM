@@ -289,8 +289,9 @@ function QuadPlanner({
   const ck = (k: string) => componentFieldKey(active.id, k)
 
   return (
-    <div className="grid gap-2 p-2 lg:grid-cols-[1fr_190px]">
-      <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+    <div className="overflow-x-auto">
+      <div className="grid min-w-[720px] grid-cols-[1fr_190px] gap-2 p-2">
+      <div className="grid grid-cols-2 gap-1.5">
         <QuadCell title="TRANSVERSE" sideLabel="Med" bone={active.bone} view="transverse" q={active.transverse}
           value={num(values[ck(active.transverse.key)], active.transverse.default)}
           readOnly={readOnly} onStep={(n) => set(ck(active.transverse.key), n)} />
@@ -335,6 +336,7 @@ function QuadPlanner({
           <span className="flex-1 rounded bg-slate-900/50 py-1 text-center">◀ Back</span>
           <span className="flex-1 rounded bg-slate-900/50 py-1 text-center">Next ▶</span>
         </div>
+      </div>
       </div>
     </div>
   )

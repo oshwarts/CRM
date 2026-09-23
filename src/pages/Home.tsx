@@ -32,12 +32,21 @@ export default function Home() {
   const scanAlerts = useMemo(() => {
     const t = todayISO()
     const list = scans.data ?? []
+    const active = list.filter((s) => s.status !== 'cancelled')
+    const surgerySoon = (s: (typeof list)[number]) =>
+      !!s.surgery_date && s.surgery_date >= t && (daysUntil(s.surgery_date) ?? 99) <= 7
     return {
       upcoming: list.filter(
         (s) => s.ct_date && s.ct_date >= t && (daysUntil(s.ct_date) ?? 99) <= 7 && !s.scanned,
       ),
       overdue: list.filter(
         (s) => s.ct_date && s.ct_date < t && !s.scanned && s.status !== 'cancelled',
+      ),
+      // ניתוח בשבוע הקרוב, ועדיין אין תאריך CT מתואם
+      noCtSoon: active.filter((s) => surgerySoon(s) && !s.ct_date),
+      // ניתוח בשבוע הקרוב, יש CT אבל הדיסק טרם נאסף
+      noDiskSoon: active.filter(
+        (s) => surgerySoon(s) && !!s.ct_date && !s.disk_collected,
       ),
     }
   }, [scans.data])
@@ -149,32 +158,60 @@ export default function Home() {
         {scans.isLoading ? (
           <Spinner />
         ) : (
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Link to="/scans" className="rounded-lg bg-slate-50 p-3 text-center hover:bg-slate-100">
-              <p className="text-2xl font-bold text-slate-800">{scans.data?.length ?? 0}</p>
-              <p className="text-xs text-slate-400">סה״כ מטופלים</p>
-            </Link>
-            <Link
-              to="/scans"
-              className={classNames(
-                'rounded-lg p-3 text-center',
-                scanAlerts.upcoming.length ? 'bg-amber-50 hover:bg-amber-100' : 'bg-slate-50',
-              )}
-            >
-              <p className="text-2xl font-bold text-amber-600">{scanAlerts.upcoming.length}</p>
-              <p className="text-xs text-slate-400">CT בשבוע הקרוב</p>
-            </Link>
-            <Link
-              to="/scans"
-              className={classNames(
-                'rounded-lg p-3 text-center',
-                scanAlerts.overdue.length ? 'bg-red-50 hover:bg-red-100' : 'bg-slate-50',
-              )}
-            >
-              <p className="text-2xl font-bold text-red-600">{scanAlerts.overdue.length}</p>
-              <p className="text-xs text-slate-400">CT עבר — טרם נסרק</p>
-            </Link>
-          </div>
+          <>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Link to="/scans" className="rounded-lg bg-slate-50 p-3 text-center hover:bg-slate-100">
+                <p className="text-2xl font-bold text-slate-800">{scans.data?.length ?? 0}</p>
+                <p className="text-xs text-slate-400">סה״כ מטופלים</p>
+              </Link>
+              <Link
+                to="/scans"
+                className={classNames(
+                  'rounded-lg p-3 text-center',
+                  scanAlerts.upcoming.length ? 'bg-amber-50 hover:bg-amber-100' : 'bg-slate-50',
+                )}
+              >
+                <p className="text-2xl font-bold text-amber-600">{scanAlerts.upcoming.length}</p>
+                <p className="text-xs text-slate-400">CT בשבוע הקרוב</p>
+              </Link>
+              <Link
+                to="/scans"
+                className={classNames(
+                  'rounded-lg p-3 text-center',
+                  scanAlerts.overdue.length ? 'bg-red-50 hover:bg-red-100' : 'bg-slate-50',
+                )}
+              >
+                <p className="text-2xl font-bold text-red-600">{scanAlerts.overdue.length}</p>
+                <p className="text-xs text-slate-400">CT עבר — טרם נסרק</p>
+              </Link>
+            </div>
+
+            <p className="mb-2 mt-4 text-xs font-medium uppercase tracking-wide text-slate-400">
+              לקראת ניתוח בשבוע הקרוב
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Link
+                to="/scans"
+                className={classNames(
+                  'rounded-lg p-3 text-center',
+                  scanAlerts.noCtSoon.length ? 'bg-fuchsia-50 hover:bg-fuchsia-100' : 'bg-slate-50',
+                )}
+              >
+                <p className="text-2xl font-bold text-fuchsia-600">{scanAlerts.noCtSoon.length}</p>
+                <p className="text-xs text-slate-400">ניתוח השבוע — אין תאריך CT מתואם</p>
+              </Link>
+              <Link
+                to="/scans"
+                className={classNames(
+                  'rounded-lg p-3 text-center',
+                  scanAlerts.noDiskSoon.length ? 'bg-orange-50 hover:bg-orange-100' : 'bg-slate-50',
+                )}
+              >
+                <p className="text-2xl font-bold text-orange-600">{scanAlerts.noDiskSoon.length}</p>
+                <p className="text-xs text-slate-400">ניתוח השבוע — הדיסק לא נאסף</p>
+              </Link>
+            </div>
+          </>
         )}
         {scanAlerts.upcoming.length > 0 && (
           <ul className="mt-3 divide-y divide-slate-100 text-sm">
@@ -188,6 +225,36 @@ export default function Home() {
                 </span>
                 <span className="chip border-amber-200 bg-amber-50 text-amber-700">
                   CT {formatDate(s.ct_date)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {scanAlerts.noCtSoon.length > 0 && (
+          <ul className="mt-2 divide-y divide-slate-100 text-sm">
+            {scanAlerts.noCtSoon.slice(0, 5).map((s) => (
+              <li key={s.id} className="flex items-center justify-between py-1.5">
+                <span className="text-slate-700">
+                  {s.patient_name}
+                  <span className="mr-2 text-xs text-slate-400">{s.hospital?.name}</span>
+                </span>
+                <span className="chip border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700">
+                  ניתוח {formatDate(s.surgery_date)} · אין CT
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {scanAlerts.noDiskSoon.length > 0 && (
+          <ul className="mt-2 divide-y divide-slate-100 text-sm">
+            {scanAlerts.noDiskSoon.slice(0, 5).map((s) => (
+              <li key={s.id} className="flex items-center justify-between py-1.5">
+                <span className="text-slate-700">
+                  {s.patient_name}
+                  <span className="mr-2 text-xs text-slate-400">{s.hospital?.name}</span>
+                </span>
+                <span className="chip border-orange-200 bg-orange-50 text-orange-700">
+                  ניתוח {formatDate(s.surgery_date)} · דיסק לא נאסף
                 </span>
               </li>
             ))}

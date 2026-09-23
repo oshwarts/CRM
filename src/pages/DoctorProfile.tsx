@@ -365,14 +365,18 @@ function PreopSection({
   const [draft, setDraft] = useState<PlanDraft | null>(null)
 
   const procList = procedures.data ?? []
-  const templated = procList.filter((p) => p.planning_template !== 'generic')
-  const procOptions = templated.length ? templated : procList
+  // show every procedure in the picker — generic (non-MAKO) ones must stay
+  // selectable, only the MAKO ones get the anatomical screens
+  const procOptions = procList
 
   const templateOfProc = (procId: string | null) =>
     templateFor(procList.find((p) => p.id === procId)?.planning_template)
 
   function startNew() {
-    const first = procOptions[0]?.id ?? null
+    const first =
+      procList.find((p) => p.planning_template === 'mako_tka')?.id ??
+      procOptions[0]?.id ??
+      null
     const t = templateOfProc(first)
     setDraft({
       procedure_id: first,
