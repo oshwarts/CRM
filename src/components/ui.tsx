@@ -33,7 +33,7 @@ export function Modal({
   const maxW = { md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' }[size]
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-slate-900/40 sm:items-start sm:p-8">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/40 sm:p-8">
       <div
         className={classNames(
           'card w-full animate-[fadeIn_.12s_ease-out] max-sm:min-h-full max-sm:rounded-none',

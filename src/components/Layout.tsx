@@ -31,7 +31,7 @@ const NAV = [
 // the five destinations reachable with one thumb tap on a phone
 const TABS = ['/', '/doctors', '/meetings', '/scans', '/map']
 
-const VERSION = 'v17 · מותאם לנייד'
+const VERSION = 'v18 · תיקון טופס בנייד'
 
 export function Layout() {
   const { profile, signOut } = useAuth()
