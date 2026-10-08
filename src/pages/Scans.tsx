@@ -14,7 +14,8 @@ import {
   SCAN_STATUS_LABELS,
   type PatientScanRow,
 } from '../lib/types'
-import { rescanAlert, weekMissing } from '../lib/scanAlerts'
+import { rowFlags, weekMissing } from '../lib/scanAlerts'
+import { ScanCard } from '../components/ScanCard'
 import {
   copyText,
   downloadIcs,
@@ -278,7 +279,28 @@ export default function Scans() {
       )}
 
       {rows.length > 0 && (
-        <div className="card overflow-x-auto">
+        <div className="space-y-3 md:hidden">
+          <label className="flex items-center gap-2 px-1 text-sm text-slate-500">
+            <input type="checkbox" className="h-5 w-5" checked={allSelected} onChange={toggleAll} />
+            בחר הכל ({rows.length})
+          </label>
+          {rows.map((s) => (
+            <ScanCard
+              key={s.id}
+              s={s}
+              selected={selected.has(s.id)}
+              onToggle={() => toggleOne(s.id)}
+              onEdit={() => setEditing(s)}
+              onInvite={() => inviteFor([s])}
+              onDelete={() => del.mutate(s.id)}
+              onPatch={(p) => patch.mutate({ id: s.id, patch: p })}
+            />
+          ))}
+        </div>
+      )}
+
+      {rows.length > 0 && (
+        <div className="card hidden overflow-x-auto md:block">
           <table className="w-full min-w-[1250px] text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-right text-slate-500">
@@ -292,18 +314,7 @@ export default function Scans() {
             </thead>
             <tbody>
               {rows.map((s) => {
-                const overdueRow = s.ct_date && s.ct_date < today && !s.scanned && s.status !== 'cancelled'
-                const soon = s.ct_date && s.ct_date >= today && (daysUntil(s.ct_date) ?? 99) <= 3 && !s.scanned
-                const active = s.status !== 'cancelled'
-                const surgerySoon =
-                  !!s.surgery_date &&
-                  s.surgery_date >= today &&
-                  (daysUntil(s.surgery_date) ?? 99) <= 7
-                const noCtSoon = active && surgerySoon && !s.ct_date
-                const noDiskSoon = active && surgerySoon && !!s.ct_date && !s.disk_collected
-                const missing = weekMissing(s)
-                const rescanKind = rescanAlert(s)
-                const hasEvents = !!s.ct_date || (s.rescan && !!s.rescan_date)
+                const { overdueRow, soon, noCtSoon, noDiskSoon, missing, rescanKind, hasEvents } = rowFlags(s)
                 return (
                   <tr
                     key={s.id}

@@ -20,6 +20,23 @@ body {
   font-family: 'Rubik', 'Assistant', system-ui, sans-serif;
 }
 
+body {
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+/* 16px inputs stop iOS from zooming the page on focus */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+  .btn {
+    min-height: 40px;
+  }
+}
+
 /* keep leaflet controls on the correct side in RTL */
 .leaflet-container {
   direction: ltr;

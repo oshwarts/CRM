@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MapContainer, Marker, TileLayer, Tooltip } from 'react-leaflet'
 import L from 'leaflet'
@@ -26,6 +26,13 @@ export default function MapPage() {
   const map = useMapData()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [orgFilter, setOrgFilter] = useState('')
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  // on a phone the panel sits below the map — bring it into view when a pin is tapped
+  useEffect(() => {
+    if (selectedId && window.innerWidth < 1024)
+      panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [selectedId])
 
   const orgNames = useMemo(() => {
     const s = new Set<string>()
@@ -76,7 +83,7 @@ export default function MapPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
-        <div className="card overflow-hidden" style={{ height: 560 }}>
+        <div className="card h-[50vh] min-h-[300px] overflow-hidden lg:h-[560px]">
           <MapContainer
             center={[31.6, 34.95]}
             zoom={8}
@@ -100,7 +107,7 @@ export default function MapPage() {
           </MapContainer>
         </div>
 
-        <div className="card max-h-[560px] overflow-y-auto p-4">
+        <div ref={panelRef} className="card scroll-mt-16 p-4 lg:max-h-[560px] lg:overflow-y-auto">
           {selected ? (
             <HospitalPanel hospital={selected} />
           ) : (

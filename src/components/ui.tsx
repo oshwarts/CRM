@@ -33,14 +33,14 @@ export function Modal({
   const maxW = { md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' }[size]
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/40 p-4 sm:p-8">
+    <div className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-slate-900/40 sm:items-start sm:p-8">
       <div
         className={classNames(
-          'card w-full animate-[fadeIn_.12s_ease-out]',
+          'card w-full animate-[fadeIn_.12s_ease-out] max-sm:min-h-full max-sm:rounded-none',
           maxW,
         )}
       >
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+        <div className="sticky top-0 z-10 flex items-center justify-between rounded-t-2xl border-b border-slate-200 bg-white px-5 py-4 max-sm:rounded-none">
           <h2 className="text-lg font-semibold text-slate-800">{title}</h2>
           <button className="btn-ghost !px-2" onClick={onClose} aria-label="סגור">
             <X size={18} />

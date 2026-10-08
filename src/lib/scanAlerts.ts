@@ -13,6 +13,21 @@ export function weekMissing(s: PatientScanRow): string[] {
   return out
 }
 
+export function rowFlags(s: PatientScanRow) {
+  const active = s.status !== 'cancelled'
+  const surgerySoon = !!s.surgery_date && (daysUntil(s.surgery_date) ?? -1) >= 0 && (daysUntil(s.surgery_date) ?? 99) <= 7
+  const ctDays = s.ct_date ? daysUntil(s.ct_date) : null
+  return {
+    overdueRow: active && ctDays !== null && ctDays < 0 && !s.scanned,
+    soon: ctDays !== null && ctDays >= 0 && ctDays <= 3 && !s.scanned,
+    noCtSoon: active && surgerySoon && !s.ct_date,
+    noDiskSoon: active && surgerySoon && !!s.ct_date && !s.disk_collected,
+    missing: weekMissing(s),
+    rescanKind: rescanAlert(s),
+    hasEvents: !!s.ct_date || (s.rescan && !!s.rescan_date),
+  }
+}
+
 export type RescanKind = 'today' | 'soon' | 'overdue' | 'nodate'
 
 /** an open re-scan that needs the agent to make sure the patient shows up */
