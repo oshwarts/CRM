@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Download, Pencil, Plus, Trash2 } from 'lucide-react'
+import { CalendarPlus, Copy, Download, Pencil, Plus, Trash2 } from 'lucide-react'
 import {
   useDeletePatientScan,
   useMakoHospitals,
@@ -10,11 +10,18 @@ import {
 import { ScanFormModal } from '../components/ScanFormModal'
 import { ConfirmButton, EmptyState, ErrorState, Spinner } from '../components/ui'
 import {
-  IMPLANT_FIELDS,
   SCAN_PROCEDURE_LABELS,
   SCAN_STATUS_LABELS,
   type PatientScanRow,
 } from '../lib/types'
+import { rescanAlert, weekMissing } from '../lib/scanAlerts'
+import {
+  copyText,
+  downloadIcs,
+  implantSummary,
+  scanEvents,
+  scansToText,
+} from '../lib/scanExport'
 import {
   classNames,
   daysUntil,
@@ -29,15 +36,6 @@ const WINDOW_LABELS: Record<string, string> = {
   month: 'החודש הקרוב',
   week: 'השבוע הקרוב',
   past: 'עבר',
-}
-
-function implantSummary(s: PatientScanRow): string {
-  const fields = IMPLANT_FIELDS[s.procedure_type] ?? []
-  const data = (s.implant_data as Record<string, string>) ?? {}
-  return fields
-    .map((f) => (data[f.key] ? `${f.label} ${data[f.key]}` : null))
-    .filter(Boolean)
-    .join(' · ')
 }
 
 export default function Scans() {
@@ -56,6 +54,8 @@ export default function Scans() {
   const [status, setStatus] = useState('')
   // arriving from a hospital → default to the coming month
   const [window, setWindow] = useState(hospitalParam ? 'month' : 'all')
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [copied, setCopied] = useState(false)
 
   const today = todayISO()
   const monthEnd = plusDaysISO(30)
@@ -110,11 +110,43 @@ export default function Scans() {
       !!s.ct_date &&
       !s.disk_collected,
   ).length
+  const weekOpenCount = (scans.data ?? []).filter((s) => weekMissing(s).length > 0).length
+  const rescanOpenCount = (scans.data ?? []).filter((s) => s.rescan && !s.rescan_done && s.status !== 'cancelled').length
+
+  const selectedRows = rows.filter((s) => selected.has(s.id))
+  const allSelected = rows.length > 0 && selectedRows.length === rows.length
+
+  function toggleOne(id: string) {
+    setSelected((cur) => {
+      const n = new Set(cur)
+      if (n.has(id)) n.delete(id)
+      else n.add(id)
+      return n
+    })
+  }
+
+  function toggleAll() {
+    setSelected(allSelected ? new Set() : new Set(rows.map((s) => s.id)))
+  }
+
+  async function copySelected() {
+    if (await copyText(scansToText(selectedRows))) {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
+  function inviteFor(list: PatientScanRow[]) {
+    const events = list.flatMap(scanEvents)
+    if (events.length === 0) return
+    downloadIcs(events, list.length === 1 ? `סריקה-${list[0].patient_name}.ics` : 'סריקות-MAKO.ics')
+  }
 
   function exportCsv() {
     const head = [
       'תאריך ניתוח', 'בית חולים', 'שם מלא', 'תז', 'טלפון', 'תאריך לידה', 'קופה', 'ביטוח',
-      'מנתח', 'סוג', 'רגל', 'תאריך CT', 'שעת CT', 'מרדים', 'נסרק', 'דיסק נאסף', 'הועלה', 'מידות שתל', 'סטטוס', 'הערות',
+      'מנתח', 'סוג', 'רגל', 'תאריך CT', 'שעת CT', 'מרדים', 'נסרק', 'דיסק נאסף', 'תוכנית מוכנה',
+      'סריקה חוזרת', 'תאריך סריקה חוזרת', 'סיבת סריקה חוזרת', 'הועלה', 'מידות שתל', 'סטטוס', 'הערות',
     ]
     const body = rows.map((s) => [
       formatDate(s.surgery_date), s.hospital?.name ?? '', s.patient_name, s.patient_id_number,
@@ -122,7 +154,9 @@ export default function Scans() {
       s.surgeon ? `${s.surgeon.title} ${s.surgeon.name}` : '',
       SCAN_PROCEDURE_LABELS[s.procedure_type] ?? s.procedure_type, s.side,
       formatDate(s.ct_date), formatTime(s.ct_time), s.anaesthesia_note,
-      s.scanned ? 'כן' : 'לא', s.disk_collected ? 'כן' : 'לא', s.uploaded ? 'כן' : 'לא',
+      s.scanned ? 'כן' : 'לא', s.disk_collected ? 'כן' : 'לא', s.plan_ready ? 'כן' : 'לא',
+      s.rescan ? (s.rescan_done ? 'בוצעה' : 'כן') : '', formatDate(s.rescan_date), s.rescan_reason,
+      s.uploaded ? 'כן' : 'לא',
       implantSummary(s), SCAN_STATUS_LABELS[s.status] ?? s.status, s.notes,
     ])
     const csv = [head, ...body]
@@ -185,7 +219,36 @@ export default function Scans() {
             ניתוח השבוע — דיסק לא נאסף · {noDiskSoonCount}
           </span>
         )}
+        {weekOpenCount > 0 && (
+          <span className="chip border-sky-200 bg-sky-50 text-sky-700">
+            CT בשבוע הקרוב — חסר טיפול · {weekOpenCount}
+          </span>
+        )}
+        {rescanOpenCount > 0 && (
+          <span className="chip border-rose-200 bg-rose-50 text-rose-700">
+            סריקות חוזרות פתוחות · {rescanOpenCount}
+          </span>
+        )}
       </div>
+
+      {selectedRows.length > 0 && (
+        <div className="card flex flex-wrap items-center gap-2 border-brand-200 bg-brand-50/50 p-3">
+          <span className="text-sm font-medium text-slate-700">{selectedRows.length} נבחרו</span>
+          <button className="btn-secondary" onClick={copySelected}>
+            <Copy size={16} />
+            {copied ? 'הועתק ✓' : 'העתק נתונים'}
+          </button>
+          <button
+            className="btn-secondary"
+            onClick={() => inviteFor(selectedRows)}
+            disabled={!selectedRows.some((s) => s.ct_date || (s.rescan && s.rescan_date))}
+          >
+            <CalendarPlus size={16} />
+            זימון Outlook
+          </button>
+          <button className="btn-ghost" onClick={() => setSelected(new Set())}>נקה בחירה</button>
+        </div>
+      )}
 
       <div className="card grid gap-3 p-4 sm:grid-cols-4">
         <input className="input" placeholder="חיפוש שם / ת״ז / טלפון / מנתח" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -216,10 +279,13 @@ export default function Scans() {
 
       {rows.length > 0 && (
         <div className="card overflow-x-auto">
-          <table className="w-full min-w-[1100px] text-sm">
+          <table className="w-full min-w-[1250px] text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-right text-slate-500">
-                {['ניתוח', 'בית חולים', 'שם מלא', 'ת״ז', 'טלפון', 'קופה', 'מנתח', 'סוג', 'רגל', 'CT', 'מרדים', 'נסרק', 'דיסק', 'הועלה', 'מידות שתל', 'סטטוס', ''].map((h) => (
+                <th className="p-2">
+                  <input type="checkbox" className="h-4 w-4" checked={allSelected} onChange={toggleAll} title="בחר הכל" />
+                </th>
+                {['ניתוח', 'בית חולים', 'שם מלא', 'ת״ז', 'טלפון', 'קופה', 'מנתח', 'סוג', 'רגל', 'CT', 'מרדים', 'נסרק', 'דיסק', 'תוכנית', 'הועלה', 'מידות שתל', 'סטטוס', ''].map((h) => (
                   <th key={h} className="whitespace-nowrap p-2 font-medium">{h}</th>
                 ))}
               </tr>
@@ -235,17 +301,26 @@ export default function Scans() {
                   (daysUntil(s.surgery_date) ?? 99) <= 7
                 const noCtSoon = active && surgerySoon && !s.ct_date
                 const noDiskSoon = active && surgerySoon && !!s.ct_date && !s.disk_collected
+                const missing = weekMissing(s)
+                const rescanKind = rescanAlert(s)
+                const hasEvents = !!s.ct_date || (s.rescan && !!s.rescan_date)
                 return (
                   <tr
                     key={s.id}
                     className={classNames(
                       'border-b border-slate-100 align-top',
+                      selected.has(s.id) && 'outline outline-1 -outline-offset-1 outline-brand-300',
                       noCtSoon && 'bg-fuchsia-50/60',
                       !noCtSoon && noDiskSoon && 'bg-orange-50/60',
                       !noCtSoon && !noDiskSoon && overdueRow && 'bg-red-50/60',
-                      !noCtSoon && !noDiskSoon && !overdueRow && soon && 'bg-amber-50/60',
+                      !noCtSoon && !noDiskSoon && !overdueRow && (rescanKind === 'today' || rescanKind === 'overdue') && 'bg-rose-50/70',
+                      !noCtSoon && !noDiskSoon && !overdueRow && !rescanKind && missing.length > 0 && 'bg-sky-50/60',
+                      !noCtSoon && !noDiskSoon && !overdueRow && !rescanKind && missing.length === 0 && soon && 'bg-amber-50/60',
                     )}
                   >
+                    <td className="p-2">
+                      <input type="checkbox" className="h-4 w-4" checked={selected.has(s.id)} onChange={() => toggleOne(s.id)} />
+                    </td>
                     <td className="whitespace-nowrap p-2 text-slate-500">
                       {formatDate(s.surgery_date)}
                       {noCtSoon && (
@@ -273,8 +348,30 @@ export default function Scans() {
                     <td className="whitespace-nowrap p-2 text-slate-600">{s.surgeon ? `${s.surgeon.title} ${s.surgeon.name}` : '—'}</td>
                     <td className="whitespace-nowrap p-2 text-slate-600">{SCAN_PROCEDURE_LABELS[s.procedure_type]}</td>
                     <td className="whitespace-nowrap p-2 text-slate-600">{s.side || '—'}</td>
-                    <td className="whitespace-nowrap p-2 text-slate-600">
-                      {s.ct_date ? `${formatDate(s.ct_date)}${s.ct_time ? ` ${formatTime(s.ct_time)}` : ''}` : '—'}
+                    <td className="p-2 text-slate-600">
+                      <div className="whitespace-nowrap">
+                        {s.ct_date ? `${formatDate(s.ct_date)}${s.ct_time ? ` ${formatTime(s.ct_time)}` : ''}` : '—'}
+                      </div>
+                      {missing.length > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {missing.map((m) => (
+                            <span key={m} className="chip border-sky-200 bg-sky-100 text-sky-700">{m}</span>
+                          ))}
+                        </div>
+                      )}
+                      {s.rescan && (
+                        <div
+                          title={s.rescan_reason || undefined}
+                          className={classNames(
+                            'chip mt-1 whitespace-nowrap',
+                            s.rescan_done
+                              ? 'border-slate-200 bg-slate-50 text-slate-500'
+                              : 'border-rose-200 bg-rose-100 text-rose-700',
+                          )}
+                        >
+                          {s.rescan_done ? 'סריקה חוזרת בוצעה' : `סריקה חוזרת ${s.rescan_date ? formatDate(s.rescan_date) : '— ללא תאריך'}`}
+                        </div>
+                      )}
                     </td>
                     <td className="max-w-[160px] p-2 text-xs text-slate-500">{s.anaesthesia_note || '—'}</td>
                     <td className="p-2 text-center">
@@ -284,6 +381,10 @@ export default function Scans() {
                     <td className="p-2 text-center">
                       <input type="checkbox" className="h-4 w-4" checked={s.disk_collected}
                         onChange={(e) => patch.mutate({ id: s.id, patch: { disk_collected: e.target.checked } })} />
+                    </td>
+                    <td className="p-2 text-center">
+                      <input type="checkbox" className="h-4 w-4" checked={s.plan_ready}
+                        onChange={(e) => patch.mutate({ id: s.id, patch: { plan_ready: e.target.checked } })} />
                     </td>
                     <td className="p-2 text-center">
                       <input type="checkbox" className="h-4 w-4" checked={s.uploaded}
@@ -297,6 +398,14 @@ export default function Scans() {
                     </td>
                     <td className="whitespace-nowrap p-2">
                       <div className="flex gap-1">
+                        <button
+                          className="btn-ghost !px-2 disabled:opacity-30"
+                          title="זימון Outlook (קובץ .ics)"
+                          disabled={!hasEvents}
+                          onClick={() => inviteFor([s])}
+                        >
+                          <CalendarPlus size={14} />
+                        </button>
                         <button className="btn-ghost !px-2" onClick={() => setEditing(s)}>
                           <Pencil size={14} />
                         </button>

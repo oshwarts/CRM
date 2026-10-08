@@ -31,6 +31,11 @@ type Draft = {
   anaesthesia_note: string
   scanned: boolean
   disk_collected: boolean
+  plan_ready: boolean
+  rescan: boolean
+  rescan_date: string
+  rescan_reason: string
+  rescan_done: boolean
   uploaded: boolean
   status: string
   implant_data: Record<string, string>
@@ -55,6 +60,11 @@ function toDraft(s?: PatientScanRow): Draft {
     anaesthesia_note: s?.anaesthesia_note ?? '',
     scanned: s?.scanned ?? false,
     disk_collected: s?.disk_collected ?? false,
+    plan_ready: s?.plan_ready ?? false,
+    rescan: s?.rescan ?? false,
+    rescan_date: s?.rescan_date ?? '',
+    rescan_reason: s?.rescan_reason ?? '',
+    rescan_done: s?.rescan_done ?? false,
     uploaded: s?.uploaded ?? false,
     status: s?.status ?? 'planned',
     implant_data: (s?.implant_data as Record<string, string>) ?? {},
@@ -110,6 +120,11 @@ export function ScanFormModal({
         anaesthesia_note: d.anaesthesia_note.trim(),
         scanned: d.scanned,
         disk_collected: d.disk_collected,
+        plan_ready: d.plan_ready,
+        rescan: d.rescan,
+        rescan_date: d.rescan && d.rescan_date ? d.rescan_date : null,
+        rescan_reason: d.rescan ? d.rescan_reason.trim() : '',
+        rescan_done: d.rescan ? d.rescan_done : false,
         uploaded: d.uploaded,
         status: d.status,
         implant_data: d.implant_data,
@@ -222,6 +237,31 @@ export function ScanFormModal({
             <input type="checkbox" className="h-4 w-4" checked={d.uploaded} onChange={(e) => set({ uploaded: e.target.checked })} />
             הועלה
           </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" className="h-4 w-4" checked={d.plan_ready} onChange={(e) => set({ plan_ready: e.target.checked })} />
+            תוכנית מוכנה
+          </label>
+        </div>
+
+        <div className="rounded-lg border border-slate-200 p-3">
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input type="checkbox" className="h-4 w-4" checked={d.rescan} onChange={(e) => set({ rescan: e.target.checked })} />
+            סריקה חוזרת
+          </label>
+          {d.rescan && (
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              <Field label="תאריך סריקה חוזרת">
+                <input type="date" className="input" value={d.rescan_date} onChange={(e) => set({ rescan_date: e.target.value })} />
+              </Field>
+              <Field label="סיבה">
+                <input className="input" value={d.rescan_reason} onChange={(e) => set({ rescan_reason: e.target.value })} placeholder="לדוגמה: איכות סריקה לא תקינה" />
+              </Field>
+              <label className="flex items-end gap-2 pb-2 text-sm">
+                <input type="checkbox" className="h-4 w-4" checked={d.rescan_done} onChange={(e) => set({ rescan_done: e.target.checked })} />
+                הסריקה החוזרת בוצעה
+              </label>
+            </div>
+          )}
         </div>
 
         <div>

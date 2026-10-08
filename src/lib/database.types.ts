@@ -200,6 +200,11 @@ export type Database = {
           ct_date: string | null
           ct_time: string | null
           disk_collected: boolean
+          plan_ready: boolean
+          rescan: boolean
+          rescan_date: string | null
+          rescan_done: boolean
+          rescan_reason: string
           surgery_date: string | null
           health_fund: string
           hospital_id: string
@@ -226,6 +231,11 @@ export type Database = {
           ct_date?: string | null
           ct_time?: string | null
           disk_collected?: boolean
+          plan_ready?: boolean
+          rescan?: boolean
+          rescan_date?: string | null
+          rescan_done?: boolean
+          rescan_reason?: string
           surgery_date?: string | null
           health_fund?: string
           hospital_id: string
@@ -252,6 +262,11 @@ export type Database = {
           ct_date?: string | null
           ct_time?: string | null
           disk_collected?: boolean
+          plan_ready?: boolean
+          rescan?: boolean
+          rescan_date?: string | null
+          rescan_done?: boolean
+          rescan_reason?: string
           surgery_date?: string | null
           health_fund?: string
           hospital_id?: string

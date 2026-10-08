@@ -19,6 +19,14 @@ import {
 import { useAuth } from '../context/AuthProvider'
 import { EmptyState, Spinner } from '../components/ui'
 import { classNames, daysUntil, formatDate, isOverdue, todayISO } from '../lib/utils'
+import { rescanAlert, weekMissing, type RescanKind } from '../lib/scanAlerts'
+
+const RESCAN_LABEL: Record<RescanKind, string> = {
+  today: 'היום',
+  soon: '',
+  overdue: 'באיחור',
+  nodate: 'ללא תאריך',
+}
 
 export default function Home() {
   const { user, profile } = useAuth()
@@ -48,6 +56,16 @@ export default function Home() {
       noDiskSoon: active.filter(
         (s) => surgerySoon(s) && !!s.ct_date && !s.disk_collected,
       ),
+      // CT בשבוע הקרוב שעדיין חסר בו משהו (לא בוצע / דיסק / תוכנית)
+      weekOpen: list
+        .map((s) => ({ s, missing: weekMissing(s) }))
+        .filter((x) => x.missing.length > 0)
+        .sort((a, b) => (a.s.ct_date ?? '').localeCompare(b.s.ct_date ?? '')),
+      // סריקות חוזרות פתוחות — לוודא שהסוכן מגיע
+      rescans: list
+        .map((s) => ({ s, kind: rescanAlert(s) }))
+        .filter((x): x is { s: (typeof list)[number]; kind: RescanKind } => x.kind !== null)
+        .sort((a, b) => (a.s.rescan_date ?? '').localeCompare(b.s.rescan_date ?? '')),
     }
   }, [scans.data])
 
@@ -259,6 +277,60 @@ export default function Home() {
               </li>
             ))}
           </ul>
+        )}
+        {scanAlerts.weekOpen.length > 0 && (
+          <>
+            <p className="mb-1 mt-4 text-xs font-medium uppercase tracking-wide text-slate-400">
+              CT בשבוע הקרוב — חסר טיפול ({scanAlerts.weekOpen.length})
+            </p>
+            <ul className="divide-y divide-slate-100 text-sm">
+              {scanAlerts.weekOpen.slice(0, 8).map(({ s, missing }) => (
+                <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 py-1.5">
+                  <span className="text-slate-700">
+                    {s.patient_name}
+                    <span className="mr-2 text-xs text-slate-400">
+                      {s.hospital?.name} · CT {formatDate(s.ct_date)}
+                    </span>
+                  </span>
+                  <span className="flex flex-wrap gap-1">
+                    {missing.map((m) => (
+                      <span key={m} className="chip border-sky-200 bg-sky-50 text-sky-700">{m}</span>
+                    ))}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+        {scanAlerts.rescans.length > 0 && (
+          <>
+            <p className="mb-1 mt-4 text-xs font-medium uppercase tracking-wide text-rose-500">
+              סריקה חוזרת — לוודא שהסוכן מגיע ({scanAlerts.rescans.length})
+            </p>
+            <ul className="divide-y divide-slate-100 text-sm">
+              {scanAlerts.rescans.map(({ s, kind }) => (
+                <li
+                  key={s.id}
+                  className={classNames(
+                    'flex flex-wrap items-center justify-between gap-2 rounded px-1 py-1.5',
+                    (kind === 'today' || kind === 'overdue') && 'bg-rose-50',
+                  )}
+                >
+                  <span className="text-slate-700">
+                    {s.patient_name}
+                    <span className="mr-2 text-xs text-slate-400">
+                      {s.hospital?.name}
+                      {s.rescan_reason ? ` · ${s.rescan_reason}` : ''}
+                    </span>
+                  </span>
+                  <span className="chip border-rose-200 bg-rose-50 text-rose-700">
+                    {s.rescan_date ? formatDate(s.rescan_date) : ''}
+                    {RESCAN_LABEL[kind] && ` · ${RESCAN_LABEL[kind]}`}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </section>
 
