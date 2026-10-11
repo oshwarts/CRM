@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   CalendarDays,
@@ -17,6 +17,7 @@ import {
   useToggleMeetingTask,
 } from '../lib/api'
 import { MeetingFormModal } from '../components/MeetingFormModal'
+import { MeetingDetailModal } from '../components/MeetingDetailModal'
 import {
   ConfirmButton,
   EmptyState,
@@ -42,17 +43,9 @@ export default function Meetings() {
   const [params, setParams] = useSearchParams()
   const openId = params.get('meeting')
 
-  // a link like /meetings?meeting=<id> (from a doctor's page) opens that meeting directly
-  useEffect(() => {
-    if (!openId || !meetings.data) return
-    const m = meetings.data.find((x) => x.id === openId)
-    if (m) setEditing(m)
-  }, [openId, meetings.data])
-
-  function closeEditing() {
-    setEditing(null)
-    if (openId) setParams({}, { replace: true })
-  }
+  // a link like /meetings?meeting=<id> (from a doctor's page) opens that meeting's summary
+  const viewing = openId ? meetings.data?.find((x) => x.id === openId) : undefined
+  const closeViewing = () => setParams({}, { replace: true })
 
   const today = new Date().toISOString().slice(0, 10)
 
@@ -237,7 +230,17 @@ export default function Meetings() {
         <MeetingFormModal
           open={!!editing}
           meeting={editing}
-          onClose={closeEditing}
+          onClose={() => setEditing(null)}
+        />
+      )}
+      {viewing && !editing && (
+        <MeetingDetailModal
+          meeting={viewing}
+          onClose={closeViewing}
+          onEdit={() => {
+            setEditing(viewing)
+            closeViewing()
+          }}
         />
       )}
     </div>
