@@ -291,7 +291,7 @@ export default function DoctorProfile() {
             {(meetings.data ?? []).map((m) => (
               <Link
                 key={m.id}
-                to="/meetings"
+                to={`/meetings?meeting=${m.id}`}
                 className="card block p-4 hover:border-brand-200"
               >
                 <div className="flex items-center justify-between">

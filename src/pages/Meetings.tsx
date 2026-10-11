@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   CalendarDays,
   CheckSquare,
@@ -38,6 +39,20 @@ export default function Meetings() {
   const [filter, setFilter] = useState<FilterKey>('all')
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState<MeetingWithRelations | null>(null)
+  const [params, setParams] = useSearchParams()
+  const openId = params.get('meeting')
+
+  // a link like /meetings?meeting=<id> (from a doctor's page) opens that meeting directly
+  useEffect(() => {
+    if (!openId || !meetings.data) return
+    const m = meetings.data.find((x) => x.id === openId)
+    if (m) setEditing(m)
+  }, [openId, meetings.data])
+
+  function closeEditing() {
+    setEditing(null)
+    if (openId) setParams({}, { replace: true })
+  }
 
   const today = new Date().toISOString().slice(0, 10)
 
@@ -222,7 +237,7 @@ export default function Meetings() {
         <MeetingFormModal
           open={!!editing}
           meeting={editing}
-          onClose={() => setEditing(null)}
+          onClose={closeEditing}
         />
       )}
     </div>

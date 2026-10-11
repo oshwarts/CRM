@@ -16,3 +16,6 @@ pnpm-debug.log*
 
 # base44 reference screenshots (not part of the app)
 /*.png
+
+# imported company e-mails — never commit
+emails/
