@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { CalendarPlus, Copy, Download, Pencil, Plus, Trash2 } from 'lucide-react'
+import { CalendarPlus, Copy, Download, FileInput, Pencil, Plus, Trash2 } from 'lucide-react'
 import {
   useDeletePatientScan,
   useMakoHospitals,
   usePatchPatientScan,
   usePatientScans,
 } from '../lib/api'
-import { ScanFormModal } from '../components/ScanFormModal'
+import { ScanFormModal, type ScanDraft } from '../components/ScanFormModal'
+import { ReferralImportModal } from '../components/ReferralImportModal'
 import { ConfirmButton, EmptyState, ErrorState, Spinner } from '../components/ui'
 import {
   SCAN_PROCEDURE_LABELS,
@@ -49,6 +50,8 @@ export default function Scans() {
   const hospitalParam = params.get('hospital') ?? ''
 
   const [showAdd, setShowAdd] = useState(false)
+  const [showReferral, setShowReferral] = useState(false)
+  const [prefill, setPrefill] = useState<{ draft: Partial<ScanDraft>; notices: string[] } | null>(null)
   const [editing, setEditing] = useState<PatientScanRow | null>(null)
   const [q, setQ] = useState('')
   const [hospital, setHospital] = useState(hospitalParam)
@@ -188,6 +191,10 @@ export default function Scans() {
           <button className="btn-secondary" onClick={exportCsv} disabled={rows.length === 0}>
             <Download size={16} />
             ייצוא CSV
+          </button>
+          <button className="btn-secondary" onClick={() => setShowReferral(true)}>
+            <FileInput size={16} />
+            ייבוא הפנייה
           </button>
           <button className="btn-primary" onClick={() => setShowAdd(true)}>
             <Plus size={16} />
@@ -434,6 +441,18 @@ export default function Scans() {
       )}
 
       {showAdd && <ScanFormModal onClose={() => setShowAdd(false)} />}
+      {showReferral && (
+        <ReferralImportModal
+          onClose={() => setShowReferral(false)}
+          onResult={(draft, notices) => {
+            setShowReferral(false)
+            setPrefill({ draft, notices })
+          }}
+        />
+      )}
+      {prefill && (
+        <ScanFormModal initial={prefill.draft} notices={prefill.notices} onClose={() => setPrefill(null)} />
+      )}
       {editing && <ScanFormModal scan={editing} onClose={() => setEditing(null)} />}
     </div>
   )

@@ -15,7 +15,7 @@ import {
 import { Field, Modal } from './ui'
 import { ImportContactButton } from './ImportContactButton'
 
-type Draft = {
+export type ScanDraft = {
   hospital_id: string
   surgery_date: string
   patient_name: string
@@ -42,6 +42,8 @@ type Draft = {
   implant_data: Record<string, string>
   notes: string
 }
+
+type Draft = ScanDraft
 
 function toDraft(s?: PatientScanRow): Draft {
   return {
@@ -75,9 +77,13 @@ function toDraft(s?: PatientScanRow): Draft {
 
 export function ScanFormModal({
   scan,
+  initial,
+  notices,
   onClose,
 }: {
   scan?: PatientScanRow
+  initial?: Partial<ScanDraft>
+  notices?: string[]
   onClose: () => void
 }) {
   const hospitals = useMakoHospitals()
@@ -85,7 +91,7 @@ export function ScanFormModal({
   const options = useImplantOptions()
   const save = useUpsertPatientScan()
 
-  const [d, setD] = useState<Draft>(() => toDraft(scan))
+  const [d, setD] = useState<Draft>(() => ({ ...toDraft(scan), ...initial }))
   const [error, setError] = useState<string | null>(null)
   const set = (p: Partial<Draft>) => setD((x) => ({ ...x, ...p }))
 
@@ -140,6 +146,16 @@ export function ScanFormModal({
   return (
     <Modal open onClose={onClose} title={scan ? 'עריכת מטופל' : 'הוספת מטופל'} size="xl">
       <div className="space-y-4">
+        {notices && notices.length > 0 && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            <p className="mb-1 font-semibold">הפרטים חולצו אוטומטית מההפנייה — בדוק לפני שמירה:</p>
+            <ul className="list-inside list-disc space-y-0.5">
+              {notices.map((n) => (
+                <li key={n}>{n}</li>
+              ))}
+            </ul>
+          </div>
+        )}
         <div className="grid gap-3 sm:grid-cols-3">
           <Field label="בית חולים (MAKO)">
             <select className="input" value={d.hospital_id} onChange={(e) => set({ hospital_id: e.target.value })}>
