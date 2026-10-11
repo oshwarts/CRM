@@ -26,12 +26,8 @@ import { ContactsSection } from '../components/ContactsSection'
 import { CaseVolumesEditor } from '../components/CaseVolumesEditor'
 import { EquipmentPlanEditor } from '../components/EquipmentPlanEditor'
 import { PickingListModal } from '../components/PickingListModal'
-import { MakoPlanForm } from '../components/MakoPlanForm'
-import {
-  defaultsFor,
-  templateFor,
-  type MakoTemplate,
-} from '../lib/makoTemplates'
+import { PreopPlanForm, PreopPlanSummary } from '../components/PreopPlanForm'
+import { PREOP_SCHEMAS, schemaFor, type PreopSchema } from '../lib/preopForm'
 import {
   ConfirmButton,
   EmptyState,
@@ -365,25 +361,24 @@ function PreopSection({
   const [draft, setDraft] = useState<PlanDraft | null>(null)
 
   const procList = procedures.data ?? []
-  // show every procedure in the picker — generic (non-MAKO) ones must stay
-  // selectable, only the MAKO ones get the anatomical screens
-  const procOptions = procList
 
-  const templateOfProc = (procId: string | null) =>
-    templateFor(procList.find((p) => p.id === procId)?.planning_template)
+  // the three planning types, each tied to the procedure that carries its template
+  const choices = PREOP_SCHEMAS.map((schema) => ({
+    schema,
+    procedureId: procList.find((p) => p.planning_template === schema.id)?.id ?? null,
+  }))
+
+  const schemaOfProc = (procId: string | null) =>
+    schemaFor(procList.find((p) => p.id === procId)?.planning_template)
 
   function startNew() {
-    const first =
-      procList.find((p) => p.planning_template === 'mako_tka')?.id ??
-      procOptions[0]?.id ??
-      null
-    const t = templateOfProc(first)
+    const first = choices.find((c) => c.procedureId)
     setDraft({
-      procedure_id: first,
+      procedure_id: first?.procedureId ?? null,
       surgeon_preferences: '',
       surgical_approach: '',
       required_equipment: '',
-      plan_data: t ? defaultsFor(t) : {},
+      plan_data: {},
     })
   }
 
@@ -396,8 +391,7 @@ function PreopSection({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-sm text-slate-500">
-          תכנון טרום־ניתוחי – תוכנית נפרדת לכל הליך. להליכי MAKO מוצג מסך פרמטרים
-          בסגנון הרובוט עם ערכי ברירת מחדל.
+          תכנון טרום־ניתוחי – תוכנית נפרדת לכל ניתוח: ברך מלאה, ירך או יוני.
         </p>
         <button className="btn-secondary" onClick={startNew}>
           <Plus size={16} />
@@ -414,8 +408,8 @@ function PreopSection({
           <PreopForm
             key={plan.id}
             value={draft}
-            options={procOptions}
-            template={templateOfProc(draft.procedure_id)}
+            choices={choices}
+            schema={schemaOfProc(draft.procedure_id)}
             onChange={setDraft}
             onCancel={() => setDraft(null)}
             onSave={() => persist(draft)}
@@ -442,8 +436,8 @@ function PreopSection({
       {draft && !draft.id && (
         <PreopForm
           value={draft}
-          options={procOptions}
-          template={templateOfProc(draft.procedure_id)}
+          choices={choices}
+          schema={schemaOfProc(draft.procedure_id)}
           onChange={setDraft}
           onCancel={() => setDraft(null)}
           onSave={() => persist(draft)}
@@ -462,9 +456,9 @@ function PlanCard({
   onEdit: () => void
   onDelete: () => void
 }) {
-  const template = templateFor(plan.procedure?.planning_template)
+  const schema = schemaFor(plan.procedure?.planning_template)
   const pd = (plan.plan_data ?? {}) as Record<string, unknown>
-  const hasStructured = template && Object.keys(pd).length > 0
+  const hasStructured = !!schema
 
   return (
     <div className="card space-y-3 p-4">
@@ -485,8 +479,8 @@ function PlanCard({
         </div>
       </div>
 
-      {hasStructured ? (
-        <MakoPlanForm template={template} values={pd} readOnly />
+      {schema ? (
+        <PreopPlanSummary schema={schema} values={pd} />
       ) : (
         <dl className="space-y-2 text-sm">
           <PreopRow label="העדפות מנתח" value={plan.surgeon_preferences} />
@@ -515,52 +509,59 @@ function PreopRow({ label, value }: { label: string; value: string }) {
 
 function PreopForm({
   value,
-  options,
-  template,
+  choices,
+  schema,
   onChange,
   onCancel,
   onSave,
 }: {
   value: PlanDraft
-  options: { id: string; name: string; planning_template: string }[]
-  template: MakoTemplate | null
+  choices: { schema: PreopSchema; procedureId: string | null }[]
+  schema: PreopSchema | null
   onChange: (v: PlanDraft) => void
   onCancel: () => void
   onSave: () => void
 }) {
-  function selectProcedure(procId: string) {
-    const t = templateFor(
-      options.find((o) => o.id === procId)?.planning_template,
-    )
-    onChange({
-      ...value,
-      procedure_id: procId || null,
-      plan_data: t
-        ? { ...defaultsFor(t), ...value.plan_data }
-        : value.plan_data,
-    })
+  const isNew = !value.id
+
+  function pick(procedureId: string | null) {
+    if (!procedureId || procedureId === value.procedure_id) return
+    onChange({ ...value, procedure_id: procedureId, plan_data: {} })
   }
 
   return (
-    <div className="card space-y-3 border-brand-200 p-4">
-      <Field label="הליך">
-        <select
-          className="input"
-          value={value.procedure_id ?? ''}
-          onChange={(e) => selectProcedure(e.target.value)}
-        >
-          <option value="">הליך כללי</option>
-          {options.map((o) => (
-            <option key={o.id} value={o.id}>
-              {o.name}
-            </option>
-          ))}
-        </select>
-      </Field>
+    <div className="card space-y-4 border-brand-200 p-3 sm:p-4">
+      {schema || isNew ? (
+        <div>
+          <p className="label">ניתוח</p>
+          <div className="grid grid-cols-3 gap-2">
+            {choices.map(({ schema: s, procedureId }) => (
+              <button
+                key={s.id}
+                type="button"
+                disabled={!procedureId}
+                onClick={() => pick(procedureId)}
+                className={
+                  'rounded-xl border px-3 py-3 text-sm font-semibold transition disabled:opacity-40 ' +
+                  (schema?.id === s.id
+                    ? 'border-brand-500 bg-brand-50 text-brand-700'
+                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50')
+                }
+              >
+                {s.short}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
+          תוכנית ישנה להליך כללי — אפשר לערוך אותה כטקסט חופשי.
+        </p>
+      )}
 
-      {template ? (
-        <MakoPlanForm
-          template={template}
+      {schema ? (
+        <PreopPlanForm
+          schema={schema}
           values={value.plan_data}
           onChange={(pd) => onChange({ ...value, plan_data: pd })}
         />
@@ -584,19 +585,17 @@ function PreopForm({
               }
             />
           </Field>
+          <Field label="ציוד נדרש לניתוח (הערה חופשית)">
+            <textarea
+              className="input min-h-16"
+              value={value.required_equipment}
+              onChange={(e) =>
+                onChange({ ...value, required_equipment: e.target.value })
+              }
+            />
+          </Field>
         </>
       )}
-
-      <Field label="ציוד נדרש לניתוח (הערה חופשית)">
-        <textarea
-          className="input min-h-16"
-          value={value.required_equipment}
-          onChange={(e) =>
-            onChange({ ...value, required_equipment: e.target.value })
-          }
-          placeholder="רשימת הציוד המובנית נמצאת בטאב 'ציוד לניתוח'"
-        />
-      </Field>
 
       <div className="flex justify-end gap-2">
         <button className="btn-secondary" onClick={onCancel}>
