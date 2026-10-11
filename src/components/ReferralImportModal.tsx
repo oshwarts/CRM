@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { FileUp, Sparkles } from 'lucide-react'
 import { useDoctors, useMakoHospitals, usePatientScans } from '../lib/api'
-import { extractReferral, referralToDraft } from '../lib/referral'
+import { analyzeReferral } from '../lib/referral'
 import type { ScanDraft } from './ScanFormModal'
 import { Modal } from './ui'
 
@@ -25,8 +25,13 @@ export function ReferralImportModal({
     setError('')
     setBusy(true)
     try {
-      const r = await extractReferral({ text: text.trim(), file })
-      const { draft, notices } = referralToDraft(r, doctors.data ?? [], hospitals.data ?? [], scans.data ?? [])
+      const { draft, notices } = await analyzeReferral({
+        message: text.trim(),
+        file,
+        doctors: doctors.data ?? [],
+        hospitals: hospitals.data ?? [],
+        existing: scans.data ?? [],
+      })
       onResult(draft, notices)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'הניתוח נכשל')
@@ -39,7 +44,7 @@ export function ReferralImportModal({
     <Modal open onClose={onClose} title="ייבוא הפנייה למטופל" size="lg">
       <div className="space-y-4">
         <p className="text-sm text-slate-500">
-          הדבק את ההודעה מהווטסאפ ו/או צרף את קובץ ההפנייה (PDF או Word). המערכת תחלץ את הפרטים ותציג טופס
+          הדבק את ההודעה מהווטסאפ ו/או צרף את קובץ ההפנייה (PDF או Word). המערכת תקרא את הפרטים ותציג טופס
           ממולא לבדיקה — שום דבר לא נשמר עד שתאשר.
         </p>
 
@@ -71,7 +76,7 @@ export function ReferralImportModal({
             <input
               ref={fileRef}
               type="file"
-              accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
               className="hidden"
               onChange={(e) => {
                 setFile(e.target.files?.[0] ?? null)
@@ -82,8 +87,8 @@ export function ReferralImportModal({
         </div>
 
         <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
-          פרטי ההפנייה, כולל פרטי המטופל, נשלחים לעיבוד בשירות ה-AI של Anthropic (Claude) ואינם נשמרים בשרת
-          המערכת. הקובץ המקורי לא נשמר.
+          הקריאה נעשית בתוך המערכת, בלי שירות חיצוני ובלי עלות. הקובץ לא נשמר. הפרטים נאספים משם הקובץ,
+          מההודעה ומתוכן המסמך.
         </p>
 
         {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
@@ -92,7 +97,7 @@ export function ReferralImportModal({
           <button className="btn-secondary" onClick={onClose}>ביטול</button>
           <button className="btn-primary" onClick={run} disabled={busy || (!text.trim() && !file)}>
             <Sparkles size={16} />
-            {busy ? 'מנתח הפנייה…' : 'נתח הפנייה'}
+            {busy ? 'קורא הפנייה…' : 'קרא הפנייה'}
           </button>
         </div>
       </div>

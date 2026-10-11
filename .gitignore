@@ -19,3 +19,6 @@ pnpm-debug.log*
 
 # imported company e-mails — never commit
 emails/
+
+# referral examples (patient data) — never commit
+referrals/

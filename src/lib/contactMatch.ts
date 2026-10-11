@@ -40,14 +40,31 @@ export function matchDoctors(contactName: string, doctors: MatchDoctor[]): Score
   return out.sort((a, b) => b.score - a.score)
 }
 
+// common shorthand people type for hospital cities
+const ABBREV: [RegExp, string][] = [
+  [/(^| )תא( |$)/g, '$1תל אביב$2'],
+  [/(^| )בש( |$)/g, '$1באר שבע$2'],
+  [/(^| )ראשלצ( |$)/g, '$1ראשון לציון$2'],
+  [/(^| )פת( |$)/g, '$1פתח תקוה$2'],
+]
+
+/** tolerant comparison key: expands shorthand and ignores yod/vav spelling (החייל = החיל) */
+export function looseKey(s: string): string {
+  let n = normalizeHe(s)
+  for (const [re, to] of ABBREV) n = n.replace(re, to)
+  return n.replace(/[יו]/g, '').replace(/\s+/g, ' ').trim()
+}
+
+const STOP_LOOSE = new Set([...STOP_WORDS].map((w) => looseKey(w)))
+
 export function matchHospitals(contactName: string, hospitals: MatchHospital[]): Scored<MatchHospital>[] {
-  const padded = ` ${tokens(contactName).join(' ')} `
+  const padded = ` ${looseKey(contactName)} `
   const out: Scored<MatchHospital>[] = []
   for (const h of hospitals) {
     // "שמיר – אסף הרופא" can be written as either part
     const variants = h.name
       .split(/[–—-]/)
-      .map((v) => tokens(v).filter((t) => !STOP_WORDS.has(t)).join(' '))
+      .map((v) => looseKey(v).split(' ').filter((t) => t && !STOP_LOOSE.has(t)).join(' '))
       .filter((v) => v.length >= 3)
     let score = 0
     let why = ''
