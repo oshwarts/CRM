@@ -13,6 +13,7 @@ import {
   type PatientScanRow,
 } from '../lib/types'
 import { Field, Modal } from './ui'
+import { ImportContactButton } from './ImportContactButton'
 
 type Draft = {
   hospital_id: string
@@ -161,6 +162,16 @@ export function ScanFormModal({
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">
+          <div className="sm:col-span-3">
+            <ImportContactButton
+              onPick={(c) =>
+                set({
+                  patient_name: d.patient_name || c.name,
+                  patient_phone: c.phone || d.patient_phone,
+                })
+              }
+            />
+          </div>
           <Field label="שם מלא">
             <input className="input" value={d.patient_name} onChange={(e) => set({ patient_name: e.target.value })} />
           </Field>

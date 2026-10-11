@@ -57,6 +57,7 @@ import {
   type HospitalListItem,
 } from '../lib/types'
 
+import { ImportContactButton } from '../components/ImportContactButton'
 import { ConsumablesSettings } from '../components/ConsumablesSettings'
 
 export default function Settings() {
@@ -837,6 +838,18 @@ function ContactsSettings() {
                 ))}
               </datalist>
             </Field>
+            <div className="sm:col-span-2">
+              <ImportContactButton
+                onPick={(c) =>
+                  setDraft({
+                    ...draft,
+                    name: draft.name || c.name,
+                    phone: c.phone || draft.phone,
+                    email: c.email || draft.email,
+                  })
+                }
+              />
+            </div>
             <Field label="טלפון">
               <input
                 dir="ltr"

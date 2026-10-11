@@ -25,6 +25,7 @@ import {
   TabPanel,
   Tabs,
 } from './ui'
+import { ImportContactButton } from './ImportContactButton'
 
 type Props = {
   open: boolean
@@ -163,6 +164,17 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
                 placeholder="לדוגמה: מנהל מחלקת אורתופדיה"
               />
             </Field>
+            <div className="sm:col-span-2">
+              <ImportContactButton
+                onPick={(c) =>
+                  patch({
+                    name: data.name || c.name,
+                    phone: c.phone || data.phone,
+                    email: c.email || data.email,
+                  })
+                }
+              />
+            </div>
             <Field label="טלפון">
               <input
                 dir="ltr"

@@ -116,7 +116,7 @@ export default function Consumables() {
     if (mode === 'copied') {
       await copyText(body)
       setNotice('הרשימה ארוכה מדי לגוף הטיוטה — הועתקה ללוח. הדבק אותה במייל (Ctrl+V).')
-    } else setNotice('נפתחה טיוטה בתוכנת המייל.')
+    } else setNotice('נפתחה טיוטה בתוכנת המייל — בדוק אותה ולחץ "שלח". שום דבר לא נשלח לפני כן.')
     window.location.href = url
   }
 
@@ -314,7 +314,7 @@ export default function Consumables() {
                   title={to ? `נשלח אל ${to}` : 'לא הוגדרה כתובת מייל'}
                 >
                   <Mail size={16} />
-                  שלח חוסרים במייל
+                  פתח מייל חוסרים
                 </button>
                 <button className="btn-secondary" onClick={copyList} disabled={missing.length === 0}>
                   <Copy size={16} />
@@ -326,6 +326,11 @@ export default function Consumables() {
               <p className="text-xs text-amber-600">
                 לא הוגדרה כתובת מייל לשליחת חוסרים — הגדרה בעמוד{' '}
                 <Link to="/settings" className="font-medium underline">הגדרות ← מתכלים</Link>.
+              </p>
+            )}
+            {to && missing.length > 0 && !notice && (
+              <p className="text-xs text-slate-400">
+                "פתח מייל חוסרים" פותח טיוטה בלבד — המייל נשלח רק אחרי שתאשר ותלחץ "שלח".
               </p>
             )}
             {notice && <p className="text-xs text-slate-500">{notice}</p>}

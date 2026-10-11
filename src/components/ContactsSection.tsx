@@ -7,6 +7,7 @@ import {
 } from '../lib/api'
 import { CONTACT_ROLES, type Contact } from '../lib/types'
 import { ConfirmButton, EmptyState, Field } from './ui'
+import { ImportContactButton } from './ImportContactButton'
 
 type Draft = {
   id?: string
@@ -185,6 +186,18 @@ function ContactForm({
             ))}
           </datalist>
         </Field>
+        <div className="sm:col-span-2">
+          <ImportContactButton
+            onPick={(c) =>
+              onChange({
+                ...draft,
+                name: draft.name || c.name,
+                phone: c.phone || draft.phone,
+                email: c.email || draft.email,
+              })
+            }
+          />
+        </div>
         <Field label="טלפון">
           <input
             dir="ltr"

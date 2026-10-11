@@ -71,7 +71,7 @@ export function ConsumablesSettings() {
       <div className="card p-4">
         <h3 className="mb-1 font-semibold text-slate-800">כתובת מייל לרשימת חוסרים</h3>
         <p className="mb-3 text-sm text-slate-400">
-          הכפתור "שלח חוסרים במייל" בעמוד המתכלים פותח טיוטה לכתובת הזו.
+          הכפתור "פתח מייל חוסרים" בעמוד המתכלים פותח טיוטה לכתובת הזו — המייל לא נשלח עד שתאשר ותלחץ "שלח".
         </p>
         <div className="flex flex-wrap gap-2">
           <input
