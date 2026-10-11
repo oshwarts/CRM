@@ -14,6 +14,7 @@ import { useAuth } from '../context/AuthProvider'
 import { ConfirmButton, EmptyState, ErrorState, Spinner } from '../components/ui'
 import {
   buildMailto,
+  buildOutlookWebUrl,
   CONSUMABLES_EMAIL_KEY,
   groupByCategory,
   shortageOf,
@@ -105,19 +106,23 @@ export default function Consumables() {
   const groups = groupByCategory(rows)
   const to = email.data ?? ''
 
-  async function sendMail() {
-    const { subject, body } = shortageText({
-      hospital: hospitalName,
-      countedOn: viewed?.counted_on ?? date,
-      agent: viewed ? (viewed.counter?.full_name || viewed.counter?.email || '') : (profile?.full_name ?? ''),
-      rows,
-    })
-    const { url, mode } = buildMailto(to, subject, body)
-    if (mode === 'copied') {
-      await copyText(body)
+  const mail = shortageText({
+    hospital: hospitalName,
+    countedOn: viewed?.counted_on ?? date,
+    agent: viewed ? (viewed.counter?.full_name || viewed.counter?.email || '') : (profile?.full_name ?? ''),
+    rows,
+  })
+  const mailto = buildMailto(to, mail.subject, mail.body)
+  const outlookUrl = buildOutlookWebUrl(to, mail.subject, mail.body)
+  const canMail = !!to && missing.length > 0
+
+  async function onMailtoClick() {
+    if (mailto.mode === 'copied') {
+      await copyText(mail.body)
       setNotice('הרשימה ארוכה מדי לגוף הטיוטה — הועתקה ללוח. הדבק אותה במייל (Ctrl+V).')
-    } else setNotice('נפתחה טיוטה בתוכנת המייל — בדוק אותה ולחץ "שלח". שום דבר לא נשלח לפני כן.')
-    window.location.href = url
+    } else {
+      setNotice('אם לא נפתחה טיוטה, אין אפליקציית מייל מוגדרת במכשיר — נסה "פתח ב-Outlook". שום דבר לא נשלח לפני שתלחץ "שלח".')
+    }
   }
 
   async function copyList() {
@@ -307,15 +312,31 @@ export default function Consumables() {
                     שמור ספירה
                   </button>
                 )}
-                <button
-                  className="btn-secondary"
-                  onClick={sendMail}
-                  disabled={!to || missing.length === 0}
-                  title={to ? `נשלח אל ${to}` : 'לא הוגדרה כתובת מייל'}
-                >
-                  <Mail size={16} />
-                  פתח מייל חוסרים
-                </button>
+                {canMail ? (
+                  <>
+                    <a
+                      className="btn-secondary"
+                      href={outlookUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() =>
+                        setNotice('נפתחה טיוטה ב-Outlook בדפדפן — בדוק אותה ולחץ "שלח". שום דבר לא נשלח לפני כן.')
+                      }
+                    >
+                      <Mail size={16} />
+                      פתח ב-Outlook
+                    </a>
+                    <a className="btn-secondary" href={mailto.url} onClick={onMailtoClick}>
+                      <Mail size={16} />
+                      אפליקציית מייל
+                    </a>
+                  </>
+                ) : (
+                  <button className="btn-secondary" disabled title={to ? 'אין חוסרים' : 'לא הוגדרה כתובת מייל'}>
+                    <Mail size={16} />
+                    פתח מייל חוסרים
+                  </button>
+                )}
                 <button className="btn-secondary" onClick={copyList} disabled={missing.length === 0}>
                   <Copy size={16} />
                   העתק
@@ -330,7 +351,7 @@ export default function Consumables() {
             )}
             {to && missing.length > 0 && !notice && (
               <p className="text-xs text-slate-400">
-                "פתח מייל חוסרים" פותח טיוטה בלבד — המייל נשלח רק אחרי שתאשר ותלחץ "שלח".
+                הכפתורים פותחים טיוטה בלבד — המייל נשלח רק אחרי שתבדוק ותלחץ "שלח". אם אין אפליקציית מייל במכשיר, השתמש ב"פתח ב-Outlook".
               </p>
             )}
             {notice && <p className="text-xs text-slate-500">{notice}</p>}

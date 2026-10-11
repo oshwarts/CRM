@@ -77,3 +77,9 @@ export function buildMailto(
 }
 
 export const CONSUMABLES_EMAIL_KEY = 'consumables_email'
+
+/** compose window of Outlook on the web (Microsoft 365) — works without any mail app installed */
+export function buildOutlookWebUrl(to: string, subject: string, body: string): string {
+  const q = (s: string) => encodeURIComponent(s).replace(/%0A/g, '%0D%0A')
+  return `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(to)}&subject=${q(subject)}&body=${q(body)}`
+}
