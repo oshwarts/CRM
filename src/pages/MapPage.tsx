@@ -1,8 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { MapContainer, Marker, TileLayer, Tooltip } from 'react-leaflet'
+import { MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet'
 import L from 'leaflet'
-import { Activity, Bot, Building2, Phone, Stethoscope, User } from 'lucide-react'
+import {
+  Activity,
+  ArrowRight,
+  Bot,
+  Building2,
+  Phone,
+  Search,
+  Stethoscope,
+  User,
+  X,
+} from 'lucide-react'
 import { useMapData, type MapHospital } from '../lib/api'
 import { ErrorState, Spinner } from '../components/ui'
 import { DOCTOR_STATUS_LABELS, SECTOR_LABELS } from '../lib/types'
@@ -22,10 +32,38 @@ function pinIcon(active: boolean, count: number) {
   })
 }
 
+// ignore case, quotes / geresh marks, dots and dashes so "הדסה עין-כרם" matches "הדסה עין כרם"
+const normalize = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/["'`.׳״‘’“”]/g, '')
+    .replace(/[-־]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+// flies to the selected hospital, or fits the search results, or shows all of Israel
+function MapFocus({
+  target,
+  bounds,
+}: {
+  target: [number, number] | null
+  bounds: [number, number][]
+}) {
+  const map = useMap()
+  const key = target ? target.join(',') : bounds.map((b) => b.join(',')).join('|')
+  useEffect(() => {
+    if (target) map.flyTo(target, 14, { duration: 0.8 })
+    else if (bounds.length > 0) map.fitBounds(bounds, { padding: [40, 40], maxZoom: 13 })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, map])
+  return null
+}
+
 export default function MapPage() {
   const map = useMapData()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [orgFilter, setOrgFilter] = useState('')
+  const [query, setQuery] = useState('')
   const panelRef = useRef<HTMLDivElement>(null)
 
   // on a phone the panel sits below the map — bring it into view when a pin is tapped
@@ -40,13 +78,14 @@ export default function MapPage() {
     return [...s].sort()
   }, [map.data])
 
-  const filtered = useMemo(
-    () =>
-      (map.data ?? []).filter(
-        (h) => !orgFilter || h.organization?.name === orgFilter,
-      ),
-    [map.data, orgFilter],
-  )
+  const filtered = useMemo(() => {
+    const q = normalize(query)
+    return (map.data ?? []).filter(
+      (h) =>
+        (!orgFilter || h.organization?.name === orgFilter) &&
+        (!q || normalize(`${h.name} ${h.city}`).includes(q)),
+    )
+  }, [map.data, orgFilter, query])
 
   const withCoords = useMemo(
     () => filtered.filter((h) => h.lat != null && h.lng != null),
@@ -55,6 +94,16 @@ export default function MapPage() {
 
   const selected =
     (map.data ?? []).find((h) => h.id === selectedId) ?? null
+  const focusTarget: [number, number] | null =
+    selected && selected.lat != null && selected.lng != null
+      ? [selected.lat, selected.lng]
+      : null
+  const focusBounds: [number, number][] = query
+    ? withCoords.map((h) => [h.lat as number, h.lng as number])
+    : [
+        [29.6, 34.2],
+        [33.3, 35.9],
+      ]
 
   if (map.isLoading) return <Spinner />
   if (map.error) return <ErrorState error={map.error} />
@@ -68,6 +117,22 @@ export default function MapPage() {
             לחיצה על בית חולים מציגה את הרופאים, הסוכן המטפל והרובוטיקה
           </p>
         </div>
+        <label className="relative block w-full sm:w-64">
+          <Search
+            size={16}
+            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+          />
+          <input
+            type="search"
+            className="input !pr-9"
+            placeholder="חיפוש בית חולים לפי שם"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value)
+              setSelectedId(null)
+            }}
+          />
+        </label>
         <select
           className="input max-w-48"
           value={orgFilter}
@@ -94,6 +159,7 @@ export default function MapPage() {
               attribution='&copy; OpenStreetMap'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
+            <MapFocus target={focusTarget} bounds={focusBounds} />
             {withCoords.map((h) => (
               <Marker
                 key={h.id}
@@ -109,12 +175,32 @@ export default function MapPage() {
 
         <div ref={panelRef} className="card scroll-mt-16 p-4 lg:max-h-[560px] lg:overflow-y-auto">
           {selected ? (
-            <HospitalPanel hospital={selected} />
+            <>
+              <button
+                className="mb-3 inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline"
+                onClick={() => setSelectedId(null)}
+              >
+                <ArrowRight size={14} />
+                חזרה לרשימה
+              </button>
+              <HospitalPanel hospital={selected} />
+            </>
           ) : (
             <div className="space-y-2">
               <p className="text-sm font-medium text-slate-600">
                 בתי חולים ({filtered.length})
               </p>
+              {filtered.length === 0 && (
+                <p className="py-4 text-center text-sm text-slate-400">
+                  לא נמצא בית חולים בשם "{query}"
+                  <button
+                    className="mr-2 inline-flex items-center gap-1 text-brand-600 underline"
+                    onClick={() => setQuery('')}
+                  >
+                    <X size={12} /> נקה
+                  </button>
+                </p>
+              )}
               {filtered.map((h) => (
                 <button
                   key={h.id}
