@@ -57,6 +57,8 @@ import {
   type HospitalListItem,
 } from '../lib/types'
 
+import { ConsumablesSettings } from '../components/ConsumablesSettings'
+
 export default function Settings() {
   const { isAdmin } = useAuth()
   const [tab, setTab] = useState('lists')
@@ -71,6 +73,7 @@ export default function Settings() {
           <Tab id="procedures">הליכים</Tab>
           <Tab id="equipment">ציוד</Tab>
           <Tab id="implants">מידות שתל</Tab>
+          <Tab id="consumables">מתכלים</Tab>
           <Tab id="hospitals">בתי חולים</Tab>
           <Tab id="contacts">אנשי קשר</Tab>
           <Tab id="users">משתמשים</Tab>
@@ -109,6 +112,9 @@ export default function Settings() {
         </TabPanel>
         <TabPanel id="implants">
           <ImplantOptionsSettings />
+        </TabPanel>
+        <TabPanel id="consumables">
+          <ConsumablesSettings />
         </TabPanel>
         <TabPanel id="hospitals">
           <HospitalsSettings />

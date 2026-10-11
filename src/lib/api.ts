@@ -6,6 +6,9 @@ import {
 import { supabase } from './supabase'
 import type {
   CaseVolumeRow,
+  ConsumableCountRow,
+  ConsumableItem,
+  ConsumableMinimum,
   Company,
   Contact,
   Doctor,
@@ -1305,5 +1308,157 @@ export function useUpdateMyProfile() {
       )
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['agents'] }),
+  })
+}
+
+/* ============================ Consumables (MAKO stock counts) ============================ */
+
+export function useConsumableItems() {
+  return useQuery({
+    queryKey: ['consumable-items'],
+    queryFn: async () =>
+      unwrap<ConsumableItem[]>(
+        await supabase.from('consumable_items').select('*').order('sort').order('name'),
+      ),
+  })
+}
+
+export function useUpsertConsumableItem() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (
+      i: Partial<ConsumableItem> & { name: string },
+    ) => {
+      const { id, created_at, ...rest } = i
+      void created_at
+      if (id) unwrap(await supabase.from('consumable_items').update(rest).eq('id', id))
+      else unwrap(await supabase.from('consumable_items').insert(rest))
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['consumable-items'] }),
+  })
+}
+
+export function useDeleteConsumableItem() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) =>
+      unwrap(await supabase.from('consumable_items').delete().eq('id', id)),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['consumable-items'] }),
+  })
+}
+
+export function useConsumableMinimums(hospitalId: string) {
+  return useQuery({
+    queryKey: ['consumable-minimums', hospitalId],
+    enabled: !!hospitalId,
+    queryFn: async () =>
+      unwrap<ConsumableMinimum[]>(
+        await supabase.from('consumable_minimums').select('*').eq('hospital_id', hospitalId),
+      ),
+  })
+}
+
+export function useConsumableCounts(hospitalId: string) {
+  return useQuery({
+    queryKey: ['consumable-counts', hospitalId],
+    enabled: !!hospitalId,
+    queryFn: async () =>
+      unwrap<ConsumableCountRow[]>(
+        await supabase
+          .from('consumable_counts')
+          .select('*, counter:profiles(full_name, email), lines:consumable_count_lines(*)')
+          .eq('hospital_id', hospitalId)
+          .order('counted_on', { ascending: false })
+          .order('created_at', { ascending: false }),
+      ),
+  })
+}
+
+export type SaveCountInput = {
+  hospitalId: string
+  countedOn: string
+  notes: string
+  lines: { item_id: string; qty: number; min_qty: number }[]
+  // per-hospital overrides to persist (item_id → min), and items to reset to default
+  overrides: { item_id: string; min_qty: number }[]
+  clearOverrides: string[]
+}
+
+export function useSaveConsumableCount() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (s: SaveCountInput) => {
+      const { data: userRes } = await supabase.auth.getUser()
+      const count = unwrap<{ id: string }>(
+        await supabase
+          .from('consumable_counts')
+          .insert({
+            hospital_id: s.hospitalId,
+            counted_on: s.countedOn,
+            notes: s.notes,
+            counted_by: userRes.user?.id ?? null,
+          })
+          .select('id')
+          .single(),
+      )
+      unwrap(
+        await supabase
+          .from('consumable_count_lines')
+          .insert(s.lines.map((l) => ({ ...l, count_id: count.id }))),
+      )
+      if (s.overrides.length)
+        unwrap(
+          await supabase
+            .from('consumable_minimums')
+            .upsert(s.overrides.map((o) => ({ ...o, hospital_id: s.hospitalId }))),
+        )
+      if (s.clearOverrides.length)
+        unwrap(
+          await supabase
+            .from('consumable_minimums')
+            .delete()
+            .eq('hospital_id', s.hospitalId)
+            .in('item_id', s.clearOverrides),
+        )
+      return count.id
+    },
+    onSuccess: (_id, v) => {
+      qc.invalidateQueries({ queryKey: ['consumable-counts', v.hospitalId] })
+      qc.invalidateQueries({ queryKey: ['consumable-minimums', v.hospitalId] })
+    },
+  })
+}
+
+export function useDeleteConsumableCount() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) =>
+      unwrap(await supabase.from('consumable_counts').delete().eq('id', id)),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['consumable-counts'] }),
+  })
+}
+
+export function useAppSetting(key: string) {
+  return useQuery({
+    queryKey: ['app-setting', key],
+    queryFn: async () => {
+      const rows = unwrap<{ value: string }[]>(
+        await supabase.from('app_settings').select('value').eq('key', key),
+      )
+      return rows[0]?.value ?? ''
+    },
+  })
+}
+
+export function useSaveAppSetting() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ key, value }: { key: string; value: string }) =>
+      unwrap(
+        await supabase
+          .from('app_settings')
+          .upsert({ key, value, updated_at: new Date().toISOString() }),
+      ),
+    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ['app-setting', v.key] }),
   })
 }

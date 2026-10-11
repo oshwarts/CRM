@@ -15,6 +15,16 @@ export type RoboticSystem = Tables<'robotic_systems'>
 export type ImplantOption = Tables<'implant_options'>
 export type PatientScan = Tables<'patient_scans'>
 
+export type ConsumableItem = Tables<'consumable_items'>
+export type ConsumableMinimum = Tables<'consumable_minimums'>
+export type ConsumableCount = Tables<'consumable_counts'>
+export type ConsumableCountLine = Tables<'consumable_count_lines'>
+
+export type ConsumableCountRow = ConsumableCount & {
+  counter: { full_name: string; email: string } | null
+  lines: ConsumableCountLine[]
+}
+
 export type PatientScanRow = PatientScan & {
   hospital: Pick<Hospital, 'id' | 'name'> | null
   surgeon: Pick<Doctor, 'id' | 'name' | 'title'> | null

@@ -288,6 +288,36 @@ export type Database = {
         }
         Relationships: []
       }
+      consumable_items: {
+        Row: { category: string; catalog_number: string; created_at: string; default_min: number; id: string; name: string; sort: number }
+        Insert: { category?: string; catalog_number?: string; created_at?: string; default_min?: number; id?: string; name: string; sort?: number }
+        Update: { category?: string; catalog_number?: string; created_at?: string; default_min?: number; id?: string; name?: string; sort?: number }
+        Relationships: []
+      }
+      consumable_minimums: {
+        Row: { hospital_id: string; item_id: string; min_qty: number }
+        Insert: { hospital_id: string; item_id: string; min_qty: number }
+        Update: { hospital_id?: string; item_id?: string; min_qty?: number }
+        Relationships: []
+      }
+      consumable_counts: {
+        Row: { counted_by: string | null; counted_on: string; created_at: string; hospital_id: string; id: string; notes: string }
+        Insert: { counted_by?: string | null; counted_on?: string; created_at?: string; hospital_id: string; id?: string; notes?: string }
+        Update: { counted_by?: string | null; counted_on?: string; created_at?: string; hospital_id?: string; id?: string; notes?: string }
+        Relationships: []
+      }
+      consumable_count_lines: {
+        Row: { count_id: string; item_id: string; min_qty: number; qty: number }
+        Insert: { count_id: string; item_id: string; min_qty?: number; qty?: number }
+        Update: { count_id?: string; item_id?: string; min_qty?: number; qty?: number }
+        Relationships: []
+      }
+      app_settings: {
+        Row: { key: string; updated_at: string; value: string }
+        Insert: { key: string; updated_at?: string; value?: string }
+        Update: { key?: string; updated_at?: string; value?: string }
+        Relationships: []
+      }
       equipment_items: {
         Row: {
           catalog_number: string

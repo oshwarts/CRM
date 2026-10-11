@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   BarChart3,
+  Boxes,
   CalendarDays,
   Home,
   LogOut,
@@ -23,6 +24,7 @@ const NAV = [
   { to: '/meetings', label: 'פגישות', short: 'פגישות', icon: CalendarDays, end: false },
   { to: '/map', label: 'מפה', short: 'מפה', icon: MapIcon, end: false },
   { to: '/scans', label: 'סריקות MAKO', short: 'סריקות', icon: ScanLine, end: false },
+  { to: '/consumables', label: 'מתכלים MAKO', short: 'מתכלים', icon: Boxes, end: false },
   { to: '/pipeline', label: 'פוטנציאליים', short: 'פוטנציאליים', icon: Target, end: false },
   { to: '/reports', label: 'דוחות', short: 'דוחות', icon: BarChart3, end: false },
   { to: '/settings', label: 'הגדרות', short: 'הגדרות', icon: Settings, end: false },
@@ -31,7 +33,7 @@ const NAV = [
 // the five destinations reachable with one thumb tap on a phone
 const TABS = ['/', '/doctors', '/meetings', '/scans', '/map']
 
-const VERSION = 'v19 · תכנון טרום ניתוח חדש'
+const VERSION = 'v20 · מתכלים MAKO'
 
 export function Layout() {
   const { profile, signOut } = useAuth()
@@ -138,7 +140,7 @@ export function Layout() {
         </div>
       )}
 
-      <main className="min-w-0 flex-1 overflow-x-hidden">
+      <main className="min-w-0 flex-1 overflow-x-clip">
         <div className="mx-auto max-w-6xl px-3 pb-[calc(env(safe-area-inset-bottom)+5rem)] pt-[calc(env(safe-area-inset-top)+4.5rem)] md:px-6 md:pb-6 md:pt-6">
           <Outlet />
         </div>
