@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { BookUser, Pencil, Plus, Trash2 } from 'lucide-react'
+import { SmartContactImport } from '../components/SmartContactImport'
 import {
   useAgents,
   useCompanies,
@@ -777,6 +778,7 @@ function ContactsSettings() {
   const doctors = useDoctors()
   const upsert = useUpsertContact()
   const del = useDeleteContact()
+  const [importing, setImporting] = useState(false)
   const [draft, setDraft] = useState<
     (typeof EMPTY_CONTACT & { id?: string }) | null
   >(null)
@@ -806,6 +808,10 @@ function ContactsSettings() {
   return (
     <div className="card p-5">
       <div className="mb-4 flex justify-end">
+        <button className="btn-secondary" onClick={() => setImporting(true)}>
+          <BookUser size={16} />
+          ייבוא מהטלפון
+        </button>
         <button
           className="btn-primary"
           onClick={() => setDraft({ ...EMPTY_CONTACT })}
@@ -977,6 +983,7 @@ function ContactsSettings() {
           )}
         </ul>
       )}
+      {importing && <SmartContactImport onClose={() => setImporting(false)} />}
     </div>
   )
 }

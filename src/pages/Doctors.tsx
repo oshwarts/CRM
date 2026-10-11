@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Heart, Plus, Search } from 'lucide-react'
+import { BookUser, Heart, Plus, Search } from 'lucide-react'
 import {
   useCompanies,
   useDoctorActivity,
@@ -11,6 +11,7 @@ import {
   useToggleFavorite,
 } from '../lib/api'
 import { DoctorFormModal } from '../components/DoctorFormModal'
+import { SmartContactImport } from '../components/SmartContactImport'
 import { EmptyState, ErrorState, Spinner } from '../components/ui'
 import { DOCTOR_STATUS_LABELS } from '../lib/types'
 import { classNames, formatDate } from '../lib/utils'
@@ -25,6 +26,7 @@ export default function Doctors() {
   const toggleFav = useToggleFavorite()
 
   const [showAdd, setShowAdd] = useState(false)
+  const [showImport, setShowImport] = useState(false)
   const [q, setQ] = useState('')
   const [companyId, setCompanyId] = useState('')
   const [procedureId, setProcedureId] = useState('')
@@ -58,10 +60,16 @@ export default function Doctors() {
             {doctors.data ? `${doctors.data.length} רופאים במערכת` : ' '}
           </p>
         </div>
-        <button className="btn-primary" onClick={() => setShowAdd(true)}>
-          <Plus size={16} />
-          הוספת רופא
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button className="btn-secondary" onClick={() => setShowImport(true)}>
+            <BookUser size={16} />
+            ייבוא איש קשר
+          </button>
+          <button className="btn-primary" onClick={() => setShowAdd(true)}>
+            <Plus size={16} />
+            הוספת רופא
+          </button>
+        </div>
       </div>
 
       <div className="card grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -189,6 +197,7 @@ export default function Doctors() {
       {showAdd && (
         <DoctorFormModal open={showAdd} onClose={() => setShowAdd(false)} />
       )}
+      {showImport && <SmartContactImport onClose={() => setShowImport(false)} />}
     </div>
   )
 }

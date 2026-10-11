@@ -1462,3 +1462,20 @@ export function useSaveAppSetting() {
     onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: ['app-setting', v.key] }),
   })
 }
+
+/** update only phone / e-mail of an existing doctor (used when importing a phone contact) */
+export function usePatchDoctorContact() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, phone, email }: { id: string; phone?: string; email?: string }) => {
+      const patch: TablesUpdate<'doctors'> = {}
+      if (phone !== undefined) patch.phone = phone
+      if (email !== undefined) patch.email = email
+      unwrap(await supabase.from('doctors').update(patch).eq('id', id))
+    },
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ['doctors'] })
+      qc.invalidateQueries({ queryKey: ['doctor', v.id] })
+    },
+  })
+}
