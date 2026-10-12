@@ -4,6 +4,7 @@ import {
   BarChart3,
   Boxes,
   CalendarDays,
+  CalendarRange,
   Home,
   LogOut,
   Map as MapIcon,
@@ -21,6 +22,7 @@ import { classNames } from '../lib/utils'
 const NAV = [
   { to: '/', label: 'דף הבית', short: 'בית', icon: Home, end: true },
   { to: '/doctors', label: 'רופאים', short: 'רופאים', icon: Stethoscope, end: false },
+  { to: '/schedule', label: 'לוז שבועי', short: 'לוז', icon: CalendarRange, end: false },
   { to: '/meetings', label: 'פגישות', short: 'פגישות', icon: CalendarDays, end: false },
   { to: '/map', label: 'מפה', short: 'מפה', icon: MapIcon, end: false },
   { to: '/scans', label: 'סריקות MAKO', short: 'סריקות', icon: ScanLine, end: false },
@@ -31,9 +33,9 @@ const NAV = [
 ]
 
 // the five destinations reachable with one thumb tap on a phone
-const TABS = ['/', '/doctors', '/meetings', '/scans', '/map']
+const TABS = ['/', '/doctors', '/schedule', '/meetings', '/scans']
 
-const VERSION = 'v36 · תפקיד חופשי'
+const VERSION = 'v37 · לוז שבועי'
 
 export function Layout() {
   const { profile, signOut } = useAuth()
