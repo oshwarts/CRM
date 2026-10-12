@@ -956,7 +956,7 @@ function ContactsSettings() {
                   )}
                 </p>
                 <p className="text-xs text-slate-400">
-                  {[c.phone, hospitalName(c.hospital_id), doctorName(c.doctor_id)]
+                  {[c.phone, c.email, hospitalName(c.hospital_id), doctorName(c.doctor_id)]
                     .filter(Boolean)
                     .join(' · ') || '—'}
                 </p>
