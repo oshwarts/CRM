@@ -104,6 +104,40 @@ function nameFromMessage(msg: string): string {
   return ''
 }
 
+/** most frequent value (first one wins ties) */
+function mode(values: string[]): string {
+  const count = new Map<string, number>()
+  for (const v of values) count.set(v, (count.get(v) ?? 0) + 1)
+  let best = ''
+  let n = 0
+  for (const [v, c] of count) if (c > n) [best, n] = [v, c]
+  return best
+}
+
+function editDistance(a: string, b: string): number {
+  const dp = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)])
+  for (let j = 1; j <= b.length; j++) dp[0][j] = j
+  for (let i = 1; i <= a.length; i++)
+    for (let j = 1; j <= b.length; j++)
+      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1))
+  return dp[a.length][b.length]
+}
+
+// Maccabi-style header box:  "שם משפחה: כהן  שם פרטי: אהרון  ת.ז.: 50572775"
+function nameFromBox(texts: string[]): string {
+  const fam = texts.flatMap((t) => [...t.matchAll(/שם\s*משפחה\s*[:：]\s*([֐-׿'׳-]{2,15})/g)].map((m) => m[1]))
+  const first = texts.flatMap((t) => [...t.matchAll(/שם\s*פרטי\s*[:：]\s*([֐-׿'׳-]{2,15})/g)].map((m) => m[1]))
+  const f = mode(first)
+  return f ? [f, mode(fam)].filter(Boolean).join(' ') : ''
+}
+
+function idFromLabel(texts: string[]): string {
+  const ids = texts
+    .flatMap((t) => [...t.matchAll(/ת\.?\s?ז\.?\s*[:：]?\s*(\d{7,9})(?!\d)/g)].map((m) => m[1].padStart(9, '0')))
+  const valid = ids.filter(validIsraeliId)
+  return mode(valid.length ? valid : ids)
+}
+
 // "שם המטופל: ישראל ישראלי" / "מטופל: …" / "שם: …" written inside the document
 function nameFromLabel(text: string): string {
   const m = text.match(/(?:שם\s+ה?מטופל(?:ת)?|מטופל(?:ת)?|שם\s+מלא|שם)\s*[:：]\s*([֐-׿'"׳\- ]{3,40})/)
@@ -123,32 +157,46 @@ export function parseReferral(opts: {
   fileName: string
   message: string
   fileText: string
+  /** the same document read again (other OCR passes) — used to vote on digits */
+  altTexts?: string[]
   today: Date
   doctors: Doc[]
   hospitals: Hosp[]
   existing: PatientScanRow[]
 }): { draft: Partial<ParsedReferral>; notices: string[] } {
-  const { message, fileText, today } = opts
+  const { message, today } = opts
+  const altTexts = opts.altTexts ?? []
+  const allTexts = [opts.fileText, ...altTexts]
+  // the imaging institute named on a referral is not the hospital of the surgery
+  const fileText = opts.fileText.replace(/שם המכון\s*[:：]?[^\n]*\n?[^\n]*\n?/, '')
   const fname = opts.fileName.replace(/\.[a-z0-9]+$/i, '')
   const notices: string[] = []
   const out: Partial<ParsedReferral> = {}
 
   // ---- ID
   const ids = [fname, fileText, message].flatMap((s) => [...s.matchAll(/(?<!\d)\d{9}(?!\d)/g)].map((m) => m[0]))
-  if (ids[0]) {
-    out.patient_id_number = ids[0]
-    if (!validIsraeliId(ids[0])) notices.push(`מספר הת״ז ${ids[0]} לא עובר בדיקת תקינות — ודא אותו מול ההפנייה.`)
+  // the number under "ת.ז." wins; other 9-digit numbers on the paper (referral code, barcodes) only if it is missing
+  const labeledId = idFromLabel(allTexts)
+  const id = [labeledId, ...ids].find((x) => x && validIsraeliId(x)) || ids[0] || labeledId
+  if (id) {
+    out.patient_id_number = id
+    if (!validIsraeliId(id)) notices.push(`מספר הת״ז ${id} לא עובר בדיקת תקינות — ודא אותו מול ההפנייה.`)
   } else notices.push('ת״ז לא נמצאה.')
 
   // ---- phone (the anesthesiologist's number sits on a line that says "מרדים")
   const bodyNoAnesthesia = fileText.split(/\r?\n/).filter((l) => !/מרדים/.test(l)).join('\n')
   const phoneRe = /(?<!\d)(?:\+?972[-\s]?|0)5\d[-\s]?\d{3}[-\s]?\d{4}(?!\d)/
-  const phone = firstMatch([message, bodyNoAnesthesia, fname], phoneRe)
+  const phone =
+    firstMatch([message, fname], phoneRe) ||
+    mode(
+      [bodyNoAnesthesia, ...altTexts.map((t) => t.split(/\r?\n/).filter((l) => !/מרדים/.test(l)).join('\n'))]
+        .flatMap((t) => [...t.matchAll(new RegExp(phoneRe.source, 'g'))].map((m) => normalizePhone(m[0]))),
+    )
   if (phone) out.patient_phone = normalizePhone(phone)
   else notices.push('טלפון המטופל לא נמצא.')
 
   // ---- name
-  const nm = nameFromMessage(message) || nameFromLabel(message + '\n' + fileText)
+  const nm = nameFromMessage(message) || nameFromBox(allTexts) || nameFromLabel(message + '\n' + fileText)
   const nf = nameFromFile(opts.fileName)
   out.patient_name = nm || nf
   if (!out.patient_name) notices.push('שם המטופל לא זוהה.')
@@ -167,7 +215,11 @@ export function parseReferral(opts: {
   const near = [message, fname]
   out.procedure_type = findProcedure(near) || findProcedure([fileText])
   if (!out.procedure_type) notices.push('סוג הניתוח (ברך / יוני / ירך) לא זוהה — בחר ידנית.')
-  out.side = findSide(near) || findSide([fileText.match(/החלפת (?:ברך|ירך)\s*(?:שמאל|ימין)/)?.[0] ?? ''])
+  out.side =
+    findSide(near) ||
+    findSide([fileText.match(/החלפת (?:ברך|ירך)\s*(?:שמאל|ימין)/)?.[0] ?? '']) ||
+    // the examination findings ("ממצאים: ברך שמאל – טווח…") name the operated side
+    findSide([fileText.match(/ממצאים[\s\S]{0,250}?(?:ברך|ירך)\s*(?:שמאל|ימין)/)?.[0] ?? ''])
   if (!out.side) notices.push('הצד (ימין / שמאל) לא זוהה.')
 
   // ---- surgery date: from the message / file name; the date at the top of the document is its own date
@@ -198,7 +250,19 @@ export function parseReferral(opts: {
     out.surgeon_id = found[0].item.id
     if (found.length > 1)
       notices.push(`בהפנייה מופיעים כמה רופאים (${found.map((f) => f.item.name).join(', ')}) — נבחר ${found[0].item.name}, ודא שהוא המנתח.`)
-  } else notices.push('המנתח לא זוהה — בחר ידנית.')
+  } else {
+    // OCR misreads a letter now and then (קדנסקי → קזנסקי): look for the surgeon in the signature block, allowing one wrong letter
+    const head = allTexts.flatMap((t) => t.split(/\r?\n/).slice(0, 14)).filter((l) => /[דר]["״]ר|דר |פרופ/.test(l))
+    const words = head.flatMap((l) => normalizeHe(l).split(' ')).filter((w) => w.length >= 3)
+    const fuzzy = opts.doctors.find((d) => {
+      const toks = normalizeHe(d.name).split(' ').filter((t) => t.length >= 2)
+      return toks.length >= 2 && toks.every((t) => words.some((w) => editDistance(w, t) <= (t.length >= 5 ? 1 : 0)))
+    })
+    if (fuzzy) {
+      out.surgeon_id = fuzzy.id
+      notices.push(`המנתח זוהה לפי השם בראש ההפנייה (${fuzzy.name}) — ודא שזה נכון.`)
+    } else notices.push('המנתח לא זוהה — בחר ידנית.')
+  }
 
   // ---- notes: anesthesia and CT instructions from the document
   const noteLines = fileText

@@ -21,6 +21,11 @@ export function ReferralImportModal({
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState('')
+  // what is written by hand on the paper — OCR cannot read handwriting
+  const [hSide, setHSide] = useState<'' | 'ימין' | 'שמאל'>('')
+  const [hProc, setHProc] = useState<'' | 'knee' | 'uni' | 'hip'>('')
+  const [hDate, setHDate] = useState('')
+  const [hOrder, setHOrder] = useState('')
   const [error, setError] = useState('')
 
   async function run() {
@@ -33,6 +38,7 @@ export function ReferralImportModal({
         doctors: doctors.data ?? [],
         hospitals: hospitals.data ?? [],
         existing: scans.data ?? [],
+        hand: { side: hSide, procedure: hProc, date: hDate, order: hOrder },
         onStatus: setStatus,
       })
       onResult(draft, notices)
@@ -86,6 +92,35 @@ export function ReferralImportModal({
                 setFile(e.target.files?.[0] ?? null)
                 e.target.value = ''
               }}
+            />
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-slate-200 p-3">
+          <span className="label">כתוב בכתב יד על ההפנייה? (אופציונלי)</span>
+          <p className="mb-2 text-xs text-slate-400">
+            כתב יד (למשל "LT TKR", תאריך הניתוח והמספר המעוגל) לא נקרא אוטומטית — מלא כאן ונוסיף לטופס.
+          </p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <select className="input" value={hProc} onChange={(e) => setHProc(e.target.value as typeof hProc)}>
+              <option value="">סוג ניתוח</option>
+              <option value="knee">ברך מלאה (TKR)</option>
+              <option value="uni">ברך חלקית (יוני)</option>
+              <option value="hip">ירך (THR)</option>
+            </select>
+            <select className="input" value={hSide} onChange={(e) => setHSide(e.target.value as typeof hSide)}>
+              <option value="">צד</option>
+              <option value="שמאל">שמאל (LT)</option>
+              <option value="ימין">ימין (RT)</option>
+            </select>
+            <input type="date" className="input" value={hDate} onChange={(e) => setHDate(e.target.value)} aria-label="תאריך ניתוח" />
+            <input
+              type="number"
+              min={1}
+              className="input"
+              placeholder="ניתוח מס׳ ביום"
+              value={hOrder}
+              onChange={(e) => setHOrder(e.target.value)}
             />
           </div>
         </div>
