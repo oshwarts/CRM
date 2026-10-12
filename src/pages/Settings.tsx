@@ -846,7 +846,7 @@ function ContactsSettings() {
             <Field label="תפקיד">
               <input
                 className="input"
-                list="settings-contact-roles"
+                list="settings-contact-roles" placeholder="בחר מהרשימה או כתוב תפקיד חופשי"
                 value={draft.role}
                 onChange={(e) => setDraft({ ...draft, role: e.target.value })}
               />

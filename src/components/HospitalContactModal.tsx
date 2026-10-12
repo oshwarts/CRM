@@ -51,7 +51,7 @@ export function HospitalContactModal({
             <input className="input" value={d.name} onChange={(e) => set({ name: e.target.value })} autoFocus />
           </Field>
           <Field label="תפקיד">
-            <input className="input" list="hospital-contact-roles" value={d.role} onChange={(e) => set({ role: e.target.value })} />
+            <input className="input" list="hospital-contact-roles" placeholder="בחר מהרשימה או כתוב תפקיד חופשי" value={d.role} onChange={(e) => set({ role: e.target.value })} />
             <datalist id="hospital-contact-roles">
               {CONTACT_ROLES.map((r) => (
                 <option key={r} value={r} />

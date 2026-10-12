@@ -180,7 +180,7 @@ function ContactForm({
         <Field label="תפקיד">
           <input
             className="input"
-            list="contact-roles"
+            list="contact-roles" placeholder="בחר מהרשימה או כתוב תפקיד חופשי"
             value={draft.role}
             onChange={(e) => onChange({ ...draft, role: e.target.value })}
           />

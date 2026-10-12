@@ -210,7 +210,7 @@ export function SmartContactImport({ onClose }: { onClose: () => void }) {
   const roleInput = (
     <label className="block">
       <span className="label">תפקיד</span>
-      <input className="input" list="smart-roles" value={role} onChange={(e) => setRole(e.target.value)} />
+      <input className="input" list="smart-roles" placeholder="בחר מהרשימה או כתוב תפקיד חופשי" value={role} onChange={(e) => setRole(e.target.value)} />
       <datalist id="smart-roles">
         {CONTACT_ROLES.map((r) => <option key={r} value={r} />)}
       </datalist>
