@@ -24,6 +24,7 @@ import {
 import { DoctorFormModal } from '../components/DoctorFormModal'
 import { MeetingFormModal } from '../components/MeetingFormModal'
 import { SurgicalCourseSection } from '../components/SurgicalCourse'
+import { LinkedTasks, useLinkedTasks } from '../components/LinkedTasks'
 import { ContactsSection } from '../components/ContactsSection'
 import { CaseVolumesEditor } from '../components/CaseVolumesEditor'
 import { EquipmentPlanEditor } from '../components/EquipmentPlanEditor'
@@ -57,6 +58,7 @@ export default function DoctorProfile() {
   const favorites = useFavorites()
   const toggleFav = useToggleFavorite()
   const deleteDoctor = useDeleteDoctor()
+  const linkedTasks = useLinkedTasks({ doctorId: id })
 
   const [tab, setTab] = useState('details')
   const [editing, setEditing] = useState(false)
@@ -193,6 +195,7 @@ export default function DoctorProfile() {
           <Tab id="preop">תכנון טרום ניתוחי</Tab>
           <Tab id="contacts">אנשי קשר</Tab>
           <Tab id="course">מהלך ניתוחי</Tab>
+          <Tab id="tasks">משימות ({linkedTasks.open.length})</Tab>
           <Tab id="meetings">פגישות ({meetings.data?.length ?? 0})</Tab>
         </TabList>
 
@@ -283,6 +286,10 @@ export default function DoctorProfile() {
 
         <TabPanel id="contacts">
           <ContactsSection doctorId={d.id} />
+        </TabPanel>
+
+        <TabPanel id="tasks">
+          <LinkedTasks doctorId={d.id} />
         </TabPanel>
 
         <TabPanel id="course">
