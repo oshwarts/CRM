@@ -279,11 +279,11 @@ export default function Meetings() {
                 </span>
                 <Link
                   to={`/meetings/${m.id}?mail=1`}
-                  className="btn-ghost !px-2"
+                  className="btn-secondary !px-3 !py-1.5 text-xs"
                   title="שלח סיכום פגישה במייל"
-                  aria-label="שלח סיכום במייל"
                 >
-                  <Mail size={15} />
+                  <Mail size={14} />
+                  שלח סיכום במייל
                 </Link>
                 <button
                   className="btn-ghost !px-2"

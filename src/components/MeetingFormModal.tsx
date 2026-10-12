@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Mail, Plus, Trash2 } from 'lucide-react'
 import {
   useAgents,
   useContacts,
@@ -409,7 +410,17 @@ export function MeetingFormModal({
         </p>
       )}
 
-      <div className="mt-5 flex justify-end gap-2 border-t border-slate-200 pt-4">
+      <div className="mt-5 flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 pt-4">
+        {isEdit && meeting && (
+          <Link
+            to={`/meetings/${meeting.id}?mail=1`}
+            className="btn-secondary ml-auto"
+            title="שמור קודם את השינויים, ואז שלח"
+          >
+            <Mail size={16} />
+            שלח סיכום במייל
+          </Link>
+        )}
         <button className="btn-secondary" onClick={onClose}>
           ביטול
         </button>
