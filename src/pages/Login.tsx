@@ -41,7 +41,7 @@ export default function Login() {
           <div className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-500 text-white">
             <Stethoscope size={22} />
           </div>
-          <h1 className="text-xl font-bold text-slate-800">A.M.I. CRM</h1>
+          <h1 className="text-xl font-bold text-slate-800">AMI JR CRM</h1>
           <p className="text-sm text-slate-400">
             {mode === 'signin' ? 'התחברות למערכת' : 'יצירת משתמש חדש'}
           </p>

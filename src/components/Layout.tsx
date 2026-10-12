@@ -42,7 +42,7 @@ const NAV = [
 // the five destinations reachable with one thumb tap on a phone
 const TABS = ['/', '/doctors', '/schedule', '/meetings', '/scans']
 
-const VERSION = 'v49 · משימות ברופא ובבית חולים'
+const VERSION = 'v50 · AMI JR CRM'
 
 export function Layout() {
   const { profile, signOut } = useAuth()
@@ -93,7 +93,7 @@ export function Layout() {
         <Stethoscope size={18} />
       </div>
       <div>
-        <p className="text-sm font-bold leading-tight text-slate-800">A.M.I. CRM</p>
+        <p className="text-sm font-bold leading-tight text-slate-800">AMI JR CRM</p>
         <p className="text-xs text-slate-400">ניהול לקוחות רופאים</p>
       </div>
     </div>
