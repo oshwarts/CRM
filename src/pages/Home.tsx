@@ -19,6 +19,7 @@ import {
 } from '../lib/api'
 import { useAuth } from '../context/AuthProvider'
 import { EmptyState, Spinner } from '../components/ui'
+import { MeetingFormModal } from '../components/MeetingFormModal'
 import {
   classNames,
   daysUntil,
@@ -59,6 +60,7 @@ export default function Home() {
   const toggleFav = useToggleFavorite()
   const [toAdd, setToAdd] = useState('')
   const [surgeryRange, setSurgeryRange] = useState(loadRange)
+  const [scheduleFor, setScheduleFor] = useState<string | null>(null)
 
   function changeRange(next: { range: SurgeryRange; until: string }) {
     setSurgeryRange(next)
@@ -138,6 +140,31 @@ export default function Home() {
     return map
   }, [meetings.data])
 
+  // follow-up of the favorite doctors: overdue → not scheduled yet → coming up → later
+  const favFollow = useMemo(() => {
+    const t = todayISO()
+    const rank = { overdue: 0, none: 1, soon: 2, later: 3 } as const
+    return favDoctors
+      .map((d) => {
+        const info = meetingInfoByDoctor.get(d.id)
+        const nextDate = info?.next ?? info?.followup
+        const status: keyof typeof rank = !nextDate
+          ? 'none'
+          : nextDate < t
+            ? 'overdue'
+            : (daysUntil(nextDate) ?? 99) <= 7
+              ? 'soon'
+              : 'later'
+        return { d, info, nextDate, isFollowup: !info?.next && !!info?.followup, status }
+      })
+      .sort(
+        (a, b) =>
+          rank[a.status] - rank[b.status] ||
+          // among the unscheduled, the one not met for the longest time comes first
+          (a.status === 'none' ? (a.info?.last ?? '').localeCompare(b.info?.last ?? '') : (a.nextDate ?? '').localeCompare(b.nextDate ?? '')),
+      )
+  }, [favDoctors, meetingInfoByDoctor])
+
   const followups = useMemo(() => {
     return (meetings.data ?? [])
       .filter(
@@ -216,10 +243,52 @@ export default function Home() {
         </h2>
         {meetings.isLoading ? (
           <Spinner />
-        ) : followups.length === 0 && reminders.soon.length === 0 && reminders.missed.length === 0 ? (
+        ) : followups.length === 0 && reminders.soon.length === 0 && reminders.missed.length === 0 && favFollow.length === 0 ? (
           <p className="text-sm text-slate-400">אין פגישות השבוע ואין פגישות שממתינות למעקב.</p>
         ) : (
           <>
+            {favFollow.length > 0 && (
+              <div className="mb-4 rounded-xl border border-slate-200 p-3">
+                <p className="mb-1 text-sm font-semibold text-slate-700">
+                  מעקב רופאים מועדפים ({favFollow.length})
+                </p>
+                <ul className="divide-y divide-slate-100">
+                  {favFollow.map(({ d, info, nextDate, isFollowup, status }) => {
+                    const since = info?.last ? -(daysUntil(info.last) ?? 0) : null
+                    const chip =
+                      status === 'none'
+                        ? 'לא תואמה פגישה הבאה'
+                        : `${isFollowup ? 'מעקב' : 'פגישה'}: ${formatDate(nextDate)}${status === 'overdue' ? ' · באיחור' : ''}`
+                    const chipClass = {
+                      overdue: 'border-red-200 bg-red-50 text-red-600',
+                      none: 'border-amber-200 bg-amber-50 text-amber-700',
+                      soon: 'border-sky-200 bg-sky-50 text-sky-700',
+                      later: 'border-slate-200 bg-white text-slate-500',
+                    }[status]
+                    return (
+                      <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                        <Link to={`/doctors/${d.id}`} className="min-w-0 flex-1 hover:underline">
+                          <p className="truncate text-sm font-medium text-slate-700">
+                            {d.title} {d.name}
+                          </p>
+                          <p className="truncate text-xs text-slate-400">
+                            {info?.last
+                              ? `פגישה אחרונה ${formatDate(info.last)}${since ? ` (לפני ${since} ימים)` : ''}`
+                              : 'עדיין לא התקיימו פגישות'}
+                          </p>
+                        </Link>
+                        <span className={classNames('chip shrink-0', chipClass)}>{chip}</span>
+                        {(status === 'none' || status === 'overdue') && (
+                          <button className="btn-secondary !px-3 !py-1 text-xs" onClick={() => setScheduleFor(d.id)}>
+                            קבע פגישה
+                          </button>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+            )}
             {reminders.missed.length > 0 && (
               <div className="mb-4 rounded-xl border border-red-200 bg-red-50/60 p-3">
                 <p className="mb-1 text-sm font-semibold text-red-700">
@@ -288,6 +357,10 @@ export default function Home() {
           </>
         )}
       </section>
+
+      {scheduleFor && (
+        <MeetingFormModal open onClose={() => setScheduleFor(null)} defaultDoctorId={scheduleFor} />
+      )}
 
       {/* MAKO scans */}
       <section className="card p-5">

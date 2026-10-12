@@ -33,7 +33,7 @@ const NAV = [
 // the five destinations reachable with one thumb tap on a phone
 const TABS = ['/', '/doctors', '/meetings', '/scans', '/map']
 
-const VERSION = 'v32 · מהלך ניתוחי'
+const VERSION = 'v33 · מעקב רופאים מועדפים'
 
 export function Layout() {
   const { profile, signOut } = useAuth()
