@@ -372,7 +372,7 @@ export function useToggleFavorite() {
 /* ============================ Meetings ============================ */
 
 const MEETING_SELECT =
-  '*, responsible_agent:profiles!meetings_responsible_agent_id_fkey(id, full_name), meeting_doctors(doctor:doctors(id, name, title)), meeting_tasks(*)'
+  '*, responsible_agent:profiles!meetings_responsible_agent_id_fkey(id, full_name), meeting_doctors(doctor:doctors(id, name, title)), meeting_contacts(contact:contacts(id, name, role, hospital_id)), hospital:hospitals(id, name), meeting_tasks(*)'
 
 export function useMeetings() {
   return useQuery({
@@ -435,6 +435,8 @@ export type MeetingFormData = {
   decisions: string
   next_followup_date: string | null
   doctorIds: string[]
+  hospitalId: string | null
+  contactIds: string[]
   tasks: { id?: string; description: string; is_done: boolean; due_date: string | null }[]
 }
 
@@ -445,6 +447,14 @@ async function saveMeetingChildren(meetingId: string, d: MeetingFormData) {
       await supabase
         .from('meeting_doctors')
         .insert(d.doctorIds.map((doctor_id) => ({ meeting_id: meetingId, doctor_id }))),
+    )
+
+  await supabase.from('meeting_contacts').delete().eq('meeting_id', meetingId)
+  if (d.contactIds.length)
+    unwrap(
+      await supabase
+        .from('meeting_contacts')
+        .insert(d.contactIds.map((contact_id) => ({ meeting_id: meetingId, contact_id }))),
     )
 
   await supabase.from('meeting_tasks').delete().eq('meeting_id', meetingId)
@@ -477,6 +487,7 @@ export function useCreateMeeting() {
         summary: d.summary,
         decisions: d.decisions,
         next_followup_date: d.next_followup_date,
+        hospital_id: d.hospitalId,
         created_by: userRes.user?.id ?? null,
       }
       const created = unwrap<{ id: string }>(
@@ -503,6 +514,7 @@ export function useUpdateMeeting(id: string) {
         summary: d.summary,
         decisions: d.decisions,
         next_followup_date: d.next_followup_date,
+        hospital_id: d.hospitalId,
       }
       unwrap(await supabase.from('meetings').update(row).eq('id', id))
       await saveMeetingChildren(id, d)

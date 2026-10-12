@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import {
   useAgents,
+  useContacts,
   useCreateMeeting,
   useDoctors,
+  useHospitals,
   useUpdateMeeting,
   type MeetingFormData,
 } from '../lib/api'
@@ -50,6 +52,10 @@ function initial(
       : defaultDoctorId
         ? [defaultDoctorId]
         : [],
+    hospitalId: meeting?.hospital_id ?? null,
+    contactIds: meeting
+      ? meeting.meeting_contacts.map((c) => c.contact?.id).filter((x): x is string => !!x)
+      : [],
     tasks: meeting
       ? meeting.meeting_tasks.map((t) => ({
           id: t.id,
@@ -71,6 +77,8 @@ export function MeetingFormModal({
   const { user } = useAuth()
   const agents = useAgents()
   const doctors = useDoctors()
+  const hospitals = useHospitals()
+  const contacts = useContacts()
   const createMeeting = useCreateMeeting()
   const updateMeeting = useUpdateMeeting(meeting?.id ?? '')
   const saving = createMeeting.isPending || updateMeeting.isPending
@@ -111,7 +119,7 @@ export function MeetingFormModal({
       <Tabs value={tab} onChange={setTab}>
         <TabList>
           <Tab id="general">פרטים כלליים</Tab>
-          <Tab id="doctors">רופאים משתתפים</Tab>
+          <Tab id="doctors">משתתפים</Tab>
           <Tab id="content">תוכן הפגישה</Tab>
         </TabList>
 
@@ -141,7 +149,29 @@ export function MeetingFormModal({
                 onChange={(e) => patch({ meeting_time: e.target.value || null })}
               />
             </Field>
-            <Field label="מיקום">
+            <Field label="בית חולים">
+              <select
+                className="input"
+                value={data.hospitalId ?? ''}
+                onChange={(e) => {
+                  const id = e.target.value || null
+                  // contacts belong to a hospital — drop the ones of the previous hospital
+                  const keep = data.contactIds.filter(
+                    (cid) => (contacts.data ?? []).find((c) => c.id === cid)?.hospital_id === id,
+                  )
+                  patch({ hospitalId: id, contactIds: keep })
+                }}
+              >
+                <option value="">— ללא / מחוץ לבית חולים —</option>
+                {(hospitals.data ?? []).map((h) => (
+                  <option key={h.id} value={h.id}>
+                    {h.name}
+                    {h.city ? ` – ${h.city}` : ''}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="מיקום (אופציונלי)">
               <input
                 className="input"
                 value={data.location}
@@ -225,15 +255,42 @@ export function MeetingFormModal({
                 label: `${d.title} ${d.name}`,
               }))}
               selected={data.doctorIds}
-              onToggle={(id) =>
-                patch({
-                  doctorIds: data.doctorIds.includes(id)
-                    ? data.doctorIds.filter((x) => x !== id)
-                    : [...data.doctorIds, id],
-                })
-              }
+              onToggle={(id) => {
+                const adding = !data.doctorIds.includes(id)
+                const next = adding ? [...data.doctorIds, id] : data.doctorIds.filter((x) => x !== id)
+                // no hospital chosen yet: take the doctor's hospital when he has just one
+                const links = (doctors.data ?? []).find((d) => d.id === id)?.doctor_hospitals ?? []
+                const suggested = adding && !data.hospitalId && links.length === 1 ? links[0].hospital_id : null
+                patch({ doctorIds: next, ...(suggested ? { hospitalId: suggested } : {}) })
+              }}
               labelOf={(o) => o.label}
             />
+          </Field>
+          <Field label="אנשי קשר משתתפים (של בית החולים)">
+            {data.hospitalId ? (
+              (contacts.data ?? []).filter((c) => c.hospital_id === data.hospitalId).length ? (
+                <MultiSelectChips
+                  options={(contacts.data ?? [])
+                    .filter((c) => c.hospital_id === data.hospitalId)
+                    .map((c) => ({ id: c.id, label: c.role ? `${c.name} · ${c.role}` : c.name }))}
+                  selected={data.contactIds}
+                  onToggle={(id) =>
+                    patch({
+                      contactIds: data.contactIds.includes(id)
+                        ? data.contactIds.filter((x) => x !== id)
+                        : [...data.contactIds, id],
+                    })
+                  }
+                  labelOf={(o) => o.label}
+                />
+              ) : (
+                <p className="text-sm text-slate-400">
+                  אין אנשי קשר לבית החולים הזה. אפשר להוסיף בהגדרות ← אנשי קשר (למשל רכש או מכון דימות).
+                </p>
+              )
+            ) : (
+              <p className="text-sm text-slate-400">בחר בית חולים בטאב "פרטים כלליים" כדי לבחור אנשי קשר.</p>
+            )}
           </Field>
         </TabPanel>
 

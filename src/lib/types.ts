@@ -117,6 +117,7 @@ export const CONTACT_ROLES = [
   'מזכירה רפואית',
   'מנהל מחלקה',
   'רכזת ניתוחים',
+  'מכון דימות',
   'אחר',
 ] as const
 
@@ -155,6 +156,8 @@ export type DoctorListItem = Doctor & {
 export type MeetingWithRelations = Meeting & {
   responsible_agent: Pick<Profile, 'id' | 'full_name'> | null
   meeting_doctors: { doctor: Pick<Doctor, 'id' | 'name' | 'title'> | null }[]
+  meeting_contacts: { contact: Pick<Contact, 'id' | 'name' | 'role' | 'hospital_id'> | null }[]
+  hospital: Pick<Hospital, 'id' | 'name'> | null
   meeting_tasks: MeetingTask[]
 }
 

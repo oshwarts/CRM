@@ -13,8 +13,6 @@ import {
 import { useAuth } from '../context/AuthProvider'
 import { ConfirmButton, EmptyState, ErrorState, Spinner } from '../components/ui'
 import {
-  buildMailto,
-  buildOutlookWebUrl,
   CONSUMABLES_EMAIL_KEY,
   CONSUMABLES_INTRO_KEY,
   groupByCategory,
@@ -23,6 +21,7 @@ import {
   summarize,
   type CountRow,
 } from '../lib/consumables'
+import { buildMailto, buildOutlookWebUrl } from '../lib/mail'
 import { copyText } from '../lib/scanExport'
 import { classNames, formatDate, todayISO } from '../lib/utils'
 

@@ -4,6 +4,7 @@ import {
   ArrowRight,
   Building2,
   Heart,
+  Mail,
   Package,
   Pencil,
   Phone,
@@ -106,9 +107,14 @@ export default function DoctorProfile() {
           <p className="text-slate-500">{d.position || '—'}</p>
           <div className="mt-2 flex flex-wrap gap-3 text-sm text-slate-500">
             {d.phone && (
-              <span className="inline-flex items-center gap-1" dir="ltr">
+              <a href={`tel:${d.phone}`} className="inline-flex items-center gap-1 hover:text-brand-600" dir="ltr">
                 <Phone size={14} /> {d.phone}
-              </span>
+              </a>
+            )}
+            {d.email && (
+              <a href={`mailto:${d.email}`} className="inline-flex items-center gap-1 hover:text-brand-600" dir="ltr">
+                <Mail size={14} /> {d.email}
+              </a>
             )}
             {d.doctor_companies.length > 0 && (
               <span className="inline-flex items-center gap-1">

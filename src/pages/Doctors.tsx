@@ -142,6 +142,11 @@ export default function Doctors() {
                   <p className="truncate text-sm text-slate-500">
                     {d.position || '—'}
                   </p>
+                  {d.email && (
+                    <p className="truncate text-xs text-slate-400" dir="ltr">
+                      {d.email}
+                    </p>
+                  )}
                   {d.status === 'potential' && (
                     <span className="chip mt-1 border-amber-200 bg-amber-50 text-amber-700">
                       {DOCTOR_STATUS_LABELS.potential}

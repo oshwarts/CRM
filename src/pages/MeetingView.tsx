@@ -2,9 +2,12 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   ArrowRight,
+  Building2,
   CalendarDays,
   CheckSquare,
   Clock,
+  Copy,
+  Mail,
   MapPin,
   Pencil,
   Square,
@@ -17,6 +20,10 @@ import {
   useMeeting,
   useToggleMeetingTask,
 } from '../lib/api'
+import { useAuth } from '../context/AuthProvider'
+import { composeMail } from '../lib/mail'
+import { meetingMailText } from '../lib/meetingMail'
+import { copyText } from '../lib/scanExport'
 import { MeetingFormModal } from '../components/MeetingFormModal'
 import { ConfirmButton, EmptyState, ErrorState, Spinner } from '../components/ui'
 import { MEETING_STATUS_LABELS } from '../lib/types'
@@ -31,6 +38,16 @@ export default function MeetingView() {
   const deleteMeeting = useDeleteMeeting()
   const [editing, setEditing] = useState(false)
   const [pickedDoctor, setPickedDoctor] = useState<string | null>(null)
+  const { profile } = useAuth()
+  const [mailOpen, setMailOpen] = useState(false)
+  const [mailTo, setMailTo] = useState(() => {
+    try {
+      return localStorage.getItem('ami.meeting.mailTo') ?? ''
+    } catch {
+      return ''
+    }
+  })
+  const [mailNote, setMailNote] = useState('')
 
   const m = meeting.data
   const doctors = (m?.meeting_doctors ?? []).flatMap((x) => (x.doctor ? [x.doctor] : []))
@@ -43,6 +60,16 @@ export default function MeetingView() {
   if (meeting.isLoading) return <Spinner />
   if (meeting.error || !m) return <ErrorState error={meeting.error ?? new Error('הפגישה לא נמצאה')} />
 
+  const mail = meetingMailText(m, profile?.full_name ?? '')
+  const links = composeMail(mailTo.trim(), mail.subject, mail.body)
+  const rememberTo = () => {
+    try {
+      localStorage.setItem('ami.meeting.mailTo', mailTo.trim())
+    } catch {
+      // not critical
+    }
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -51,6 +78,10 @@ export default function MeetingView() {
           לכל הפגישות
         </Link>
         <div className="flex items-center gap-1">
+          <button className="btn-secondary" onClick={() => setMailOpen((o) => !o)}>
+            <Mail size={16} />
+            שלח סיכום במייל
+          </button>
           <button className="btn-ghost !px-2" onClick={() => setEditing(true)} aria-label="עריכה">
             <Pencil size={16} />
           </button>
@@ -62,6 +93,65 @@ export default function MeetingView() {
           </ConfirmButton>
         </div>
       </div>
+
+      {mailOpen && (
+        <div className="card space-y-3 border-brand-200 p-4">
+          <p className="text-sm font-semibold text-slate-800">שליחת סיכום הפגישה במייל</p>
+          <label className="block">
+            <span className="label">אל (כתובת מייל, אפשר כמה מופרדות בפסיק)</span>
+            <input
+              dir="ltr"
+              className="input text-right"
+              placeholder="name@company.co.il"
+              value={mailTo}
+              onChange={(e) => setMailTo(e.target.value)}
+            />
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <a
+              className="btn-primary"
+              href={links.outlook.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={async () => {
+                rememberTo()
+                if (links.outlook.mode === 'copied') {
+                  await copyText(mail.body)
+                  setMailNote('הסיכום ארוך — הועתק ללוח. הדבק אותו בטיוטה (Ctrl+V).')
+                } else setMailNote('נפתחה טיוטה ב-Outlook — בדוק ולחץ "שלח". שום דבר לא נשלח לפני כן.')
+              }}
+            >
+              <Mail size={16} />
+              פתח ב-Outlook
+            </a>
+            <a
+              className="btn-secondary"
+              href={links.mailto.url}
+              onClick={async () => {
+                rememberTo()
+                if (links.mailto.mode === 'copied') {
+                  await copyText(mail.body)
+                  setMailNote('הסיכום ארוך — הועתק ללוח. הדבק אותו בטיוטה (Ctrl+V).')
+                } else setMailNote('אם לא נפתחה טיוטה, אין אפליקציית מייל במכשיר — נסה "פתח ב-Outlook".')
+              }}
+            >
+              <Mail size={16} />
+              אפליקציית מייל
+            </a>
+            <button
+              className="btn-secondary"
+              onClick={async () => setMailNote((await copyText(`${mail.subject}
+
+${mail.body}`)) ? 'הסיכום הועתק.' : 'ההעתקה נכשלה.')}
+            >
+              <Copy size={16} />
+              העתק טקסט
+            </button>
+          </div>
+          <p className="text-xs text-slate-400">הכפתורים פותחים טיוטה בלבד — המייל נשלח רק אחרי שתבדוק ותלחץ "שלח".</p>
+          {mailNote && <p className="text-xs text-slate-500">{mailNote}</p>}
+        </div>
+      )}
 
       <div className="card space-y-3 p-4 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -94,7 +184,14 @@ export default function MeetingView() {
           </span>
         </div>
 
-        {doctors.length > 0 && (
+        {m.hospital && (
+          <p className="inline-flex items-center gap-1 text-sm font-medium text-slate-600">
+            <Building2 size={14} />
+            {m.hospital.name}
+          </p>
+        )}
+
+        {(doctors.length > 0 || m.meeting_contacts.length > 0) && (
           <div className="flex flex-wrap gap-1">
             {doctors.map((d) => (
               <Link
@@ -105,6 +202,18 @@ export default function MeetingView() {
                 {d.title} {d.name}
               </Link>
             ))}
+            {m.meeting_contacts.map(
+              (c) =>
+                c.contact && (
+                  <span
+                    key={c.contact.id}
+                    className="chip border-emerald-200 bg-emerald-50 text-emerald-700"
+                  >
+                    {c.contact.name}
+                    {c.contact.role ? ` · ${c.contact.role}` : ''}
+                  </span>
+                ),
+            )}
           </div>
         )}
 

@@ -471,6 +471,12 @@ export type Database = {
         }
         Relationships: []
       }
+      meeting_contacts: {
+        Row: { contact_id: string; meeting_id: string }
+        Insert: { contact_id: string; meeting_id: string }
+        Update: { contact_id?: string; meeting_id?: string }
+        Relationships: []
+      }
       meeting_doctors: {
         Row: { doctor_id: string; meeting_id: string }
         Insert: { doctor_id: string; meeting_id: string }
@@ -509,6 +515,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           decisions: string
+          hospital_id: string | null
           id: string
           location: string
           meeting_date: string | null
@@ -524,6 +531,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           decisions?: string
+          hospital_id?: string | null
           id?: string
           location?: string
           meeting_date?: string | null
@@ -539,6 +547,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           decisions?: string
+          hospital_id?: string | null
           id?: string
           location?: string
           meeting_date?: string | null

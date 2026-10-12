@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
+  Building2,
   CalendarDays,
   CheckSquare,
   Clock,
@@ -42,6 +44,8 @@ export default function Meetings() {
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState<MeetingWithRelations | null>(null)
   const [q, setQ] = useState('')
+  const [params] = useSearchParams()
+  const [hospitalId, setHospitalId] = useState(params.get('hospital') ?? '')
   const [doctorId, setDoctorId] = useState('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
@@ -55,6 +59,13 @@ export default function Meetings() {
     for (const mt of meetings.data ?? [])
       for (const md of mt.meeting_doctors)
         if (md.doctor) m.set(md.doctor.id, `${md.doctor.title} ${md.doctor.name}`)
+    return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1], 'he'))
+  }, [meetings.data])
+
+  // hospitals that appear in at least one meeting
+  const hospitalOptions = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const mt of meetings.data ?? []) if (mt.hospital) m.set(mt.hospital.id, mt.hospital.name)
     return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1], 'he'))
   }, [meetings.data])
 
@@ -77,6 +88,7 @@ export default function Meetings() {
         out = list
     }
 
+    if (hospitalId) out = out.filter((m) => m.hospital_id === hospitalId)
     if (doctorId) out = out.filter((m) => m.meeting_doctors.some((d) => d.doctor?.id === doctorId))
     if (from) out = out.filter((m) => (m.meeting_date ?? '') >= from)
     if (to) out = out.filter((m) => m.meeting_date != null && m.meeting_date <= to)
@@ -91,6 +103,8 @@ export default function Meetings() {
             m.summary,
             m.decisions,
             m.location,
+            m.hospital?.name,
+            ...m.meeting_contacts.map((c) => c.contact?.name),
             m.responsible_agent?.full_name,
             ...m.meeting_doctors.map((d) => (d.doctor ? `${d.doctor.title} ${d.doctor.name}` : '')),
             ...m.meeting_tasks.map((t) => t.description),
@@ -115,9 +129,9 @@ export default function Meetings() {
           a.created_at.localeCompare(b.created_at))
       )
     })
-  }, [meetings.data, filter, today, q, doctorId, from, to, newestFirst])
+  }, [meetings.data, filter, today, q, hospitalId, doctorId, from, to, newestFirst])
 
-  const hasSearch = !!(q || doctorId || from || to)
+  const hasSearch = !!(q || hospitalId || doctorId || from || to)
 
   const TABS: { key: FilterKey; label: string }[] = [
     { key: 'all', label: 'הכל' },
@@ -167,7 +181,15 @@ export default function Meetings() {
             onChange={(e) => setQ(e.target.value)}
           />
         </label>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <select className="input" value={hospitalId} onChange={(e) => setHospitalId(e.target.value)}>
+            <option value="">כל בתי החולים</option>
+            {hospitalOptions.map(([id, name]) => (
+              <option key={id} value={id}>
+                {name}
+              </option>
+            ))}
+          </select>
           <select className="input" value={doctorId} onChange={(e) => setDoctorId(e.target.value)}>
             <option value="">כל הרופאים</option>
             {doctorOptions.map(([id, name]) => (
@@ -202,6 +224,7 @@ export default function Meetings() {
               className="inline-flex items-center gap-1 text-brand-600 hover:underline"
               onClick={() => {
                 setQ('')
+                setHospitalId('')
                 setDoctorId('')
                 setFrom('')
                 setTo('')
@@ -272,7 +295,14 @@ export default function Meetings() {
               </div>
             </div>
 
-            {m.meeting_doctors.length > 0 && (
+            {m.hospital && (
+              <p className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-slate-600">
+                <Building2 size={14} />
+                {m.hospital.name}
+              </p>
+            )}
+
+            {(m.meeting_doctors.length > 0 || m.meeting_contacts.length > 0) && (
               <div className="mt-2 flex flex-wrap gap-1">
                 {m.meeting_doctors.map(
                   (d) =>
@@ -282,6 +312,18 @@ export default function Meetings() {
                         className="chip border-brand-200 bg-brand-50 text-brand-700"
                       >
                         {d.doctor.title} {d.doctor.name}
+                      </span>
+                    ),
+                )}
+                {m.meeting_contacts.map(
+                  (c) =>
+                    c.contact && (
+                      <span
+                        key={c.contact.id}
+                        className="chip border-emerald-200 bg-emerald-50 text-emerald-700"
+                      >
+                        {c.contact.name}
+                        {c.contact.role ? ` · ${c.contact.role}` : ''}
                       </span>
                     ),
                 )}

@@ -7,13 +7,15 @@ import {
   ArrowRight,
   Bot,
   Building2,
+  CalendarDays,
   Phone,
   Search,
   Stethoscope,
   User,
   X,
 } from 'lucide-react'
-import { useMapData, type MapHospital } from '../lib/api'
+import { useMapData, useMeetings, type MapHospital } from '../lib/api'
+import { formatDate } from '../lib/utils'
 import { ErrorState, Spinner } from '../components/ui'
 import { DOCTOR_STATUS_LABELS, SECTOR_LABELS } from '../lib/types'
 
@@ -222,6 +224,10 @@ export default function MapPage() {
 }
 
 function HospitalPanel({ hospital }: { hospital: MapHospital }) {
+  const allMeetings = useMeetings()
+  const hospitalMeetings = (allMeetings.data ?? [])
+    .filter((m) => m.hospital_id === hospital.id)
+    .sort((a, b) => (b.meeting_date ?? '').localeCompare(a.meeting_date ?? ''))
   const agents = hospital.hospital_agents
     .map((a) => a.agent?.full_name)
     .filter(Boolean)
@@ -349,6 +355,42 @@ function HospitalPanel({ hospital }: { hospital: MapHospital }) {
           </ul>
         </div>
       )}
+
+      <div>
+        <p className="mb-1 flex items-center gap-1 text-xs font-medium uppercase text-slate-400">
+          <CalendarDays size={12} /> פגישות בבית החולים ({hospitalMeetings.length})
+        </p>
+        {hospitalMeetings.length === 0 ? (
+          <p className="text-sm text-slate-400">עדיין לא תועדו פגישות בבית חולים זה</p>
+        ) : (
+          <>
+            <ul className="space-y-1">
+              {hospitalMeetings.slice(0, 5).map((m) => (
+                <li key={m.id}>
+                  <Link to={`/meetings/${m.id}`} className="block rounded-lg px-3 py-2 text-sm hover:bg-slate-50">
+                    <span className="font-medium text-slate-700">{m.subject || 'פגישה'}</span>
+                    <span className="block text-xs text-slate-400">
+                      {formatDate(m.meeting_date)}
+                      {m.meeting_doctors.some((d) => d.doctor)
+                        ? ` · ${m.meeting_doctors.flatMap((d) => (d.doctor ? [d.doctor.name] : [])).join(', ')}`
+                        : ''}
+                      {m.meeting_contacts.some((c) => c.contact)
+                        ? ` · ${m.meeting_contacts.flatMap((c) => (c.contact ? [c.contact.name] : [])).join(', ')}`
+                        : ''}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <Link
+              to={`/meetings?hospital=${hospital.id}`}
+              className="mt-1 inline-block text-sm font-medium text-brand-600 hover:underline"
+            >
+              לכל הפגישות בבית חולים זה →
+            </Link>
+          </>
+        )}
+      </div>
 
       <div>
         <p className="mb-1 flex items-center gap-1 text-xs font-medium uppercase text-slate-400">

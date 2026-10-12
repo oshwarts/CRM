@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Building2,
+  CalendarDays,
   Clock,
   Heart,
   ScanLine,
@@ -112,15 +113,26 @@ export default function Home() {
   const favDoctors = allDoctors.filter((d) => favSet.has(d.id))
   const potentialDoctors = allDoctors.filter((d) => d.status === 'potential')
 
-  const nextMeetingByDoctor = useMemo(() => {
-    const map = new Map<string, string>()
-    const today = new Date().toISOString().slice(0, 10)
+  // per doctor: last meeting that took place, the next scheduled meeting, and the follow-up date
+  // recorded on the latest meeting
+  const meetingInfoByDoctor = useMemo(() => {
+    type Info = { last?: string; next?: string; followup?: string; followupFrom?: string }
+    const map = new Map<string, Info>()
+    const today = todayISO()
     for (const m of meetings.data ?? []) {
-      if (!m.meeting_date || m.meeting_date < today) continue
+      if (!m.meeting_date || m.status === 'cancelled') continue
+      const upcoming = m.meeting_date >= today && m.status !== 'done'
       for (const md of m.meeting_doctors) {
         if (!md.doctor) continue
-        const cur = map.get(md.doctor.id)
-        if (!cur || m.meeting_date < cur) map.set(md.doctor.id, m.meeting_date)
+        const cur = map.get(md.doctor.id) ?? {}
+        if (upcoming) {
+          if (!cur.next || m.meeting_date < cur.next) cur.next = m.meeting_date
+        } else if (!cur.last || m.meeting_date > cur.last) {
+          cur.last = m.meeting_date
+          cur.followupFrom = m.meeting_date
+          cur.followup = m.next_followup_date ?? undefined
+        }
+        map.set(md.doctor.id, cur)
       }
     }
     return map
@@ -139,6 +151,51 @@ export default function Home() {
         (a.next_followup_date ?? '').localeCompare(b.next_followup_date ?? ''),
       )
   }, [meetings.data, user?.id])
+
+  // reminders: scheduled meetings in the coming week, and ones whose date passed without being closed
+  const reminders = useMemo(() => {
+    const t = todayISO()
+    const weekEnd = plusDaysISO(7)
+    const open = (meetings.data ?? []).filter(
+      (m) =>
+        m.meeting_date &&
+        m.status === 'scheduled' &&
+        (!m.responsible_agent_id || m.responsible_agent_id === user?.id),
+    )
+    return {
+      soon: open
+        .filter((m) => m.meeting_date! >= t && m.meeting_date! <= weekEnd)
+        .sort((a, b) => a.meeting_date!.localeCompare(b.meeting_date!)),
+      missed: open
+        .filter((m) => m.meeting_date! < t)
+        .sort((a, b) => a.meeting_date!.localeCompare(b.meeting_date!)),
+    }
+  }, [meetings.data, user?.id])
+
+  const reminderRow = (m: (typeof reminders.soon)[number], chip: string, chipClass: string) => (
+    <li key={m.id}>
+      <Link
+        to={`/meetings/${m.id}`}
+        className="flex items-center justify-between gap-3 rounded-lg px-1 py-2 hover:bg-slate-50"
+      >
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium text-slate-700">{m.subject || 'פגישה'}</p>
+          <p className="truncate text-xs text-slate-400">
+            {[
+              m.meeting_doctors
+                .map((d) => d.doctor && `${d.doctor.title} ${d.doctor.name}`)
+                .filter(Boolean)
+                .join(', '),
+              m.hospital?.name,
+            ]
+              .filter(Boolean)
+              .join(' · ') || '—'}
+          </p>
+        </div>
+        <span className={classNames('chip shrink-0', chipClass)}>{chip}</span>
+      </Link>
+    </li>
+  )
 
   return (
     <div className="space-y-6">
@@ -159,9 +216,41 @@ export default function Home() {
         </h2>
         {meetings.isLoading ? (
           <Spinner />
-        ) : followups.length === 0 ? (
-          <p className="text-sm text-slate-400">אין פגישות שממתינות למעקב.</p>
+        ) : followups.length === 0 && reminders.soon.length === 0 && reminders.missed.length === 0 ? (
+          <p className="text-sm text-slate-400">אין פגישות השבוע ואין פגישות שממתינות למעקב.</p>
         ) : (
+          <>
+            {reminders.missed.length > 0 && (
+              <div className="mb-4 rounded-xl border border-red-200 bg-red-50/60 p-3">
+                <p className="mb-1 text-sm font-semibold text-red-700">
+                  עבר מועד הפגישה ({reminders.missed.length}) — עדכן סיכום וסטטוס או קבע מועד חדש
+                </p>
+                <ul className="divide-y divide-red-100">
+                  {reminders.missed.map((m) =>
+                    reminderRow(m, `${formatDate(m.meeting_date)} · עבר`, 'border-red-200 bg-white text-red-600'),
+                  )}
+                </ul>
+              </div>
+            )}
+            {reminders.soon.length > 0 && (
+              <div className="mb-4 rounded-xl border border-sky-200 bg-sky-50/60 p-3">
+                <p className="mb-1 text-sm font-semibold text-sky-800">
+                  פגישות בשבוע הקרוב ({reminders.soon.length})
+                </p>
+                <ul className="divide-y divide-sky-100">
+                  {reminders.soon.map((m) => {
+                    const d = daysUntil(m.meeting_date) ?? 0
+                    const when = d === 0 ? 'היום' : d === 1 ? 'מחר' : `בעוד ${d} ימים`
+                    return reminderRow(m, `${when} · ${formatDate(m.meeting_date)}`, 'border-sky-200 bg-white text-sky-700')
+                  })}
+                </ul>
+              </div>
+            )}
+            {followups.length > 0 && (
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">
+                תאריכי מעקב
+              </p>
+            )}
           <ul className="divide-y divide-slate-100">
             {followups.map((m) => {
               const overdue = isOverdue(m.next_followup_date)
@@ -196,6 +285,7 @@ export default function Home() {
               )
             })}
           </ul>
+          </>
         )}
       </section>
 
@@ -500,7 +590,10 @@ export default function Home() {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {favDoctors.map((d) => {
-              const next = nextMeetingByDoctor.get(d.id)
+              const info = meetingInfoByDoctor.get(d.id)
+              const nextDate = info?.next ?? info?.followup
+              const nextIsFollowup = !info?.next && !!info?.followup
+              const sinceLast = info?.last ? -(daysUntil(info.last) ?? 0) : null
               return (
                 <Link
                   key={d.id}
@@ -518,19 +611,38 @@ export default function Home() {
                       <p className="truncate text-sm text-slate-500">
                         {d.position || '—'}
                       </p>
+                      {(d.phone || d.email) && (
+                        <p className="truncate text-xs text-slate-400" dir="ltr">
+                          {[d.phone, d.email].filter(Boolean).join(' · ')}
+                        </p>
+                      )}
                     </div>
                   </div>
 
-                  <div
-                    className={classNames(
-                      'rounded-lg px-3 py-2 text-sm',
-                      next
-                        ? 'bg-brand-50 text-brand-700'
-                        : 'bg-slate-50 text-slate-400',
-                    )}
-                  >
-                    <Clock size={13} className="ml-1 inline" />
-                    {next ? `פגישה קרובה: ${formatDate(next)}` : 'אין פגישות מתועדות'}
+                  <div className="space-y-1 rounded-lg bg-slate-50 px-3 py-2 text-sm">
+                    <p className={info?.last ? 'text-slate-600' : 'text-slate-400'}>
+                      <Clock size={13} className="ml-1 inline" />
+                      {info?.last
+                        ? `פגישה אחרונה: ${formatDate(info.last)}${sinceLast ? ` (לפני ${sinceLast} ימים)` : ''}`
+                        : nextDate
+                          ? 'עדיין לא התקיימו פגישות'
+                          : 'אין פגישות מתועדות'}
+                    </p>
+                    <p
+                      className={classNames(
+                        'font-medium',
+                        nextDate
+                          ? isOverdue(nextDate)
+                            ? 'text-red-600'
+                            : 'text-brand-700'
+                          : 'text-amber-600',
+                      )}
+                    >
+                      <CalendarDays size={13} className="ml-1 inline" />
+                      {nextDate
+                        ? `${nextIsFollowup ? 'מעקב הבא' : 'פגישה הבאה'}: ${formatDate(nextDate)}${isOverdue(nextDate) ? ' (באיחור)' : ''}`
+                        : 'לא נקבעה פגישה הבאה'}
+                    </p>
                   </div>
 
                   {d.doctor_hospitals.length > 0 && (
