@@ -86,7 +86,9 @@ export function matchHospitals(contactName: string, hospitals: MatchHospital[]):
 }
 
 const ROLE_RULES: { re: RegExp; role: string }[] = [
-  { re: /מזכיר/, role: 'מזכירה רפואית' },
+  { re: /מזכיר/, role: 'מזכירת רופא' },
+  { re: /אחות ראשית|אחות אחראית/, role: 'אחות ראשית' },
+  { re: /אח.*ניתוח|ניתוח.*אח/, role: 'אח חדר ניתוח' },
   { re: /אחות.*ניתוח|ניתוח.*אחות|חדר ניתוח/, role: 'אחות חדר ניתוח' },
   { re: /אחות|אחים/, role: 'אחות אחראית' },
   { re: /רכש/, role: 'מנהל רכש' },

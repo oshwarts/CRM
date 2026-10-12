@@ -815,7 +815,11 @@ function ContactsSettings() {
 
   return (
     <div className="card p-5">
-      <div className="mb-4 flex justify-end">
+      <p className="mb-3 text-sm text-slate-500">
+        איש קשר של <b>בית חולים</b> הוא עובד בבית החולים (מזכירת רופא, אחות ראשית, אחים בחדרי ניתוח, מכון דימות,
+        רכש…) ואינו חייב להיות משויך לרופא. איש קשר של <b>רופא</b> הוא בדרך כלל המזכירה שלו.
+      </p>
+      <div className="mb-4 flex justify-end gap-2">
         <button className="btn-secondary" onClick={() => setImporting(true)}>
           <BookUser size={16} />
           ייבוא מהטלפון

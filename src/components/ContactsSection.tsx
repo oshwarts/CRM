@@ -19,6 +19,8 @@ type Draft = {
 }
 
 const empty: Draft = { name: '', role: '', phone: '', email: '', notes: '' }
+// a contact added on a doctor's card is usually his secretary
+const emptyFor = (doctorId?: string): Draft => ({ ...empty, role: doctorId ? 'מזכירת רופא' : '' })
 
 export function ContactsSection({
   hospitalId,
@@ -51,10 +53,12 @@ export function ContactsSection({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-sm text-slate-500">
-          אנשי קשר נוספים (אחות אחראית, טכנאי, רכש…)
+          {hospitalId
+            ? 'עובדי בית החולים: מזכירת רופא, אחות ראשית, אחים בחדרי ניתוח, מכון דימות, רכש…'
+            : 'אנשי קשר של הרופא — בדרך כלל המזכירה שלו'}
         </p>
         {!draft && (
-          <button className="btn-secondary" onClick={() => setDraft({ ...empty })}>
+          <button className="btn-secondary" onClick={() => setDraft(emptyFor(doctorId))}>
             <Plus size={16} />
             איש קשר
           </button>
