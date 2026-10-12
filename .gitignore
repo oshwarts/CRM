@@ -22,3 +22,6 @@ emails/
 
 # referral examples (patient data) — never commit
 referrals/
+
+# calendar exports / invitations (real names, patients) — never commit
+calendar/
