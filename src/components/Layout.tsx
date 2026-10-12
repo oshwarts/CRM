@@ -24,7 +24,7 @@ const NAV = [
   { to: '/doctors', label: 'רופאים', short: 'רופאים', icon: Stethoscope, end: false },
   { to: '/schedule', label: 'לוז שבועי', short: 'לוז', icon: CalendarRange, end: false },
   { to: '/meetings', label: 'פגישות', short: 'פגישות', icon: CalendarDays, end: false },
-  { to: '/map', label: 'מפה', short: 'מפה', icon: MapIcon, end: false },
+  { to: '/map', label: 'בתי חולים', short: 'בתי חולים', icon: MapIcon, end: false },
   { to: '/scans', label: 'סריקות MAKO', short: 'סריקות', icon: ScanLine, end: false },
   { to: '/consumables', label: 'מתכלים MAKO', short: 'מתכלים', icon: Boxes, end: false },
   { to: '/pipeline', label: 'פוטנציאליים', short: 'פוטנציאליים', icon: Target, end: false },
@@ -35,7 +35,7 @@ const NAV = [
 // the five destinations reachable with one thumb tap on a phone
 const TABS = ['/', '/doctors', '/schedule', '/meetings', '/scans']
 
-const VERSION = 'v37 · לוז שבועי'
+const VERSION = 'v38 · בתי חולים'
 
 export function Layout() {
   const { profile, signOut } = useAuth()

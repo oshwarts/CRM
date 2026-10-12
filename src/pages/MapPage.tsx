@@ -116,7 +116,7 @@ export default function MapPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">מפת בתי חולים</h1>
+          <h1 className="text-2xl font-bold text-slate-800">בתי חולים</h1>
           <p className="text-sm text-slate-400">
             לחיצה על בית חולים מציגה את הרופאים, הסוכן המטפל והרובוטיקה
           </p>
