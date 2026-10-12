@@ -41,7 +41,7 @@ export function InfoCategoriesSettings() {
   return (
     <div className="card space-y-4 p-4">
       <div>
-        <h3 className="font-semibold text-slate-800">קטגוריות מסמכים (עמוד "מידע")</h3>
+        <h3 className="font-semibold text-slate-800">קטגוריות מסמכים (עמוד "מידע קליני")</h3>
         <p className="text-sm text-slate-400">
           הקטגוריות משותפות לכל הפרוצדורות. מחיקת קטגוריה לא מוחקת מסמכים — הם יעברו ל"ללא קטגוריה".
         </p>

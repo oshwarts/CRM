@@ -170,7 +170,7 @@ export default function Info() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">מידע</h1>
+          <h1 className="text-2xl font-bold text-slate-800">מידע קליני</h1>
           <p className="text-sm text-slate-400">פרוטוקולים, טכניקות ניתוח, מחקרים ומידע על הציוד — לפי פרוצדורה</p>
         </div>
         <div className="flex flex-wrap gap-2">

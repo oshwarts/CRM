@@ -79,7 +79,7 @@ export default function Settings() {
           <Tab id="implants">מידות שתל</Tab>
           <Tab id="consumables">מתכלים</Tab>
           <Tab id="course">מהלך ניתוחי</Tab>
-          <Tab id="info">מידע</Tab>
+          <Tab id="info">מידע קליני</Tab>
           <Tab id="hospitals">בתי חולים</Tab>
           <Tab id="contacts">אנשי קשר</Tab>
           <Tab id="users">משתמשים</Tab>
