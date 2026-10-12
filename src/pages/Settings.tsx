@@ -61,6 +61,7 @@ import {
 import { ImportContactButton } from '../components/ImportContactButton'
 import { ConsumablesSettings } from '../components/ConsumablesSettings'
 import { CourseTemplatesSettings } from '../components/CourseTemplatesSettings'
+import { InfoCategoriesSettings } from '../components/InfoCategoriesSettings'
 
 export default function Settings() {
   const { isAdmin } = useAuth()
@@ -78,6 +79,7 @@ export default function Settings() {
           <Tab id="implants">מידות שתל</Tab>
           <Tab id="consumables">מתכלים</Tab>
           <Tab id="course">מהלך ניתוחי</Tab>
+          <Tab id="info">מידע</Tab>
           <Tab id="hospitals">בתי חולים</Tab>
           <Tab id="contacts">אנשי קשר</Tab>
           <Tab id="users">משתמשים</Tab>
@@ -116,6 +118,9 @@ export default function Settings() {
         </TabPanel>
         <TabPanel id="implants">
           <ImplantOptionsSettings />
+        </TabPanel>
+        <TabPanel id="info">
+          <InfoCategoriesSettings />
         </TabPanel>
         <TabPanel id="course">
           <CourseTemplatesSettings />

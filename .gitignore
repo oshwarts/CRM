@@ -25,3 +25,6 @@ referrals/
 
 # calendar exports / invitations (real names, patients) — never commit
 calendar/
+
+# company documents for the info library — uploaded through the app, never committed
+Data/

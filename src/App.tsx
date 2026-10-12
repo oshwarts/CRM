@@ -13,6 +13,7 @@ import Pipeline from './pages/Pipeline'
 import Reports from './pages/Reports'
 import Scans from './pages/Scans'
 import Schedule from './pages/Schedule'
+import Info from './pages/Info'
 import Consumables from './pages/Consumables'
 import Settings from './pages/Settings'
 
@@ -49,6 +50,7 @@ export default function App() {
         <Route path="/pipeline" element={<Pipeline />} />
         <Route path="/scans" element={<Scans />} />
         <Route path="/schedule" element={<Schedule />} />
+        <Route path="/info" element={<Info />} />
         <Route path="/consumables" element={<Consumables />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/settings" element={<Settings />} />

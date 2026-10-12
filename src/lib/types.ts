@@ -199,3 +199,10 @@ export type SurgicalCourse = Tables<'doctor_surgical_courses'> & {
   procedure: Pick<Procedure, 'id' | 'name'> | null
   stages: CourseStage[]
 }
+
+export type InfoCategory = Tables<'info_categories'>
+export type InfoDocument = Tables<'info_documents'> & {
+  category: Pick<InfoCategory, 'id' | 'name'> | null
+  procedures: { procedure_id: string }[]
+  uploader: { full_name: string } | null
+}

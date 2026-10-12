@@ -6,6 +6,8 @@ import {
 import { supabase } from './supabase'
 import type {
   CaseVolumeRow,
+  InfoCategory,
+  InfoDocument,
   SurgicalCourse,
   TemplateStage,
   ConsumableCountRow,
@@ -1620,4 +1622,150 @@ export function useDeleteCourse(doctorId: string) {
       unwrap(await supabase.from('doctor_surgical_courses').delete().eq('id', courseId)),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['doctor-courses', doctorId] }),
   })
+}
+
+/* ============================ Info library (מידע) ============================ */
+
+export const INFO_BUCKET = 'info-docs'
+export const INFO_MAX_BYTES = 50 * 1024 * 1024
+
+export function useInfoCategories() {
+  return useQuery({
+    queryKey: ['info-categories'],
+    queryFn: async () =>
+      unwrap<InfoCategory[]>(await supabase.from('info_categories').select('*').order('sort')),
+  })
+}
+
+export function useSaveInfoCategory() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (c: { id?: string; name: string; sort?: number }) => {
+      if (c.id) unwrap(await supabase.from('info_categories').update({ name: c.name, sort: c.sort }).eq('id', c.id))
+      else unwrap(await supabase.from('info_categories').insert({ name: c.name, sort: c.sort ?? 99 }))
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['info-categories'] })
+      qc.invalidateQueries({ queryKey: ['info-documents'] })
+    },
+  })
+}
+
+export function useDeleteInfoCategory() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => unwrap(await supabase.from('info_categories').delete().eq('id', id)),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['info-categories'] })
+      qc.invalidateQueries({ queryKey: ['info-documents'] })
+    },
+  })
+}
+
+export function useInfoDocuments() {
+  return useQuery({
+    queryKey: ['info-documents'],
+    queryFn: async () =>
+      unwrap<InfoDocument[]>(
+        await supabase
+          .from('info_documents')
+          .select('*, category:info_categories(id, name), procedures:info_document_procedures(procedure_id), uploader:profiles(full_name)')
+          .order('created_at', { ascending: false }),
+      ),
+  })
+}
+
+export type InfoDocInput = {
+  id?: string
+  title: string
+  description: string
+  categoryId: string | null
+  procedureIds: string[]
+  tags: string[]
+  kind: 'file' | 'link'
+  url: string
+  file?: File | null
+}
+
+export function useSaveInfoDoc() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (d: InfoDocInput) => {
+      const { data: userRes } = await supabase.auth.getUser()
+      const meta: Record<string, unknown> = {
+        title: d.title.trim(),
+        description: d.description.trim(),
+        category_id: d.categoryId,
+        tags: d.tags,
+      }
+      if (d.kind === 'link') {
+        meta.kind = 'link'
+        meta.url = d.url.trim()
+      } else if (d.file) {
+        // storage keys stay ASCII; the original file name is kept in the row
+        const ext = (d.file.name.split('.').pop() ?? 'bin').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8) || 'bin'
+        const path = `${crypto.randomUUID()}.${ext}`
+        const up = await supabase.storage.from(INFO_BUCKET).upload(path, d.file, {
+          contentType: d.file.type || 'application/octet-stream',
+        })
+        if (up.error) throw up.error
+        Object.assign(meta, {
+          kind: 'file', storage_path: path, file_name: d.file.name, file_size: d.file.size, mime: d.file.type, url: '',
+        })
+      }
+
+      let id = d.id
+      if (id) {
+        unwrap(await supabase.from('info_documents').update(meta as never).eq('id', id))
+      } else {
+        const created = unwrap<{ id: string }>(
+          await supabase
+            .from('info_documents')
+            .insert({ ...meta, uploaded_by: userRes.user?.id ?? null } as never)
+            .select('id')
+            .single(),
+        )
+        id = created.id
+      }
+      unwrap(await supabase.from('info_document_procedures').delete().eq('document_id', id))
+      if (d.procedureIds.length)
+        unwrap(
+          await supabase
+            .from('info_document_procedures')
+            .insert(d.procedureIds.map((procedure_id) => ({ document_id: id!, procedure_id }))),
+        )
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['info-documents'] }),
+  })
+}
+
+export function useDeleteInfoDoc() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (d: InfoDocument) => {
+      if (d.kind === 'file' && d.storage_path) {
+        const r = await supabase.storage.from(INFO_BUCKET).remove([d.storage_path])
+        if (r.error) throw r.error
+      }
+      unwrap(await supabase.from('info_documents').delete().eq('id', d.id))
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['info-documents'] }),
+  })
+}
+
+/** opens a document in a new tab (files through a short-lived signed link) */
+export async function openInfoDocument(d: InfoDocument): Promise<string | null> {
+  if (d.kind === 'link') {
+    window.open(d.url, '_blank', 'noopener,noreferrer')
+    return null
+  }
+  const tab = window.open('', '_blank') // opened first so the browser does not block it
+  const { data, error } = await supabase.storage.from(INFO_BUCKET).createSignedUrl(d.storage_path, 3600)
+  if (error || !data) {
+    tab?.close()
+    return 'לא ניתן לפתוח את הקובץ'
+  }
+  if (tab) tab.location.href = data.signedUrl
+  else window.location.href = data.signedUrl
+  return null
 }

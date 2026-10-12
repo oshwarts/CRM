@@ -495,6 +495,36 @@ export type Database = {
         Update: { id?: string; sort?: number; stage_id?: string; text?: string }
         Relationships: []
       }
+      info_categories: {
+        Row: { id: string; name: string; sort: number }
+        Insert: { id?: string; name: string; sort?: number }
+        Update: { id?: string; name?: string; sort?: number }
+        Relationships: []
+      }
+      info_documents: {
+        Row: {
+          category_id: string | null; created_at: string; description: string; file_name: string; file_size: number
+          id: string; kind: string; mime: string; storage_path: string; tags: string[]; title: string
+          updated_at: string; uploaded_by: string | null; url: string
+        }
+        Insert: {
+          category_id?: string | null; created_at?: string; description?: string; file_name?: string; file_size?: number
+          id?: string; kind?: string; mime?: string; storage_path?: string; tags?: string[]; title: string
+          updated_at?: string; uploaded_by?: string | null; url?: string
+        }
+        Update: {
+          category_id?: string | null; created_at?: string; description?: string; file_name?: string; file_size?: number
+          id?: string; kind?: string; mime?: string; storage_path?: string; tags?: string[]; title?: string
+          updated_at?: string; uploaded_by?: string | null; url?: string
+        }
+        Relationships: []
+      }
+      info_document_procedures: {
+        Row: { document_id: string; procedure_id: string }
+        Insert: { document_id: string; procedure_id: string }
+        Update: { document_id?: string; procedure_id?: string }
+        Relationships: []
+      }
       meeting_agents: {
         Row: { agent_id: string; meeting_id: string }
         Insert: { agent_id: string; meeting_id: string }

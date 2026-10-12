@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   BarChart3,
+  BookOpen,
   Boxes,
   CalendarDays,
   CalendarRange,
@@ -26,6 +27,7 @@ const NAV = [
   { to: '/meetings', label: 'פגישות', short: 'פגישות', icon: CalendarDays, end: false },
   { to: '/map', label: 'בתי חולים', short: 'בתי חולים', icon: MapIcon, end: false },
   { to: '/scans', label: 'סריקות MAKO', short: 'סריקות', icon: ScanLine, end: false },
+  { to: '/info', label: 'מידע', short: 'מידע', icon: BookOpen, end: false },
   { to: '/consumables', label: 'מתכלים MAKO', short: 'מתכלים', icon: Boxes, end: false },
   { to: '/pipeline', label: 'פוטנציאליים', short: 'פוטנציאליים', icon: Target, end: false },
   { to: '/reports', label: 'דוחות', short: 'דוחות', icon: BarChart3, end: false },
@@ -35,7 +37,7 @@ const NAV = [
 // the five destinations reachable with one thumb tap on a phone
 const TABS = ['/', '/doctors', '/schedule', '/meetings', '/scans']
 
-const VERSION = 'v41 · שליחת סיכום במייל גלויה'
+const VERSION = 'v42 · מידע'
 
 export function Layout() {
   const { profile, signOut } = useAuth()
