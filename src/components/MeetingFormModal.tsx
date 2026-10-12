@@ -53,6 +53,10 @@ function initial(
         ? [defaultDoctorId]
         : [],
     hospitalId: meeting?.hospital_id ?? null,
+    agentIds: meeting
+      ? meeting.meeting_agents.map((a) => a.agent?.id).filter((x): x is string => !!x)
+      : [],
+    extraParticipants: meeting?.extra_participants ?? '',
     contactIds: meeting
       ? meeting.meeting_contacts.map((c) => c.contact?.id).filter((x): x is string => !!x)
       : [],
@@ -264,6 +268,31 @@ export function MeetingFormModal({
                 patch({ doctorIds: next, ...(suggested ? { hospitalId: suggested } : {}) })
               }}
               labelOf={(o) => o.label}
+            />
+          </Field>
+          <Field label="סוכנים ומנהלים משתתפים">
+            <MultiSelectChips
+              options={(agents.data ?? []).map((a) => ({
+                id: a.id,
+                label: `${a.full_name || a.email}${a.role === 'admin' ? ' (מנהל)' : ''}`,
+              }))}
+              selected={data.agentIds}
+              onToggle={(id) =>
+                patch({
+                  agentIds: data.agentIds.includes(id)
+                    ? data.agentIds.filter((x) => x !== id)
+                    : [...data.agentIds, id],
+                })
+              }
+              labelOf={(o) => o.label}
+            />
+          </Field>
+          <Field label="משתתפים נוספים (טקסט חופשי)">
+            <textarea
+              className="input min-h-16"
+              placeholder="שמות של מי שאינו במערכת — למשל: ד״ר כהן (מנתח אורח), נציג חברה אחרת…"
+              value={data.extraParticipants}
+              onChange={(e) => patch({ extraParticipants: e.target.value })}
             />
           </Field>
           <Field label="אנשי קשר משתתפים (של בית החולים)">

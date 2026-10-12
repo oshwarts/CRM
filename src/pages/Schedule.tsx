@@ -75,7 +75,10 @@ export default function Schedule() {
         ...m.meeting_contacts.flatMap((c) => (c.contact ? [c.contact.name] : [])),
       ].join(', ')
       const sub = [m.hospital?.name, who].filter(Boolean).join(' · ')
-      const agentIds = m.responsible_agent_id ? [m.responsible_agent_id] : []
+      const agentIds = [
+        ...(m.responsible_agent_id ? [m.responsible_agent_id] : []),
+        ...m.meeting_agents.flatMap((a) => (a.agent ? [a.agent.id] : [])),
+      ]
       if (m.meeting_date)
         out.push({
           id: `m-${m.id}`, date: m.meeting_date, time: hhmm(m.meeting_time), kind: 'meeting',

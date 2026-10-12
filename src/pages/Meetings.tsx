@@ -104,6 +104,8 @@ export default function Meetings() {
             m.decisions,
             m.location,
             m.hospital?.name,
+            m.extra_participants,
+            ...m.meeting_agents.map((a) => a.agent?.full_name),
             ...m.meeting_contacts.map((c) => c.contact?.name),
             m.responsible_agent?.full_name,
             ...m.meeting_doctors.map((d) => (d.doctor ? `${d.doctor.title} ${d.doctor.name}` : '')),
@@ -306,7 +308,7 @@ export default function Meetings() {
               </p>
             )}
 
-            {(m.meeting_doctors.length > 0 || m.meeting_contacts.length > 0) && (
+            {(m.meeting_doctors.length > 0 || m.meeting_contacts.length > 0 || m.meeting_agents.length > 0) && (
               <div className="mt-2 flex flex-wrap gap-1">
                 {m.meeting_doctors.map(
                   (d) =>
@@ -316,6 +318,18 @@ export default function Meetings() {
                         className="chip border-brand-200 bg-brand-50 text-brand-700"
                       >
                         {d.doctor.title} {d.doctor.name}
+                      </span>
+                    ),
+                )}
+                {m.meeting_agents.map(
+                  (a) =>
+                    a.agent && (
+                      <span
+                        key={a.agent.id}
+                        className="chip border-slate-300 bg-slate-100 text-slate-700"
+                      >
+                        {a.agent.full_name}
+                        {a.agent.role === 'admin' ? ' (מנהל)' : ''}
                       </span>
                     ),
                 )}
@@ -332,6 +346,13 @@ export default function Meetings() {
                     ),
                 )}
               </div>
+            )}
+
+            {m.extra_participants && (
+              <p className="mt-2 text-sm text-slate-500">
+                <span className="font-medium">משתתפים נוספים: </span>
+                {m.extra_participants}
+              </p>
             )}
 
             {m.summary && (

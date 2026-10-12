@@ -495,6 +495,12 @@ export type Database = {
         Update: { id?: string; sort?: number; stage_id?: string; text?: string }
         Relationships: []
       }
+      meeting_agents: {
+        Row: { agent_id: string; meeting_id: string }
+        Insert: { agent_id: string; meeting_id: string }
+        Update: { agent_id?: string; meeting_id?: string }
+        Relationships: []
+      }
       meeting_contacts: {
         Row: { contact_id: string; meeting_id: string }
         Insert: { contact_id: string; meeting_id: string }
@@ -539,6 +545,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           decisions: string
+          extra_participants: string
           hospital_id: string | null
           id: string
           location: string
@@ -555,6 +562,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           decisions?: string
+          extra_participants?: string
           hospital_id?: string | null
           id?: string
           location?: string
@@ -571,6 +579,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           decisions?: string
+          extra_participants?: string
           hospital_id?: string | null
           id?: string
           location?: string

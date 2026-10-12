@@ -191,7 +191,7 @@ ${mail.body}`)) ? 'הסיכום הועתק.' : 'ההעתקה נכשלה.')}
           </p>
         )}
 
-        {(doctors.length > 0 || m.meeting_contacts.length > 0) && (
+        {(doctors.length > 0 || m.meeting_contacts.length > 0 || m.meeting_agents.length > 0) && (
           <div className="flex flex-wrap gap-1">
             {doctors.map((d) => (
               <Link
@@ -202,6 +202,15 @@ ${mail.body}`)) ? 'הסיכום הועתק.' : 'ההעתקה נכשלה.')}
                 {d.title} {d.name}
               </Link>
             ))}
+            {m.meeting_agents.map(
+              (a) =>
+                a.agent && (
+                  <span key={a.agent.id} className="chip border-slate-300 bg-slate-100 text-slate-700">
+                    {a.agent.full_name}
+                    {a.agent.role === 'admin' ? ' (מנהל)' : ''}
+                  </span>
+                ),
+            )}
             {m.meeting_contacts.map(
               (c) =>
                 c.contact && (
@@ -215,6 +224,13 @@ ${mail.body}`)) ? 'הסיכום הועתק.' : 'ההעתקה נכשלה.')}
                 ),
             )}
           </div>
+        )}
+
+        {m.extra_participants && (
+          <p className="text-sm text-slate-500">
+            <span className="font-medium">משתתפים נוספים: </span>
+            {m.extra_participants}
+          </p>
         )}
 
         {m.summary ? (

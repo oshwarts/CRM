@@ -17,6 +17,9 @@ export function meetingMailText(m: MeetingWithRelations, sender: string): { subj
   if (m.location) lines.push(`מקום: ${m.location}`)
   if (doctors.length) lines.push(`רופאים: ${doctors.join(', ')}`)
   if (contacts.length) lines.push(`אנשי קשר: ${contacts.join(', ')}`)
+  const agentsIn = m.meeting_agents.flatMap((a) => (a.agent ? [a.agent.full_name] : []))
+  if (agentsIn.length) lines.push(`סוכנים ומנהלים משתתפים: ${agentsIn.join(', ')}`)
+  if (m.extra_participants?.trim()) lines.push(`משתתפים נוספים: ${m.extra_participants.trim()}`)
   if (m.responsible_agent?.full_name) lines.push(`סוכן אחראי: ${m.responsible_agent.full_name}`)
 
   if (summary) lines.push('', 'סיכום:', summary)

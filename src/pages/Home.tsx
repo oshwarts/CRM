@@ -172,7 +172,9 @@ export default function Home() {
           m.next_followup_date &&
           m.status !== 'done' &&
           m.status !== 'cancelled' &&
-          (!m.responsible_agent_id || m.responsible_agent_id === user?.id),
+          (!m.responsible_agent_id ||
+            m.responsible_agent_id === user?.id ||
+            m.meeting_agents.some((a) => a.agent?.id === user?.id)),
       )
       .sort((a, b) =>
         (a.next_followup_date ?? '').localeCompare(b.next_followup_date ?? ''),
@@ -187,7 +189,9 @@ export default function Home() {
       (m) =>
         m.meeting_date &&
         m.status === 'scheduled' &&
-        (!m.responsible_agent_id || m.responsible_agent_id === user?.id),
+        (!m.responsible_agent_id ||
+          m.responsible_agent_id === user?.id ||
+          m.meeting_agents.some((a) => a.agent?.id === user?.id)),
     )
     return {
       soon: open

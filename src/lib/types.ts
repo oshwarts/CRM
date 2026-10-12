@@ -160,6 +160,7 @@ export type MeetingWithRelations = Meeting & {
   responsible_agent: Pick<Profile, 'id' | 'full_name'> | null
   meeting_doctors: { doctor: Pick<Doctor, 'id' | 'name' | 'title'> | null }[]
   meeting_contacts: { contact: Pick<Contact, 'id' | 'name' | 'role' | 'hospital_id'> | null }[]
+  meeting_agents: { agent: Pick<Profile, 'id' | 'full_name' | 'role'> | null }[]
   hospital: Pick<Hospital, 'id' | 'name'> | null
   meeting_tasks: MeetingTask[]
 }
