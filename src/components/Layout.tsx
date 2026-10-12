@@ -42,7 +42,7 @@ const NAV = [
 // the five destinations reachable with one thumb tap on a phone
 const TABS = ['/', '/doctors', '/schedule', '/meetings', '/scans']
 
-const VERSION = 'v50 · AMI JR CRM'
+const VERSION = 'v51 · AMI JR CRM'
 
 export function Layout() {
   const { profile, signOut } = useAuth()
@@ -102,9 +102,9 @@ export function Layout() {
   return (
     <div className="flex min-h-full">
       {/* desktop sidebar */}
-      <aside className="sticky top-0 hidden h-screen w-60 flex-col border-l border-slate-200 bg-white md:flex">
+      <aside className="sticky top-0 hidden h-screen max-h-dvh w-60 flex-col border-l border-slate-200 bg-white md:flex">
         <div className="px-5 py-5">{brand}</div>
-        <nav className="flex-1 space-y-1 px-3">
+        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 pb-2">
           {navItems.map(({ to, label, icon: Icon, end }) => (
             <NavLink key={to} to={to} end={end} className={navLinkClass}>
               <Icon size={18} />
@@ -141,7 +141,7 @@ export function Layout() {
                 <X size={20} />
               </button>
             </div>
-            <nav className="flex-1 space-y-1 overflow-y-auto px-3">
+            <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3">
               {navItems.map(({ to, label, icon: Icon, end }) => (
                 <NavLink key={to} to={to} end={end} className={navLinkClass}>
                   <Icon size={18} />
