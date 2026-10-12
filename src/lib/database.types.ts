@@ -653,31 +653,47 @@ export type Database = {
       }
       profiles: {
         Row: {
+          active: boolean
           created_at: string
           email: string
           full_name: string
           id: string
           role: string
+          status_changed_at: string | null
+          status_changed_by: string | null
         }
         Insert: {
+          active?: boolean
           created_at?: string
           email?: string
           full_name?: string
           id: string
           role?: string
+          status_changed_at?: string | null
+          status_changed_by?: string | null
         }
         Update: {
+          active?: boolean
           created_at?: string
           email?: string
           full_name?: string
           id?: string
           role?: string
+          status_changed_at?: string | null
+          status_changed_by?: string | null
         }
         Relationships: []
       }
     }
     Views: { [_ in never]: never }
-    Functions: { is_admin: { Args: Record<string, never>; Returns: boolean } }
+    Functions: {
+      is_admin: { Args: Record<string, never>; Returns: boolean }
+      is_active: { Args: Record<string, never>; Returns: boolean }
+      admin_user_activity: {
+        Args: Record<string, never>
+        Returns: { id: string; last_sign_in_at: string | null }[]
+      }
+    }
     Enums: { [_ in never]: never }
     CompositeTypes: { [_ in never]: never }
   }

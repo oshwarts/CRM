@@ -22,7 +22,7 @@ export default function Login() {
         await signIn(email.trim(), password)
       } else {
         await signUp(email.trim(), password, fullName.trim())
-        setInfo('נרשמת בהצלחה. אם נדרש אישור מייל — בדוק את תיבת הדואר, אחרת התחבר.')
+        setInfo('נרשמת בהצלחה. הגישה למערכת תיפתח לאחר אישור של מנהל. אם נדרש אישור מייל — בדוק את תיבת הדואר.')
         setMode('signin')
       }
     } catch (err) {

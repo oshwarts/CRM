@@ -14,6 +14,7 @@ import {
   Settings,
   Stethoscope,
   Target,
+  Users as UsersIcon,
   X,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthProvider'
@@ -32,15 +33,17 @@ const NAV = [
   { to: '/pipeline', label: 'פוטנציאליים', short: 'פוטנציאליים', icon: Target, end: false },
   { to: '/reports', label: 'דוחות', short: 'דוחות', icon: BarChart3, end: false },
   { to: '/settings', label: 'הגדרות', short: 'הגדרות', icon: Settings, end: false },
+  { to: '/users', label: 'ניהול משתמשים', short: 'משתמשים', icon: UsersIcon, end: false, adminOnly: true },
 ]
 
 // the five destinations reachable with one thumb tap on a phone
 const TABS = ['/', '/doctors', '/schedule', '/meetings', '/scans']
 
-const VERSION = 'v43 · מידע קליני'
+const VERSION = 'v44 · ניהול משתמשים'
 
 export function Layout() {
   const { profile, signOut } = useAuth()
+  const navItems = NAV.filter((n) => !('adminOnly' in n) || profile?.role === 'admin')
   const navigate = useNavigate()
   const location = useLocation()
   const [showProfile, setShowProfile] = useState(false)
@@ -98,7 +101,7 @@ export function Layout() {
       <aside className="sticky top-0 hidden h-screen w-60 flex-col border-l border-slate-200 bg-white md:flex">
         <div className="px-5 py-5">{brand}</div>
         <nav className="flex-1 space-y-1 px-3">
-          {NAV.map(({ to, label, icon: Icon, end }) => (
+          {navItems.map(({ to, label, icon: Icon, end }) => (
             <NavLink key={to} to={to} end={end} className={navLinkClass}>
               <Icon size={18} />
               {label}
@@ -132,7 +135,7 @@ export function Layout() {
               </button>
             </div>
             <nav className="flex-1 space-y-1 overflow-y-auto px-3">
-              {NAV.map(({ to, label, icon: Icon, end }) => (
+              {navItems.map(({ to, label, icon: Icon, end }) => (
                 <NavLink key={to} to={to} end={end} className={navLinkClass}>
                   <Icon size={18} />
                   {label}

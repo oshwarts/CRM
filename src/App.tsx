@@ -16,9 +16,11 @@ import Schedule from './pages/Schedule'
 import Info from './pages/Info'
 import Consumables from './pages/Consumables'
 import Settings from './pages/Settings'
+import Users from './pages/Users'
+import Pending from './pages/Pending'
 
 export default function App() {
-  const { session, loading } = useAuth()
+  const { session, loading, profile } = useAuth()
 
   if (loading) {
     return (
@@ -37,6 +39,9 @@ export default function App() {
     )
   }
 
+  // signed in but not approved yet (new sign-up) or deactivated by an admin
+  if (profile && profile.active === false) return <Pending />
+
   return (
     <Routes>
       <Route path="/login" element={<Navigate to="/" replace />} />
@@ -54,6 +59,7 @@ export default function App() {
         <Route path="/consumables" element={<Consumables />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/users" element={<Users />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

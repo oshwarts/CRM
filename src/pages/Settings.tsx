@@ -21,7 +21,6 @@ import {
   useRoboticSystems,
   useSetHospitalAgents,
   useSetHospitalRoboticSystems,
-  useUpdateProfileRole,
   useUpsertCompany,
   useUpsertContact,
   useUpsertEquipmentItem,
@@ -30,7 +29,6 @@ import {
   useUpsertProcedure,
   useUpsertRoboticSystem,
 } from '../lib/api'
-import { useAuth } from '../context/AuthProvider'
 import { ContactsSection } from '../components/ContactsSection'
 import { CaseVolumesEditor } from '../components/CaseVolumesEditor'
 import {
@@ -64,7 +62,6 @@ import { CourseTemplatesSettings } from '../components/CourseTemplatesSettings'
 import { InfoCategoriesSettings } from '../components/InfoCategoriesSettings'
 
 export default function Settings() {
-  const { isAdmin } = useAuth()
   const [tab, setTab] = useState('lists')
 
   return (
@@ -82,7 +79,6 @@ export default function Settings() {
           <Tab id="info">מידע קליני</Tab>
           <Tab id="hospitals">בתי חולים</Tab>
           <Tab id="contacts">אנשי קשר</Tab>
-          <Tab id="users">משתמשים</Tab>
         </TabList>
 
         <TabPanel id="lists">
@@ -133,9 +129,6 @@ export default function Settings() {
         </TabPanel>
         <TabPanel id="contacts">
           <ContactsSettings />
-        </TabPanel>
-        <TabPanel id="users">
-          <UsersSettings isAdmin={isAdmin} />
         </TabPanel>
       </Tabs>
     </div>
@@ -1006,51 +999,6 @@ function ContactsSettings() {
 }
 
 /* ---------------- Users ---------------- */
-
-function UsersSettings({ isAdmin }: { isAdmin: boolean }) {
-  const agents = useAgents()
-  const updateRole = useUpdateProfileRole()
-
-  return (
-    <div className="card p-5">
-      {!isAdmin && (
-        <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
-          רק מנהל יכול לשנות הרשאות. משתמשים חדשים נרשמים דרך מסך ההתחברות.
-        </p>
-      )}
-      {agents.isLoading ? (
-        <Spinner />
-      ) : (
-        <ul className="divide-y divide-slate-100">
-          {(agents.data ?? []).map((a) => (
-            <li
-              key={a.id}
-              className="flex items-center justify-between gap-2 py-2 text-sm"
-            >
-              <div>
-                <p className="text-slate-700">{a.full_name || '—'}</p>
-                <p dir="ltr" className="text-right text-xs text-slate-400">
-                  {a.email}
-                </p>
-              </div>
-              <select
-                className="input max-w-32"
-                value={a.role}
-                disabled={!isAdmin}
-                onChange={(e) =>
-                  updateRole.mutate({ id: a.id, role: e.target.value })
-                }
-              >
-                <option value="agent">סוכן</option>
-                <option value="admin">מנהל</option>
-              </select>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  )
-}
 
 /* ---------------- shared row ---------------- */
 

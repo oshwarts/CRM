@@ -48,7 +48,39 @@ export function useAgents() {
     queryFn: async () =>
       unwrap<Profile[]>(
         await supabase.from('profiles').select('*').order('full_name'),
-      ),
+      ).filter((p) => p.active !== false),
+  })
+}
+
+/** every account, active or not — for the admin user-management page */
+export function useAllUsers() {
+  return useQuery({
+    queryKey: ['all-users'],
+    queryFn: async () =>
+      unwrap<Profile[]>(await supabase.from('profiles').select('*').order('created_at')),
+  })
+}
+
+export function useUserActivity() {
+  return useQuery({
+    queryKey: ['user-activity'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('admin_user_activity')
+      if (error) throw error
+      return new Map((data ?? []).map((r) => [r.id, r.last_sign_in_at]))
+    },
+  })
+}
+
+export function useUpdateUser() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, ...patch }: { id: string; role?: string; active?: boolean; full_name?: string }) =>
+      unwrap(await supabase.from('profiles').update(patch).eq('id', id)),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['agents'] })
+      qc.invalidateQueries({ queryKey: ['all-users'] })
+    },
   })
 }
 

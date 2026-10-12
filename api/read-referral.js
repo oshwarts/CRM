@@ -14,8 +14,15 @@ async function verifyUser(token) {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
   const anon = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY
   if (!token || !url || !anon) return false
-  const r = await fetch(`${url}/auth/v1/user`, { headers: { Authorization: `Bearer ${token}`, apikey: anon } })
-  return r.ok
+  const headers = { Authorization: `Bearer ${token}`, apikey: anon }
+  const r = await fetch(`${url}/auth/v1/user`, { headers })
+  if (!r.ok) return false
+  // only approved (active) users — the profile is read with the caller's own token
+  const { id } = await r.json()
+  const p = await fetch(`${url}/rest/v1/profiles?id=eq.${encodeURIComponent(id)}&select=active`, { headers })
+  if (!p.ok) return false
+  const rows = await p.json()
+  return rows[0]?.active === true
 }
 
 export default async function handler(req, res) {
