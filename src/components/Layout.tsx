@@ -42,7 +42,7 @@ const NAV = [
 // the five destinations reachable with one thumb tap on a phone
 const TABS = ['/', '/doctors', '/schedule', '/meetings', '/scans']
 
-const VERSION = 'v51 · AMI JR CRM'
+const VERSION = 'v52 · AMI JR CRM'
 
 export function Layout() {
   const { profile, signOut } = useAuth()

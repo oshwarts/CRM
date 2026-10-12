@@ -249,147 +249,6 @@ export default function Home() {
 
       <HomeTasks />
 
-      {/* follow-ups */}
-      <section className="card p-5">
-        <h2 className="mb-3 flex items-center gap-2 font-semibold text-slate-800">
-          <Clock size={18} className="text-brand-500" />
-          מעקב פגישות
-        </h2>
-        {meetings.isLoading ? (
-          <Spinner />
-        ) : followups.length === 0 && reminders.soon.length === 0 && reminders.missed.length === 0 && favFollow.length === 0 ? (
-          <p className="text-sm text-slate-400">אין פגישות השבוע ואין פגישות שממתינות למעקב.</p>
-        ) : (
-          <>
-            {favFollow.length > 0 && (
-              <div className="mb-4 rounded-xl border border-slate-200 p-3">
-                <p className="mb-1 text-sm font-semibold text-slate-700">
-                  מעקב רופאים מועדפים ({favFollow.length})
-                </p>
-                <ul className="divide-y divide-slate-100">
-                  {favFollow.map(({ d, info, nextDate, isFollowup, status }) => {
-                    const since = info?.last ? -(daysUntil(info.last) ?? 0) : null
-                    const chip =
-                      status === 'none'
-                        ? 'לא תואמה פגישה הבאה'
-                        : `${isFollowup ? 'מעקב' : 'פגישה'}: ${formatDate(nextDate)}${status === 'overdue' ? ' · באיחור' : ''}`
-                    const chipClass = {
-                      overdue: 'border-red-200 bg-red-50 text-red-600',
-                      none: 'border-amber-200 bg-amber-50 text-amber-700',
-                      soon: 'border-sky-200 bg-sky-50 text-sky-700',
-                      later: 'border-slate-200 bg-white text-slate-500',
-                    }[status]
-                    return (
-                      <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
-                        <Link to={`/doctors/${d.id}`} className="min-w-0 flex-1 hover:underline">
-                          <p className="truncate text-sm font-medium text-slate-700">
-                            {d.title} {d.name}
-                          </p>
-                          <p className="truncate text-xs text-slate-400">
-                            {info?.last
-                              ? `פגישה אחרונה ${formatDate(info.last)}${since ? ` (לפני ${since} ימים)` : ''}`
-                              : 'עדיין לא התקיימו פגישות'}
-                          </p>
-                        </Link>
-                        <span className={classNames('chip shrink-0', chipClass)}>{chip}</span>
-                        {(status === 'none' || status === 'overdue') && (
-                          <button className="btn-secondary !px-3 !py-1 text-xs" onClick={() => setScheduleFor(d.id)}>
-                            קבע פגישה
-                          </button>
-                        )}
-                      </li>
-                    )
-                  })}
-                </ul>
-              </div>
-            )}
-            {reminders.missed.length > 0 && (
-              <div className="mb-4 rounded-xl border border-red-200 bg-red-50/60 p-3">
-                <p className="mb-1 text-sm font-semibold text-red-700">
-                  עבר מועד הפגישה ({reminders.missed.length}) — עדכן סיכום וסטטוס או קבע מועד חדש
-                </p>
-                <ul className="divide-y divide-red-100">
-                  {reminders.missed.map((m) =>
-                    reminderRow(m, `${formatDate(m.meeting_date)} · עבר`, 'border-red-200 bg-white text-red-600'),
-                  )}
-                </ul>
-              </div>
-            )}
-            {reminders.soon.length > 0 && (
-              <div className="mb-4 rounded-xl border border-sky-200 bg-sky-50/60 p-3">
-                <p className="mb-1 text-sm font-semibold text-sky-800">
-                  פגישות בשבוע הקרוב ({reminders.soon.length})
-                </p>
-                <ul className="divide-y divide-sky-100">
-                  {reminders.soon.map((m) => {
-                    const d = daysUntil(m.meeting_date) ?? 0
-                    const when = d === 0 ? 'היום' : d === 1 ? 'מחר' : `בעוד ${d} ימים`
-                    return reminderRow(m, `${when} · ${formatDate(m.meeting_date)}`, 'border-sky-200 bg-white text-sky-700')
-                  })}
-                </ul>
-              </div>
-            )}
-            {followups.length > 0 && (
-              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">
-                תאריכי מעקב
-              </p>
-            )}
-          <ul className="divide-y divide-slate-100">
-            {followups.map((m) => {
-              const overdue = isOverdue(m.next_followup_date)
-              return (
-                <li
-                  key={m.id}
-                  className="flex items-center justify-between gap-3 py-2"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-slate-700">
-                      {m.subject || 'פגישה'}
-                    </p>
-                    <p className="truncate text-xs text-slate-400">
-                      {m.meeting_doctors
-                        .map((d) => d.doctor && `${d.doctor.title} ${d.doctor.name}`)
-                        .filter(Boolean)
-                        .join(', ') || '—'}
-                    </p>
-                  </div>
-                  <span
-                    className={classNames(
-                      'chip shrink-0',
-                      overdue
-                        ? 'border-red-200 bg-red-50 text-red-600'
-                        : 'border-amber-200 bg-amber-50 text-amber-700',
-                    )}
-                  >
-                    {overdue ? 'באיחור · ' : ''}
-                    {formatDate(m.next_followup_date)}
-                  </span>
-                </li>
-              )
-            })}
-          </ul>
-          </>
-        )}
-      </section>
-
-      {scheduleFor && (
-        <MeetingFormModal open onClose={() => setScheduleFor(null)} defaultDoctorId={scheduleFor} />
-      )}
-
-      {addScan && <ScanFormModal onClose={() => setAddScan(false)} />}
-      {importReferral && (
-        <ReferralImportModal
-          onClose={() => setImportReferral(false)}
-          onResult={(draft, notices) => {
-            setImportReferral(false)
-            setScanPrefill({ draft, notices })
-          }}
-        />
-      )}
-      {scanPrefill && (
-        <ScanFormModal initial={scanPrefill.draft} notices={scanPrefill.notices} onClose={() => setScanPrefill(null)} />
-      )}
-
       {/* MAKO scans */}
       <section className="card p-5">
         <div className="mb-3 flex items-center justify-between">
@@ -598,6 +457,147 @@ export default function Home() {
           </>
         )}
       </section>
+
+      {/* follow-ups */}
+      <section className="card p-5">
+        <h2 className="mb-3 flex items-center gap-2 font-semibold text-slate-800">
+          <Clock size={18} className="text-brand-500" />
+          מעקב פגישות
+        </h2>
+        {meetings.isLoading ? (
+          <Spinner />
+        ) : followups.length === 0 && reminders.soon.length === 0 && reminders.missed.length === 0 && favFollow.length === 0 ? (
+          <p className="text-sm text-slate-400">אין פגישות השבוע ואין פגישות שממתינות למעקב.</p>
+        ) : (
+          <>
+            {favFollow.length > 0 && (
+              <div className="mb-4 rounded-xl border border-slate-200 p-3">
+                <p className="mb-1 text-sm font-semibold text-slate-700">
+                  מעקב רופאים מועדפים ({favFollow.length})
+                </p>
+                <ul className="divide-y divide-slate-100">
+                  {favFollow.map(({ d, info, nextDate, isFollowup, status }) => {
+                    const since = info?.last ? -(daysUntil(info.last) ?? 0) : null
+                    const chip =
+                      status === 'none'
+                        ? 'לא תואמה פגישה הבאה'
+                        : `${isFollowup ? 'מעקב' : 'פגישה'}: ${formatDate(nextDate)}${status === 'overdue' ? ' · באיחור' : ''}`
+                    const chipClass = {
+                      overdue: 'border-red-200 bg-red-50 text-red-600',
+                      none: 'border-amber-200 bg-amber-50 text-amber-700',
+                      soon: 'border-sky-200 bg-sky-50 text-sky-700',
+                      later: 'border-slate-200 bg-white text-slate-500',
+                    }[status]
+                    return (
+                      <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                        <Link to={`/doctors/${d.id}`} className="min-w-0 flex-1 hover:underline">
+                          <p className="truncate text-sm font-medium text-slate-700">
+                            {d.title} {d.name}
+                          </p>
+                          <p className="truncate text-xs text-slate-400">
+                            {info?.last
+                              ? `פגישה אחרונה ${formatDate(info.last)}${since ? ` (לפני ${since} ימים)` : ''}`
+                              : 'עדיין לא התקיימו פגישות'}
+                          </p>
+                        </Link>
+                        <span className={classNames('chip shrink-0', chipClass)}>{chip}</span>
+                        {(status === 'none' || status === 'overdue') && (
+                          <button className="btn-secondary !px-3 !py-1 text-xs" onClick={() => setScheduleFor(d.id)}>
+                            קבע פגישה
+                          </button>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+            )}
+            {reminders.missed.length > 0 && (
+              <div className="mb-4 rounded-xl border border-red-200 bg-red-50/60 p-3">
+                <p className="mb-1 text-sm font-semibold text-red-700">
+                  עבר מועד הפגישה ({reminders.missed.length}) — עדכן סיכום וסטטוס או קבע מועד חדש
+                </p>
+                <ul className="divide-y divide-red-100">
+                  {reminders.missed.map((m) =>
+                    reminderRow(m, `${formatDate(m.meeting_date)} · עבר`, 'border-red-200 bg-white text-red-600'),
+                  )}
+                </ul>
+              </div>
+            )}
+            {reminders.soon.length > 0 && (
+              <div className="mb-4 rounded-xl border border-sky-200 bg-sky-50/60 p-3">
+                <p className="mb-1 text-sm font-semibold text-sky-800">
+                  פגישות בשבוע הקרוב ({reminders.soon.length})
+                </p>
+                <ul className="divide-y divide-sky-100">
+                  {reminders.soon.map((m) => {
+                    const d = daysUntil(m.meeting_date) ?? 0
+                    const when = d === 0 ? 'היום' : d === 1 ? 'מחר' : `בעוד ${d} ימים`
+                    return reminderRow(m, `${when} · ${formatDate(m.meeting_date)}`, 'border-sky-200 bg-white text-sky-700')
+                  })}
+                </ul>
+              </div>
+            )}
+            {followups.length > 0 && (
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-400">
+                תאריכי מעקב
+              </p>
+            )}
+          <ul className="divide-y divide-slate-100">
+            {followups.map((m) => {
+              const overdue = isOverdue(m.next_followup_date)
+              return (
+                <li
+                  key={m.id}
+                  className="flex items-center justify-between gap-3 py-2"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-slate-700">
+                      {m.subject || 'פגישה'}
+                    </p>
+                    <p className="truncate text-xs text-slate-400">
+                      {m.meeting_doctors
+                        .map((d) => d.doctor && `${d.doctor.title} ${d.doctor.name}`)
+                        .filter(Boolean)
+                        .join(', ') || '—'}
+                    </p>
+                  </div>
+                  <span
+                    className={classNames(
+                      'chip shrink-0',
+                      overdue
+                        ? 'border-red-200 bg-red-50 text-red-600'
+                        : 'border-amber-200 bg-amber-50 text-amber-700',
+                    )}
+                  >
+                    {overdue ? 'באיחור · ' : ''}
+                    {formatDate(m.next_followup_date)}
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
+          </>
+        )}
+      </section>
+
+      {scheduleFor && (
+        <MeetingFormModal open onClose={() => setScheduleFor(null)} defaultDoctorId={scheduleFor} />
+      )}
+
+      {addScan && <ScanFormModal onClose={() => setAddScan(false)} />}
+      {importReferral && (
+        <ReferralImportModal
+          onClose={() => setImportReferral(false)}
+          onResult={(draft, notices) => {
+            setImportReferral(false)
+            setScanPrefill({ draft, notices })
+          }}
+        />
+      )}
+      {scanPrefill && (
+        <ScanFormModal initial={scanPrefill.draft} notices={scanPrefill.notices} onClose={() => setScanPrefill(null)} />
+      )}
 
       {/* potential doctors */}
       {potentialDoctors.length > 0 && (
