@@ -2,13 +2,43 @@ import { useMemo, useState } from 'react'
 import { Check, Search, ShieldCheck, UserX } from 'lucide-react'
 import { useAllUsers, useUpdateUser, useUserActivity } from '../lib/api'
 import { useAuth } from '../context/AuthProvider'
-import { EmptyState, ErrorState, Spinner } from '../components/ui'
+import { EmptyState, ErrorState, Spinner, Tab, TabList, TabPanel, Tabs } from '../components/ui'
+import { AuditLog } from '../components/AuditLog'
+import { BackupPanel } from '../components/BackupPanel'
 import { normalizeHe } from '../lib/contactMatch'
 import { classNames, formatDate } from '../lib/utils'
 import type { Profile } from '../lib/types'
 
-/** admin-only: approve new sign-ups, change roles, deactivate accounts */
+/** admin-only: users, activity log and backup */
 export default function Users() {
+  const { isAdmin } = useAuth()
+  const [tab, setTab] = useState('users')
+  if (!isAdmin) return <EmptyState title="אין הרשאה" hint="מסך הניהול זמין למנהלים בלבד" />
+  return (
+    <div className="space-y-4">
+      <h1 className="text-2xl font-bold text-slate-800">ניהול מערכת</h1>
+      <Tabs value={tab} onChange={setTab}>
+        <TabList>
+          <Tab id="users">משתמשים</Tab>
+          <Tab id="audit">יומן פעולות</Tab>
+          <Tab id="backup">גיבוי</Tab>
+        </TabList>
+        <TabPanel id="users">
+          <UsersTab />
+        </TabPanel>
+        <TabPanel id="audit">
+          <AuditLog />
+        </TabPanel>
+        <TabPanel id="backup">
+          <BackupPanel />
+        </TabPanel>
+      </Tabs>
+    </div>
+  )
+}
+
+/** approve new sign-ups, change roles, deactivate accounts */
+function UsersTab() {
   const { isAdmin, user } = useAuth()
   const users = useAllUsers()
   const activity = useUserActivity()
@@ -55,13 +85,6 @@ export default function Users() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800">ניהול משתמשים</h1>
-        <p className="text-sm text-slate-400">
-          אישור משתמשים חדשים, הרשאות והשבתת חשבונות — זמין למנהלים בלבד
-        </p>
-      </div>
-
       {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
 
       <div className="grid gap-3 sm:grid-cols-3">

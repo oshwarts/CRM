@@ -32,6 +32,8 @@ import type {
   Profile,
   RoboticSystem,
   TaskRow,
+  AuditEntry,
+  CompetitorIntelRow,
 } from './types'
 import { SCAN_PROCEDURE_TO_NAME } from './types'
 import type { TablesInsert, TablesUpdate } from './database.types'
@@ -185,6 +187,7 @@ export type DoctorFormData = {
   tracking_notes: string
   pipeline_stage: string
   next_step_date: string | null
+  contact_cadence_days: number | null
   companyIds: string[]
   procedureIds: string[]
   roboticSystemIds: string[]
@@ -250,6 +253,7 @@ export function useCreateDoctor() {
         tracking_notes: d.tracking_notes,
         pipeline_stage: d.pipeline_stage,
         next_step_date: d.next_step_date,
+        contact_cadence_days: d.contact_cadence_days,
         created_by: userRes.user?.id ?? null,
       }
       const created = unwrap<Doctor>(
@@ -279,6 +283,7 @@ export function useUpdateDoctor(id: string) {
         tracking_notes: d.tracking_notes,
         pipeline_stage: d.pipeline_stage,
         next_step_date: d.next_step_date,
+        contact_cadence_days: d.contact_cadence_days,
       }
       unwrap(await supabase.from('doctors').update(row).eq('id', id))
       await saveDoctorRelations(id, d)
@@ -476,6 +481,7 @@ export type MeetingFormData = {
   contactIds: string[]
   agentIds: string[]
   extraParticipants: string
+  competitor_notes: string
   tasks: { id?: string; description: string; is_done: boolean; due_date: string | null }[]
 }
 
@@ -541,6 +547,7 @@ export function useCreateMeeting() {
         next_followup_date: d.next_followup_date,
         hospital_id: d.hospitalId,
         extra_participants: d.extraParticipants.trim(),
+        competitor_notes: d.competitor_notes.trim(),
         created_by: userRes.user?.id ?? null,
       }
       const created = unwrap<{ id: string }>(
@@ -569,6 +576,7 @@ export function useUpdateMeeting(id: string) {
         next_followup_date: d.next_followup_date,
         hospital_id: d.hospitalId,
         extra_participants: d.extraParticipants.trim(),
+        competitor_notes: d.competitor_notes.trim(),
       }
       unwrap(await supabase.from('meetings').update(row).eq('id', id))
       await saveMeetingChildren(id, d)
@@ -1980,4 +1988,104 @@ export function useDeleteTask() {
     mutationFn: async (id: string) => unwrap(await supabase.from('meeting_tasks').delete().eq('id', id)),
     onSuccess: () => invalidateTasks(qc),
   })
+}
+
+/* ============================ Competitor activity ============================ */
+
+const INTEL_SELECT = '*, doctor:doctors(id, name, title), hospital:hospitals(id, name)'
+
+export function useCompetitorIntel() {
+  return useQuery({
+    queryKey: ['competitor-intel'],
+    queryFn: async () =>
+      unwrap<CompetitorIntelRow[]>(
+        await supabase.from('competitor_intel').select(INTEL_SELECT).order('intel_date', { ascending: false }),
+      ),
+  })
+}
+
+export type IntelFormData = {
+  id?: string
+  competitor: string
+  product: string
+  offer: string
+  notes: string
+  intel_date: string
+  doctor_id: string | null
+  hospital_id: string | null
+}
+
+export function useSaveIntel() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (d: IntelFormData) => {
+      const row = {
+        competitor: d.competitor.trim(),
+        product: d.product.trim(),
+        offer: d.offer.trim(),
+        notes: d.notes.trim(),
+        intel_date: d.intel_date,
+        doctor_id: d.doctor_id || null,
+        hospital_id: d.hospital_id || null,
+      }
+      if (d.id) unwrap(await supabase.from('competitor_intel').update(row).eq('id', d.id))
+      else unwrap(await supabase.from('competitor_intel').insert(row))
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['competitor-intel'] }),
+  })
+}
+
+export function useDeleteIntel() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => unwrap(await supabase.from('competitor_intel').delete().eq('id', id)),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['competitor-intel'] }),
+  })
+}
+
+/* ============================ Audit log (admin) ============================ */
+
+export type AuditFilters = { userId: string; table: string; action: string; from: string; to: string; limit: number }
+
+export function useAuditLog(f: AuditFilters) {
+  return useQuery({
+    queryKey: ['audit-log', f],
+    queryFn: async () => {
+      let q = supabase.from('audit_log').select('*').order('at', { ascending: false }).limit(f.limit)
+      if (f.userId) q = q.eq('user_id', f.userId)
+      if (f.table) q = q.eq('table_name', f.table)
+      if (f.action) q = q.eq('action', f.action)
+      if (f.from) q = q.gte('at', `${f.from}T00:00:00`)
+      if (f.to) q = q.lte('at', `${f.to}T23:59:59`)
+      return unwrap<AuditEntry[]>(await q)
+    },
+  })
+}
+
+/** every table of the system as one JSON file — a manual backup an admin can keep */
+export const BACKUP_TABLES = [
+  'profiles', 'companies', 'organizations', 'robotic_systems', 'procedures', 'hospitals', 'hospital_agents',
+  'hospital_robotic_systems', 'doctors', 'doctor_companies', 'doctor_hospitals', 'doctor_procedures',
+  'doctor_robotic_systems', 'doctor_preop_plans', 'doctor_procedure_equipment', 'equipment_items', 'implant_options',
+  'favorites', 'contacts', 'meetings', 'meeting_doctors', 'meeting_agents', 'meeting_contacts', 'meeting_tasks',
+  'task_subtasks', 'case_volumes', 'patient_scans', 'consumable_items', 'consumable_minimums', 'consumable_counts',
+  'consumable_count_lines', 'app_settings', 'procedure_template_stages', 'doctor_surgical_courses',
+  'doctor_course_stages', 'doctor_course_items', 'info_categories', 'info_documents', 'info_document_procedures',
+  'competitor_intel', 'audit_log',
+] as const
+
+export async function exportBackup(onProgress?: (table: string) => void) {
+  const out: Record<string, unknown[]> = {}
+  for (const t of BACKUP_TABLES) {
+    onProgress?.(t)
+    const rows: unknown[] = []
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supabase.from(t).select('*').range(from, from + 999)
+      if (error) throw new Error(`${t}: ${error.message}`)
+      rows.push(...(data ?? []))
+      if (!data || data.length < 1000) break
+    }
+    out[t] = rows
+  }
+  return { exported_at: new Date().toISOString(), tables: out }
 }

@@ -19,6 +19,7 @@ import { useMapData, useMeetings, type MapHospital } from '../lib/api'
 import { formatDate } from '../lib/utils'
 import { HospitalContactModal } from '../components/HospitalContactModal'
 import { LinkedTasks } from '../components/LinkedTasks'
+import { CompetitorSection } from '../components/CompetitorSection'
 import { ErrorState, Spinner } from '../components/ui'
 import { DOCTOR_STATUS_LABELS, SECTOR_LABELS } from '../lib/types'
 
@@ -420,6 +421,8 @@ function HospitalPanel({ hospital }: { hospital: MapHospital }) {
       </div>
 
       <LinkedTasks hospitalId={hospital.id} />
+
+      <CompetitorSection hospitalId={hospital.id} />
 
       <div>
         <p className="mb-1 flex items-center gap-1 text-xs font-medium uppercase text-slate-400">

@@ -25,6 +25,8 @@ import { DoctorFormModal } from '../components/DoctorFormModal'
 import { MeetingFormModal } from '../components/MeetingFormModal'
 import { SurgicalCourseSection } from '../components/SurgicalCourse'
 import { LinkedTasks, useLinkedTasks } from '../components/LinkedTasks'
+import { cadenceLabel, contactState } from '../lib/cadence'
+import { CompetitorSection } from '../components/CompetitorSection'
 import { ContactsSection } from '../components/ContactsSection'
 import { CaseVolumesEditor } from '../components/CaseVolumesEditor'
 import { EquipmentPlanEditor } from '../components/EquipmentPlanEditor'
@@ -79,6 +81,7 @@ export default function DoctorProfile() {
     sortedMeetingDates[sortedMeetingDates.length - 1] ?? null
   const daysSince =
     lastMeetingDate != null ? -(daysUntil(lastMeetingDate) ?? 0) : null
+  const contact = contactState(d, meetings.data ?? [])
 
   return (
     <div className="space-y-5">
@@ -144,6 +147,22 @@ export default function DoctorProfile() {
                 ? `${formatDate(lastMeetingDate)} (לפני ${daysSince} ימים)`
                 : 'אין פגישות'}
             </span>
+            {d.contact_cadence_days && (
+              <span
+                className={classNames(
+                  'inline-flex items-center gap-1',
+                  contact.status === 'due' && 'font-medium text-red-600',
+                  contact.status === 'soon' && 'text-amber-600',
+                )}
+              >
+                קצב קשר: {cadenceLabel(d.contact_cadence_days)}
+                {contact.nextMeeting
+                  ? ` · פגישה הבאה ${formatDate(contact.nextMeeting)}`
+                  : contact.dueDate
+                    ? ` · יעד ${formatDate(contact.dueDate)}${contact.status === 'due' ? ' (באיחור)' : ''}`
+                    : ''}
+              </span>
+            )}
             {d.status === 'potential' && d.pipeline_stage && (
               <span className="inline-flex items-center gap-1 text-brand-600">
                 שלב: {d.pipeline_stage}
@@ -195,6 +214,7 @@ export default function DoctorProfile() {
           <Tab id="preop">תכנון טרום ניתוחי</Tab>
           <Tab id="contacts">אנשי קשר</Tab>
           <Tab id="course">מהלך ניתוחי</Tab>
+          <Tab id="competitors">מתחרים</Tab>
           <Tab id="tasks">משימות ({linkedTasks.open.length})</Tab>
           <Tab id="meetings">פגישות ({meetings.data?.length ?? 0})</Tab>
         </TabList>
@@ -286,6 +306,10 @@ export default function DoctorProfile() {
 
         <TabPanel id="contacts">
           <ContactsSection doctorId={d.id} />
+        </TabPanel>
+
+        <TabPanel id="competitors">
+          <CompetitorSection doctorId={d.id} />
         </TabPanel>
 
         <TabPanel id="tasks">

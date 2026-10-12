@@ -9,6 +9,12 @@ export type PreopPlan = Tables<'doctor_preop_plans'>
 export type Meeting = Tables<'meetings'>
 export type MeetingTask = Tables<'meeting_tasks'>
 export type TaskSubtask = Tables<'task_subtasks'>
+export type CompetitorIntel = Tables<'competitor_intel'>
+export type CompetitorIntelRow = CompetitorIntel & {
+  doctor: Pick<Doctor, 'id' | 'name' | 'title'> | null
+  hospital: Pick<Hospital, 'id' | 'name'> | null
+}
+export type AuditEntry = Tables<'audit_log'>
 /** a task with everything the tasks page shows */
 export type TaskRow = MeetingTask & {
   subtasks: TaskSubtask[]

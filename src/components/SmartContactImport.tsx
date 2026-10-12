@@ -154,6 +154,7 @@ export function SmartContactImport({ onClose }: { onClose: () => void }) {
           tracking_notes: '',
           pipeline_stage: '',
           next_step_date: null,
+      contact_cadence_days: null,
           companyIds: [],
           procedureIds: [],
           roboticSystemIds: [],

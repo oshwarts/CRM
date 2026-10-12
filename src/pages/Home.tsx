@@ -22,7 +22,7 @@ import {
 import { useAuth } from '../context/AuthProvider'
 import { EmptyState, Spinner } from '../components/ui'
 import { MeetingFormModal } from '../components/MeetingFormModal'
-import { HomeTasks } from '../components/HomeTasks'
+import { TodayBlock } from '../components/TodayBlock'
 import { ReferralImportModal } from '../components/ReferralImportModal'
 import { ScanFormModal, type ScanDraft } from '../components/ScanFormModal'
 import {
@@ -247,7 +247,7 @@ export default function Home() {
         </p>
       </div>
 
-      <HomeTasks />
+      <TodayBlock />
 
       {/* MAKO scans */}
       <section className="card p-5">

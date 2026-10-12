@@ -58,6 +58,7 @@ function initial(
       ? meeting.meeting_agents.map((a) => a.agent?.id).filter((x): x is string => !!x)
       : [],
     extraParticipants: meeting?.extra_participants ?? '',
+    competitor_notes: meeting?.competitor_notes ?? '',
     contactIds: meeting
       ? meeting.meeting_contacts.map((c) => c.contact?.id).filter((x): x is string => !!x)
       : [],
@@ -337,6 +338,15 @@ export function MeetingFormModal({
               className="input min-h-20"
               value={data.decisions}
               onChange={(e) => patch({ decisions: e.target.value })}
+            />
+          </Field>
+          <Field label="פעילות מתחרים (אם עלתה בפגישה)">
+            <textarea
+              className="input min-h-16"
+              dir="auto"
+              placeholder="מי מתחרה, מה הוא מציע, באיזה תנאים…"
+              value={data.competitor_notes}
+              onChange={(e) => patch({ competitor_notes: e.target.value })}
             />
           </Field>
           <Field label="משימות להמשך">

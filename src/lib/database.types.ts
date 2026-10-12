@@ -144,6 +144,7 @@ export type Database = {
           status: string
           title: string
           tracking_notes: string
+          contact_cadence_days: number | null
           updated_at: string
         }
         Insert: {
@@ -160,6 +161,7 @@ export type Database = {
           status?: string
           title?: string
           tracking_notes?: string
+          contact_cadence_days?: number | null
           updated_at?: string
         }
         Update: {
@@ -176,6 +178,7 @@ export type Database = {
           status?: string
           title?: string
           tracking_notes?: string
+          contact_cadence_days?: number | null
           updated_at?: string
         }
         Relationships: []
@@ -624,12 +627,75 @@ export type Database = {
         }
         Relationships: []
       }
+      competitor_intel: {
+        Row: {
+          competitor: string
+          created_at: string
+          created_by: string | null
+          doctor_id: string | null
+          hospital_id: string | null
+          id: string
+          intel_date: string
+          meeting_id: string | null
+          notes: string
+          offer: string
+          product: string
+          updated_at: string
+        }
+        Insert: {
+          competitor?: string
+          created_at?: string
+          created_by?: string | null
+          doctor_id?: string | null
+          hospital_id?: string | null
+          id?: string
+          intel_date?: string
+          meeting_id?: string | null
+          notes?: string
+          offer?: string
+          product?: string
+          updated_at?: string
+        }
+        Update: {
+          competitor?: string
+          created_at?: string
+          created_by?: string | null
+          doctor_id?: string | null
+          hospital_id?: string | null
+          id?: string
+          intel_date?: string
+          meeting_id?: string | null
+          notes?: string
+          offer?: string
+          product?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      audit_log: {
+        Row: {
+          action: string
+          at: string
+          changed_fields: string[]
+          detail: Json | null
+          id: number
+          label: string
+          record_id: string
+          table_name: string
+          user_id: string | null
+          user_name: string
+        }
+        Insert: never
+        Update: never
+        Relationships: []
+      }
       meetings: {
         Row: {
           created_at: string
           created_by: string | null
           decisions: string
           extra_participants: string
+          competitor_notes: string
           hospital_id: string | null
           id: string
           location: string
@@ -647,6 +713,7 @@ export type Database = {
           created_by?: string | null
           decisions?: string
           extra_participants?: string
+          competitor_notes?: string
           hospital_id?: string | null
           id?: string
           location?: string
@@ -664,6 +731,7 @@ export type Database = {
           created_by?: string | null
           decisions?: string
           extra_participants?: string
+          competitor_notes?: string
           hospital_id?: string | null
           id?: string
           location?: string

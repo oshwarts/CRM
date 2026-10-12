@@ -7,7 +7,7 @@ import { TaskFormModal } from './TaskFormModal'
 import { classNames, daysUntil, formatDate } from '../lib/utils'
 
 /** my tasks that need attention: overdue, due in the next 3 days, or urgent */
-export function HomeTasks() {
+export function HomeTasks({ embedded = false }: { embedded?: boolean }) {
   const { user } = useAuth()
   const tasks = useTasks()
   const setDone = useSetTaskDone()
@@ -23,10 +23,10 @@ export function HomeTasks() {
   const overdue = attention.filter((t) => (daysUntil(t.due_date) ?? 0) < 0).length
 
   return (
-    <section className="card p-5">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="flex items-center gap-2 font-semibold text-slate-800">
-          <ListChecks size={18} className="text-brand-500" />
+    <section className={embedded ? '' : 'card p-5'}>
+      <div className="mb-1.5 flex items-center justify-between">
+        <h2 className={embedded ? 'flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400' : 'flex items-center gap-2 font-semibold text-slate-800'}>
+          <ListChecks size={embedded ? 12 : 18} className={embedded ? '' : 'text-brand-500'} />
           המשימות שלי
           {overdue > 0 && <span className="chip border-red-200 bg-red-50 !px-2 !py-0 text-xs text-red-600">{overdue} באיחור</span>}
         </h2>

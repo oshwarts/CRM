@@ -49,6 +49,7 @@ function initialData(doctor?: DoctorWithRelations): DoctorFormData {
     tracking_notes: doctor?.tracking_notes ?? '',
     pipeline_stage: doctor?.pipeline_stage ?? '',
     next_step_date: doctor?.next_step_date ?? null,
+    contact_cadence_days: doctor?.contact_cadence_days ?? null,
     companyIds: compact(doctor?.doctor_companies.map((c) => c.company?.id) ?? []),
     procedureIds: compact(
       doctor?.doctor_procedures.map((p) => p.procedure?.id) ?? [],
@@ -234,6 +235,21 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
                 </Field>
               </>
             )}
+
+            <Field label="קצב קשר רצוי עם הרופא">
+              <select
+                className="input"
+                value={data.contact_cadence_days ?? ''}
+                onChange={(e) => patch({ contact_cadence_days: e.target.value ? Number(e.target.value) : null })}
+              >
+                <option value="">ללא (לא נעקב)</option>
+                <option value="7">כל שבוע</option>
+                <option value="14">כל שבועיים</option>
+                <option value="30">כל חודש</option>
+                <option value="60">כל חודשיים</option>
+                <option value="90">כל 3 חודשים</option>
+              </select>
+            </Field>
 
             <Field
               label={

@@ -246,6 +246,13 @@ ${mail.body}`)) ? 'הסיכום הועתק.' : 'ההעתקה נכשלה.')}
           </p>
         )}
 
+        {m.competitor_notes && (
+          <p className="whitespace-pre-wrap rounded-lg bg-amber-50 p-3 text-sm leading-relaxed text-slate-700">
+            <span className="font-medium">פעילות מתחרים: </span>
+            {m.competitor_notes}
+          </p>
+        )}
+
         {m.meeting_tasks.length > 0 && (
           <div>
             <p className="mb-1 text-sm font-semibold text-slate-700">משימות להמשך</p>

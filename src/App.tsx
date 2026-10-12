@@ -18,6 +18,7 @@ import Consumables from './pages/Consumables'
 import Settings from './pages/Settings'
 import Users from './pages/Users'
 import Tasks from './pages/Tasks'
+import Competitors from './pages/Competitors'
 import Pending from './pages/Pending'
 
 export default function App() {
@@ -62,6 +63,7 @@ export default function App() {
         <Route path="/settings" element={<Settings />} />
         <Route path="/users" element={<Users />} />
         <Route path="/tasks" element={<Tasks />} />
+        <Route path="/competitors" element={<Competitors />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
