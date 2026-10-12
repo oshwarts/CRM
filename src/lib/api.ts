@@ -31,6 +31,7 @@ import type {
   Procedure,
   Profile,
   RoboticSystem,
+  TaskRow,
 } from './types'
 import { SCAN_PROCEDURE_TO_NAME } from './types'
 import type { TablesInsert, TablesUpdate } from './database.types'
@@ -503,19 +504,24 @@ async function saveMeetingChildren(meetingId: string, d: MeetingFormData) {
         .insert(d.contactIds.map((contact_id) => ({ meeting_id: meetingId, contact_id }))),
     )
 
-  await supabase.from('meeting_tasks').delete().eq('meeting_id', meetingId)
   const tasks = d.tasks.filter((t) => t.description.trim())
-  if (tasks.length)
-    unwrap(
-      await supabase.from('meeting_tasks').insert(
-        tasks.map((t) => ({
-          meeting_id: meetingId,
-          description: t.description,
-          is_done: t.is_done,
-          due_date: t.due_date,
-        })),
-      ),
-    )
+  const keep = tasks.filter((t) => t.id).map((t) => t.id as string)
+  const current = unwrap<{ id: string }[]>(await supabase.from('meeting_tasks').select('id').eq('meeting_id', meetingId))
+  const drop = current.map((c) => c.id).filter((id) => !keep.includes(id))
+  if (drop.length) unwrap(await supabase.from('meeting_tasks').delete().in('id', drop))
+  const { data: userRes } = await supabase.auth.getUser()
+  const me = userRes.user?.id
+  for (const t of tasks) {
+    const fields = {
+      description: t.description,
+      is_done: t.is_done,
+      due_date: t.due_date,
+      done_at: t.is_done ? new Date().toISOString() : null,
+    }
+    // existing tasks keep their sub-tasks / assignee / priority — only the fields of the form are touched
+    if (t.id) unwrap(await supabase.from('meeting_tasks').update(fields).eq('id', t.id))
+    else unwrap(await supabase.from('meeting_tasks').insert({ ...fields, meeting_id: meetingId, assignee_id: me, created_by: me }))
+  }
 }
 
 export function useCreateMeeting() {
@@ -588,7 +594,7 @@ export function useToggleMeetingTask() {
       unwrap(
         await supabase
           .from('meeting_tasks')
-          .update({ is_done: !task.is_done })
+          .update({ is_done: !task.is_done, done_at: task.is_done ? null : new Date().toISOString() })
           .eq('id', task.id),
       )
     },
@@ -1800,4 +1806,178 @@ export async function openInfoDocument(d: InfoDocument): Promise<string | null> 
   if (tab) tab.location.href = data.signedUrl
   else window.location.href = data.signedUrl
   return null
+}
+
+/* ============================ Tasks ============================ */
+// meeting_tasks is the single tasks table: tasks from meeting summaries and stand-alone tasks
+
+const TASK_SELECT =
+  '*, subtasks:task_subtasks(*), doctor:doctors(id, name, title), hospital:hospitals(id, name), assignee:profiles!meeting_tasks_assignee_id_fkey(id, full_name), meeting:meetings(id, subject)'
+
+/** every task the signed-in user may see (his own; admins see all) */
+export function useTasks() {
+  return useQuery({
+    queryKey: ['tasks'],
+    queryFn: async () => {
+      const rows = unwrap<TaskRow[]>(
+        await supabase
+          .from('meeting_tasks')
+          .select(TASK_SELECT)
+          .order('due_date', { ascending: true, nullsFirst: false })
+          .order('created_at', { ascending: false }),
+      )
+      return rows.map((t) => ({ ...t, subtasks: [...t.subtasks].sort((a, b) => a.sort - b.sort) }))
+    },
+  })
+}
+
+export type TaskFormData = {
+  id?: string
+  description: string
+  notes: string
+  due_date: string | null
+  priority: 'normal' | 'urgent'
+  doctor_id: string | null
+  hospital_id: string | null
+  recurrence: 'none' | 'weekly' | 'monthly'
+  assignee_id: string | null
+  subtasks: { id?: string; text: string; is_done: boolean }[]
+}
+
+function invalidateTasks(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ['tasks'] })
+  invalidateMeetings(qc)
+}
+
+export function useSaveTask() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (d: TaskFormData) => {
+      const fields = {
+        description: d.description.trim(),
+        notes: d.notes.trim(),
+        due_date: d.due_date || null,
+        priority: d.priority,
+        doctor_id: d.doctor_id || null,
+        hospital_id: d.hospital_id || null,
+        recurrence: d.recurrence,
+      }
+      let taskId = d.id
+      if (taskId) {
+        unwrap(
+          await supabase
+            .from('meeting_tasks')
+            .update({ ...fields, ...(d.assignee_id ? { assignee_id: d.assignee_id } : {}) })
+            .eq('id', taskId),
+        )
+      } else {
+        const { data: userRes } = await supabase.auth.getUser()
+        const me = userRes.user?.id ?? null
+        const row = unwrap<{ id: string }>(
+          await supabase
+            .from('meeting_tasks')
+            .insert({ ...fields, assignee_id: d.assignee_id || me, created_by: me })
+            .select('id')
+            .single(),
+        )
+        taskId = row.id
+      }
+
+      // sub-tasks: keep the ones still in the form, update them, add new ones
+      const subs = d.subtasks.filter((s) => s.text.trim())
+      const keep = subs.filter((s) => s.id).map((s) => s.id as string)
+      const existing = unwrap<{ id: string }[]>(await supabase.from('task_subtasks').select('id').eq('task_id', taskId))
+      const drop = existing.map((e) => e.id).filter((id) => !keep.includes(id))
+      if (drop.length) unwrap(await supabase.from('task_subtasks').delete().in('id', drop))
+      for (const [i, s] of subs.entries()) {
+        if (s.id)
+          unwrap(await supabase.from('task_subtasks').update({ text: s.text.trim(), is_done: s.is_done, sort: i }).eq('id', s.id))
+        else
+          unwrap(await supabase.from('task_subtasks').insert({ task_id: taskId, text: s.text.trim(), is_done: s.is_done, sort: i }))
+      }
+    },
+    onSuccess: () => invalidateTasks(qc),
+  })
+}
+
+const isoOf = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+/** date of the next occurrence of a repeating task (counted from the later of due date and today) */
+function nextDue(due: string, recurrence: string): string {
+  const base = new Date(`${due}T00:00:00`)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const d = base > today ? base : today
+  if (recurrence === 'weekly') d.setDate(d.getDate() + 7)
+  else d.setMonth(d.getMonth() + 1)
+  return isoOf(d)
+}
+
+/** mark done / not done; completing a repeating task creates the next one */
+export function useSetTaskDone() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ task, done }: { task: TaskRow; done: boolean }) => {
+      unwrap(
+        await supabase
+          .from('meeting_tasks')
+          .update({ is_done: done, done_at: done ? new Date().toISOString() : null })
+          .eq('id', task.id),
+      )
+      if (done && !task.is_done && task.recurrence !== 'none' && task.due_date) {
+        const { data: userRes } = await supabase.auth.getUser()
+        const next = unwrap<{ id: string }>(
+          await supabase
+            .from('meeting_tasks')
+            .insert({
+              description: task.description,
+              notes: task.notes,
+              priority: task.priority,
+              doctor_id: task.doctor_id,
+              hospital_id: task.hospital_id,
+              recurrence: task.recurrence,
+              assignee_id: task.assignee_id,
+              created_by: userRes.user?.id ?? task.created_by,
+              due_date: nextDue(task.due_date, task.recurrence),
+            })
+            .select('id')
+            .single(),
+        )
+        if (task.subtasks.length)
+          unwrap(
+            await supabase
+              .from('task_subtasks')
+              .insert(task.subtasks.map((s, i) => ({ task_id: next.id, text: s.text, sort: i }))),
+          )
+      }
+    },
+    onSuccess: () => invalidateTasks(qc),
+  })
+}
+
+export function useToggleSubtask() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, is_done }: { id: string; is_done: boolean }) =>
+      unwrap(await supabase.from('task_subtasks').update({ is_done }).eq('id', id)),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
+  })
+}
+
+export function useAddSubtask() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ taskId, text, sort }: { taskId: string; text: string; sort: number }) =>
+      unwrap(await supabase.from('task_subtasks').insert({ task_id: taskId, text: text.trim(), sort })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
+  })
+}
+
+export function useDeleteTask() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => unwrap(await supabase.from('meeting_tasks').delete().eq('id', id)),
+    onSuccess: () => invalidateTasks(qc),
+  })
 }

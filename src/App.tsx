@@ -17,6 +17,7 @@ import Info from './pages/Info'
 import Consumables from './pages/Consumables'
 import Settings from './pages/Settings'
 import Users from './pages/Users'
+import Tasks from './pages/Tasks'
 import Pending from './pages/Pending'
 
 export default function App() {
@@ -60,6 +61,7 @@ export default function App() {
         <Route path="/reports" element={<Reports />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/users" element={<Users />} />
+        <Route path="/tasks" element={<Tasks />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

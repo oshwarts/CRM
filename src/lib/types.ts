@@ -8,6 +8,15 @@ export type Doctor = Tables<'doctors'>
 export type PreopPlan = Tables<'doctor_preop_plans'>
 export type Meeting = Tables<'meetings'>
 export type MeetingTask = Tables<'meeting_tasks'>
+export type TaskSubtask = Tables<'task_subtasks'>
+/** a task with everything the tasks page shows */
+export type TaskRow = MeetingTask & {
+  subtasks: TaskSubtask[]
+  doctor: Pick<Doctor, 'id' | 'name' | 'title'> | null
+  hospital: Pick<Hospital, 'id' | 'name'> | null
+  assignee: Pick<Profile, 'id' | 'full_name'> | null
+  meeting: { id: string; subject: string } | null
+}
 export type Contact = Tables<'contacts'>
 export type CaseVolume = Tables<'case_volumes'>
 export type Organization = Tables<'organizations'>

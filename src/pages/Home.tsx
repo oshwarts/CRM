@@ -22,6 +22,7 @@ import {
 import { useAuth } from '../context/AuthProvider'
 import { EmptyState, Spinner } from '../components/ui'
 import { MeetingFormModal } from '../components/MeetingFormModal'
+import { HomeTasks } from '../components/HomeTasks'
 import { ReferralImportModal } from '../components/ReferralImportModal'
 import { ScanFormModal, type ScanDraft } from '../components/ScanFormModal'
 import {
@@ -245,6 +246,8 @@ export default function Home() {
           הרופאים המועדפים שלך ומעקב הפגישות במקום אחד
         </p>
       </div>
+
+      <HomeTasks />
 
       {/* follow-ups */}
       <section className="card p-5">

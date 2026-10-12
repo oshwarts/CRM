@@ -14,6 +14,7 @@ import {
   Settings,
   Stethoscope,
   Target,
+  ListChecks,
   Users as UsersIcon,
   X,
 } from 'lucide-react'
@@ -25,6 +26,7 @@ import { classNames } from '../lib/utils'
 const NAV = [
   { to: '/', label: 'דף הבית', short: 'בית', icon: Home, end: true },
   { to: '/doctors', label: 'רופאים', short: 'רופאים', icon: Stethoscope, end: false },
+  { to: '/tasks', label: 'משימות', short: 'משימות', icon: ListChecks, end: false },
   { to: '/schedule', label: 'לוז שבועי', short: 'לוז', icon: CalendarRange, end: false },
   { to: '/meetings', label: 'פגישות', short: 'פגישות', icon: CalendarDays, end: false },
   { to: '/map', label: 'בתי חולים', short: 'בתי חולים', icon: MapIcon, end: false },
@@ -40,7 +42,7 @@ const NAV = [
 // the five destinations reachable with one thumb tap on a phone
 const TABS = ['/', '/doctors', '/schedule', '/meetings', '/scans']
 
-const VERSION = 'v47 · כפתור רענון'
+const VERSION = 'v48 · משימות'
 
 export function Layout() {
   const { profile, signOut } = useAuth()

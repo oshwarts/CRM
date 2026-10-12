@@ -545,28 +545,82 @@ export type Database = {
       }
       meeting_tasks: {
         Row: {
+          assignee_id: string | null
           created_at: string
+          created_by: string | null
           description: string
+          doctor_id: string | null
+          done_at: string | null
           due_date: string | null
+          hospital_id: string | null
           id: string
           is_done: boolean
-          meeting_id: string
+          meeting_id: string | null
+          notes: string
+          priority: string
+          recurrence: string
+          updated_at: string
+        }
+        Insert: {
+          assignee_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          doctor_id?: string | null
+          done_at?: string | null
+          due_date?: string | null
+          hospital_id?: string | null
+          id?: string
+          is_done?: boolean
+          meeting_id?: string | null
+          notes?: string
+          priority?: string
+          recurrence?: string
+          updated_at?: string
+        }
+        Update: {
+          assignee_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          doctor_id?: string | null
+          done_at?: string | null
+          due_date?: string | null
+          hospital_id?: string | null
+          id?: string
+          is_done?: boolean
+          meeting_id?: string | null
+          notes?: string
+          priority?: string
+          recurrence?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      task_subtasks: {
+        Row: {
+          created_at: string
+          id: string
+          is_done: boolean
+          sort: number
+          task_id: string
+          text: string
         }
         Insert: {
           created_at?: string
-          description?: string
-          due_date?: string | null
           id?: string
           is_done?: boolean
-          meeting_id: string
+          sort?: number
+          task_id: string
+          text?: string
         }
         Update: {
           created_at?: string
-          description?: string
-          due_date?: string | null
           id?: string
           is_done?: boolean
-          meeting_id?: string
+          sort?: number
+          task_id?: string
+          text?: string
         }
         Relationships: []
       }
