@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../context/AuthProvider'
 import { ProfileModal } from './ProfileModal'
+import { RefreshButton } from './RefreshButton'
 import { classNames } from '../lib/utils'
 
 const NAV = [
@@ -39,7 +40,7 @@ const NAV = [
 // the five destinations reachable with one thumb tap on a phone
 const TABS = ['/', '/doctors', '/schedule', '/meetings', '/scans']
 
-const VERSION = 'v46 · קריאת הפניות מכבי'
+const VERSION = 'v47 · כפתור רענון'
 
 export function Layout() {
   const { profile, signOut } = useAuth()
@@ -75,6 +76,7 @@ export function Layout() {
         {profile?.role === 'admin' && ' · מנהל'}
         <span className="block text-[11px] text-brand-500">עריכת פרופיל</span>
       </button>
+      <RefreshButton label />
       <button className="btn-ghost w-full justify-start" onClick={handleSignOut}>
         <LogOut size={16} />
         התנתקות
@@ -114,13 +116,16 @@ export function Layout() {
       {/* mobile top bar */}
       <header className="fixed inset-x-0 top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white/95 px-4 pb-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] backdrop-blur md:hidden">
         {brand}
-        <button
-          className="btn-ghost !px-2"
-          onClick={() => setDrawer(true)}
-          aria-label="תפריט"
-        >
-          <Menu size={22} />
-        </button>
+        <div className="flex items-center">
+          <RefreshButton />
+          <button
+            className="btn-ghost !px-2"
+            onClick={() => setDrawer(true)}
+            aria-label="תפריט"
+          >
+            <Menu size={22} />
+          </button>
+        </div>
       </header>
 
       {/* mobile drawer */}
