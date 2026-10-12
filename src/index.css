@@ -39,6 +39,8 @@ body {
 
 /* keep leaflet controls on the correct side in RTL */
 .leaflet-container {
+  /* keeps Leaflet's internal z-indexes (up to 1000) from covering dialogs and menus */
+  isolation: isolate;
   direction: ltr;
   font-family: inherit;
 }
