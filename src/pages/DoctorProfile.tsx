@@ -23,6 +23,7 @@ import {
 } from '../lib/api'
 import { DoctorFormModal } from '../components/DoctorFormModal'
 import { MeetingFormModal } from '../components/MeetingFormModal'
+import { SurgicalCourseSection } from '../components/SurgicalCourse'
 import { ContactsSection } from '../components/ContactsSection'
 import { CaseVolumesEditor } from '../components/CaseVolumesEditor'
 import { EquipmentPlanEditor } from '../components/EquipmentPlanEditor'
@@ -191,6 +192,7 @@ export default function DoctorProfile() {
           <Tab id="equipment">ציוד לניתוח</Tab>
           <Tab id="preop">תכנון טרום ניתוחי</Tab>
           <Tab id="contacts">אנשי קשר</Tab>
+          <Tab id="course">מהלך ניתוחי</Tab>
           <Tab id="meetings">פגישות ({meetings.data?.length ?? 0})</Tab>
         </TabList>
 
@@ -281,6 +283,10 @@ export default function DoctorProfile() {
 
         <TabPanel id="contacts">
           <ContactsSection doctorId={d.id} />
+        </TabPanel>
+
+        <TabPanel id="course">
+          <SurgicalCourseSection doctorId={d.id} />
         </TabPanel>
 
         <TabPanel id="meetings">

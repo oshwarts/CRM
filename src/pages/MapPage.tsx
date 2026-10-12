@@ -9,6 +9,7 @@ import {
   Building2,
   CalendarDays,
   Phone,
+  Plus,
   Search,
   Stethoscope,
   User,
@@ -16,6 +17,7 @@ import {
 } from 'lucide-react'
 import { useMapData, useMeetings, type MapHospital } from '../lib/api'
 import { formatDate } from '../lib/utils'
+import { HospitalContactModal } from '../components/HospitalContactModal'
 import { ErrorState, Spinner } from '../components/ui'
 import { DOCTOR_STATUS_LABELS, SECTOR_LABELS } from '../lib/types'
 
@@ -224,6 +226,7 @@ export default function MapPage() {
 }
 
 function HospitalPanel({ hospital }: { hospital: MapHospital }) {
+  const [addingContact, setAddingContact] = useState(false)
   const allMeetings = useMeetings()
   const hospitalMeetings = (allMeetings.data ?? [])
     .filter((m) => m.hospital_id === hospital.id)
@@ -319,11 +322,22 @@ function HospitalPanel({ hospital }: { hospital: MapHospital }) {
         )}
       </div>
 
-      {hospital.contacts.length > 0 && (
-        <div>
-          <p className="mb-1 flex items-center gap-1 text-xs font-medium uppercase text-slate-400">
+      <div>
+        <div className="mb-1 flex items-center justify-between">
+          <p className="flex items-center gap-1 text-xs font-medium uppercase text-slate-400">
             <Phone size={12} /> אנשי קשר
           </p>
+          <button
+            className="inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline"
+            onClick={() => setAddingContact(true)}
+          >
+            <Plus size={14} />
+            הוסף איש קשר
+          </button>
+        </div>
+        {hospital.contacts.length === 0 ? (
+          <p className="text-sm text-slate-400">אין אנשי קשר לבית החולים (רכש, מכון דימות, מזכירות…)</p>
+        ) : (
           <ul className="space-y-1 text-sm">
             {hospital.contacts.map((c) => (
               <li key={c.id} className="text-slate-600">
@@ -337,8 +351,15 @@ function HospitalPanel({ hospital }: { hospital: MapHospital }) {
               </li>
             ))}
           </ul>
-        </div>
-      )}
+        )}
+        {addingContact && (
+          <HospitalContactModal
+            hospitalId={hospital.id}
+            hospitalName={hospital.name}
+            onClose={() => setAddingContact(false)}
+          />
+        )}
+      </div>
 
       {stats.length > 0 && (
         <div>

@@ -6,6 +6,8 @@ import {
 import { supabase } from './supabase'
 import type {
   CaseVolumeRow,
+  SurgicalCourse,
+  TemplateStage,
   ConsumableCountRow,
   ConsumableItem,
   ConsumableMinimum,
@@ -1489,5 +1491,121 @@ export function usePatchDoctorContact() {
       qc.invalidateQueries({ queryKey: ['doctors'] })
       qc.invalidateQueries({ queryKey: ['doctor', v.id] })
     },
+  })
+}
+
+/* ============================ Surgical course (מהלך ניתוחי) ============================ */
+
+export function useTemplateStages() {
+  return useQuery({
+    queryKey: ['template-stages'],
+    queryFn: async () =>
+      unwrap<TemplateStage[]>(
+        await supabase.from('procedure_template_stages').select('*').order('sort'),
+      ),
+  })
+}
+
+export function useSaveTemplateStages() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ procedureId, titles }: { procedureId: string; titles: string[] }) => {
+      unwrap(await supabase.from('procedure_template_stages').delete().eq('procedure_id', procedureId))
+      const rows = titles
+        .map((t) => t.trim())
+        .filter(Boolean)
+        .map((title, i) => ({ procedure_id: procedureId, title, sort: i + 1 }))
+      if (rows.length) unwrap(await supabase.from('procedure_template_stages').insert(rows))
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['template-stages'] }),
+  })
+}
+
+export function useDoctorCourses(doctorId: string | undefined) {
+  return useQuery({
+    queryKey: ['doctor-courses', doctorId],
+    enabled: !!doctorId,
+    queryFn: async () => {
+      const rows = unwrap<SurgicalCourse[]>(
+        await supabase
+          .from('doctor_surgical_courses')
+          .select('*, procedure:procedures(id, name), stages:doctor_course_stages(*, items:doctor_course_items(*))')
+          .eq('doctor_id', doctorId!)
+          .order('created_at'),
+      )
+      return rows.map((c) => ({
+        ...c,
+        stages: [...c.stages]
+          .sort((a, b) => a.sort - b.sort)
+          .map((st) => ({ ...st, items: [...st.items].sort((a, b) => a.sort - b.sort) })),
+      }))
+    },
+  })
+}
+
+export type CourseDraft = { title: string; items: string[] }[]
+
+async function writeCourseStages(courseId: string, draft: CourseDraft) {
+  unwrap(await supabase.from('doctor_course_stages').delete().eq('course_id', courseId))
+  for (const [i, st] of draft.entries()) {
+    const created = unwrap<{ id: string }>(
+      await supabase
+        .from('doctor_course_stages')
+        .insert({ course_id: courseId, title: st.title.trim() || 'שלב', sort: i + 1 })
+        .select('id')
+        .single(),
+    )
+    const items = st.items
+      .map((t) => t.trim())
+      .filter(Boolean)
+      .map((text, k) => ({ stage_id: created.id, text, sort: k + 1 }))
+    if (items.length) unwrap(await supabase.from('doctor_course_items').insert(items))
+  }
+}
+
+/** a new course starts as a copy of the procedure's template stages (empty lines) */
+export function useCreateCourse(doctorId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (procedureId: string) => {
+      const course = unwrap<{ id: string }>(
+        await supabase
+          .from('doctor_surgical_courses')
+          .insert({ doctor_id: doctorId, procedure_id: procedureId })
+          .select('id')
+          .single(),
+      )
+      const tpl = unwrap<TemplateStage[]>(
+        await supabase.from('procedure_template_stages').select('*').eq('procedure_id', procedureId).order('sort'),
+      )
+      await writeCourseStages(course.id, tpl.map((t) => ({ title: t.title, items: [] })))
+      return course.id
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['doctor-courses', doctorId] }),
+  })
+}
+
+export function useSaveCourse(doctorId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ courseId, draft }: { courseId: string; draft: CourseDraft }) => {
+      await writeCourseStages(courseId, draft)
+      unwrap(
+        await supabase
+          .from('doctor_surgical_courses')
+          .update({ updated_at: new Date().toISOString() })
+          .eq('id', courseId),
+      )
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['doctor-courses', doctorId] }),
+  })
+}
+
+export function useDeleteCourse(doctorId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (courseId: string) =>
+      unwrap(await supabase.from('doctor_surgical_courses').delete().eq('id', courseId)),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['doctor-courses', doctorId] }),
   })
 }

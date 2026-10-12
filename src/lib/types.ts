@@ -187,3 +187,11 @@ export const SECTOR_LABELS: Record<string, string> = {
   public: 'ציבורי',
   private: 'פרטי',
 }
+
+export type TemplateStage = Tables<'procedure_template_stages'>
+export type CourseItem = Tables<'doctor_course_items'>
+export type CourseStage = Tables<'doctor_course_stages'> & { items: CourseItem[] }
+export type SurgicalCourse = Tables<'doctor_surgical_courses'> & {
+  procedure: Pick<Procedure, 'id' | 'name'> | null
+  stages: CourseStage[]
+}

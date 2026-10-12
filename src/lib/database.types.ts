@@ -471,6 +471,30 @@ export type Database = {
         }
         Relationships: []
       }
+      procedure_template_stages: {
+        Row: { id: string; procedure_id: string; sort: number; title: string }
+        Insert: { id?: string; procedure_id: string; sort?: number; title: string }
+        Update: { id?: string; procedure_id?: string; sort?: number; title?: string }
+        Relationships: []
+      }
+      doctor_surgical_courses: {
+        Row: { created_at: string; doctor_id: string; id: string; procedure_id: string; updated_at: string }
+        Insert: { created_at?: string; doctor_id: string; id?: string; procedure_id: string; updated_at?: string }
+        Update: { created_at?: string; doctor_id?: string; id?: string; procedure_id?: string; updated_at?: string }
+        Relationships: []
+      }
+      doctor_course_stages: {
+        Row: { course_id: string; id: string; sort: number; title: string }
+        Insert: { course_id: string; id?: string; sort?: number; title: string }
+        Update: { course_id?: string; id?: string; sort?: number; title?: string }
+        Relationships: []
+      }
+      doctor_course_items: {
+        Row: { id: string; sort: number; stage_id: string; text: string }
+        Insert: { id?: string; sort?: number; stage_id: string; text?: string }
+        Update: { id?: string; sort?: number; stage_id?: string; text?: string }
+        Relationships: []
+      }
       meeting_contacts: {
         Row: { contact_id: string; meeting_id: string }
         Insert: { contact_id: string; meeting_id: string }

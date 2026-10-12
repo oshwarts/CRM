@@ -39,7 +39,7 @@ export default function MeetingView() {
   const [editing, setEditing] = useState(false)
   const [pickedDoctor, setPickedDoctor] = useState<string | null>(null)
   const { profile } = useAuth()
-  const [mailOpen, setMailOpen] = useState(false)
+  const [mailOpen, setMailOpen] = useState(params.get('mail') === '1')
   const [mailTo, setMailTo] = useState(() => {
     try {
       return localStorage.getItem('ami.meeting.mailTo') ?? ''

@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import {
   Building2,
   CalendarDays,
   CheckSquare,
   Clock,
+  Mail,
   MapPin,
   Pencil,
   Plus,
@@ -49,7 +50,6 @@ export default function Meetings() {
   const [doctorId, setDoctorId] = useState('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
-  const [newestFirst, setNewestFirst] = useState(true)
 
   const today = new Date().toISOString().slice(0, 10)
 
@@ -117,7 +117,7 @@ export default function Meetings() {
     }
 
     // newest meeting first by default; meetings without a date go last
-    const dir = newestFirst ? -1 : 1
+    const dir = -1
     return [...out].sort((a, b) => {
       if (!a.meeting_date && !b.meeting_date) return 0
       if (!a.meeting_date) return 1
@@ -129,7 +129,7 @@ export default function Meetings() {
           a.created_at.localeCompare(b.created_at))
       )
     })
-  }, [meetings.data, filter, today, q, hospitalId, doctorId, from, to, newestFirst])
+  }, [meetings.data, filter, today, q, hospitalId, doctorId, from, to])
 
   const hasSearch = !!(q || hospitalId || doctorId || from || to)
 
@@ -181,7 +181,7 @@ export default function Meetings() {
             onChange={(e) => setQ(e.target.value)}
           />
         </label>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <select className="input" value={hospitalId} onChange={(e) => setHospitalId(e.target.value)}>
             <option value="">כל בתי החולים</option>
             {hospitalOptions.map(([id, name]) => (
@@ -198,22 +198,14 @@ export default function Meetings() {
               </option>
             ))}
           </select>
-          <label className="flex items-center gap-2 text-sm text-slate-500">
-            מתאריך
+          <label className="block">
+            <span className="mb-0.5 block text-xs text-slate-500">מתאריך</span>
             <input type="date" className="input" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} />
           </label>
-          <label className="flex items-center gap-2 text-sm text-slate-500">
-            עד תאריך
+          <label className="block">
+            <span className="mb-0.5 block text-xs text-slate-500">עד תאריך</span>
             <input type="date" className="input" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} />
           </label>
-          <select
-            className="input"
-            value={newestFirst ? 'desc' : 'asc'}
-            onChange={(e) => setNewestFirst(e.target.value === 'desc')}
-          >
-            <option value="desc">מהחדשה לישנה (ברירת מחדל)</option>
-            <option value="asc">מהישנה לחדשה</option>
-          </select>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-500">
           <span>
@@ -251,9 +243,12 @@ export default function Meetings() {
           <div key={m.id} className="card p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="font-semibold text-slate-800">
+                <Link
+                  to={`/meetings/${m.id}`}
+                  className="font-semibold text-slate-800 hover:text-brand-600 hover:underline"
+                >
                   {m.subject || 'פגישה'}
-                </p>
+                </Link>
                 <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500">
                   {m.meeting_date && (
                     <span className="inline-flex items-center gap-1">
@@ -280,9 +275,18 @@ export default function Meetings() {
                 <span className="chip border-slate-200 bg-slate-50 text-slate-500">
                   {MEETING_STATUS_LABELS[m.status]}
                 </span>
+                <Link
+                  to={`/meetings/${m.id}?mail=1`}
+                  className="btn-ghost !px-2"
+                  title="שלח סיכום פגישה במייל"
+                  aria-label="שלח סיכום במייל"
+                >
+                  <Mail size={15} />
+                </Link>
                 <button
                   className="btn-ghost !px-2"
                   onClick={() => setEditing(m)}
+                  aria-label="עריכה"
                 >
                   <Pencil size={15} />
                 </button>
