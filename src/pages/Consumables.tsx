@@ -16,6 +16,7 @@ import {
   buildMailto,
   buildOutlookWebUrl,
   CONSUMABLES_EMAIL_KEY,
+  CONSUMABLES_INTRO_KEY,
   groupByCategory,
   shortageOf,
   shortageText,
@@ -36,6 +37,7 @@ export default function Consumables() {
   const hospitals = useMakoHospitals()
   const items = useConsumableItems()
   const email = useAppSetting(CONSUMABLES_EMAIL_KEY)
+  const intro = useAppSetting(CONSUMABLES_INTRO_KEY)
   const save = useSaveConsumableCount()
   const delCount = useDeleteConsumableCount()
 
@@ -107,6 +109,7 @@ export default function Consumables() {
   const to = email.data ?? ''
 
   const mail = shortageText({
+    intro: intro.data,
     hospital: hospitalName,
     countedOn: viewed?.counted_on ?? date,
     agent: viewed ? (viewed.counter?.full_name || viewed.counter?.email || '') : (profile?.full_name ?? ''),
@@ -127,6 +130,7 @@ export default function Consumables() {
 
   async function copyList() {
     const { body } = shortageText({
+      intro: intro.data,
       hospital: hospitalName,
       countedOn: viewed?.counted_on ?? date,
       agent: viewed ? (viewed.counter?.full_name ?? '') : (profile?.full_name ?? ''),

@@ -637,7 +637,7 @@ function HospitalModal({
             ))}
           </select>
         </Field>
-        <Field label="סקטור">
+        <Field label="סקטור (פרטי / ציבורי)">
           <select
             className="input"
             value={form.sector}
@@ -649,6 +649,9 @@ function HospitalModal({
               </option>
             ))}
           </select>
+          <p className="mt-1 text-xs text-slate-400">
+            ההגדרה כאן קבועה לבית החולים ומשפיעה על כל הרופאים המקושרים אליו.
+          </p>
         </Field>
         <Field label="כתובת" className="sm:col-span-2">
           <input

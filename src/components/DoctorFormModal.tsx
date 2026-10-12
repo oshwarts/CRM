@@ -320,21 +320,25 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
                   }}
                 />
                 <div className="flex items-center gap-2">
-                  <select
-                    className="input"
-                    value={h.sector}
-                    onChange={(e) => {
-                      const next = [...data.hospitals]
-                      next[i] = { ...h, sector: e.target.value }
-                      patch({ hospitals: next })
-                    }}
-                  >
-                    {Object.entries(SECTOR_LABELS).map(([v, l]) => (
-                      <option key={v} value={v}>
-                        {l}
-                      </option>
-                    ))}
-                  </select>
+                  {/* public / private belongs to the hospital — changed only in Settings */}
+                  {(() => {
+                    const sector = availableHospitals.find((o) => o.id === h.hospital_id)?.sector
+                    return (
+                      <span
+                        className={
+                          'chip shrink-0 ' +
+                          (sector === 'private'
+                            ? 'border-violet-200 bg-violet-50 text-violet-700'
+                            : sector
+                              ? 'border-sky-200 bg-sky-50 text-sky-700'
+                              : 'border-slate-200 bg-slate-50 text-slate-400')
+                        }
+                        title="נקבע לפי בית החולים — ניתן לשינוי בהגדרות"
+                      >
+                        {sector ? (SECTOR_LABELS[sector] ?? sector) : '—'}
+                      </span>
+                    )
+                  })()}
                   <button
                     type="button"
                     className="btn-ghost !px-2 text-red-500"

@@ -6,9 +6,11 @@ import {
   MapPin,
   Pencil,
   Plus,
+  Search,
   Square,
   Trash2,
   User,
+  X,
 } from 'lucide-react'
 import {
   useDeleteMeeting,
@@ -27,6 +29,7 @@ import {
   type MeetingWithRelations,
 } from '../lib/types'
 import { classNames, formatDate, formatTime, isOverdue } from '../lib/utils'
+import { normalizeHe } from '../lib/contactMatch'
 
 type FilterKey = 'all' | 'upcoming' | 'past' | 'followup'
 
@@ -38,24 +41,83 @@ export default function Meetings() {
   const [filter, setFilter] = useState<FilterKey>('all')
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState<MeetingWithRelations | null>(null)
+  const [q, setQ] = useState('')
+  const [doctorId, setDoctorId] = useState('')
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
+  const [newestFirst, setNewestFirst] = useState(true)
 
   const today = new Date().toISOString().slice(0, 10)
 
+  // doctors that appear in at least one meeting
+  const doctorOptions = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const mt of meetings.data ?? [])
+      for (const md of mt.meeting_doctors)
+        if (md.doctor) m.set(md.doctor.id, `${md.doctor.title} ${md.doctor.name}`)
+    return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1], 'he'))
+  }, [meetings.data])
+
   const filtered = useMemo(() => {
     const list = meetings.data ?? []
+    let out: MeetingWithRelations[]
     switch (filter) {
       case 'upcoming':
-        return list.filter((m) => (m.meeting_date ?? '') >= today && m.status === 'scheduled')
+        out = list.filter((m) => (m.meeting_date ?? '') >= today && m.status === 'scheduled')
+        break
       case 'past':
-        return list.filter((m) => (m.meeting_date ?? '') < today || m.status === 'done')
+        out = list.filter((m) => (m.meeting_date ?? '') < today || m.status === 'done')
+        break
       case 'followup':
-        return list.filter(
+        out = list.filter(
           (m) => m.next_followup_date && m.status !== 'done' && m.status !== 'cancelled',
         )
+        break
       default:
-        return list
+        out = list
     }
-  }, [meetings.data, filter, today])
+
+    if (doctorId) out = out.filter((m) => m.meeting_doctors.some((d) => d.doctor?.id === doctorId))
+    if (from) out = out.filter((m) => (m.meeting_date ?? '') >= from)
+    if (to) out = out.filter((m) => m.meeting_date != null && m.meeting_date <= to)
+
+    // free text: every word must appear somewhere in the meeting
+    const words = normalizeHe(q).split(' ').filter(Boolean)
+    if (words.length) {
+      out = out.filter((m) => {
+        const hay = normalizeHe(
+          [
+            m.subject,
+            m.summary,
+            m.decisions,
+            m.location,
+            m.responsible_agent?.full_name,
+            ...m.meeting_doctors.map((d) => (d.doctor ? `${d.doctor.title} ${d.doctor.name}` : '')),
+            ...m.meeting_tasks.map((t) => t.description),
+          ]
+            .filter(Boolean)
+            .join(' '),
+        )
+        return words.every((w) => hay.includes(w))
+      })
+    }
+
+    // newest meeting first by default; meetings without a date go last
+    const dir = newestFirst ? -1 : 1
+    return [...out].sort((a, b) => {
+      if (!a.meeting_date && !b.meeting_date) return 0
+      if (!a.meeting_date) return 1
+      if (!b.meeting_date) return -1
+      return (
+        dir *
+        (a.meeting_date.localeCompare(b.meeting_date) ||
+          (a.meeting_time ?? '').localeCompare(b.meeting_time ?? '') ||
+          a.created_at.localeCompare(b.created_at))
+      )
+    })
+  }, [meetings.data, filter, today, q, doctorId, from, to, newestFirst])
+
+  const hasSearch = !!(q || doctorId || from || to)
 
   const TABS: { key: FilterKey; label: string }[] = [
     { key: 'all', label: 'הכל' },
@@ -91,10 +153,74 @@ export default function Meetings() {
         ))}
       </div>
 
+      <div className="card space-y-3 p-4">
+        <label className="relative block">
+          <Search
+            size={16}
+            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+          />
+          <input
+            type="search"
+            className="input !pr-9"
+            placeholder="חיפוש חופשי: נושא, סיכום, החלטות, מקום, משימות…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+        </label>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <select className="input" value={doctorId} onChange={(e) => setDoctorId(e.target.value)}>
+            <option value="">כל הרופאים</option>
+            {doctorOptions.map(([id, name]) => (
+              <option key={id} value={id}>
+                {name}
+              </option>
+            ))}
+          </select>
+          <label className="flex items-center gap-2 text-sm text-slate-500">
+            מתאריך
+            <input type="date" className="input" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} />
+          </label>
+          <label className="flex items-center gap-2 text-sm text-slate-500">
+            עד תאריך
+            <input type="date" className="input" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} />
+          </label>
+          <select
+            className="input"
+            value={newestFirst ? 'desc' : 'asc'}
+            onChange={(e) => setNewestFirst(e.target.value === 'desc')}
+          >
+            <option value="desc">מהחדשה לישנה (ברירת מחדל)</option>
+            <option value="asc">מהישנה לחדשה</option>
+          </select>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-500">
+          <span>
+            {meetings.data ? `${filtered.length} פגישות${hasSearch ? ' תואמות לחיפוש' : ''}` : ' '}
+          </span>
+          {hasSearch && (
+            <button
+              className="inline-flex items-center gap-1 text-brand-600 hover:underline"
+              onClick={() => {
+                setQ('')
+                setDoctorId('')
+                setFrom('')
+                setTo('')
+              }}
+            >
+              <X size={14} />
+              נקה חיפוש
+            </button>
+          )}
+        </div>
+      </div>
+
       {meetings.isLoading && <Spinner />}
       {meetings.error && <ErrorState error={meetings.error} />}
       {meetings.data && filtered.length === 0 && (
-        <EmptyState title="אין פגישות להצגה" />
+        <EmptyState
+          title="אין פגישות להצגה"
+          hint={hasSearch ? 'נסה לשנות או לנקות את החיפוש' : undefined}
+        />
       )}
 
       <div className="space-y-3">

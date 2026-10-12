@@ -9,7 +9,12 @@ import {
 } from '../lib/api'
 import { useAuth } from '../context/AuthProvider'
 import { ConfirmButton, Spinner } from './ui'
-import { CONSUMABLES_EMAIL_KEY } from '../lib/consumables'
+import {
+  CONSUMABLES_EMAIL_KEY,
+  CONSUMABLES_INTRO_KEY,
+  DEFAULT_INTRO,
+  HOSPITAL_PLACEHOLDER,
+} from '../lib/consumables'
 import type { ConsumableItem } from '../lib/types'
 
 type Draft = { id?: string; category: string; catalog_number: string; name: string; default_min: string }
@@ -23,12 +28,22 @@ export function ConsumablesSettings() {
   const email = useAppSetting(CONSUMABLES_EMAIL_KEY)
   const saveSetting = useSaveAppSetting()
 
+  const introSetting = useAppSetting(CONSUMABLES_INTRO_KEY)
+  const [intro, setIntro] = useState('')
+  const [introSaved, setIntroSaved] = useState(false)
   const [mail, setMail] = useState('')
   const [saved, setSaved] = useState(false)
   const [draft, setDraft] = useState<Draft | null>(null)
   const [error, setError] = useState('')
 
   useEffect(() => setMail(email.data ?? ''), [email.data])
+  useEffect(() => setIntro(introSetting.data ?? ''), [introSetting.data])
+
+  async function saveIntro() {
+    await saveSetting.mutateAsync({ key: CONSUMABLES_INTRO_KEY, value: intro.trim() })
+    setIntroSaved(true)
+    setTimeout(() => setIntroSaved(false), 2000)
+  }
 
   const categories = [...new Set((items.data ?? []).map((i) => i.category).filter(Boolean))]
 
@@ -88,6 +103,27 @@ export function ConsumablesSettings() {
           </button>
         </div>
         {!isAdmin && <p className="mt-2 text-xs text-amber-600">רק מנהל יכול לשנות את הכתובת.</p>}
+      </div>
+
+      <div className="card p-4">
+        <h3 className="mb-1 font-semibold text-slate-800">משפט קבוע בראש המייל</h3>
+        <p className="mb-3 text-sm text-slate-400">
+          מופיע לפני רשימת החוסרים. המייל כולל רק מק״ט וכמה להשלים. בטקסט אפשר לכתוב{' '}
+          <bdi className="rounded bg-slate-100 px-1">{HOSPITAL_PLACEHOLDER}</bdi> והמערכת תחליף אותו בשם בית החולים שבו נספרו המתכלים.
+        </p>
+        <textarea
+          className="input min-h-16"
+          placeholder={DEFAULT_INTRO}
+          value={intro}
+          disabled={!isAdmin}
+          onChange={(e) => setIntro(e.target.value)}
+        />
+        <div className="mt-2 flex items-center gap-2">
+          <button className="btn-primary" onClick={saveIntro} disabled={!isAdmin || saveSetting.isPending}>
+            {introSaved ? 'נשמר ✓' : 'שמירה'}
+          </button>
+          {intro.trim() === '' && <span className="text-xs text-slate-400">ריק = ישמש המשפט: "{DEFAULT_INTRO}"</span>}
+        </div>
       </div>
 
       <div className="card p-4">

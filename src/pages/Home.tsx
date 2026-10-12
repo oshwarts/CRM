@@ -18,7 +18,28 @@ import {
 } from '../lib/api'
 import { useAuth } from '../context/AuthProvider'
 import { EmptyState, Spinner } from '../components/ui'
-import { classNames, daysUntil, formatDate, isOverdue, todayISO } from '../lib/utils'
+import {
+  classNames,
+  daysUntil,
+  formatDate,
+  isOverdue,
+  plusDaysISO,
+  todayISO,
+} from '../lib/utils'
+
+type SurgeryRange = '7' | '14' | '30' | 'date'
+const RANGE_KEY = 'ami.home.surgeryRange'
+
+function loadRange(): { range: SurgeryRange; until: string } {
+  try {
+    const raw = JSON.parse(localStorage.getItem(RANGE_KEY) ?? 'null')
+    if (raw && ['7', '14', '30', 'date'].includes(raw.range))
+      return { range: raw.range, until: typeof raw.until === 'string' ? raw.until : '' }
+  } catch {
+    // storage unavailable — use the default
+  }
+  return { range: '7', until: '' }
+}
 import { rescanAlert, weekMissing, type RescanKind } from '../lib/scanAlerts'
 
 const RESCAN_LABEL: Record<RescanKind, string> = {
@@ -36,13 +57,29 @@ export default function Home() {
   const scans = usePatientScans()
   const toggleFav = useToggleFavorite()
   const [toAdd, setToAdd] = useState('')
+  const [surgeryRange, setSurgeryRange] = useState(loadRange)
+
+  function changeRange(next: { range: SurgeryRange; until: string }) {
+    setSurgeryRange(next)
+    try {
+      localStorage.setItem(RANGE_KEY, JSON.stringify(next))
+    } catch {
+      // not critical
+    }
+  }
+
+  // surgeries up to this date are listed under "לקראת ניתוח" (a week by default)
+  const surgeryUntil =
+    surgeryRange.range === 'date'
+      ? surgeryRange.until || plusDaysISO(7)
+      : plusDaysISO(Number(surgeryRange.range))
 
   const scanAlerts = useMemo(() => {
     const t = todayISO()
     const list = scans.data ?? []
     const active = list.filter((s) => s.status !== 'cancelled')
     const surgerySoon = (s: (typeof list)[number]) =>
-      !!s.surgery_date && s.surgery_date >= t && (daysUntil(s.surgery_date) ?? 99) <= 7
+      !!s.surgery_date && s.surgery_date >= t && s.surgery_date <= surgeryUntil
     return {
       upcoming: list.filter(
         (s) => s.ct_date && s.ct_date >= t && (daysUntil(s.ct_date) ?? 99) <= 7 && !s.scanned,
@@ -67,7 +104,7 @@ export default function Home() {
         .filter((x): x is { s: (typeof list)[number]; kind: RescanKind } => x.kind !== null)
         .sort((a, b) => (a.s.rescan_date ?? '').localeCompare(b.s.rescan_date ?? '')),
     }
-  }, [scans.data])
+  }, [scans.data, surgeryUntil])
 
   const favIds = favorites.data ?? []
   const favSet = new Set(favIds)
@@ -204,9 +241,36 @@ export default function Home() {
               </Link>
             </div>
 
-            <p className="mb-2 mt-4 text-xs font-medium uppercase tracking-wide text-slate-400">
-              לקראת ניתוח בשבוע הקרוב
-            </p>
+            <div className="mb-2 mt-4 flex flex-wrap items-center gap-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                לקראת ניתוח — עד
+              </p>
+              <select
+                className="input !w-auto !py-1 text-sm"
+                value={surgeryRange.range}
+                onChange={(e) =>
+                  changeRange({
+                    range: e.target.value as SurgeryRange,
+                    until: surgeryRange.until || plusDaysISO(7),
+                  })
+                }
+              >
+                <option value="7">שבוע</option>
+                <option value="14">שבועיים</option>
+                <option value="30">חודש</option>
+                <option value="date">תאריך מסוים…</option>
+              </select>
+              {surgeryRange.range === 'date' && (
+                <input
+                  type="date"
+                  className="input !w-auto !py-1 text-sm"
+                  min={todayISO()}
+                  value={surgeryRange.until}
+                  onChange={(e) => changeRange({ range: 'date', until: e.target.value })}
+                />
+              )}
+              <span className="text-xs text-slate-400">(עד {formatDate(surgeryUntil)})</span>
+            </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <Link
                 to="/scans"
@@ -216,7 +280,7 @@ export default function Home() {
                 )}
               >
                 <p className="text-2xl font-bold text-fuchsia-600">{scanAlerts.noCtSoon.length}</p>
-                <p className="text-xs text-slate-400">ניתוח השבוע — אין תאריך CT מתואם</p>
+                <p className="text-xs text-slate-400">ניתוח עד התאריך — אין תאריך CT מתואם</p>
               </Link>
               <Link
                 to="/scans"
@@ -226,7 +290,7 @@ export default function Home() {
                 )}
               >
                 <p className="text-2xl font-bold text-orange-600">{scanAlerts.noDiskSoon.length}</p>
-                <p className="text-xs text-slate-400">ניתוח השבוע — הדיסק לא נאסף</p>
+                <p className="text-xs text-slate-400">ניתוח עד התאריך — הדיסק לא נאסף</p>
               </Link>
             </div>
           </>
@@ -250,7 +314,7 @@ export default function Home() {
         )}
         {scanAlerts.noCtSoon.length > 0 && (
           <ul className="mt-2 divide-y divide-slate-100 text-sm">
-            {scanAlerts.noCtSoon.slice(0, 5).map((s) => (
+            {scanAlerts.noCtSoon.slice(0, 10).map((s) => (
               <li key={s.id} className="flex items-center justify-between py-1.5">
                 <span className="text-slate-700">
                   {s.patient_name}
@@ -265,7 +329,7 @@ export default function Home() {
         )}
         {scanAlerts.noDiskSoon.length > 0 && (
           <ul className="mt-2 divide-y divide-slate-100 text-sm">
-            {scanAlerts.noDiskSoon.slice(0, 5).map((s) => (
+            {scanAlerts.noDiskSoon.slice(0, 10).map((s) => (
               <li key={s.id} className="flex items-center justify-between py-1.5">
                 <span className="text-slate-700">
                   {s.patient_name}

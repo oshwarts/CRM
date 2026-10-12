@@ -22,34 +22,27 @@ export function summarize(rows: CountRow[]) {
   return { missing, units: missing.reduce((s, r) => s + shortageOf(r), 0) }
 }
 
+export const HOSPITAL_PLACEHOLDER = '{בית חולים}'
+export const DEFAULT_INTRO = `נא להשלים מתכלים לבית החולים ${HOSPITAL_PLACEHOLDER}:`
+
 export function shortageText(opts: {
   hospital: string
   countedOn: string
   agent: string
   rows: CountRow[]
+  /** fixed sentence from Settings; {בית חולים} is replaced with the hospital name */
+  intro?: string
 }): { subject: string; body: string } {
   const { missing, units } = summarize(opts.rows)
-  const lines: string[] = [
-    'שלום,',
-    '',
-    'רשימת חוסרים במתכלים MAKO',
-    `בית חולים: ${opts.hospital}`,
-    `תאריך ספירה: ${formatDate(opts.countedOn)}`,
-  ]
-  if (opts.agent) lines.push(`נספר ע״י: ${opts.agent}`)
-  lines.push('')
+  const intro = (opts.intro?.trim() || DEFAULT_INTRO).split(HOSPITAL_PLACEHOLDER).join(opts.hospital)
+  const lines: string[] = ['שלום,', '', intro, '']
   if (missing.length === 0) {
     lines.push('אין חוסרים — כל הפריטים במלאי המינימום או מעליו.')
   } else {
-    for (const g of groupByCategory(missing)) {
-      lines.push(g.category)
-      for (const r of g.rows)
-        lines.push(
-          `• ${r.item.catalog_number ? `${r.item.catalog_number} — ` : ''}${r.item.name} — חסר ${shortageOf(r)} (מינימום ${r.min}, בפועל ${r.qty})`,
-        )
-      lines.push('')
-    }
-    lines.push(`סה״כ ${missing.length} פריטים חסרים, ${units} יחידות.`)
+    // catalog number + quantity to complete only (no descriptions)
+    for (const r of missing)
+      lines.push(`${r.item.catalog_number || r.item.name} — להשלים ${shortageOf(r)}`)
+    lines.push('', `סה״כ ${missing.length} פריטים, ${units} יחידות.`)
   }
   return {
     subject: `חוסרים במתכלים MAKO – ${opts.hospital} – ${formatDate(opts.countedOn)}`,
@@ -77,6 +70,7 @@ export function buildMailto(
 }
 
 export const CONSUMABLES_EMAIL_KEY = 'consumables_email'
+export const CONSUMABLES_INTRO_KEY = 'consumables_email_intro'
 
 /** compose window of Outlook on the web (Microsoft 365) — works without any mail app installed */
 export function buildOutlookWebUrl(to: string, subject: string, body: string): string {
