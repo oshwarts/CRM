@@ -104,6 +104,15 @@ function nameFromMessage(msg: string): string {
   return ''
 }
 
+// "שם המטופל: ישראל ישראלי" / "מטופל: …" / "שם: …" written inside the document
+function nameFromLabel(text: string): string {
+  const m = text.match(/(?:שם\s+ה?מטופל(?:ת)?|מטופל(?:ת)?|שם\s+מלא|שם)\s*[:：]\s*([֐-׿'"׳\- ]{3,40})/)
+  if (!m) return ''
+  const name = m[1].trim()
+  const words = name.split(/\s+/)
+  return words.length >= 2 && words.length <= 4 && !NOT_A_NAME.test(name) ? name : ''
+}
+
 function nameFromFile(fileName: string): string {
   const base = fileName.replace(/\.[a-z0-9]+$/i, '')
   const part = base.split(',')[0].replace(/[\d]+/g, '').trim()
@@ -139,7 +148,7 @@ export function parseReferral(opts: {
   else notices.push('טלפון המטופל לא נמצא.')
 
   // ---- name
-  const nm = nameFromMessage(message)
+  const nm = nameFromMessage(message) || nameFromLabel(message + '\n' + fileText)
   const nf = nameFromFile(opts.fileName)
   out.patient_name = nm || nf
   if (!out.patient_name) notices.push('שם המטופל לא זוהה.')

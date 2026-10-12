@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { isImageFile, ocrImage } from './ocr'
 import { parseReferral } from './referralParse'
 import type { PatientScanRow } from './types'
 import type { ScanDraft } from '../components/ScanFormModal'
@@ -8,7 +9,7 @@ const MAX_FILE_BYTES = 3 * 1024 * 1024
 const ERRORS: Record<string, string> = {
   unauthorized: 'ההתחברות פגה',
   file_too_large: 'הקובץ גדול מדי (עד 3MB)',
-  unsupported_file: 'סוג קובץ לא נתמך (אפשר PDF, Word)',
+  unsupported_file: 'סוג קובץ לא נתמך (אפשר PDF, Word או תמונה)',
   unreadable_file: 'לא הצלחתי לקרוא את הקובץ',
 }
 
@@ -43,12 +44,14 @@ export async function analyzeReferral(opts: {
   doctors: { id: string; name: string; title: string }[]
   hospitals: { id: string; name: string }[]
   existing: PatientScanRow[]
+  onStatus?: (text: string) => void
 }): Promise<{ draft: Partial<ScanDraft>; notices: string[] }> {
   let fileText = ''
   let fileNote = ''
   if (opts.file) {
     try {
-      fileText = await readFileText(opts.file)
+      fileText = isImageFile(opts.file) ? await ocrImage(opts.file, opts.onStatus) : await readFileText(opts.file)
+      if (isImageFile(opts.file)) fileNote = 'הטקסט נקרא מתמונה — ייתכנו טעויות זיהוי, בדוק היטב את הפרטים (במיוחד ת"ז, טלפון ותאריכים).'
     } catch (e) {
       fileNote = `תוכן הקובץ לא נקרא (${e instanceof Error ? e.message : 'שגיאה'}) — חולצו רק פרטים מההודעה ומשם הקובץ.`
     }

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { FileUp, Sparkles } from 'lucide-react'
 import { useDoctors, useMakoHospitals, usePatientScans } from '../lib/api'
 import { analyzeReferral } from '../lib/referral'
+import { isImageFile } from '../lib/ocr'
 import type { ScanDraft } from './ScanFormModal'
 import { Modal } from './ui'
 
@@ -19,6 +20,7 @@ export function ReferralImportModal({
   const [text, setText] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
+  const [status, setStatus] = useState('')
   const [error, setError] = useState('')
 
   async function run() {
@@ -31,12 +33,14 @@ export function ReferralImportModal({
         doctors: doctors.data ?? [],
         hospitals: hospitals.data ?? [],
         existing: scans.data ?? [],
+        onStatus: setStatus,
       })
       onResult(draft, notices)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'הניתוח נכשל')
     } finally {
       setBusy(false)
+      setStatus('')
     }
   }
 
@@ -44,7 +48,7 @@ export function ReferralImportModal({
     <Modal open onClose={onClose} title="ייבוא הפנייה למטופל" size="lg">
       <div className="space-y-4">
         <p className="text-sm text-slate-500">
-          הדבק את ההודעה מהווטסאפ ו/או צרף את קובץ ההפנייה (PDF או Word). המערכת תקרא את הפרטים ותציג טופס
+          הדבק את ההודעה מהווטסאפ ו/או צרף את קובץ ההפנייה (PDF, Word או צילום תמונה). המערכת תקרא את הפרטים ותציג טופס
           ממולא לבדיקה — שום דבר לא נשמר עד שתאשר.
         </p>
 
@@ -63,7 +67,7 @@ export function ReferralImportModal({
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" className="btn-secondary" onClick={() => fileRef.current?.click()}>
               <FileUp size={16} />
-              {file ? 'החלף קובץ' : 'בחר קובץ (PDF / Word)'}
+              {file ? 'החלף קובץ' : 'בחר קובץ או תמונה'}
             </button>
             {file && (
               <span className="text-sm text-slate-600">
@@ -76,7 +80,7 @@ export function ReferralImportModal({
             <input
               ref={fileRef}
               type="file"
-              accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              accept=".pdf,.doc,.docx,image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
               className="hidden"
               onChange={(e) => {
                 setFile(e.target.files?.[0] ?? null)
@@ -88,9 +92,11 @@ export function ReferralImportModal({
 
         <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
           הקריאה נעשית בתוך המערכת, בלי שירות חיצוני ובלי עלות. הקובץ לא נשמר. הפרטים נאספים משם הקובץ,
-          מההודעה ומתוכן המסמך.
+          מההודעה ומתוכן המסמך. תמונות נקראות בטלפון עצמו (זיהוי טקסט) ולא נשלחות לשום מקום — עובד הכי טוב על
+          צילום ישר וחד של מסמך מודפס; כתב יד לא נקרא טוב.
         </p>
 
+        {busy && status && file && isImageFile(file) && <p className="text-sm text-slate-500">{status}</p>}
         {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
 
         <div className="flex justify-end gap-2 border-t border-slate-200 pt-4">

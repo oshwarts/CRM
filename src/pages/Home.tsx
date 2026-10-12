@@ -4,7 +4,9 @@ import {
   Building2,
   CalendarDays,
   Clock,
+  FileInput,
   Heart,
+  Plus,
   ScanLine,
   Stethoscope,
   Target,
@@ -20,6 +22,8 @@ import {
 import { useAuth } from '../context/AuthProvider'
 import { EmptyState, Spinner } from '../components/ui'
 import { MeetingFormModal } from '../components/MeetingFormModal'
+import { ReferralImportModal } from '../components/ReferralImportModal'
+import { ScanFormModal, type ScanDraft } from '../components/ScanFormModal'
 import {
   classNames,
   daysUntil,
@@ -61,6 +65,9 @@ export default function Home() {
   const [toAdd, setToAdd] = useState('')
   const [surgeryRange, setSurgeryRange] = useState(loadRange)
   const [scheduleFor, setScheduleFor] = useState<string | null>(null)
+  const [addScan, setAddScan] = useState(false)
+  const [importReferral, setImportReferral] = useState(false)
+  const [scanPrefill, setScanPrefill] = useState<{ draft: Partial<ScanDraft>; notices: string[] } | null>(null)
 
   function changeRange(next: { range: SurgeryRange; until: string }) {
     setSurgeryRange(next)
@@ -366,6 +373,20 @@ export default function Home() {
         <MeetingFormModal open onClose={() => setScheduleFor(null)} defaultDoctorId={scheduleFor} />
       )}
 
+      {addScan && <ScanFormModal onClose={() => setAddScan(false)} />}
+      {importReferral && (
+        <ReferralImportModal
+          onClose={() => setImportReferral(false)}
+          onResult={(draft, notices) => {
+            setImportReferral(false)
+            setScanPrefill({ draft, notices })
+          }}
+        />
+      )}
+      {scanPrefill && (
+        <ScanFormModal initial={scanPrefill.draft} notices={scanPrefill.notices} onClose={() => setScanPrefill(null)} />
+      )}
+
       {/* MAKO scans */}
       <section className="card p-5">
         <div className="mb-3 flex items-center justify-between">
@@ -376,6 +397,16 @@ export default function Home() {
           <Link to="/scans" className="text-sm font-medium text-brand-600 hover:underline">
             לכל הסריקות →
           </Link>
+        </div>
+        <div className="mb-3 flex flex-wrap gap-2">
+          <button className="btn-primary" onClick={() => setAddScan(true)}>
+            <Plus size={16} />
+            הוסף סריקה
+          </button>
+          <button className="btn-secondary" onClick={() => setImportReferral(true)}>
+            <FileInput size={16} />
+            ייבוא הפנייה
+          </button>
         </div>
         {scans.isLoading ? (
           <Spinner />
