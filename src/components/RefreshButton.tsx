@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useIsFetching, useQueryClient } from '@tanstack/react-query'
 import { RefreshCw } from 'lucide-react'
 import { classNames } from '../lib/utils'
+import { useOnline } from '../lib/offline'
 
 /** is a newer build of the app deployed? (compares the script hash in index.html with the running one) */
 async function newVersionAvailable(): Promise<boolean> {
@@ -20,11 +21,12 @@ async function newVersionAvailable(): Promise<boolean> {
 export function RefreshButton({ label = false }: { label?: boolean }) {
   const qc = useQueryClient()
   const fetching = useIsFetching()
+  const online = useOnline()
   const [busy, setBusy] = useState(false)
   const [doneAt, setDoneAt] = useState<Date | null>(null)
 
   async function refresh() {
-    if (busy) return
+    if (busy || !online) return
     setBusy(true)
     try {
       if (await newVersionAvailable()) {
@@ -46,7 +48,8 @@ export function RefreshButton({ label = false }: { label?: boolean }) {
       className={classNames('btn-ghost', label ? 'w-full justify-start' : '!px-2')}
       onClick={refresh}
       aria-label="רענון נתונים"
-      title={time ? `עודכן ב-${time}` : 'רענון נתונים'}
+      disabled={!online}
+      title={!online ? 'אין חיבור לרשת' : time ? `עודכן ב-${time}` : 'רענון נתונים'}
     >
       <RefreshCw size={label ? 16 : 20} className={spinning ? 'animate-spin' : ''} />
       {label && (

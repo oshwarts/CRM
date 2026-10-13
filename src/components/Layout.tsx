@@ -22,6 +22,7 @@ import {
 import { useAuth } from '../context/AuthProvider'
 import { ProfileModal } from './ProfileModal'
 import { RefreshButton } from './RefreshButton'
+import { OfflineBanner } from './OfflineBanner'
 import { classNames } from '../lib/utils'
 
 const NAV = [
@@ -44,7 +45,7 @@ const NAV = [
 // the five destinations reachable with one thumb tap on a phone
 const TABS = ['/', '/doctors', '/schedule', '/meetings', '/scans']
 
-const VERSION = 'v54 · AMI JR CRM'
+const VERSION = 'v55 · עבודה ללא רשת (קריאה)'
 
 export function Layout() {
   const { profile, signOut } = useAuth()
@@ -182,6 +183,7 @@ export function Layout() {
         ))}
       </nav>
 
+      <OfflineBanner />
       {showProfile && <ProfileModal onClose={() => setShowProfile(false)} />}
     </div>
   )
