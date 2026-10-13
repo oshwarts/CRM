@@ -35,19 +35,19 @@ const PLANE_HE: Record<string, string> = { Coronal: 'קורונלי', Transverse
 function PlaneGrid({ table, values, onChange }: { table: PlaneTable; values: Values; onChange: (v: Values) => void }) {
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200">
-      <div className="hidden grid-cols-[5rem_repeat(3,minmax(0,1fr))] bg-slate-50 text-center text-xs font-semibold text-slate-600 sm:grid">
-        <div className="p-2" />
+      <div className="hidden grid-cols-[repeat(3,minmax(0,1fr))_5rem] bg-slate-50 text-center text-xs font-semibold text-slate-600 sm:grid sm:[direction:ltr]">
         {table.planes.map((pl) => (
           <div key={pl} className="border-r border-slate-200 p-2">
             {pl} <span className="font-normal text-slate-400">· {PLANE_HE[pl]}</span>
           </div>
         ))}
+        <div className="p-2" />
       </div>
       {table.rows.map((row) => (
-        <div key={row.name} className="grid border-t border-slate-200 first:border-t-0 sm:grid-cols-[5rem_repeat(3,minmax(0,1fr))]">
-          <div className="bg-brand-50 p-2 text-center text-sm font-bold text-brand-700 sm:grid sm:place-items-center">{row.name}</div>
+        <div key={row.name} className="grid border-t border-slate-200 first:border-t-0 sm:grid-cols-[repeat(3,minmax(0,1fr))_5rem] sm:[direction:ltr]">
+          <div className="order-first bg-brand-50 p-2 text-center text-sm font-bold text-brand-700 sm:order-last sm:grid sm:place-items-center">{row.name}</div>
           {row.cells.map((cell, ci) => (
-            <div key={ci} className="space-y-2 border-slate-200 p-2 sm:border-r">
+            <div key={ci} dir="rtl" className="space-y-2 border-slate-200 p-2 sm:border-r">
               <p className="text-xs font-semibold text-slate-500 sm:hidden">
                 {table.planes[ci]} · {PLANE_HE[table.planes[ci]]}
               </p>
@@ -170,23 +170,22 @@ export function PreopPlanSummary({ schema, values }: { schema: PreopSchema; valu
               ))}
               {g.planeRows.length > 0 && (
                 <div className="overflow-x-auto pt-1">
-                  <table className="w-full min-w-[420px] border-collapse text-sm">
+                  <table dir="ltr" className="w-full min-w-[420px] border-collapse text-sm">
                     <thead>
                       <tr className="text-xs text-slate-400">
-                        <th className="p-1" />
                         {g.planes.map((pl) => (
                           <th key={pl} className="border-r border-slate-200 p-1 text-center font-semibold">
                             {pl}
                           </th>
                         ))}
+                        <th className="p-1" />
                       </tr>
                     </thead>
                     <tbody>
                       {g.planeRows.map((r) => (
                         <tr key={r.name} className="border-t border-slate-200 align-top">
-                          <td className="p-1.5 text-xs font-bold text-brand-600">{r.name}</td>
                           {r.cells.map((cell, ci) => (
-                            <td key={ci} className="border-r border-slate-200 p-1.5 text-slate-700">
+                            <td key={ci} dir="rtl" className="border-r border-slate-200 p-1.5 text-right text-slate-700">
                               {cell.map(({ fl, text }) => (
                                 <div key={fl.key}>
                                   <span className="text-xs text-slate-400">{fl.label}: </span>
@@ -195,6 +194,7 @@ export function PreopPlanSummary({ schema, values }: { schema: PreopSchema; valu
                               ))}
                             </td>
                           ))}
+                          <td className="p-1.5 text-center text-xs font-bold text-brand-600">{r.name}</td>
                         </tr>
                       ))}
                     </tbody>
