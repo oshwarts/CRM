@@ -32,8 +32,8 @@ export function ProjectTaskModal({
     notes: task?.notes ?? '',
     status: task?.status ?? 'todo',
     assignee_id: task?.assignee_id ?? project.owner_id,
-    external_owner: task?.external_owner ?? '',
-    contact_id: task?.contact_id ?? null,
+    external_owner: task?.external_owner ?? (areas.find((a) => a.id === (defaultAreaId ?? areas[0]?.id))?.contact_text ?? ''),
+    contact_id: task?.contact_id ?? areas.find((a) => a.id === (defaultAreaId ?? areas[0]?.id))?.contact_id ?? null,
     waiting_for: task?.waiting_for ?? '',
     due_date: task?.due_date ?? null,
     priority: task?.priority ?? 'normal',
@@ -66,7 +66,18 @@ export function ProjectTaskModal({
 
         <div className="grid gap-3 sm:grid-cols-3">
           <Field label="תחום">
-            <select className="input" value={d.area_id ?? ''} onChange={(e) => set({ area_id: e.target.value || null })}>
+            <select
+              className="input"
+              value={d.area_id ?? ''}
+              onChange={(e) => {
+                const area = areas.find((a) => a.id === e.target.value)
+                // a new task without a contact takes the contact of the area it is moved to
+                set({
+                  area_id: e.target.value || null,
+                  ...(!task && !d.contact_id && !d.external_owner && area ? { contact_id: area.contact_id, external_owner: area.contact_text } : {}),
+                })
+              }}
+            >
               <option value="">ללא תחום</option>
               {areas.map((a) => (
                 <option key={a.id} value={a.id}>

@@ -2,11 +2,12 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { AlertTriangle, ArrowRight, Building2, CalendarDays, Clock, Mail, Pencil, Phone, Plus, Trash2, User, Users } from 'lucide-react'
 import { useTasks } from '../lib/api'
-import { useDeleteArea, useDeleteProject, useProjects, useSaveArea, useSetTaskStatus } from '../lib/projectsApi'
+import { useDeleteArea, useDeleteProject, useProjects, useSaveArea, useSetAreaContact, useSetTaskStatus, useSetTasksContact } from '../lib/projectsApi'
 import { PROJECT_STATUS, STATUS_ORDER, TASK_STATUS, isOverdue, projectStats } from '../lib/projects'
 import { ProjectFormModal } from '../components/ProjectFormModal'
 import { ProjectTaskModal } from '../components/ProjectTaskModal'
 import { ProjectUpdates } from '../components/ProjectUpdates'
+import { ContactPickerModal } from '../components/ContactPickerModal'
 import { ConfirmButton, EmptyState, ErrorState, Spinner, Tab, TabList, TabPanel, Tabs } from '../components/ui'
 import type { ProjectWithRelations, TaskRow } from '../lib/types'
 import { classNames, daysUntil, formatDate } from '../lib/utils'
@@ -25,11 +26,12 @@ const dueText = (d: string | null) => {
 }
 
 /** a task line used in the area list, the board and the next-steps list */
-function TaskLine({ t, onOpen, showArea, onStatus }: { t: TaskRow; onOpen: () => void; showArea?: boolean; onStatus: (s: string) => void }) {
+function TaskLine({ t, onOpen, showArea, onStatus, selected, onSelect }: { t: TaskRow; onOpen: () => void; showArea?: boolean; onStatus: (s: string) => void; selected?: boolean; onSelect?: () => void }) {
   const st = TASK_STATUS[t.status] ?? TASK_STATUS.todo
   const owner = t.assignee?.full_name || t.external_owner
   return (
     <div className="flex flex-wrap items-start gap-2 py-2">
+      {onSelect && <input type="checkbox" className="mt-1 h-4 w-4 shrink-0" checked={!!selected} onChange={onSelect} aria-label="בחר משימה" />}
       <span className={classNames('mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full', st.dot)} />
       <button className="min-w-0 flex-1 text-right" onClick={onOpen}>
         <span dir="auto" className={classNames('block text-sm', t.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-800')}>
@@ -91,6 +93,11 @@ export default function ProjectView() {
   const saveArea = useSaveArea()
   const delArea = useDeleteArea()
   const del = useDeleteProject()
+  const setAreaContact = useSetAreaContact()
+  const setTasksContact = useSetTasksContact()
+  const [areaContactFor, setAreaContactFor] = useState<{ id: string; name: string; contactId: string | null; text: string } | null>(null)
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [bulkContact, setBulkContact] = useState(false)
   const [tab, setTab] = useState('summary')
   const [editing, setEditing] = useState(false)
   const [taskModal, setTaskModal] = useState<{ task?: TaskRow; areaId?: string | null } | null>(null)
@@ -245,7 +252,23 @@ export default function ProjectView() {
                         {s.done}/{s.total}
                       </span>
                     </h2>
-                    <div className="flex items-center gap-1">
+                    <div className="flex flex-wrap items-center gap-1">
+                      {a.id && (
+                        <button
+                          className="btn-ghost text-sky-700"
+                          onClick={() => {
+                            const ar = areas.find((x) => x.id === a.id)
+                            setAreaContactFor({ id: a.id as string, name: a.name, contactId: ar?.contact_id ?? null, text: ar?.contact_text ?? '' })
+                          }}
+                        >
+                          <Users size={15} />
+                          {(() => {
+                            const ar = areas.find((x) => x.id === a.id)
+                            const c = tasks.find((x) => x.contact_id && x.contact_id === ar?.contact_id)?.contact
+                            return c ? `מול: ${c.name}` : ar?.contact_text ? `מול: ${ar.contact_text}` : 'איש קשר לתחום'
+                          })()}
+                        </button>
+                      )}
                       <button className="btn-ghost text-brand-600" onClick={() => setTaskModal({ areaId: a.id })}>
                         <Plus size={15} /> משימה
                       </button>
@@ -273,7 +296,21 @@ export default function ProjectView() {
                   ) : (
                     <div className="divide-y divide-slate-100">
                       {list.map((t) => (
-                        <TaskLine key={t.id} t={t} onOpen={() => open(t)} onStatus={(s) => change(t, s)} />
+                        <TaskLine
+                          key={t.id}
+                          t={t}
+                          onOpen={() => open(t)}
+                          onStatus={(s) => change(t, s)}
+                          selected={picked.has(t.id)}
+                          onSelect={() =>
+                            setPicked((x) => {
+                              const n = new Set(x)
+                              if (n.has(t.id)) n.delete(t.id)
+                              else n.add(t.id)
+                              return n
+                            })
+                          }
+                        />
                       ))}
                     </div>
                   )}
@@ -334,6 +371,48 @@ export default function ProjectView() {
         </TabPanel>
       </Tabs>
 
+      {picked.size > 0 && tab === 'areas' && (
+        <div className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] z-40 mx-auto flex max-w-md items-center justify-between gap-2 rounded-xl bg-slate-800 px-3 py-2 text-sm text-white shadow-lg md:bottom-4">
+          <span>{picked.size} משימות נבחרו</span>
+          <span className="flex gap-2">
+            <button className="rounded-lg bg-white/15 px-3 py-1.5 hover:bg-white/25" onClick={() => setBulkContact(true)}>
+              קבע איש קשר
+            </button>
+            <button className="rounded-lg px-2 py-1.5 text-white/70 hover:text-white" onClick={() => setPicked(new Set())}>
+              נקה
+            </button>
+          </span>
+        </div>
+      )}
+      {bulkContact && (
+        <ContactPickerModal
+          title={`איש קשר ל-${picked.size} משימות`}
+          hospitalId={project.hospital_id}
+          confirmLabel="החל על המשימות שנבחרו"
+          onClose={() => setBulkContact(false)}
+          onConfirm={async (c) => {
+            await setTasksContact.mutateAsync({ ids: [...picked], contactId: c.contactId, text: c.text })
+            setPicked(new Set())
+          }}
+        />
+      )}
+      {areaContactFor && (
+        <ContactPickerModal
+          title={`איש קשר לתחום: ${areaContactFor.name}`}
+          hospitalId={project.hospital_id}
+          initial={{ contactId: areaContactFor.contactId, text: areaContactFor.text }}
+          hint="איש הקשר יוגדר לכל המשימות בתחום, וכברירת מחדל גם למשימות חדשות שיתווספו אליו."
+          confirmLabel="החל על התחום"
+          extra={({ overwrite, setOverwrite }) => (
+            <label className="flex items-center gap-2 text-sm text-slate-600">
+              <input type="checkbox" className="h-4 w-4" checked={overwrite} onChange={(e) => setOverwrite(e.target.checked)} />
+              להחליף גם במשימות שכבר יש להן איש קשר
+            </label>
+          )}
+          onClose={() => setAreaContactFor(null)}
+          onConfirm={(c, overwrite) => setAreaContact.mutateAsync({ areaId: areaContactFor.id, contactId: c.contactId, text: c.text, overwrite })}
+        />
+      )}
       {editing && <ProjectFormModal project={project} onClose={() => setEditing(false)} />}
       {taskModal && <ProjectTaskModal project={project} areas={areas} task={taskModal.task} defaultAreaId={taskModal.areaId} onClose={() => setTaskModal(null)} />}
     </div>

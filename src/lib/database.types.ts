@@ -787,6 +787,8 @@ export type Database = {
       }
       project_areas: {
         Row: {
+          contact_id: string | null
+          contact_text: string
           created_at: string
           id: string
           name: string
@@ -794,6 +796,8 @@ export type Database = {
           sort: number
         }
         Insert: {
+          contact_id?: string | null
+          contact_text?: string
           created_at?: string
           id?: string
           name: string
@@ -801,6 +805,8 @@ export type Database = {
           sort?: number
         }
         Update: {
+          contact_id?: string | null
+          contact_text?: string
           created_at?: string
           id?: string
           name?: string

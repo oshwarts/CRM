@@ -255,3 +255,30 @@ export async function openProjectFile(f: ProjectFile): Promise<string | null> {
   else window.location.href = data.signedUrl
   return null
 }
+
+/** puts one contact (or outside party) on the whole area: it becomes the area's default for new tasks, and is applied to its tasks */
+export function useSetAreaContact() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (a: { areaId: string; contactId: string | null; text: string; overwrite: boolean }) => {
+      unwrap(await supabase.from('project_areas').update({ contact_id: a.contactId, contact_text: a.text }).eq('id', a.areaId))
+      let q = supabase.from('meeting_tasks').update({ contact_id: a.contactId, external_owner: a.text }).eq('area_id', a.areaId)
+      // by default only tasks that have nobody yet
+      if (!a.overwrite) q = q.is('contact_id', null).eq('external_owner', '')
+      unwrap(await q)
+    },
+    onSuccess: () => invalidate(qc),
+  })
+}
+
+/** the same contact on several chosen tasks */
+export function useSetTasksContact() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (a: { ids: string[]; contactId: string | null; text: string }) => {
+      if (!a.ids.length) return
+      unwrap(await supabase.from('meeting_tasks').update({ contact_id: a.contactId, external_owner: a.text }).in('id', a.ids))
+    },
+    onSuccess: () => invalidate(qc),
+  })
+}
