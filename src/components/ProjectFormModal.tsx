@@ -4,9 +4,9 @@ import { useSaveProject, type ProjectInput } from '../lib/projectsApi'
 import { PROJECT_STATUS, PROJECT_TEMPLATES } from '../lib/projects'
 import { useAuth } from '../context/AuthProvider'
 import type { ProjectWithRelations } from '../lib/types'
-import { Field, Modal, MultiSelectChips } from './ui'
+import { Field, Modal } from './ui'
 
-/** create a project (blank or from a template) or edit its details and members */
+/** create a project (blank or from a template) or edit its details */
 export function ProjectFormModal({
   project,
   onClose,
@@ -31,9 +31,8 @@ export function ProjectFormModal({
           status: project.status,
           start_date: project.start_date,
           target_date: project.target_date,
-          memberIds: project.members.map((m) => m.user_id),
         }
-      : { name: '', description: '', hospital_id: null, owner_id: user?.id ?? null, status: 'active', start_date: null, target_date: null, memberIds: [], templateKey: PROJECT_TEMPLATES[0]?.key ?? '' },
+      : { name: '', description: '', hospital_id: null, owner_id: user?.id ?? null, status: 'active', start_date: null, target_date: null, templateKey: PROJECT_TEMPLATES[0]?.key ?? '' },
   )
   const [error, setError] = useState('')
   const set = (p: Partial<ProjectInput>) => setD((x) => ({ ...x, ...p }))
@@ -114,14 +113,9 @@ export function ProjectFormModal({
           </Field>
         )}
 
-        <Field label="צוות הפרויקט (רואים ועורכים את הפרויקט)">
-          <MultiSelectChips
-            options={(agents.data ?? []).filter((a) => a.id !== d.owner_id).map((a) => ({ id: a.id, label: a.full_name || a.email }))}
-            selected={d.memberIds}
-            onToggle={(id) => set({ memberIds: d.memberIds.includes(id) ? d.memberIds.filter((x) => x !== id) : [...d.memberIds, id] })}
-            labelOf={(o) => o.label}
-          />
-        </Field>
+        <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
+          הפרויקט גלוי רק למנהלים ולסוכן האחראי עליו.
+        </p>
 
         {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
         <div className="flex justify-end gap-2 border-t border-slate-200 pt-3">

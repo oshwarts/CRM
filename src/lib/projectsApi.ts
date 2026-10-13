@@ -10,7 +10,7 @@ function unwrap<T>(res: { data: unknown; error: unknown }): T {
 }
 
 const PROJECT_SELECT =
-  '*, hospital:hospitals(id, name), owner:profiles!projects_owner_id_fkey(id, full_name), areas:project_areas(*), members:project_members(user_id)'
+  '*, hospital:hospitals(id, name), owner:profiles!projects_owner_id_fkey(id, full_name), areas:project_areas(*)'
 
 /** every project the user can open (his own, the ones he is a member of; admins see all) */
 export function useProjects() {
@@ -32,7 +32,6 @@ export type ProjectInput = {
   status: string
   start_date: string | null
   target_date: string | null
-  memberIds: string[]
   /** only for a new project */
   templateKey?: string
 }
@@ -66,11 +65,6 @@ export function useSaveProject() {
           await supabase.from('projects').insert({ ...row, owner_id: p.owner_id ?? me, template_key: p.templateKey ?? '' }).select('id').single(),
         ).id
       }
-      // members: the owner always has access, the others are listed
-      unwrap(await supabase.from('project_members').delete().eq('project_id', id))
-      const members = [...new Set(p.memberIds)].filter(Boolean)
-      if (members.length) unwrap(await supabase.from('project_members').insert(members.map((user_id) => ({ project_id: id, user_id }))))
-
       const tpl = !p.id && p.templateKey ? PROJECT_TEMPLATES.find((t) => t.key === p.templateKey) : undefined
       if (tpl) {
         const areas = unwrap<{ id: string; name: string }[]>(

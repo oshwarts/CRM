@@ -42,8 +42,8 @@ export function ProjectTaskModal({
   const [error, setError] = useState('')
   const set = (p: Partial<ProjectTaskInput>) => setD((x) => ({ ...x, ...p }))
 
-  // people of the team (+ everyone for admins who see all agents anyway)
-  const team = (agents.data ?? []).filter((a) => a.id === project.owner_id || project.members.some((m) => m.user_id === a.id) || a.id === d.assignee_id)
+  // only the responsible agent and the managers can open the project, so only they can be given its tasks
+  const team = (agents.data ?? []).filter((a) => a.id === project.owner_id || a.role === 'admin' || a.id === d.assignee_id)
   const hospitalContacts = (contacts.data ?? []).filter((c) => !project.hospital_id || c.hospital_id === project.hospital_id)
 
   async function submit() {

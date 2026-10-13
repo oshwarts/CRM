@@ -24,12 +24,11 @@ export type ProjectWithRelations = Project & {
   hospital: Pick<Hospital, 'id' | 'name'> | null
   owner: Pick<Profile, 'id' | 'full_name'> | null
   areas: ProjectArea[]
-  members: { user_id: string }[]
 }
 export type TaskRow = MeetingTask & {
   project: { id: string; name: string } | null
   area: { id: string; name: string } | null
-  contact: { id: string; name: string; role: string } | null
+  contact: { id: string; name: string; role: string; phone: string; email: string } | null
   subtasks: TaskSubtask[]
   doctor: Pick<Doctor, 'id' | 'name' | 'title'> | null
   hospital: Pick<Hospital, 'id' | 'name'> | null

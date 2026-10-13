@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { AlertTriangle, ArrowRight, Building2, CalendarDays, Clock, Pencil, Plus, Trash2, User } from 'lucide-react'
+import { AlertTriangle, ArrowRight, Building2, CalendarDays, Clock, Mail, Pencil, Phone, Plus, Trash2, User, Users } from 'lucide-react'
 import { useTasks } from '../lib/api'
 import { useDeleteArea, useDeleteProject, useProjects, useSaveArea, useSetTaskStatus } from '../lib/projectsApi'
 import { PROJECT_STATUS, STATUS_ORDER, TASK_STATUS, isOverdue, projectStats } from '../lib/projects'
@@ -46,6 +46,17 @@ function TaskLine({ t, onOpen, showArea, onStatus }: { t: TaskRow; onOpen: () =>
           {t.due_date && (
             <span className={classNames('inline-flex items-center gap-1', isOverdue(t) && 'font-medium text-red-600')}>
               <CalendarDays size={11} /> {dueText(t.due_date)}
+            </span>
+          )}
+          {t.contact && (
+            <span className="inline-flex items-center gap-1 rounded bg-sky-50 px-1.5 py-0.5 text-sky-700">
+              <Users size={11} /> מול: {t.contact.name}
+              {t.contact.role ? ` · ${t.contact.role}` : ''}
+              {t.contact.phone && (
+                <a href={`tel:${t.contact.phone}`} dir="ltr" className="mr-1 underline" onClick={(e) => e.stopPropagation()}>
+                  {t.contact.phone}
+                </a>
+              )}
             </span>
           )}
           {t.waiting_for && t.status !== 'done' && (
@@ -186,6 +197,7 @@ export default function ProjectView() {
             </div>
 
             <div className="space-y-4">
+              <WorkingWith tasks={tasks} />
               <div className={classNames('card p-4', stats.blocked.length > 0 && 'border-red-200')}>
                 <h2 className="mb-2 flex items-center gap-2 font-semibold text-slate-800">
                   <AlertTriangle size={16} className={stats.blocked.length ? 'text-red-500' : 'text-slate-300'} />
@@ -323,6 +335,82 @@ export default function ProjectView() {
 
       {editing && <ProjectFormModal project={project} onClose={() => setEditing(false)} />}
       {taskModal && <ProjectTaskModal project={project} areas={areas} task={taskModal.task} defaultAreaId={taskModal.areaId} onClose={() => setTaskModal(null)} />}
+    </div>
+  )
+}
+
+/** the people outside the team the project depends on: hospital contacts and outside parties named on tasks */
+function WorkingWith({ tasks }: { tasks: TaskRow[] }) {
+  type Entry = { key: string; name: string; role: string; phone: string; email: string; open: TaskRow[]; done: number }
+  const map = new Map<string, Entry>()
+  for (const t of tasks) {
+    const key = t.contact ? `c:${t.contact.id}` : t.external_owner.trim() ? `x:${t.external_owner.trim()}` : ''
+    if (!key) continue
+    const e = map.get(key) ?? {
+      key,
+      name: t.contact?.name ?? t.external_owner.trim(),
+      role: t.contact?.role ?? '',
+      phone: t.contact?.phone ?? '',
+      email: t.contact?.email ?? '',
+      open: [],
+      done: 0,
+    }
+    if (t.status === 'done') e.done++
+    else e.open.push(t)
+    map.set(key, e)
+  }
+  const list = [...map.values()].sort((a, b) => b.open.length - a.open.length)
+  return (
+    <div className="card p-4">
+      <h2 className="mb-2 flex items-center gap-2 font-semibold text-slate-800">
+        <Users size={16} className="text-brand-500" />
+        מול מי עובדים
+      </h2>
+      {list.length === 0 ? (
+        <p className="text-sm text-slate-400">עדיין לא נבחרו אנשי קשר במשימות. בחר "איש קשר" בעריכת משימה כדי לראות כאן מי אחראי מצד בית החולים.</p>
+      ) : (
+        <ul className="divide-y divide-slate-100">
+          {list.map((e) => (
+            <li key={e.key} className="py-2 text-sm">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p dir="auto" className="font-medium text-slate-800">
+                    {e.name}
+                    {e.role && <span className="font-normal text-slate-500"> · {e.role}</span>}
+                  </p>
+                  <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs text-slate-400">
+                    {e.phone && (
+                      <a href={`tel:${e.phone}`} dir="ltr" className="inline-flex items-center gap-1 text-brand-600 hover:underline">
+                        <Phone size={12} /> {e.phone}
+                      </a>
+                    )}
+                    {e.email && (
+                      <a href={`mailto:${e.email}`} dir="ltr" className="inline-flex items-center gap-1 text-brand-600 hover:underline">
+                        <Mail size={12} /> {e.email}
+                      </a>
+                    )}
+                    {!e.phone && !e.email && e.key.startsWith('x:') && <span>גורם חיצוני (ללא איש קשר במערכת)</span>}
+                  </p>
+                </div>
+                <span className="shrink-0 text-xs text-slate-500">
+                  {e.open.length} פתוחות{e.done ? ` · ${e.done} הושלמו` : ''}
+                </span>
+              </div>
+              {e.open.length > 0 && (
+                <ul className="mt-1 space-y-0.5 pr-3 text-xs text-slate-500">
+                  {e.open.slice(0, 4).map((t) => (
+                    <li key={t.id} dir="auto" className="truncate">
+                      • {t.description}
+                      {t.status === 'blocked' && <span className="mr-1 text-red-500">(תקוע)</span>}
+                    </li>
+                  ))}
+                  {e.open.length > 4 && <li>ועוד {e.open.length - 4}…</li>}
+                </ul>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }

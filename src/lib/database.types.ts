@@ -785,21 +785,6 @@ export type Database = {
         }
         Relationships: []
       }
-      project_members: {
-        Row: {
-          project_id: string
-          user_id: string
-        }
-        Insert: {
-          project_id: string
-          user_id: string
-        }
-        Update: {
-          project_id?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       project_areas: {
         Row: {
           created_at: string
