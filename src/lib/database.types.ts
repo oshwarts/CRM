@@ -327,6 +327,7 @@ export type Database = {
           company_id: string | null
           created_at: string
           id: string
+          image_path: string
           name: string
         }
         Insert: {
@@ -334,6 +335,7 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           id?: string
+          image_path?: string
           name: string
         }
         Update: {
@@ -341,6 +343,7 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           id?: string
+          image_path?: string
           name?: string
         }
         Relationships: []
@@ -687,6 +690,39 @@ export type Database = {
         }
         Insert: never
         Update: never
+        Relationships: []
+      }
+      equipment_item_parts: {
+        Row: {
+          catalog_no: string
+          created_at: string
+          description: string
+          id: string
+          item_id: string
+          position: number | null
+          qty: number
+          sort: number
+        }
+        Insert: {
+          catalog_no?: string
+          created_at?: string
+          description?: string
+          id?: string
+          item_id: string
+          position?: number | null
+          qty?: number
+          sort?: number
+        }
+        Update: {
+          catalog_no?: string
+          created_at?: string
+          description?: string
+          id?: string
+          item_id?: string
+          position?: number | null
+          qty?: number
+          sort?: number
+        }
         Relationships: []
       }
       meetings: {

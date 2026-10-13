@@ -7,6 +7,8 @@ import {
   useUpsertDoctorEquipment,
 } from '../lib/api'
 import { ConfirmButton, EmptyState, Spinner } from './ui'
+import { EquipmentViewModal } from './EquipmentViewModal'
+import type { EquipmentItemWithCompany } from '../lib/types'
 import { Link } from 'react-router-dom'
 
 export function EquipmentPlanEditor({
@@ -20,6 +22,7 @@ export function EquipmentPlanEditor({
   const catalog = useEquipmentItems()
   const upsert = useUpsertDoctorEquipment(doctorId)
   const del = useDeleteDoctorEquipment(doctorId)
+  const [viewing, setViewing] = useState<EquipmentItemWithCompany | null>(null)
 
   const rowsByProcedure = useMemo(() => {
     const m = new Map<string, typeof equipment.data>()
@@ -74,8 +77,10 @@ export function EquipmentPlanEditor({
           }
           onUpdate={(r) => upsert.mutate(r)}
           onDelete={(id) => del.mutate(id)}
+          onView={(item) => setViewing(item)}
         />
       ))}
+      {viewing && <EquipmentViewModal item={viewing} onClose={() => setViewing(null)} />}
     </div>
   )
 }
@@ -91,6 +96,7 @@ function ProcedureEquipment({
   onAdd,
   onUpdate,
   onDelete,
+  onView,
 }: {
   procedure: { id: string; name: string }
   rows: Row[]
@@ -104,6 +110,7 @@ function ProcedureEquipment({
     scales_with_cases: boolean
   }) => void
   onDelete: (id: string) => void
+  onView: (item: EquipmentItemWithCompany) => void
 }) {
   const [toAdd, setToAdd] = useState('')
   const usedItemIds = rows.map((r) => r.item_id)
@@ -131,7 +138,16 @@ function ProcedureEquipment({
               {rows.map((r) => (
                 <tr key={r.id} className="border-t border-slate-100">
                   <td className="p-1.5 text-slate-700">
-                    {r.item?.name}
+                    {r.item ? (
+                      <button className="text-right font-medium hover:text-brand-600 hover:underline" onClick={() => onView(r.item as EquipmentItemWithCompany)}>
+                        {r.item.name}
+                        {(r.item.image_path || r.item.parts?.length > 0) && (
+                          <span className="mr-1.5 text-xs font-normal text-brand-500">
+                            {r.item.parts?.length > 0 ? `${r.item.parts.length} מק״טים` : 'תמונה'}
+                          </span>
+                        )}
+                      </button>
+                    ) : null}
                     {r.item?.company?.name && (
                       <span className="mr-1 text-xs text-slate-400">
                         {r.item.company.name}

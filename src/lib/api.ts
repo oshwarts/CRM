@@ -997,7 +997,7 @@ export function useEquipmentItems() {
       unwrap<EquipmentItemWithCompany[]>(
         await supabase
           .from('equipment_items')
-          .select('*, company:companies(id, name)')
+          .select('*, company:companies(id, name), parts:equipment_item_parts(*)')
           .order('name'),
       ),
   })
@@ -1049,7 +1049,7 @@ export function useDoctorEquipment(doctorId: string | undefined) {
         await supabase
           .from('doctor_procedure_equipment')
           .select(
-            '*, procedure:procedures(id, name), item:equipment_items(*, company:companies(id, name))',
+            '*, procedure:procedures(id, name), item:equipment_items(*, company:companies(id, name), parts:equipment_item_parts(*))',
           )
           .eq('doctor_id', doctorId!),
       ),
@@ -2338,5 +2338,96 @@ export function useUpdateMeeting(id: string) {
   return useMutation({
     mutationFn: async (d: MeetingFormData) => saveMeetingOffline('update', id, d),
     onSuccess: () => invalidateMeetings(qc),
+  })
+}
+
+/* ============================ Equipment trays: picture + parts inside ============================ */
+
+const EQUIP_PREFIX = 'equipment/'
+
+/** phone photos are large: shrink to a sensible size before uploading (keeps the picture readable) */
+export async function shrinkImage(file: File, maxSide = 1800): Promise<Blob> {
+  if (!file.type.startsWith('image/') || file.type === 'image/svg+xml') return file
+  const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' })
+  const scale = Math.min(1, maxSide / Math.max(bmp.width, bmp.height))
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.round(bmp.width * scale)
+  canvas.height = Math.round(bmp.height * scale)
+  canvas.getContext('2d')!.drawImage(bmp, 0, 0, canvas.width, canvas.height)
+  bmp.close()
+  return await new Promise<Blob>((resolve) => canvas.toBlob((b) => resolve(b ?? file), 'image/jpeg', 0.85))
+}
+
+async function uploadEquipmentImage(blob: Blob): Promise<string> {
+  const path = `${EQUIP_PREFIX}${crypto.randomUUID()}.jpg`
+  const up = await supabase.storage.from(INFO_BUCKET).upload(path, blob, { contentType: 'image/jpeg' })
+  if (up.error) throw up.error
+  return path
+}
+
+/** short-lived link to a tray picture (the bucket is private) */
+export function useEquipmentImageUrl(path: string | null | undefined) {
+  return useQuery({
+    queryKey: ['equipment-image', path],
+    enabled: !!path,
+    staleTime: 30 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase.storage.from(INFO_BUCKET).createSignedUrl(path!, 3600)
+      if (error) throw error
+      return data.signedUrl
+    },
+  })
+}
+
+export type EquipmentPartInput = { position: number | null; catalog_no: string; description: string; qty: number }
+export type EquipmentItemInput = {
+  id?: string
+  name: string
+  catalog_number: string
+  company_id: string | null
+  /** a new picture to upload (null = leave as is) */
+  image?: Blob | null
+  removeImage?: boolean
+  parts: EquipmentPartInput[]
+}
+
+export function useSaveEquipmentItem() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (e: EquipmentItemInput) => {
+      const existing = e.id
+        ? unwrap<{ image_path: string } | null>(await supabase.from('equipment_items').select('image_path').eq('id', e.id).maybeSingle())
+        : null
+      let image_path = existing?.image_path ?? ''
+      if (e.removeImage) image_path = ''
+      if (e.image) image_path = await uploadEquipmentImage(e.image)
+
+      const row = { name: e.name.trim(), catalog_number: e.catalog_number.trim(), company_id: e.company_id, image_path }
+      let id = e.id
+      if (id) unwrap(await supabase.from('equipment_items').update(row).eq('id', id))
+      else id = unwrap<{ id: string }>(await supabase.from('equipment_items').insert(row).select('id').single()).id
+
+      // the list of parts is replaced as a whole (order = sort)
+      unwrap(await supabase.from('equipment_item_parts').delete().eq('item_id', id))
+      const parts = e.parts.filter((p) => p.catalog_no.trim() || p.description.trim())
+      if (parts.length)
+        unwrap(
+          await supabase.from('equipment_item_parts').insert(
+            parts.map((p, i) => ({
+              item_id: id,
+              position: p.position,
+              catalog_no: p.catalog_no.trim(),
+              description: p.description.trim(),
+              qty: Math.max(1, p.qty || 1),
+              sort: i,
+            })),
+          ),
+        )
+      return id
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['equipment-items'] })
+      qc.invalidateQueries({ queryKey: ['doctor-equipment'] })
+    },
   })
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { BookUser, Pencil, Plus, Trash2 } from 'lucide-react'
+import { BookUser, FileUp, Image as ImageIcon, Pencil, Plus, Trash2 } from 'lucide-react'
 import { SmartContactImport } from '../components/SmartContactImport'
 import {
   useAgents,
@@ -23,7 +23,6 @@ import {
   useSetHospitalRoboticSystems,
   useUpsertCompany,
   useUpsertContact,
-  useUpsertEquipmentItem,
   useUpsertHospital,
   useUpsertOrganization,
   useUpsertProcedure,
@@ -53,6 +52,7 @@ import {
   PROCEDURE_CATEGORY_LABELS,
   SCAN_PROCEDURE_LABELS,
   SECTOR_LABELS,
+  type EquipmentItemWithCompany,
   type HospitalListItem,
 } from '../lib/types'
 
@@ -60,6 +60,9 @@ import { ImportContactButton } from '../components/ImportContactButton'
 import { ConsumablesSettings } from '../components/ConsumablesSettings'
 import { CourseTemplatesSettings } from '../components/CourseTemplatesSettings'
 import { InfoCategoriesSettings } from '../components/InfoCategoriesSettings'
+import { EquipmentItemModal } from '../components/EquipmentItemModal'
+import { EquipmentViewModal } from '../components/EquipmentViewModal'
+import { EquipmentPdfImport } from '../components/EquipmentPdfImport'
 
 export default function Settings() {
   const [tab, setTab] = useState('lists')
@@ -370,84 +373,68 @@ function ImplantOptionsSettings() {
 
 function EquipmentSettings() {
   const items = useEquipmentItems()
-  const companies = useCompanies()
-  const upsert = useUpsertEquipmentItem()
   const del = useDeleteEquipmentItem()
-  const [form, setForm] = useState({ name: '', catalog_number: '', company_id: '' })
-
-  function submit() {
-    if (!form.name.trim()) return
-    upsert.mutate({
-      name: form.name.trim(),
-      catalog_number: form.catalog_number.trim(),
-      company_id: form.company_id || null,
-    })
-    setForm({ name: '', catalog_number: '', company_id: '' })
-  }
+  const [editing, setEditing] = useState<EquipmentItemWithCompany | 'new' | null>(null)
+  const [viewing, setViewing] = useState<EquipmentItemWithCompany | null>(null)
+  const [importing, setImporting] = useState(false)
 
   return (
     <div className="card p-5">
-      <div className="mb-4 grid gap-2 sm:grid-cols-[1.5fr_1fr_1fr_auto]">
-        <input
-          className="input"
-          placeholder="שם הפריט"
-          value={form.name}
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
-        />
-        <input
-          className="input text-right"
-          dir="ltr"
-          placeholder="מק״ט"
-          value={form.catalog_number}
-          onChange={(e) => setForm({ ...form, catalog_number: e.target.value })}
-        />
-        <select
-          className="input"
-          value={form.company_id}
-          onChange={(e) => setForm({ ...form, company_id: e.target.value })}
-        >
-          <option value="">חברה…</option>
-          {(companies.data ?? []).map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-        <button className="btn-primary" disabled={!form.name.trim()} onClick={submit}>
-          <Plus size={16} />
-          הוסף
-        </button>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-slate-500">
+          ציוד לניתוח — בדרך כלל מגשי מכשירים. לכל פריט אפשר להוסיף תמונה ורשימת מק״טים, ולצפות בהם בלחיצה.
+        </p>
+        <div className="flex gap-2">
+          <button className="btn-secondary" onClick={() => setImporting(true)}>
+            <FileUp size={16} />
+            ייבוא מ-PDF
+          </button>
+          <button className="btn-primary" onClick={() => setEditing('new')}>
+            <Plus size={16} />
+            ציוד חדש
+          </button>
+        </div>
       </div>
       {items.isLoading ? (
         <Spinner />
       ) : (
         <ul className="divide-y divide-slate-100">
           {(items.data ?? []).map((it) => (
-            <li
-              key={it.id}
-              className="flex items-center justify-between gap-2 py-2 text-sm"
-            >
-              <span className="text-slate-700">
-                {it.name}
+            <li key={it.id} className="flex items-center justify-between gap-2 py-2 text-sm">
+              <button className="min-w-0 flex-1 text-right" onClick={() => setViewing(it)}>
+                <span className="font-medium text-slate-800 hover:underline" dir="auto">
+                  {it.name}
+                </span>
                 <span className="mr-2 text-xs text-slate-400" dir="ltr">
                   {[it.catalog_number, it.company?.name].filter(Boolean).join(' · ')}
                 </span>
-              </span>
-              <ConfirmButton
-                className="btn-ghost !px-2 text-red-500"
-                onConfirm={() => del.mutate(it.id)}
-              >
+                <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
+                  {it.image_path && (
+                    <span className="inline-flex items-center gap-0.5">
+                      <ImageIcon size={12} /> תמונה
+                    </span>
+                  )}
+                  {it.parts.length > 0 && <span>{it.parts.length} מק״טים</span>}
+                </span>
+              </button>
+              <button className="btn-ghost !px-2" onClick={() => setEditing(it)} aria-label="עריכה">
+                <Pencil size={15} />
+              </button>
+              <ConfirmButton className="btn-ghost !px-2 text-red-500" onConfirm={() => del.mutate(it.id)}>
                 <Trash2 size={15} />
               </ConfirmButton>
             </li>
           ))}
           {(items.data ?? []).length === 0 && (
             <li className="py-4 text-center text-sm text-slate-400">
-              הקטלוג ריק. הוסף פריטים כדי לשייך אותם להליכים בכרטיסי הרופאים.
+              הקטלוג ריק. הוסף ציוד, או ייבא מגשים מקובץ PDF.
             </li>
           )}
         </ul>
       )}
+      {editing && <EquipmentItemModal item={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
+      {viewing && <EquipmentViewModal item={viewing} onClose={() => setViewing(null)} />}
+      {importing && <EquipmentPdfImport onClose={() => setImporting(false)} />}
     </div>
   )
 }

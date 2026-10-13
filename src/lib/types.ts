@@ -95,8 +95,10 @@ export const IMPLANT_FIELDS: Record<
 }
 export type EquipmentItem = Tables<'equipment_items'>
 
+export type EquipmentItemPart = Tables<'equipment_item_parts'>
 export type EquipmentItemWithCompany = EquipmentItem & {
   company: Pick<Company, 'id' | 'name'> | null
+  parts: EquipmentItemPart[]
 }
 
 export type DoctorProcedureEquipmentRow = Tables<'doctor_procedure_equipment'> & {
