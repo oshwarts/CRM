@@ -1,0 +1,374 @@
+import { useMemo, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { AlertTriangle, ArrowRight, Building2, CalendarDays, Clock, Pencil, Plus, Trash2, User } from 'lucide-react'
+import { useTasks } from '../lib/api'
+import { useDeleteArea, useDeleteProject, useProjects, useSaveArea, useSetTaskStatus } from '../lib/projectsApi'
+import { PROJECT_STATUS, STATUS_ORDER, TASK_STATUS, isOverdue, projectStats } from '../lib/projects'
+import { ProjectFormModal } from '../components/ProjectFormModal'
+import { ProjectTaskModal } from '../components/ProjectTaskModal'
+import { ProjectUpdates } from '../components/ProjectUpdates'
+import { ConfirmButton, EmptyState, ErrorState, Spinner, Tab, TabList, TabPanel, Tabs } from '../components/ui'
+import type { ProjectWithRelations, TaskRow } from '../lib/types'
+import { classNames, daysUntil, formatDate } from '../lib/utils'
+
+function Bar({ percent }: { percent: number }) {
+  return (
+    <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
+      <div className="h-full bg-emerald-500 transition-all" style={{ width: `${percent}%` }} />
+    </div>
+  )
+}
+
+const dueText = (d: string | null) => {
+  const n = daysUntil(d)
+  return n === null ? '' : n === 0 ? 'היום' : n === 1 ? 'מחר' : n === -1 ? 'אתמול' : formatDate(d)
+}
+
+/** a task line used in the area list, the board and the next-steps list */
+function TaskLine({ t, onOpen, showArea, onStatus }: { t: TaskRow; onOpen: () => void; showArea?: boolean; onStatus: (s: string) => void }) {
+  const st = TASK_STATUS[t.status] ?? TASK_STATUS.todo
+  const owner = t.assignee?.full_name || t.external_owner
+  return (
+    <div className="flex flex-wrap items-start gap-2 py-2">
+      <span className={classNames('mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full', st.dot)} />
+      <button className="min-w-0 flex-1 text-right" onClick={onOpen}>
+        <span dir="auto" className={classNames('block text-sm', t.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-800')}>
+          {t.description}
+        </span>
+        <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-400">
+          {showArea && t.area && <span>{t.area.name}</span>}
+          {owner && (
+            <span className="inline-flex items-center gap-1">
+              <User size={11} /> {owner}
+              {t.assignee && t.external_owner ? ` · ${t.external_owner}` : ''}
+            </span>
+          )}
+          {t.due_date && (
+            <span className={classNames('inline-flex items-center gap-1', isOverdue(t) && 'font-medium text-red-600')}>
+              <CalendarDays size={11} /> {dueText(t.due_date)}
+            </span>
+          )}
+          {t.waiting_for && t.status !== 'done' && (
+            <span className="inline-flex items-center gap-1 text-amber-600">
+              <Clock size={11} /> ממתין ל: {t.waiting_for}
+            </span>
+          )}
+        </span>
+      </button>
+      <select
+        className={classNames('rounded-lg border px-2 py-1 text-xs', st.chip)}
+        value={t.status}
+        onChange={(e) => onStatus(e.target.value)}
+        aria-label="סטטוס"
+      >
+        {STATUS_ORDER.map((s) => (
+          <option key={s} value={s}>
+            {TASK_STATUS[s].label}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
+}
+
+export default function ProjectView() {
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const projects = useProjects()
+  const allTasks = useTasks()
+  const setStatus = useSetTaskStatus()
+  const saveArea = useSaveArea()
+  const delArea = useDeleteArea()
+  const del = useDeleteProject()
+  const [tab, setTab] = useState('summary')
+  const [editing, setEditing] = useState(false)
+  const [taskModal, setTaskModal] = useState<{ task?: TaskRow; areaId?: string | null } | null>(null)
+  const [newArea, setNewArea] = useState('')
+
+  const project = (projects.data ?? []).find((p) => p.id === id) as ProjectWithRelations | undefined
+  const tasks = useMemo(() => (allTasks.data ?? []).filter((t) => t.project_id === id), [allTasks.data, id])
+  const stats = useMemo(() => projectStats(tasks), [tasks])
+
+  if (projects.isLoading || allTasks.isLoading) return <Spinner />
+  if (projects.error) return <ErrorState error={projects.error} />
+  if (!project) return <EmptyState title="הפרויקט לא נמצא" hint="ייתכן שאין לך גישה אליו או שנמחק" />
+
+  const areas = project.areas
+  const byArea = (areaId: string | null) => tasks.filter((t) => (t.area_id ?? null) === areaId)
+  const noArea = byArea(null)
+  const open = (t: TaskRow) => setTaskModal({ task: t })
+  const change = (t: TaskRow, status: string) => setStatus.mutate({ id: t.id, status })
+  const taskNames = new Map(tasks.map((t) => [t.id, t.description]))
+  const lateProject = project.target_date && project.status !== 'done' && (daysUntil(project.target_date) ?? 0) < 0
+
+  return (
+    <div className="space-y-4">
+      <Link to="/projects" className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700">
+        <ArrowRight size={15} />
+        כל הפרויקטים
+      </Link>
+
+      <div className="card p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 dir="auto" className="text-xl font-bold text-slate-800">
+              {project.name}
+            </h1>
+            <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500">
+              {project.hospital && (
+                <span className="inline-flex items-center gap-1">
+                  <Building2 size={14} /> {project.hospital.name}
+                </span>
+              )}
+              {project.owner && <span>אחראי: {project.owner.full_name}</span>}
+              {project.start_date && <span>התחלה {formatDate(project.start_date)}</span>}
+              {project.target_date && <span className={classNames(lateProject && 'font-medium text-red-600')}>יעד {formatDate(project.target_date)}{lateProject ? ' (עבר)' : ''}</span>}
+              <span className="chip border-slate-200 bg-slate-50 !px-2 !py-0 text-xs">{PROJECT_STATUS[project.status]}</span>
+            </p>
+            {project.description && (
+              <p dir="auto" className="mt-2 whitespace-pre-wrap text-sm text-slate-600">
+                {project.description}
+              </p>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <button className="btn-secondary" onClick={() => setEditing(true)}>
+              <Pencil size={15} />
+              עריכה
+            </button>
+            <ConfirmButton
+              className="btn-ghost text-red-500"
+              message="למחוק את הפרויקט עם כל התחומים, המשימות והעדכונים שלו? הפעולה אינה הפיכה."
+              onConfirm={() => del.mutate(project.id, { onSuccess: () => navigate('/projects') })}
+            >
+              <Trash2 size={16} />
+            </ConfirmButton>
+          </div>
+        </div>
+        <div className="mt-3 flex items-center gap-3">
+          <Bar percent={stats.percent} />
+          <span className="shrink-0 text-sm font-medium text-slate-600">
+            {stats.done}/{stats.total} · {stats.percent}%
+          </span>
+        </div>
+      </div>
+
+      <Tabs value={tab} onChange={setTab}>
+        <TabList>
+          <Tab id="summary">סיכום</Tab>
+          <Tab id="areas">תחומים ומשימות</Tab>
+          <Tab id="board">לוח</Tab>
+          <Tab id="timeline">ציר זמן</Tab>
+          <Tab id="updates">יומן עדכונים</Tab>
+        </TabList>
+
+        {/* ---- summary: progress per area, what is stuck, next steps ---- */}
+        <TabPanel id="summary">
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="card space-y-3 p-4">
+              <h2 className="font-semibold text-slate-800">התקדמות לפי תחום</h2>
+              {areas.length === 0 && noArea.length === 0 && <p className="text-sm text-slate-400">אין עדיין תחומים — הוסף בלשונית "תחומים ומשימות".</p>}
+              {areas.map((a) => {
+                const s = projectStats(byArea(a.id))
+                return (
+                  <div key={a.id}>
+                    <div className="mb-1 flex items-center justify-between text-sm">
+                      <span className="font-medium text-slate-700">{a.name}</span>
+                      <span className="flex items-center gap-2 text-xs text-slate-500">
+                        {s.blocked.length > 0 && <span className="text-red-600">{s.blocked.length} תקועות</span>}
+                        {s.done}/{s.total}
+                      </span>
+                    </div>
+                    <Bar percent={s.percent} />
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="space-y-4">
+              <div className={classNames('card p-4', stats.blocked.length > 0 && 'border-red-200')}>
+                <h2 className="mb-2 flex items-center gap-2 font-semibold text-slate-800">
+                  <AlertTriangle size={16} className={stats.blocked.length ? 'text-red-500' : 'text-slate-300'} />
+                  מה תקוע ({stats.blocked.length})
+                </h2>
+                {stats.blocked.length === 0 ? (
+                  <p className="text-sm text-slate-400">אין משימות תקועות.</p>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {stats.blocked.map((t) => (
+                      <TaskLine key={t.id} t={t} showArea onOpen={() => open(t)} onStatus={(s) => change(t, s)} />
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="card p-4">
+                <h2 className="mb-2 font-semibold text-slate-800">הצעדים הבאים</h2>
+                {stats.next.length === 0 ? (
+                  <p className="text-sm text-slate-400">{stats.total ? 'כל המשימות הושלמו או תקועות.' : 'אין משימות.'}</p>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {stats.next.map((t) => (
+                      <TaskLine key={t.id} t={t} showArea onOpen={() => open(t)} onStatus={(s) => change(t, s)} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </TabPanel>
+
+        {/* ---- areas: the tasks of each area ---- */}
+        <TabPanel id="areas">
+          <div className="space-y-4">
+            {[...areas.map((a) => ({ id: a.id as string | null, name: a.name })), ...(noArea.length ? [{ id: null, name: 'ללא תחום' }] : [])].map((a) => {
+              const list = byArea(a.id)
+              const s = projectStats(list)
+              return (
+                <section key={a.id ?? 'none'} className="card p-4">
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <h2 className="flex items-baseline gap-2 font-semibold text-slate-800">
+                      {a.name}
+                      <span className="text-xs font-normal text-slate-400">
+                        {s.done}/{s.total}
+                      </span>
+                    </h2>
+                    <div className="flex items-center gap-1">
+                      <button className="btn-ghost text-brand-600" onClick={() => setTaskModal({ areaId: a.id })}>
+                        <Plus size={15} /> משימה
+                      </button>
+                      {a.id && (
+                        <>
+                          <button
+                            className="btn-ghost !px-2"
+                            aria-label="שנה שם"
+                            onClick={() => {
+                              const name = window.prompt('שם התחום', a.name)
+                              if (name?.trim()) saveArea.mutate({ id: a.id as string, project_id: project.id, name })
+                            }}
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <ConfirmButton className="btn-ghost !px-2 text-slate-300 hover:text-red-500" message="למחוק את התחום? המשימות שלו יישארו בלי תחום." onConfirm={() => delArea.mutate(a.id as string)}>
+                            <Trash2 size={14} />
+                          </ConfirmButton>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  {list.length === 0 ? (
+                    <p className="text-sm text-slate-400">אין משימות בתחום.</p>
+                  ) : (
+                    <div className="divide-y divide-slate-100">
+                      {list.map((t) => (
+                        <TaskLine key={t.id} t={t} onOpen={() => open(t)} onStatus={(s) => change(t, s)} />
+                      ))}
+                    </div>
+                  )}
+                </section>
+              )
+            })}
+            <form
+              className="card flex gap-2 p-3"
+              onSubmit={(e) => {
+                e.preventDefault()
+                if (!newArea.trim()) return
+                saveArea.mutate({ project_id: project.id, name: newArea, sort: areas.length }, { onSuccess: () => setNewArea('') })
+              }}
+            >
+              <input className="input" dir="auto" placeholder="תחום חדש (למשל: מימון, הדרכה…)" value={newArea} onChange={(e) => setNewArea(e.target.value)} />
+              <button className="btn-secondary shrink-0" disabled={!newArea.trim()}>
+                <Plus size={16} /> הוסף תחום
+              </button>
+            </form>
+          </div>
+        </TabPanel>
+
+        {/* ---- board: four columns by status ---- */}
+        <TabPanel id="board">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {STATUS_ORDER.map((s) => {
+              const col = tasks.filter((t) => t.status === s)
+              return (
+                <div key={s} className="rounded-xl bg-slate-100/70 p-2">
+                  <p className="mb-2 flex items-center justify-between px-1 text-sm font-semibold text-slate-700">
+                    <span className="flex items-center gap-1.5">
+                      <span className={classNames('h-2.5 w-2.5 rounded-full', TASK_STATUS[s].dot)} />
+                      {TASK_STATUS[s].label}
+                    </span>
+                    <span className="text-xs font-normal text-slate-400">{col.length}</span>
+                  </p>
+                  <div className="space-y-2">
+                    {col.map((t) => (
+                      <div key={t.id} className="card p-2">
+                        <TaskLine t={t} showArea onOpen={() => open(t)} onStatus={(x) => change(t, x)} />
+                      </div>
+                    ))}
+                    {col.length === 0 && <p className="px-1 py-3 text-center text-xs text-slate-400">ריק</p>}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </TabPanel>
+
+        {/* ---- timeline: by due date ---- */}
+        <TabPanel id="timeline">
+          <Timeline tasks={tasks} project={project} onOpen={open} onStatus={change} />
+        </TabPanel>
+
+        <TabPanel id="updates">
+          <ProjectUpdates projectId={project.id} taskNames={taskNames} />
+        </TabPanel>
+      </Tabs>
+
+      {editing && <ProjectFormModal project={project} onClose={() => setEditing(false)} />}
+      {taskModal && <ProjectTaskModal project={project} areas={areas} task={taskModal.task} defaultAreaId={taskModal.areaId} onClose={() => setTaskModal(null)} />}
+    </div>
+  )
+}
+
+function Timeline({ tasks, project, onOpen, onStatus }: { tasks: TaskRow[]; project: ProjectWithRelations; onOpen: (t: TaskRow) => void; onStatus: (t: TaskRow, s: string) => void }) {
+  const dated = tasks.filter((t) => t.due_date).sort((a, b) => (a.due_date as string).localeCompare(b.due_date as string))
+  const undated = tasks.filter((t) => !t.due_date && t.status !== 'done')
+  const months = new Map<string, TaskRow[]>()
+  for (const t of dated) {
+    const k = (t.due_date as string).slice(0, 7)
+    months.set(k, [...(months.get(k) ?? []), t])
+  }
+  const monthName = (k: string) => new Intl.DateTimeFormat('he-IL', { month: 'long', year: 'numeric' }).format(new Date(`${k}-01T00:00:00`))
+
+  if (dated.length === 0 && undated.length === 0) return <EmptyState title="אין משימות עם תאריך יעד" hint="הוסף תאריכי יעד למשימות כדי לראות אותן על ציר הזמן" />
+
+  return (
+    <div className="space-y-4">
+      {project.target_date && (
+        <p className="rounded-lg bg-brand-50 px-3 py-2 text-sm text-brand-700">יעד הפרויקט: {formatDate(project.target_date)}</p>
+      )}
+      {[...months.entries()].map(([k, list]) => (
+        <section key={k}>
+          <h3 className="mb-1 text-sm font-semibold text-slate-500">{monthName(k)}</h3>
+          <div className="card divide-y divide-slate-100 border-r-4 border-r-brand-300 px-3">
+            {list.map((t) => (
+              <div key={t.id} className="flex items-start gap-3">
+                <span className={classNames('w-14 shrink-0 pt-2.5 text-xs', isOverdue(t) ? 'font-semibold text-red-600' : 'text-slate-400')}>{dueText(t.due_date)}</span>
+                <div className="min-w-0 flex-1">
+                  <TaskLine t={t} showArea onOpen={() => onOpen(t)} onStatus={(s) => onStatus(t, s)} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
+      {undated.length > 0 && (
+        <section>
+          <h3 className="mb-1 text-sm font-semibold text-slate-500">ללא תאריך יעד ({undated.length})</h3>
+          <div className="card divide-y divide-slate-100 px-3">
+            {undated.map((t) => (
+              <TaskLine key={t.id} t={t} showArea onOpen={() => onOpen(t)} onStatus={(s) => onStatus(t, s)} />
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  )
+}

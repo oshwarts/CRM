@@ -179,6 +179,14 @@ export default function Tasks() {
                   <Building2 size={12} /> {t.hospital.name}
                 </span>
               )}
+              {t.project && (
+                <Link to={`/projects/${t.project.id}`} className="chip border-violet-200 bg-violet-50 !px-2 !py-0 text-violet-700 hover:underline">
+                  פרויקט: {t.project.name}
+                  {t.area ? ` · ${t.area.name}` : ''}
+                </Link>
+              )}
+              {t.status === 'blocked' && !t.is_done && <span className="chip border-red-200 bg-red-50 !px-2 !py-0 text-red-600">תקוע</span>}
+              {t.waiting_for && !t.is_done && <span className="chip border-amber-200 bg-amber-50 !px-2 !py-0 text-amber-700">ממתין ל: {t.waiting_for}</span>}
               {t.meeting && (
                 <Link to={`/meetings/${t.meeting.id}`} className="chip border-slate-200 bg-slate-50 !px-2 !py-0 text-slate-600 hover:underline">
                   פגישה: {t.meeting.subject}

@@ -14,6 +14,7 @@ import {
   Settings,
   Stethoscope,
   Target,
+  FolderKanban,
   ListChecks,
   Swords,
   Users as UsersIcon,
@@ -30,6 +31,7 @@ const NAV = [
   { to: '/', label: 'דף הבית', short: 'בית', icon: Home, end: true },
   { to: '/doctors', label: 'רופאים', short: 'רופאים', icon: Stethoscope, end: false },
   { to: '/tasks', label: 'משימות', short: 'משימות', icon: ListChecks, end: false },
+  { to: '/projects', label: 'פרויקטים', short: 'פרויקטים', icon: FolderKanban, end: false },
   { to: '/schedule', label: 'לוז שבועי', short: 'לוז', icon: CalendarRange, end: false },
   { to: '/meetings', label: 'פגישות', short: 'פגישות', icon: CalendarDays, end: false },
   { to: '/map', label: 'בתי חולים', short: 'בתי חולים', icon: MapIcon, end: false },
@@ -46,7 +48,7 @@ const NAV = [
 // the five destinations reachable with one thumb tap on a phone
 const TABS = ['/', '/doctors', '/schedule', '/meetings', '/scans']
 
-const VERSION = 'v59 · ציוד: תמונה ומק״טים'
+const VERSION = 'v60 · פרויקטים'
 
 export function Layout() {
   const { profile, signOut } = useAuth()

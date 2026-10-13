@@ -563,6 +563,12 @@ export type Database = {
           is_done: boolean
           meeting_id: string | null
           notes: string
+          project_id: string | null
+          area_id: string | null
+          status: string
+          waiting_for: string
+          external_owner: string
+          contact_id: string | null
           priority: string
           recurrence: string
           updated_at: string
@@ -580,6 +586,12 @@ export type Database = {
           is_done?: boolean
           meeting_id?: string | null
           notes?: string
+          project_id?: string | null
+          area_id?: string | null
+          status?: string
+          waiting_for?: string
+          external_owner?: string
+          contact_id?: string | null
           priority?: string
           recurrence?: string
           updated_at?: string
@@ -597,6 +609,12 @@ export type Database = {
           is_done?: boolean
           meeting_id?: string | null
           notes?: string
+          project_id?: string | null
+          area_id?: string | null
+          status?: string
+          waiting_for?: string
+          external_owner?: string
+          contact_id?: string | null
           priority?: string
           recurrence?: string
           updated_at?: string
@@ -722,6 +740,156 @@ export type Database = {
           position?: number | null
           qty?: number
           sort?: number
+        }
+        Relationships: []
+      }
+      projects: {
+        Row: {
+          created_at: string
+          description: string
+          hospital_id: string | null
+          id: string
+          name: string
+          owner_id: string | null
+          start_date: string | null
+          status: string
+          target_date: string | null
+          template_key: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          hospital_id?: string | null
+          id?: string
+          name: string
+          owner_id?: string | null
+          start_date?: string | null
+          status?: string
+          target_date?: string | null
+          template_key?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          hospital_id?: string | null
+          id?: string
+          name?: string
+          owner_id?: string | null
+          start_date?: string | null
+          status?: string
+          target_date?: string | null
+          template_key?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      project_members: {
+        Row: {
+          project_id: string
+          user_id: string
+        }
+        Insert: {
+          project_id: string
+          user_id: string
+        }
+        Update: {
+          project_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      project_areas: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          project_id: string
+          sort: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          project_id: string
+          sort?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          project_id?: string
+          sort?: number
+        }
+        Relationships: []
+      }
+      project_updates: {
+        Row: {
+          author_id: string | null
+          author_name: string
+          body: string
+          created_at: string
+          id: string
+          project_id: string
+          task_id: string | null
+        }
+        Insert: {
+          author_id?: string | null
+          author_name?: string
+          body?: string
+          created_at?: string
+          id?: string
+          project_id: string
+          task_id?: string | null
+        }
+        Update: {
+          author_id?: string | null
+          author_name?: string
+          body?: string
+          created_at?: string
+          id?: string
+          project_id?: string
+          task_id?: string | null
+        }
+        Relationships: []
+      }
+      project_files: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_size: number
+          id: string
+          mime: string
+          project_id: string
+          storage_path: string
+          task_id: string | null
+          update_id: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          file_name?: string
+          file_size?: number
+          id?: string
+          mime?: string
+          project_id: string
+          storage_path: string
+          task_id?: string | null
+          update_id?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_size?: number
+          id?: string
+          mime?: string
+          project_id?: string
+          storage_path?: string
+          task_id?: string | null
+          update_id?: string | null
+          uploaded_by?: string | null
         }
         Relationships: []
       }

@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CalendarDays, Clock, Scissors, Stethoscope, Sun } from 'lucide-react'
-import { useDoctors, useFavorites, useMeetings, usePatientScans } from '../lib/api'
+import { AlertTriangle, CalendarDays, Clock, FolderKanban, Scissors, Stethoscope, Sun } from 'lucide-react'
+import { useDoctors, useFavorites, useMeetings, usePatientScans, useTasks } from '../lib/api'
+import { useProjects } from '../lib/projectsApi'
+import { projectStats } from '../lib/projects'
 import { useAuth } from '../context/AuthProvider'
 import { contactState, cadenceLabel } from '../lib/cadence'
 import { SCAN_PROCEDURE_LABELS } from '../lib/types'
@@ -18,6 +20,8 @@ export function TodayBlock() {
   const meetings = useMeetings()
   const doctors = useDoctors()
   const favorites = useFavorites()
+  const projects = useProjects()
+  const allTasks = useTasks()
   const [scheduleFor, setScheduleFor] = useState<string | null>(null)
 
   const today = todayISO()
@@ -53,6 +57,17 @@ export function TodayBlock() {
       .filter((x) => x.st.status === 'due' || x.st.status === 'soon')
       .sort((a, b) => (a.st.daysToDue ?? 0) - (b.st.daysToDue ?? 0))
   }, [doctors.data, favorites.data, meetings.data])
+
+  // active projects that have something stuck or late
+  const projectAlerts = useMemo(
+    () =>
+      (projects.data ?? [])
+        .filter((p) => p.status === 'active')
+        .map((p) => ({ p, stats: projectStats((allTasks.data ?? []).filter((t) => t.project_id === p.id)) }))
+        .filter((x) => x.stats.blocked.length > 0 || x.stats.overdue.length > 0)
+        .sort((a, b) => b.stats.blocked.length + b.stats.overdue.length - (a.stats.blocked.length + a.stats.overdue.length)),
+    [projects.data, allTasks.data],
+  )
 
   const sub = 'mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400'
   const dateLabel = new Intl.DateTimeFormat('he-IL', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())
@@ -110,6 +125,34 @@ export function TodayBlock() {
                   <span className="font-medium text-slate-800">{m.subject || 'פגישה'}</span>
                   <span className="text-slate-500">
                     {[m.meeting_doctors.flatMap((x) => (x.doctor ? [x.doctor.name] : [])).join(', '), m.hospital?.name, m.location].filter(Boolean).join(' · ')}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {projectAlerts.length > 0 && (
+        <div>
+          <p className={sub}>
+            <FolderKanban size={12} /> פרויקטים שדורשים תשומת לב
+          </p>
+          <ul className="divide-y divide-slate-100">
+            {projectAlerts.slice(0, 4).map(({ p, stats }) => (
+              <li key={p.id}>
+                <Link to={`/projects/${p.id}`} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm hover:bg-slate-50">
+                  <span dir="auto" className="font-medium text-slate-800">
+                    {p.name}
+                  </span>
+                  <span className="flex items-center gap-2 text-xs">
+                    {stats.blocked.length > 0 && (
+                      <span className="inline-flex items-center gap-1 text-red-600">
+                        <AlertTriangle size={12} /> {stats.blocked.length} תקועות
+                      </span>
+                    )}
+                    {stats.overdue.length > 0 && <span className="text-amber-600">{stats.overdue.length} באיחור</span>}
+                    <span className="text-slate-400">{stats.percent}%</span>
                   </span>
                 </Link>
               </li>

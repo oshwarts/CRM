@@ -16,7 +16,20 @@ export type CompetitorIntelRow = CompetitorIntel & {
 }
 export type AuditEntry = Tables<'audit_log'>
 /** a task with everything the tasks page shows */
+export type Project = Tables<'projects'>
+export type ProjectArea = Tables<'project_areas'>
+export type ProjectUpdate = Tables<'project_updates'>
+export type ProjectFile = Tables<'project_files'>
+export type ProjectWithRelations = Project & {
+  hospital: Pick<Hospital, 'id' | 'name'> | null
+  owner: Pick<Profile, 'id' | 'full_name'> | null
+  areas: ProjectArea[]
+  members: { user_id: string }[]
+}
 export type TaskRow = MeetingTask & {
+  project: { id: string; name: string } | null
+  area: { id: string; name: string } | null
+  contact: { id: string; name: string; role: string } | null
   subtasks: TaskSubtask[]
   doctor: Pick<Doctor, 'id' | 'name' | 'title'> | null
   hospital: Pick<Hospital, 'id' | 'name'> | null
