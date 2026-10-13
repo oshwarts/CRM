@@ -1,4 +1,5 @@
 import { CalendarPlus, Pencil, Phone, Trash2 } from 'lucide-react'
+import { PendingMark } from './PendingMark'
 import { ConfirmButton } from './ui'
 import { rowFlags } from '../lib/scanAlerts'
 import { implantSummary } from '../lib/scanExport'
@@ -64,7 +65,9 @@ export function ScanCard({
         />
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <p className="font-semibold text-slate-800">{s.patient_name}</p>
+            <p className="font-semibold text-slate-800">
+              {s.patient_name} <PendingMark id={s.id} />
+            </p>
             <span className="chip shrink-0 border-slate-200 bg-white/70 text-slate-600">
               {SCAN_STATUS_LABELS[s.status]}
             </span>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { PendingMark } from '../components/PendingMark'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Copy, Eye, Mail, Save, Trash2 } from 'lucide-react'
 import {
@@ -371,7 +372,7 @@ export default function Consumables() {
                   return (
                     <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                       <span className="text-slate-700">
-                        {formatDate(c.counted_on)}
+                        {formatDate(c.counted_on)} <PendingMark id={c.id} />
                         <span className="mr-2 text-xs text-slate-400">
                           {c.counter?.full_name || c.counter?.email || ''}
                         </span>

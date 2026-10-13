@@ -11,6 +11,7 @@ import {
 } from '../lib/api'
 import { useAuth } from '../context/AuthProvider'
 import { TaskFormModal } from '../components/TaskFormModal'
+import { PendingMark } from '../components/PendingMark'
 import { EmptyState, ErrorState, Spinner } from '../components/ui'
 import { normalizeHe } from '../lib/contactMatch'
 import type { TaskRow } from '../lib/types'
@@ -188,6 +189,7 @@ export default function Tasks() {
                   <User size={12} /> {t.assignee.full_name}
                 </span>
               )}
+              <PendingMark id={t.id} />
               {t.is_done && t.done_at && <span className="text-slate-400">בוצע {formatDate(t.done_at.slice(0, 10))}</span>}
             </div>
           </div>

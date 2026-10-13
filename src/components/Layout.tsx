@@ -23,6 +23,7 @@ import { useAuth } from '../context/AuthProvider'
 import { ProfileModal } from './ProfileModal'
 import { RefreshButton } from './RefreshButton'
 import { OfflineBanner } from './OfflineBanner'
+import { clearOutbox, drain, outboxSize } from '../lib/outbox'
 import { classNames } from '../lib/utils'
 
 const NAV = [
@@ -45,7 +46,7 @@ const NAV = [
 // the five destinations reachable with one thumb tap on a phone
 const TABS = ['/', '/doctors', '/schedule', '/meetings', '/scans']
 
-const VERSION = 'v55 · עבודה ללא רשת (קריאה)'
+const VERSION = 'v56 · עבודה ללא רשת (קריאה וכתיבה)'
 
 export function Layout() {
   const { profile, signOut } = useAuth()
@@ -57,7 +58,15 @@ export function Layout() {
 
   useEffect(() => setDrawer(false), [location.pathname])
 
+
   async function handleSignOut() {
+    // changes made offline that were not sent yet are lost on sign out — try to send them first
+    if (outboxSize()) {
+      await drain()
+      const left = outboxSize()
+      if (left > 0 && !window.confirm(`יש ${left} שינויים שעדיין לא נשלחו לשרת. התנתקות תמחק אותם. להמשיך?`)) return
+    }
+    await clearOutbox()
     await signOut()
     navigate('/login', { replace: true })
   }

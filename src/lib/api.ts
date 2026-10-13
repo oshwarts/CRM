@@ -36,6 +36,8 @@ import type {
   CompetitorIntelRow,
 } from './types'
 import { SCAN_PROCEDURE_TO_NAME } from './types'
+import { currentUserId, mergePatch, registerExecutor, runOrQueue, type ExecResult } from './outbox'
+import { queryClient } from './queryClient'
 import type { TablesInsert, TablesUpdate } from './database.types'
 
 function unwrap<T>(res: { data: unknown; error: unknown }): T {
@@ -485,7 +487,7 @@ export type MeetingFormData = {
   tasks: { id?: string; description: string; is_done: boolean; due_date: string | null }[]
 }
 
-async function saveMeetingChildren(meetingId: string, d: MeetingFormData) {
+async function saveMeetingChildren(meetingId: string, d: MeetingFormData, baseTaskIds: string[] | null = null) {
   await supabase.from('meeting_doctors').delete().eq('meeting_id', meetingId)
   if (d.doctorIds.length)
     unwrap(
@@ -513,10 +515,10 @@ async function saveMeetingChildren(meetingId: string, d: MeetingFormData) {
   const tasks = d.tasks.filter((t) => t.description.trim())
   const keep = tasks.filter((t) => t.id).map((t) => t.id as string)
   const current = unwrap<{ id: string }[]>(await supabase.from('meeting_tasks').select('id').eq('meeting_id', meetingId))
-  const drop = current.map((c) => c.id).filter((id) => !keep.includes(id))
+  // only tasks this edit removed are deleted (a task another agent added meanwhile stays)
+  const drop = current.map((c) => c.id).filter((id) => !keep.includes(id) && (baseTaskIds === null || baseTaskIds.includes(id)))
   if (drop.length) unwrap(await supabase.from('meeting_tasks').delete().in('id', drop))
-  const { data: userRes } = await supabase.auth.getUser()
-  const me = userRes.user?.id
+  const me = await currentUserId()
   for (const t of tasks) {
     const fields = {
       description: t.description,
@@ -524,65 +526,11 @@ async function saveMeetingChildren(meetingId: string, d: MeetingFormData) {
       due_date: t.due_date,
       done_at: t.is_done ? new Date().toISOString() : null,
     }
+    const id = t.id ?? crypto.randomUUID()
     // existing tasks keep their sub-tasks / assignee / priority — only the fields of the form are touched
-    if (t.id) unwrap(await supabase.from('meeting_tasks').update(fields).eq('id', t.id))
-    else unwrap(await supabase.from('meeting_tasks').insert({ ...fields, meeting_id: meetingId, assignee_id: me, created_by: me }))
+    if (current.some((c) => c.id === id)) unwrap(await supabase.from('meeting_tasks').update(fields).eq('id', id))
+    else unwrap(await supabase.from('meeting_tasks').insert({ ...fields, id, meeting_id: meetingId, assignee_id: me || null, created_by: me || null }))
   }
-}
-
-export function useCreateMeeting() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async (d: MeetingFormData) => {
-      const { data: userRes } = await supabase.auth.getUser()
-      const row: TablesInsert<'meetings'> = {
-        subject: d.subject,
-        meeting_date: d.meeting_date,
-        meeting_time: d.meeting_time,
-        location: d.location,
-        responsible_agent_id: d.responsible_agent_id,
-        status: d.status,
-        summary: d.summary,
-        decisions: d.decisions,
-        next_followup_date: d.next_followup_date,
-        hospital_id: d.hospitalId,
-        extra_participants: d.extraParticipants.trim(),
-        competitor_notes: d.competitor_notes.trim(),
-        created_by: userRes.user?.id ?? null,
-      }
-      const created = unwrap<{ id: string }>(
-        await supabase.from('meetings').insert(row).select('id').single(),
-      )
-      await saveMeetingChildren(created.id, d)
-      return created
-    },
-    onSuccess: () => invalidateMeetings(qc),
-  })
-}
-
-export function useUpdateMeeting(id: string) {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async (d: MeetingFormData) => {
-      const row: TablesUpdate<'meetings'> = {
-        subject: d.subject,
-        meeting_date: d.meeting_date,
-        meeting_time: d.meeting_time,
-        location: d.location,
-        responsible_agent_id: d.responsible_agent_id,
-        status: d.status,
-        summary: d.summary,
-        decisions: d.decisions,
-        next_followup_date: d.next_followup_date,
-        hospital_id: d.hospitalId,
-        extra_participants: d.extraParticipants.trim(),
-        competitor_notes: d.competitor_notes.trim(),
-      }
-      unwrap(await supabase.from('meetings').update(row).eq('id', id))
-      await saveMeetingChildren(id, d)
-    },
-    onSuccess: () => invalidateMeetings(qc),
-  })
 }
 
 export function useDeleteMeeting() {
@@ -590,21 +538,6 @@ export function useDeleteMeeting() {
   return useMutation({
     mutationFn: async (id: string) => {
       unwrap(await supabase.from('meetings').delete().eq('id', id))
-    },
-    onSuccess: () => invalidateMeetings(qc),
-  })
-}
-
-export function useToggleMeetingTask() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async (task: MeetingTask) => {
-      unwrap(
-        await supabase
-          .from('meeting_tasks')
-          .update({ is_done: !task.is_done, done_at: task.is_done ? null : new Date().toISOString() })
-          .eq('id', task.id),
-      )
     },
     onSuccess: () => invalidateMeetings(qc),
   })
@@ -1290,20 +1223,6 @@ export function useUpsertPatientScan() {
   })
 }
 
-export function usePatchPatientScan() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async ({
-      id,
-      patch,
-    }: {
-      id: string
-      patch: Partial<PatientScan>
-    }) => unwrap(await supabase.from('patient_scans').update(patch).eq('id', id)),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['patient-scans'] }),
-  })
-}
-
 export function useDeletePatientScan() {
   const qc = useQueryClient()
   return useMutation({
@@ -1456,51 +1375,6 @@ export type SaveCountInput = {
   // per-hospital overrides to persist (item_id → min), and items to reset to default
   overrides: { item_id: string; min_qty: number }[]
   clearOverrides: string[]
-}
-
-export function useSaveConsumableCount() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async (s: SaveCountInput) => {
-      const { data: userRes } = await supabase.auth.getUser()
-      const count = unwrap<{ id: string }>(
-        await supabase
-          .from('consumable_counts')
-          .insert({
-            hospital_id: s.hospitalId,
-            counted_on: s.countedOn,
-            notes: s.notes,
-            counted_by: userRes.user?.id ?? null,
-          })
-          .select('id')
-          .single(),
-      )
-      unwrap(
-        await supabase
-          .from('consumable_count_lines')
-          .insert(s.lines.map((l) => ({ ...l, count_id: count.id }))),
-      )
-      if (s.overrides.length)
-        unwrap(
-          await supabase
-            .from('consumable_minimums')
-            .upsert(s.overrides.map((o) => ({ ...o, hospital_id: s.hospitalId }))),
-        )
-      if (s.clearOverrides.length)
-        unwrap(
-          await supabase
-            .from('consumable_minimums')
-            .delete()
-            .eq('hospital_id', s.hospitalId)
-            .in('item_id', s.clearOverrides),
-        )
-      return count.id
-    },
-    onSuccess: (_id, v) => {
-      qc.invalidateQueries({ queryKey: ['consumable-counts', v.hospitalId] })
-      qc.invalidateQueries({ queryKey: ['consumable-minimums', v.hospitalId] })
-    },
-  })
 }
 
 export function useDeleteConsumableCount() {
@@ -1857,57 +1731,6 @@ function invalidateTasks(qc: ReturnType<typeof useQueryClient>) {
   invalidateMeetings(qc)
 }
 
-export function useSaveTask() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async (d: TaskFormData) => {
-      const fields = {
-        description: d.description.trim(),
-        notes: d.notes.trim(),
-        due_date: d.due_date || null,
-        priority: d.priority,
-        doctor_id: d.doctor_id || null,
-        hospital_id: d.hospital_id || null,
-        recurrence: d.recurrence,
-      }
-      let taskId = d.id
-      if (taskId) {
-        unwrap(
-          await supabase
-            .from('meeting_tasks')
-            .update({ ...fields, ...(d.assignee_id ? { assignee_id: d.assignee_id } : {}) })
-            .eq('id', taskId),
-        )
-      } else {
-        const { data: userRes } = await supabase.auth.getUser()
-        const me = userRes.user?.id ?? null
-        const row = unwrap<{ id: string }>(
-          await supabase
-            .from('meeting_tasks')
-            .insert({ ...fields, assignee_id: d.assignee_id || me, created_by: me })
-            .select('id')
-            .single(),
-        )
-        taskId = row.id
-      }
-
-      // sub-tasks: keep the ones still in the form, update them, add new ones
-      const subs = d.subtasks.filter((s) => s.text.trim())
-      const keep = subs.filter((s) => s.id).map((s) => s.id as string)
-      const existing = unwrap<{ id: string }[]>(await supabase.from('task_subtasks').select('id').eq('task_id', taskId))
-      const drop = existing.map((e) => e.id).filter((id) => !keep.includes(id))
-      if (drop.length) unwrap(await supabase.from('task_subtasks').delete().in('id', drop))
-      for (const [i, s] of subs.entries()) {
-        if (s.id)
-          unwrap(await supabase.from('task_subtasks').update({ text: s.text.trim(), is_done: s.is_done, sort: i }).eq('id', s.id))
-        else
-          unwrap(await supabase.from('task_subtasks').insert({ task_id: taskId, text: s.text.trim(), is_done: s.is_done, sort: i }))
-      }
-    },
-    onSuccess: () => invalidateTasks(qc),
-  })
-}
-
 const isoOf = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
@@ -1923,65 +1746,6 @@ function nextDue(due: string, recurrence: string): string {
 }
 
 /** mark done / not done; completing a repeating task creates the next one */
-export function useSetTaskDone() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async ({ task, done }: { task: TaskRow; done: boolean }) => {
-      unwrap(
-        await supabase
-          .from('meeting_tasks')
-          .update({ is_done: done, done_at: done ? new Date().toISOString() : null })
-          .eq('id', task.id),
-      )
-      if (done && !task.is_done && task.recurrence !== 'none' && task.due_date) {
-        const { data: userRes } = await supabase.auth.getUser()
-        const next = unwrap<{ id: string }>(
-          await supabase
-            .from('meeting_tasks')
-            .insert({
-              description: task.description,
-              notes: task.notes,
-              priority: task.priority,
-              doctor_id: task.doctor_id,
-              hospital_id: task.hospital_id,
-              recurrence: task.recurrence,
-              assignee_id: task.assignee_id,
-              created_by: userRes.user?.id ?? task.created_by,
-              due_date: nextDue(task.due_date, task.recurrence),
-            })
-            .select('id')
-            .single(),
-        )
-        if (task.subtasks.length)
-          unwrap(
-            await supabase
-              .from('task_subtasks')
-              .insert(task.subtasks.map((s, i) => ({ task_id: next.id, text: s.text, sort: i }))),
-          )
-      }
-    },
-    onSuccess: () => invalidateTasks(qc),
-  })
-}
-
-export function useToggleSubtask() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async ({ id, is_done }: { id: string; is_done: boolean }) =>
-      unwrap(await supabase.from('task_subtasks').update({ is_done }).eq('id', id)),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
-  })
-}
-
-export function useAddSubtask() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async ({ taskId, text, sort }: { taskId: string; text: string; sort: number }) =>
-      unwrap(await supabase.from('task_subtasks').insert({ task_id: taskId, text: text.trim(), sort })),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
-  })
-}
-
 export function useDeleteTask() {
   const qc = useQueryClient()
   return useMutation({
@@ -2088,4 +1852,491 @@ export async function exportBackup(onProgress?: (table: string) => void) {
     out[t] = rows
   }
   return { exported_at: new Date().toISOString(), tables: out }
+}
+
+/* ============================ Writes that also work offline ============================
+   Each of these runs against the server when there is a connection and is queued in the outbox (outbox.ts) when
+   there is not: the screen is updated at once and the change is sent, merged field by field, when the network returns. */
+
+const newId = () => crypto.randomUUID()
+const short = (s: string) => (s.length > 40 ? `${s.slice(0, 40)}…` : s)
+const pickKeys = (row: unknown, keys: string[]): Record<string, unknown> | null => {
+  if (!row || typeof row !== 'object') return null
+  const r = row as Record<string, unknown>
+  return Object.fromEntries(keys.map((k) => [k, r[k]]))
+}
+
+/** the screen shows the new state immediately; the server's version replaces it after the sync */
+function mapMeetingCaches(fn: (m: MeetingWithRelations) => MeetingWithRelations) {
+  queryClient.setQueriesData(
+    { predicate: (q) => ['meetings', 'meeting', 'doctor-meetings'].includes(String(q.queryKey[0])) },
+    (old: unknown) => {
+      if (Array.isArray(old)) return old.map((m) => (m && typeof m === 'object' && 'meeting_tasks' in m ? fn(m as MeetingWithRelations) : m))
+      if (old && typeof old === 'object' && 'meeting_tasks' in old) return fn(old as MeetingWithRelations)
+      return old
+    },
+  )
+}
+
+/* ---------- tasks: done / not done ---------- */
+
+type DoneTask = Pick<
+  MeetingTask,
+  'id' | 'is_done' | 'description' | 'notes' | 'priority' | 'doctor_id' | 'hospital_id' | 'recurrence' | 'assignee_id' | 'created_by' | 'due_date'
+> & { subtasks?: { text: string }[] }
+type TaskDonePayload = { task: DoneTask; done: boolean; nextId: string; at: string }
+
+async function execTaskDone({ task, done, nextId, at }: TaskDonePayload): Promise<ExecResult> {
+  unwrap(await supabase.from('meeting_tasks').update({ is_done: done, done_at: done ? at : null }).eq('id', task.id))
+  if (done && !task.is_done && task.recurrence !== 'none' && task.due_date) {
+    // a repeating task creates the next one (fixed id: sending twice never makes two)
+    unwrap(
+      await supabase.from('meeting_tasks').upsert({
+        id: nextId,
+        description: task.description,
+        notes: task.notes,
+        priority: task.priority,
+        doctor_id: task.doctor_id,
+        hospital_id: task.hospital_id,
+        recurrence: task.recurrence,
+        assignee_id: task.assignee_id,
+        created_by: (await currentUserId()) || task.created_by,
+        due_date: nextDue(task.due_date, task.recurrence),
+      }),
+    )
+    await supabase.from('task_subtasks').delete().eq('task_id', nextId)
+    if (task.subtasks?.length)
+      unwrap(await supabase.from('task_subtasks').insert(task.subtasks.map((s, i) => ({ task_id: nextId, text: s.text, sort: i }))))
+  }
+}
+registerExecutor<TaskDonePayload>('task.done', execTaskDone)
+
+async function setTaskDoneOffline(task: DoneTask & { subtasks?: { text: string }[] }, done: boolean) {
+  const payload: TaskDonePayload = {
+    task: {
+      id: task.id,
+      is_done: task.is_done,
+      description: task.description,
+      notes: task.notes,
+      priority: task.priority,
+      doctor_id: task.doctor_id,
+      hospital_id: task.hospital_id,
+      recurrence: task.recurrence,
+      assignee_id: task.assignee_id,
+      created_by: task.created_by,
+      due_date: task.due_date,
+      subtasks: task.subtasks?.map((s) => ({ text: s.text })),
+    },
+    done,
+    nextId: newId(),
+    at: new Date().toISOString(),
+  }
+  await runOrQueue(
+    { kind: 'task.done', label: `${done ? 'סימון כבוצע' : 'ביטול סימון'}: ${short(task.description)}`, recordIds: [task.id], payload },
+    () => execTaskDone(payload),
+    () => {
+      queryClient.setQueryData<TaskRow[]>(['tasks'], (old) =>
+        old?.map((t) => (t.id === task.id ? { ...t, is_done: done, done_at: done ? payload.at : null } : t)),
+      )
+      mapMeetingCaches((m) => ({
+        ...m,
+        meeting_tasks: m.meeting_tasks.map((t) => (t.id === task.id ? { ...t, is_done: done, done_at: done ? payload.at : null } : t)),
+      }))
+    },
+  )
+}
+
+export function useSetTaskDone() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ task, done }: { task: TaskRow; done: boolean }) => setTaskDoneOffline(task, done),
+    onSuccess: () => invalidateTasks(qc),
+  })
+}
+
+export function useToggleMeetingTask() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (task: MeetingTask) => setTaskDoneOffline(task, !task.is_done),
+    onSuccess: () => invalidateTasks(qc),
+  })
+}
+
+/* ---------- tasks: create / edit with sub-tasks ---------- */
+
+type TaskSaveData = Omit<TaskFormData, 'id' | 'subtasks'> & { id: string; subtasks: { id: string; text: string; is_done: boolean }[] }
+type TaskSavePayload = {
+  data: TaskSaveData
+  isNew: boolean
+  /** what the task looked like when the user started editing (to merge with changes made by others) */
+  base: Record<string, unknown> | null
+  baseSubIds: string[] | null
+  userId: string
+}
+const TASK_FIELDS = ['description', 'notes', 'due_date', 'priority', 'doctor_id', 'hospital_id', 'recurrence']
+
+const taskFields = (d: TaskSaveData) => ({
+  description: d.description.trim(),
+  notes: d.notes.trim(),
+  due_date: d.due_date || null,
+  priority: d.priority,
+  doctor_id: d.doctor_id || null,
+  hospital_id: d.hospital_id || null,
+  recurrence: d.recurrence,
+})
+
+async function execTaskSave(p: TaskSavePayload): Promise<ExecResult> {
+  const d = p.data
+  let result: ExecResult = undefined
+  if (p.isNew) {
+    unwrap(
+      await supabase
+        .from('meeting_tasks')
+        .upsert({ id: d.id, ...taskFields(d), assignee_id: d.assignee_id || p.userId, created_by: p.userId }),
+    )
+  } else {
+    if (d.assignee_id) unwrap(await supabase.from('meeting_tasks').update({ assignee_id: d.assignee_id }).eq('id', d.id))
+    result = await mergePatch('meeting_tasks', d.id, taskFields(d), p.base)
+  }
+  // sub-tasks: only the ones this edit removed are deleted (a step another agent added meanwhile stays)
+  const keep = d.subtasks.filter((s) => s.text.trim()).map((s) => s.id)
+  const existing = unwrap<{ id: string }[]>(await supabase.from('task_subtasks').select('id').eq('task_id', d.id))
+  const drop = existing.map((e) => e.id).filter((id) => !keep.includes(id) && (p.baseSubIds === null || p.baseSubIds.includes(id)))
+  if (drop.length) unwrap(await supabase.from('task_subtasks').delete().in('id', drop))
+  const rows = d.subtasks
+    .filter((s) => s.text.trim())
+    .map((s, i) => ({ id: s.id, task_id: d.id, text: s.text.trim(), is_done: s.is_done, sort: i }))
+  if (rows.length) unwrap(await supabase.from('task_subtasks').upsert(rows))
+  return result
+}
+registerExecutor<TaskSavePayload>('task.save', execTaskSave)
+
+export function useSaveTask() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (d: TaskFormData) => {
+      const userId = await currentUserId()
+      const isNew = !d.id
+      const data: TaskSaveData = {
+        ...d,
+        id: d.id ?? newId(),
+        subtasks: d.subtasks.map((s) => ({ id: s.id ?? newId(), text: s.text, is_done: s.is_done })),
+      }
+      const cached = queryClient.getQueryData<TaskRow[]>(['tasks'])?.find((t) => t.id === data.id)
+      const payload: TaskSavePayload = {
+        data,
+        isNew,
+        base: isNew ? null : pickKeys(cached, TASK_FIELDS),
+        baseSubIds: isNew ? null : (cached?.subtasks.map((s) => s.id) ?? null),
+        userId,
+      }
+      await runOrQueue(
+        { kind: 'task.save', label: `${isNew ? 'משימה חדשה' : 'עדכון משימה'}: ${short(data.description)}`, recordIds: [data.id], payload },
+        () => execTaskSave(payload),
+        () => {
+          const doctors = queryClient.getQueryData<DoctorListItem[]>(['doctors']) ?? []
+          const hospitals = queryClient.getQueryData<HospitalListItem[]>(['hospitals']) ?? []
+          const agents = queryClient.getQueryData<Profile[]>(['agents']) ?? []
+          const now = new Date().toISOString()
+          queryClient.setQueryData<TaskRow[]>(['tasks'], (old) => {
+            const prev = old?.find((t) => t.id === data.id)
+            const doctor = doctors.find((x) => x.id === data.doctor_id)
+            const hospital = hospitals.find((x) => x.id === data.hospital_id)
+            const assigneeId = data.assignee_id || prev?.assignee_id || userId
+            const assignee = agents.find((a) => a.id === assigneeId)
+            const row = {
+              meeting_id: null,
+              is_done: false,
+              done_at: null,
+              created_at: now,
+              created_by: userId,
+              ...prev,
+              ...taskFields(data),
+              id: data.id,
+              updated_at: now,
+              assignee_id: assigneeId,
+              doctor: doctor ? { id: doctor.id, name: doctor.name, title: doctor.title } : null,
+              hospital: hospital ? { id: hospital.id, name: hospital.name } : null,
+              assignee: assignee ? { id: assignee.id, full_name: assignee.full_name } : (prev?.assignee ?? null),
+              meeting: prev?.meeting ?? null,
+              subtasks: data.subtasks
+                .filter((s) => s.text.trim())
+                .map((s, i) => ({ id: s.id, task_id: data.id, text: s.text.trim(), is_done: s.is_done, sort: i, created_at: now })),
+            } as TaskRow
+            return prev ? old?.map((t) => (t.id === data.id ? row : t)) : [row, ...(old ?? [])]
+          })
+        },
+      )
+    },
+    onSuccess: () => invalidateTasks(qc),
+  })
+}
+
+/* ---------- sub-tasks: tick / add a step ---------- */
+
+registerExecutor<{ id: string; is_done: boolean }>('subtask.toggle', async (p) => {
+  unwrap(await supabase.from('task_subtasks').update({ is_done: p.is_done }).eq('id', p.id))
+})
+registerExecutor<{ id: string; taskId: string; text: string; sort: number }>('subtask.add', async (p) => {
+  unwrap(await supabase.from('task_subtasks').upsert({ id: p.id, task_id: p.taskId, text: p.text, sort: p.sort }))
+})
+
+export function useToggleSubtask() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (p: { id: string; is_done: boolean }) => {
+      await runOrQueue(
+        { kind: 'subtask.toggle', label: 'סימון שלב במשימה', recordIds: [p.id], payload: p },
+        async () => {
+          unwrap(await supabase.from('task_subtasks').update({ is_done: p.is_done }).eq('id', p.id))
+        },
+        () =>
+          queryClient.setQueryData<TaskRow[]>(['tasks'], (old) =>
+            old?.map((t) => ({ ...t, subtasks: t.subtasks.map((s) => (s.id === p.id ? { ...s, is_done: p.is_done } : s)) })),
+          ),
+      )
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
+  })
+}
+
+export function useAddSubtask() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (p: { taskId: string; text: string; sort: number }) => {
+      const payload = { id: newId(), taskId: p.taskId, text: p.text.trim(), sort: p.sort }
+      await runOrQueue(
+        { kind: 'subtask.add', label: `שלב חדש: ${short(payload.text)}`, recordIds: [p.taskId, payload.id], payload },
+        async () => {
+          unwrap(await supabase.from('task_subtasks').upsert({ id: payload.id, task_id: payload.taskId, text: payload.text, sort: payload.sort }))
+        },
+        () =>
+          queryClient.setQueryData<TaskRow[]>(['tasks'], (old) =>
+            old?.map((t) =>
+              t.id === p.taskId
+                ? {
+                    ...t,
+                    subtasks: [
+                      ...t.subtasks,
+                      { id: payload.id, task_id: p.taskId, text: payload.text, is_done: false, sort: payload.sort, created_at: new Date().toISOString() },
+                    ],
+                  }
+                : t,
+            ),
+          ),
+      )
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
+  })
+}
+
+/* ---------- scans: scanned / disk collected / plan ready ---------- */
+
+type ScanPatchPayload = { id: string; patch: Record<string, unknown>; base: Record<string, unknown> | null }
+registerExecutor<ScanPatchPayload>('scan.patch', (p) => mergePatch('patient_scans', p.id, p.patch, p.base))
+
+export function usePatchPatientScan() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, patch }: { id: string; patch: Partial<PatientScan> }) => {
+      const cached = queryClient.getQueryData<PatientScanRow[]>(['patient-scans'])?.find((s) => s.id === id)
+      const payload: ScanPatchPayload = {
+        id,
+        patch: patch as Record<string, unknown>,
+        base: pickKeys(cached, Object.keys(patch)),
+      }
+      await runOrQueue(
+        { kind: 'scan.patch', label: `עדכון סריקה: ${cached ? 'מטופל ב' + (cached.hospital?.name ?? 'בית חולים') : ''}`.trim(), recordIds: [id], payload },
+        () => mergePatch('patient_scans', id, payload.patch, payload.base),
+        () =>
+          queryClient.setQueryData<PatientScanRow[]>(['patient-scans'], (old) =>
+            old?.map((s) => (s.id === id ? { ...s, ...patch } : s)),
+          ),
+      )
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['patient-scans'] }),
+  })
+}
+
+/* ---------- consumables: stock count in a hospital ---------- */
+
+type CountPayload = { id: string; s: SaveCountInput; userId: string }
+async function execCountSave({ id, s, userId }: CountPayload): Promise<ExecResult> {
+  unwrap(
+    await supabase
+      .from('consumable_counts')
+      .upsert({ id, hospital_id: s.hospitalId, counted_on: s.countedOn, notes: s.notes, counted_by: userId || null }),
+  )
+  await supabase.from('consumable_count_lines').delete().eq('count_id', id)
+  if (s.lines.length) unwrap(await supabase.from('consumable_count_lines').insert(s.lines.map((l) => ({ ...l, count_id: id }))))
+  if (s.overrides.length)
+    unwrap(await supabase.from('consumable_minimums').upsert(s.overrides.map((o) => ({ ...o, hospital_id: s.hospitalId }))))
+  if (s.clearOverrides.length)
+    unwrap(await supabase.from('consumable_minimums').delete().eq('hospital_id', s.hospitalId).in('item_id', s.clearOverrides))
+}
+registerExecutor<CountPayload>('count.save', execCountSave)
+
+export function useSaveConsumableCount() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (s: SaveCountInput) => {
+      const payload: CountPayload = { id: newId(), s, userId: await currentUserId() }
+      const hospital = queryClient.getQueryData<HospitalListItem[]>(['hospitals'])?.find((h) => h.id === s.hospitalId)
+      await runOrQueue(
+        { kind: 'count.save', label: `ספירת מתכלים${hospital ? ' — ' + hospital.name : ''}`, recordIds: [payload.id], payload },
+        () => execCountSave(payload),
+        () =>
+          queryClient.setQueryData<ConsumableCountRow[]>(['consumable-counts', s.hospitalId], (old) => [
+            {
+              id: payload.id,
+              hospital_id: s.hospitalId,
+              counted_on: s.countedOn,
+              notes: s.notes,
+              counted_by: payload.userId,
+              created_at: new Date().toISOString(),
+              counter: null,
+              lines: s.lines.map((l, i) => ({ id: `${payload.id}-${i}`, count_id: payload.id, ...l })),
+            } as unknown as ConsumableCountRow,
+            ...(old ?? []),
+          ]),
+      )
+      return payload.id
+    },
+    onSuccess: (_id, v) => {
+      qc.invalidateQueries({ queryKey: ['consumable-counts', v.hospitalId] })
+      qc.invalidateQueries({ queryKey: ['consumable-minimums', v.hospitalId] })
+    },
+  })
+}
+
+/* ---------- meetings: new meeting / edit a summary ---------- */
+
+type MeetingSavePayload = {
+  mode: 'create' | 'update'
+  id: string
+  data: MeetingFormData & { tasks: { id: string; description: string; is_done: boolean; due_date: string | null }[] }
+  base: Record<string, unknown> | null
+  baseTaskIds: string[] | null
+  userId: string
+}
+const MEETING_FIELDS = [
+  'subject', 'meeting_date', 'meeting_time', 'location', 'responsible_agent_id', 'status', 'summary', 'decisions',
+  'next_followup_date', 'hospital_id', 'extra_participants', 'competitor_notes',
+]
+
+const meetingRow = (d: MeetingFormData) => ({
+  subject: d.subject,
+  meeting_date: d.meeting_date,
+  meeting_time: d.meeting_time,
+  location: d.location,
+  responsible_agent_id: d.responsible_agent_id,
+  status: d.status,
+  summary: d.summary,
+  decisions: d.decisions,
+  next_followup_date: d.next_followup_date,
+  hospital_id: d.hospitalId,
+  extra_participants: d.extraParticipants.trim(),
+  competitor_notes: d.competitor_notes.trim(),
+})
+
+async function execMeetingSave(p: MeetingSavePayload): Promise<ExecResult> {
+  let result: ExecResult = undefined
+  if (p.mode === 'create') {
+    unwrap(await supabase.from('meetings').upsert({ id: p.id, ...meetingRow(p.data), created_by: p.userId || null }))
+  } else {
+    result = await mergePatch('meetings', p.id, meetingRow(p.data), p.base)
+  }
+  await saveMeetingChildren(p.id, p.data, p.baseTaskIds)
+  return result
+}
+registerExecutor<MeetingSavePayload>('meeting.save', execMeetingSave)
+
+async function saveMeetingOffline(mode: 'create' | 'update', id: string, d: MeetingFormData) {
+  const userId = await currentUserId()
+  const cached =
+    queryClient.getQueryData<MeetingWithRelations>(['meeting', id]) ??
+    queryClient.getQueryData<MeetingWithRelations[]>(['meetings'])?.find((m) => m.id === id)
+  const payload: MeetingSavePayload = {
+    mode,
+    id,
+    data: { ...d, tasks: d.tasks.filter((t) => t.description.trim()).map((t) => ({ ...t, id: t.id ?? newId() })) },
+    base: mode === 'update' ? pickKeys(cached, MEETING_FIELDS) : null,
+    baseTaskIds: mode === 'update' ? (cached?.meeting_tasks.map((t) => t.id) ?? null) : null,
+    userId,
+  }
+  await runOrQueue(
+    { kind: 'meeting.save', label: `${mode === 'create' ? 'פגישה חדשה' : 'עדכון פגישה'}: ${short(d.subject || 'ללא נושא')}`, recordIds: [id], payload },
+    () => execMeetingSave(payload),
+    () => {
+      const doctors = queryClient.getQueryData<DoctorListItem[]>(['doctors']) ?? []
+      const agents = queryClient.getQueryData<Profile[]>(['agents']) ?? []
+      const hospitals = queryClient.getQueryData<HospitalListItem[]>(['hospitals']) ?? []
+      const contacts = queryClient.getQueryData<Contact[]>(['contacts']) ?? []
+      const now = new Date().toISOString()
+      const m = {
+        created_at: now,
+        created_by: userId,
+        ...cached,
+        ...meetingRow(d),
+        id,
+        updated_at: now,
+        responsible_agent: agents.find((a) => a.id === d.responsible_agent_id) ?? null,
+        hospital: hospitals.find((h) => h.id === d.hospitalId) ?? null,
+        meeting_doctors: d.doctorIds.map((x) => {
+          const doc = doctors.find((y) => y.id === x)
+          return { doctor: doc ? { id: doc.id, name: doc.name, title: doc.title } : null }
+        }),
+        meeting_agents: d.agentIds.map((x) => {
+          const a = agents.find((y) => y.id === x)
+          return { agent: a ? { id: a.id, full_name: a.full_name, role: a.role } : null }
+        }),
+        meeting_contacts: d.contactIds.map((x) => {
+          const c = contacts.find((y) => y.id === x)
+          return { contact: c ? { id: c.id, name: c.name, role: c.role, hospital_id: c.hospital_id } : null }
+        }),
+        meeting_tasks: payload.data.tasks.map((t) => ({
+          created_at: now,
+          updated_at: now,
+          notes: '',
+          priority: 'normal',
+          recurrence: 'none',
+          doctor_id: null,
+          hospital_id: d.hospitalId,
+          done_at: t.is_done ? now : null,
+          assignee_id: userId,
+          created_by: userId,
+          ...cached?.meeting_tasks.find((x) => x.id === t.id),
+          id: t.id,
+          meeting_id: id,
+          description: t.description,
+          is_done: t.is_done,
+          due_date: t.due_date,
+        })),
+      } as unknown as MeetingWithRelations
+      queryClient.setQueryData<MeetingWithRelations[]>(['meetings'], (old) =>
+        old ? (old.some((x) => x.id === id) ? old.map((x) => (x.id === id ? m : x)) : [m, ...old]) : old,
+      )
+      queryClient.setQueryData(['meeting', id], m)
+    },
+  )
+}
+
+export function useCreateMeeting() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (d: MeetingFormData) => {
+      const id = newId()
+      await saveMeetingOffline('create', id, d)
+      return { id }
+    },
+    onSuccess: () => invalidateMeetings(qc),
+  })
+}
+
+export function useUpdateMeeting(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (d: MeetingFormData) => saveMeetingOffline('update', id, d),
+    onSuccess: () => invalidateMeetings(qc),
+  })
 }

@@ -14,17 +14,20 @@ const DB = 'ami-offline'
 const STORE = 'kv'
 const KEY = 'query-cache'
 
-function open(): Promise<IDBDatabase> {
+export function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB, 1)
-    req.onupgradeneeded = () => req.result.createObjectStore(STORE)
+    const req = indexedDB.open(DB, 2)
+    req.onupgradeneeded = () => {
+      if (!req.result.objectStoreNames.contains(STORE)) req.result.createObjectStore(STORE)
+      if (!req.result.objectStoreNames.contains('outbox')) req.result.createObjectStore('outbox')
+    }
     req.onsuccess = () => resolve(req.result)
     req.onerror = () => reject(req.error)
   })
 }
 
 async function tx<T>(mode: IDBTransactionMode, run: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {
-  const db = await open()
+  const db = await openDb()
   return new Promise((resolve, reject) => {
     const r = run(db.transaction(STORE, mode).objectStore(STORE))
     r.onsuccess = () => resolve(r.result)

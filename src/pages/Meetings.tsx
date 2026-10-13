@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { PendingMark } from '../components/PendingMark'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
   Building2,
@@ -249,7 +250,7 @@ export default function Meetings() {
                   to={`/meetings/${m.id}`}
                   className="font-semibold text-slate-800 hover:text-brand-600 hover:underline"
                 >
-                  {m.subject || 'פגישה'}
+                  {m.subject || 'פגישה'} <PendingMark id={m.id} />
                 </Link>
                 <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500">
                   {m.meeting_date && (

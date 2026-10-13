@@ -23,7 +23,7 @@ const ACTION_LABELS: Record<string, { label: string; cls: string }> = {
   delete: { label: 'נמחק', cls: 'border-red-200 bg-red-50 text-red-600' },
 }
 
-const FIELD_LABELS: Record<string, string> = {
+export const FIELD_LABELS: Record<string, string> = {
   name: 'שם', phone: 'טלפון', email: 'אימייל', notes: 'הערות', status: 'סטטוס', role: 'הרשאה', active: 'פעיל',
   surgery_date: 'תאריך ניתוח', ct_date: 'תאריך CT', side: 'צד', hospital_id: 'בית חולים', surgeon_id: 'מנתח',
   patient_name: 'שם מטופל', patient_phone: 'טלפון מטופל', patient_id_number: 'ת״ז', is_done: 'בוצע', due_date: 'תאריך יעד',
