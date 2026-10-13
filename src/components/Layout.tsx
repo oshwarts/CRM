@@ -48,7 +48,7 @@ const NAV = [
 // the five destinations reachable with one thumb tap on a phone
 const TABS = ['/', '/doctors', '/schedule', '/meetings', '/scans']
 
-const VERSION = 'v64 · איש קשר לתחום ולכמה משימות'
+const VERSION = 'v65 · תפריט בטלפון מצד ימין'
 
 export function Layout() {
   const { profile, signOut } = useAuth()
@@ -131,17 +131,14 @@ export function Layout() {
 
       {/* mobile top bar */}
       <header className="fixed inset-x-0 top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white/95 px-4 pb-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] backdrop-blur md:hidden">
-        {brand}
-        <div className="flex items-center">
-          <RefreshButton />
-          <button
-            className="btn-ghost !px-2"
-            onClick={() => setDrawer(true)}
-            aria-label="תפריט"
-          >
-            <Menu size={22} />
+        {/* the menu button is on the right edge (easier for the right thumb) */}
+        <div className="flex items-center gap-1">
+          <button className="btn-ghost !px-2" onClick={() => setDrawer(true)} aria-label="תפריט">
+            <Menu size={24} />
           </button>
+          {brand}
         </div>
+        <RefreshButton />
       </header>
 
       {/* mobile drawer */}
