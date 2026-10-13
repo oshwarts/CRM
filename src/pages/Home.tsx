@@ -36,6 +36,7 @@ import {
 
 type SurgeryRange = '7' | '14' | '30' | 'date'
 const RANGE_KEY = 'ami.home.surgeryRange'
+const SCAN_HOSPITAL_KEY = 'ami.home.scanHospital'
 
 function loadRange(): { range: SurgeryRange; until: string } {
   try {
@@ -66,6 +67,13 @@ export default function Home() {
   const [toAdd, setToAdd] = useState('')
   const [surgeryRange, setSurgeryRange] = useState(loadRange)
   const [scheduleFor, setScheduleFor] = useState<string | null>(null)
+  const [scanHospital, setScanHospital] = useState(() => {
+    try {
+      return localStorage.getItem(SCAN_HOSPITAL_KEY) ?? ''
+    } catch {
+      return ''
+    }
+  })
   const [addScan, setAddScan] = useState(false)
   const [importReferral, setImportReferral] = useState(false)
   const [scanPrefill, setScanPrefill] = useState<{ draft: Partial<ScanDraft>; notices: string[] } | null>(null)
@@ -85,9 +93,31 @@ export default function Home() {
       ? surgeryRange.until || plusDaysISO(7)
       : plusDaysISO(Number(surgeryRange.range))
 
+  // hospitals that appear in the scans, for the filter of the scans block
+  const scanHospitals = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const s of scans.data ?? []) if (s.hospital) m.set(s.hospital.id, s.hospital.name)
+    return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1], 'he'))
+  }, [scans.data])
+  // a hospital that no longer has scans must not leave the block empty
+  const hospitalFilter = scanHospitals.some(([id]) => id === scanHospital) ? scanHospital : ''
+  const homeScans = useMemo(
+    () => (scans.data ?? []).filter((s) => !hospitalFilter || s.hospital?.id === hospitalFilter),
+    [scans.data, hospitalFilter],
+  )
+
+  function changeScanHospital(id: string) {
+    setScanHospital(id)
+    try {
+      localStorage.setItem(SCAN_HOSPITAL_KEY, id)
+    } catch {
+      // not critical
+    }
+  }
+
   const scanAlerts = useMemo(() => {
     const t = todayISO()
-    const list = scans.data ?? []
+    const list = homeScans
     const active = list.filter((s) => s.status !== 'cancelled')
     const surgerySoon = (s: (typeof list)[number]) =>
       !!s.surgery_date && s.surgery_date >= t && s.surgery_date <= surgeryUntil
@@ -115,7 +145,7 @@ export default function Home() {
         .filter((x): x is { s: (typeof list)[number]; kind: RescanKind } => x.kind !== null)
         .sort((a, b) => (a.s.rescan_date ?? '').localeCompare(b.s.rescan_date ?? '')),
     }
-  }, [scans.data, surgeryUntil])
+  }, [homeScans, surgeryUntil])
 
   const favIds = favorites.data ?? []
   const favSet = new Set(favIds)
@@ -260,7 +290,20 @@ export default function Home() {
             לכל הסריקות →
           </Link>
         </div>
-        <div className="mb-3 flex flex-wrap gap-2">
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <select
+            className="input !w-auto"
+            value={hospitalFilter}
+            onChange={(e) => changeScanHospital(e.target.value)}
+            aria-label="סינון סריקות לפי בית חולים"
+          >
+            <option value="">כל בתי החולים</option>
+            {scanHospitals.map(([id, name]) => (
+              <option key={id} value={id}>
+                {name}
+              </option>
+            ))}
+          </select>
           <button className="btn-primary" onClick={() => setAddScan(true)}>
             <Plus size={16} />
             הוסף סריקה
@@ -276,7 +319,7 @@ export default function Home() {
           <>
             <div className="grid gap-3 sm:grid-cols-3">
               <Link to="/scans" className="rounded-lg bg-slate-50 p-3 text-center hover:bg-slate-100">
-                <p className="text-2xl font-bold text-slate-800">{scans.data?.length ?? 0}</p>
+                <p className="text-2xl font-bold text-slate-800">{homeScans.length}</p>
                 <p className="text-xs text-slate-400">סה״כ מטופלים</p>
               </Link>
               <Link
