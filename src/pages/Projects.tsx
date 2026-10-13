@@ -27,6 +27,7 @@ export default function Projects() {
 
   if (projects.isLoading) return <Spinner />
   if (projects.error) return <ErrorState error={projects.error} />
+  if (tasks.error) return <ErrorState error={tasks.error} />
 
   const open = rows.filter((r) => r.p.status !== 'done')
   const closed = rows.filter((r) => r.p.status === 'done')

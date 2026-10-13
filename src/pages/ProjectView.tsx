@@ -102,6 +102,7 @@ export default function ProjectView() {
 
   if (projects.isLoading || allTasks.isLoading) return <Spinner />
   if (projects.error) return <ErrorState error={projects.error} />
+  if (allTasks.error) return <ErrorState error={allTasks.error} />
   if (!project) return <EmptyState title="הפרויקט לא נמצא" hint="ייתכן שאין לך גישה אליו או שנמחק" />
 
   const areas = project.areas
