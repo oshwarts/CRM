@@ -1,4 +1,4 @@
-import { allFields, optionLabel, type FormField, type PreopSchema } from '../lib/preopForm'
+import { allFields, optionLabel, type FormField, type PlaneTable, type PreopSchema } from '../lib/preopForm'
 
 type Values = Record<string, unknown>
 
@@ -26,6 +26,39 @@ function PickField({
         ))}
       </select>
     </label>
+  )
+}
+
+const PLANE_HE: Record<string, string> = { Coronal: 'קורונלי', Transverse: 'טרנסברסלי', Sagittal: 'סגיטלי' }
+
+/** femur / tibia rows against coronal / transverse / sagittal columns, like the MAKO planning screen */
+function PlaneGrid({ table, values, onChange }: { table: PlaneTable; values: Values; onChange: (v: Values) => void }) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-slate-200">
+      <div className="hidden grid-cols-[5rem_repeat(3,minmax(0,1fr))] bg-slate-50 text-center text-xs font-semibold text-slate-600 sm:grid">
+        <div className="p-2" />
+        {table.planes.map((pl) => (
+          <div key={pl} className="border-r border-slate-200 p-2">
+            {pl} <span className="font-normal text-slate-400">· {PLANE_HE[pl]}</span>
+          </div>
+        ))}
+      </div>
+      {table.rows.map((row) => (
+        <div key={row.name} className="grid border-t border-slate-200 first:border-t-0 sm:grid-cols-[5rem_repeat(3,minmax(0,1fr))]">
+          <div className="bg-brand-50 p-2 text-center text-sm font-bold text-brand-700 sm:grid sm:place-items-center">{row.name}</div>
+          {row.cells.map((cell, ci) => (
+            <div key={ci} className="space-y-2 border-slate-200 p-2 sm:border-r">
+              <p className="text-xs font-semibold text-slate-500 sm:hidden">
+                {table.planes[ci]} · {PLANE_HE[table.planes[ci]]}
+              </p>
+              {cell.map((fl) => (
+                <PickField key={fl.key} field={fl} value={values[fl.key]} onChange={(v) => onChange({ ...values, [fl.key]: v })} />
+              ))}
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -68,6 +101,7 @@ export function PreopPlanForm({
                 </div>
               </div>
             ))}
+            {g.planeTable && <PlaneGrid table={g.planeTable} values={values} onChange={onChange} />}
           </div>
         </section>
       ))}
@@ -91,6 +125,16 @@ export function PreopPlanSummary({ schema, values }: { schema: PreopSchema; valu
   let any = false
 
   const groups = schema.groups.map((g) => {
+    const planeRows =
+      g.planeTable?.rows
+        .map((r) => ({
+          name: r.name,
+          cells: r.cells.map((cell) =>
+            cell.map((fl) => ({ fl, text: optionLabel(fieldByKey.get(fl.key)!, values[fl.key]) })).filter((x) => x.text),
+          ),
+        }))
+        .filter((r) => r.cells.some((c) => c.length)) ?? []
+    if (planeRows.length) any = true
     const blocks = g.blocks
       .map((b) => ({
         sub: b.sub,
@@ -100,7 +144,7 @@ export function PreopPlanSummary({ schema, values }: { schema: PreopSchema; valu
       }))
       .filter((b) => b.rows.length > 0)
     if (blocks.length) any = true
-    return { title: g.title, blocks }
+    return { title: g.title, blocks, planeRows, planes: g.planeTable?.planes ?? [] }
   })
 
   if (!any && !notes) return <p className="text-sm text-slate-400">לא הוזנו פרטים.</p>
@@ -108,7 +152,7 @@ export function PreopPlanSummary({ schema, values }: { schema: PreopSchema; valu
   return (
     <div className="space-y-3">
       {groups
-        .filter((g) => g.blocks.length > 0)
+        .filter((g) => g.blocks.length > 0 || g.planeRows.length > 0)
         .map((g) => (
           <div key={g.title}>
             <p className="mb-1 text-xs font-semibold text-slate-500">{g.title}</p>
@@ -124,6 +168,39 @@ export function PreopPlanSummary({ schema, values }: { schema: PreopSchema; valu
                   ))}
                 </div>
               ))}
+              {g.planeRows.length > 0 && (
+                <div className="overflow-x-auto pt-1">
+                  <table className="w-full min-w-[420px] border-collapse text-sm">
+                    <thead>
+                      <tr className="text-xs text-slate-400">
+                        <th className="p-1" />
+                        {g.planes.map((pl) => (
+                          <th key={pl} className="border-r border-slate-200 p-1 text-center font-semibold">
+                            {pl}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {g.planeRows.map((r) => (
+                        <tr key={r.name} className="border-t border-slate-200 align-top">
+                          <td className="p-1.5 text-xs font-bold text-brand-600">{r.name}</td>
+                          {r.cells.map((cell, ci) => (
+                            <td key={ci} className="border-r border-slate-200 p-1.5 text-slate-700">
+                              {cell.map(({ fl, text }) => (
+                                <div key={fl.key}>
+                                  <span className="text-xs text-slate-400">{fl.label}: </span>
+                                  {text}
+                                </div>
+                              ))}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         ))}

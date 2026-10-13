@@ -5,7 +5,9 @@
 export type Opt = { value: string; label: string }
 export type FormField = { key: string; label: string; options: Opt[] }
 export type FormBlock = { sub?: string; fields: FormField[] }
-export type FormGroup = { title: string; blocks: FormBlock[] }
+/** rows (Femur / Tibia) × planes (Coronal / Transverse / Sagittal); each cell holds the values that belong to that plane */
+export type PlaneTable = { planes: string[]; rows: { name: string; cells: FormField[][] }[] }
+export type FormGroup = { title: string; blocks: FormBlock[]; planeTable?: PlaneTable }
 export type PreopSchema = {
   id: 'mako_tka' | 'mako_tha' | 'mako_pka'
   short: string
@@ -40,7 +42,6 @@ const SIDE: Opt[] = [
   { value: 'right', label: 'ימין' },
 ]
 const FIXATION = list('Cemented', 'Cementless', 'Hybrid')
-const SIZES_1_8 = range(1, 8, 1)
 const MM_CUT = range(3, 12, 0.5, ' מ״מ')
 const GAP = signed(-4, 4, 0.5, ' מ״מ', 'פתוח', 'הדוק')
 
@@ -52,60 +53,58 @@ const tka: PreopSchema = {
   label: 'MAKO – החלפת ברך מלאה',
   groups: [
     {
-      title: 'מערכת שתל ומידות',
+      title: 'מערכת שתל',
       blocks: [
         {
           fields: [
             f('implant_system', 'מערכת שתל', list('Triathlon CR', 'Triathlon PS', 'Triathlon CS', 'Triathlon TS', 'Triathlon Cementless CR', 'Triathlon Cementless PS')),
-            f('fem_size', 'מידת Femur', SIZES_1_8),
-            f('tib_size', 'מידת Tibia', SIZES_1_8),
-            f('poly', 'עובי Insert (מ״מ)', list('9', '10', '11', '12', '13', '14', '16', '19', '22')),
             f('patella', 'פיקה', list('Resurface', 'Non-resurface', 'Selective')),
           ],
         },
       ],
     },
     {
-      title: 'זוויות והעדפות יישור',
+      title: 'יישור ותכנון לפי מישורים',
       blocks: [
         {
-          fields: [
-            f('alignment', 'פילוסופיית יישור', list('Mechanical', 'Adjusted Mechanical', 'Kinematic', 'Restricted Kinematic', 'Functional')),
-            f('fem_rotation_ref', 'ייחוס סיבוב Femur', list('PCA', 'TEA', 'Whiteside', 'Balanced')),
-          ],
-        },
-        {
-          sub: 'Femur',
-          fields: [
-            f('fem_coronal', 'Varus / Valgus', signed(-6, 10, 0.5, '°', 'Valgus', 'Varus')),
-            f('fem_rotation', 'סיבוב', signed(-8, 8, 0.5, '°', 'External', 'Internal')),
-            f('fem_flexion', 'Flexion', signed(-3, 10, 0.5, '°', 'Flexion', 'Extension')),
-            f('fem_distal', 'חיתוך דיסטלי', MM_CUT),
-            f('fem_posterior', 'חיתוך אחורי', MM_CUT),
-          ],
-        },
-        {
-          sub: 'Tibia',
-          fields: [
-            f('tib_coronal', 'Varus / Valgus', signed(-6, 8, 0.5, '°', 'Varus', 'Valgus')),
-            f('tib_rotation', 'סיבוב', signed(-8, 8, 0.5, '°', 'External', 'Internal')),
-            f('tib_slope', 'P. Slope', range(0, 10, 0.5, '°')),
-            f('tib_resection', 'חיתוך Tibia', MM_CUT),
-          ],
+          fields: [f('alignment', 'פילוסופיית יישור', list('Mechanical', 'Adjusted Mechanical', 'Kinematic', 'Restricted Kinematic', 'Functional'))],
         },
       ],
-    },
-    {
-      title: 'גישה ניתוחית וקיבוע',
-      blocks: [
-        {
-          fields: [
-            f('side', 'צד מנותח', SIDE),
-            f('approach', 'גישה ניתוחית', list('Medial Parapatellar', 'Subvastus', 'Midvastus', 'Quad-sparing')),
-            f('fixation', 'קיבוע', FIXATION),
-          ],
-        },
-      ],
+      // the same layout as the MAKO planning screen: coronal | transverse | sagittal, femur above tibia
+      planeTable: {
+        planes: ['Coronal', 'Transverse', 'Sagittal'],
+        rows: [
+          {
+            name: 'Femur',
+            cells: [
+              [
+                f('fem_coronal_aa', 'Varus / Valgus — AA', signed(-6, 12, 0.5, '°', 'Valgus', 'Varus')),
+                f('fem_coronal', 'Varus / Valgus — MA', signed(-6, 10, 0.5, '°', 'Valgus', 'Varus')),
+                f('fem_distal_l', 'חיתוך דיסטלי — צד לטרלי (L)', MM_CUT),
+                f('fem_distal_m', 'חיתוך דיסטלי — צד מדיאלי (M)', MM_CUT),
+              ],
+              [
+                f('fem_rotation', 'סיבוב מול PCA', signed(-8, 8, 0.5, '°', 'External', 'Internal')),
+                f('fem_rotation_tea', 'סיבוב מול TEA', signed(-8, 8, 0.5, '°', 'External', 'Internal')),
+                f('fem_post_l', 'חיתוך אחורי — צד לטרלי (L)', MM_CUT),
+                f('fem_post_m', 'חיתוך אחורי — צד מדיאלי (M)', MM_CUT),
+              ],
+              [f('fem_flexion', 'Flexion', signed(-3, 10, 0.5, '°', 'Flexion', 'Extension'))],
+            ],
+          },
+          {
+            name: 'Tibia',
+            cells: [
+              [
+                f('tib_coronal', 'Varus / Valgus', signed(-6, 8, 0.5, '°', 'Varus', 'Valgus')),
+                f('tib_resection', 'חיתוך Tibia', MM_CUT),
+              ],
+              [f('tib_rotation', 'סיבוב', signed(-8, 8, 0.5, '°', 'External', 'Internal'))],
+              [f('tib_slope', 'P. Slope', range(0, 10, 0.5, '°'))],
+            ],
+          },
+        ],
+      },
     },
   ],
 }
@@ -273,7 +272,10 @@ export function schemaFor(key: string | null | undefined): PreopSchema | null {
 }
 
 export const allFields = (s: PreopSchema): FormField[] =>
-  s.groups.flatMap((g) => g.blocks.flatMap((b) => b.fields))
+  s.groups.flatMap((g) => [
+    ...g.blocks.flatMap((b) => b.fields),
+    ...(g.planeTable?.rows.flatMap((r) => r.cells.flat()) ?? []),
+  ])
 
 /** label shown for a stored value (falls back to the raw value for legacy data) */
 export function optionLabel(field: FormField, value: unknown): string {

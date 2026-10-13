@@ -46,7 +46,7 @@ const NAV = [
 // the five destinations reachable with one thumb tap on a phone
 const TABS = ['/', '/doctors', '/schedule', '/meetings', '/scans']
 
-const VERSION = 'v56 · עבודה ללא רשת (קריאה וכתיבה)'
+const VERSION = 'v57 · תכנון ברך לפי מישורים'
 
 export function Layout() {
   const { profile, signOut } = useAuth()
