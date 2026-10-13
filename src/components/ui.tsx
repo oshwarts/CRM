@@ -138,11 +138,23 @@ export function EmptyState({
 }
 
 export function ErrorState({ error }: { error: unknown }) {
-  const msg =
-    error instanceof Error ? error.message : 'אירעה שגיאה בטעינת הנתונים'
+  const real =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'object' && error && 'message' in error
+        ? String((error as { message: unknown }).message)
+        : ''
   return (
-    <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-      {msg}
+    <div className="space-y-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+      <p>שגיאה בטעינת הנתונים. אם זה חוזר, רענן את האפליקציה כדי לקבל את הגרסה האחרונה.</p>
+      {real && (
+        <p dir="auto" className="text-xs text-red-500">
+          {real}
+        </p>
+      )}
+      <button className="btn-secondary" onClick={() => window.location.reload()}>
+        רענן את האפליקציה
+      </button>
     </div>
   )
 }

@@ -2,20 +2,7 @@ import { useState } from 'react'
 import { useIsFetching, useQueryClient } from '@tanstack/react-query'
 import { RefreshCw } from 'lucide-react'
 import { classNames } from '../lib/utils'
-import { useOnline } from '../lib/offline'
-
-/** is a newer build of the app deployed? (compares the script hash in index.html with the running one) */
-async function newVersionAvailable(): Promise<boolean> {
-  try {
-    const running = [...document.scripts].map((s) => s.src.match(/assets\/(index-[\w-]+\.js)/)?.[1]).find(Boolean)
-    if (!running) return false
-    const html = await (await fetch('/index.html', { cache: 'no-store' })).text()
-    const latest = html.match(/assets\/(index-[\w-]+\.js)/)?.[1]
-    return !!latest && latest !== running
-  } catch {
-    return false
-  }
-}
+import { newVersionAvailable, useOnline } from '../lib/offline'
 
 /** pulls the latest data from the server (what other agents added or changed) and loads a new app version if there is one */
 export function RefreshButton({ label = false }: { label?: boolean }) {

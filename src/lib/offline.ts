@@ -85,3 +85,16 @@ export function registerServiceWorker() {
     })
   })
 }
+
+/** is a newer build of the app deployed? (compares the script hash in index.html with the running one) */
+export async function newVersionAvailable(): Promise<boolean> {
+  try {
+    const running = [...document.scripts].map((s) => s.src.match(/assets\/(index-[\w-]+\.js)/)?.[1]).find(Boolean)
+    if (!running) return false
+    const html = await (await fetch('/index.html', { cache: 'no-store' })).text()
+    const latest = html.match(/assets\/(index-[\w-]+\.js)/)?.[1]
+    return !!latest && latest !== running
+  } catch {
+    return false
+  }
+}
