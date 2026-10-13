@@ -571,6 +571,7 @@ export type Database = {
           contact_id: string | null
           priority: string
           recurrence: string
+          sort: number
           updated_at: string
         }
         Insert: {
@@ -594,6 +595,7 @@ export type Database = {
           contact_id?: string | null
           priority?: string
           recurrence?: string
+          sort?: number
           updated_at?: string
         }
         Update: {
@@ -617,6 +619,7 @@ export type Database = {
           contact_id?: string | null
           priority?: string
           recurrence?: string
+          sort?: number
           updated_at?: string
         }
         Relationships: []

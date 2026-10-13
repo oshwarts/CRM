@@ -72,7 +72,8 @@ export function useSaveProject() {
         )
         const rows = tpl.areas.flatMap((a) => {
           const areaId = areas.find((x) => x.name === a.name)?.id
-          return a.tasks.map((t) => ({
+          return a.tasks.map((t, i) => ({
+            sort: i,
             description: t,
             project_id: id,
             area_id: areaId,
@@ -278,6 +279,26 @@ export function useSetTasksContact() {
     mutationFn: async (a: { ids: string[]; contactId: string | null; text: string }) => {
       if (!a.ids.length) return
       unwrap(await supabase.from('meeting_tasks').update({ contact_id: a.contactId, external_owner: a.text }).in('id', a.ids))
+    },
+    onSuccess: () => invalidate(qc),
+  })
+}
+
+/** puts a task at a position (index) of an area — the same area to reorder, another area to move it there */
+export function useMoveTask() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (m: { taskId: string; areaId: string | null; orderedIds: string[]; sameArea: boolean }) => {
+      // m.orderedIds = the target area's task ids in the wanted order (the moved task included)
+      await Promise.all(
+        m.orderedIds.map((id, i) =>
+          supabase
+            .from('meeting_tasks')
+            .update(id === m.taskId && !m.sameArea ? { sort: i, area_id: m.areaId } : { sort: i })
+            .eq('id', id)
+            .then((r) => unwrap(r)),
+        ),
+      )
     },
     onSuccess: () => invalidate(qc),
   })

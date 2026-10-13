@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { AlertTriangle, ArrowRight, Building2, CalendarDays, Clock, Mail, Pencil, Phone, Plus, Trash2, User, Users } from 'lucide-react'
+import { AlertTriangle, ArrowDown, ArrowRight, ArrowUp, Building2, CalendarDays, Clock, GripVertical, Mail, Pencil, Phone, Plus, Trash2, User, Users } from 'lucide-react'
 import { useTasks } from '../lib/api'
-import { useDeleteArea, useDeleteProject, useProjects, useSaveArea, useSetAreaContact, useSetTaskStatus, useSetTasksContact } from '../lib/projectsApi'
+import { useDeleteArea, useDeleteProject, useProjects, useMoveTask, useSaveArea, useSetAreaContact, useSetTaskStatus, useSetTasksContact } from '../lib/projectsApi'
 import { PROJECT_STATUS, STATUS_ORDER, TASK_STATUS, isOverdue, projectStats } from '../lib/projects'
 import { ProjectFormModal } from '../components/ProjectFormModal'
 import { ProjectTaskModal } from '../components/ProjectTaskModal'
@@ -95,6 +95,9 @@ export default function ProjectView() {
   const del = useDeleteProject()
   const setAreaContact = useSetAreaContact()
   const setTasksContact = useSetTasksContact()
+  const moveTask = useMoveTask()
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [overId, setOverId] = useState<string | null>(null)
   const [areaContactFor, setAreaContactFor] = useState<{ id: string; name: string; contactId: string | null; text: string } | null>(null)
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [bulkContact, setBulkContact] = useState(false)
@@ -113,9 +116,21 @@ export default function ProjectView() {
   if (!project) return <EmptyState title="הפרויקט לא נמצא" hint="ייתכן שאין לך גישה אליו או שנמחק" />
 
   const areas = project.areas
-  const byArea = (areaId: string | null) => tasks.filter((t) => (t.area_id ?? null) === areaId)
+  const byArea = (areaId: string | null) =>
+    tasks
+      .filter((t) => (t.area_id ?? null) === areaId)
+      .sort((a, b) => a.sort - b.sort || a.created_at.localeCompare(b.created_at))
   const noArea = byArea(null)
   const open = (t: TaskRow) => setTaskModal({ task: t })
+  /** places a task in an area, before another task (or at the end) — also used by the arrows (swap with the neighbour) */
+  function place(taskId: string, areaId: string | null, beforeId: string | null) {
+    const moved = tasks.find((t) => t.id === taskId)
+    if (!moved || taskId === beforeId) return
+    const target = byArea(areaId).filter((t) => t.id !== taskId)
+    const at = beforeId ? target.findIndex((t) => t.id === beforeId) : -1
+    target.splice(at < 0 ? target.length : at, 0, moved)
+    moveTask.mutate({ taskId, areaId, orderedIds: target.map((t) => t.id), sameArea: (moved.area_id ?? null) === areaId })
+  }
   const change = (t: TaskRow, status: string) => setStatus.mutate({ id: t.id, status })
   const taskNames = new Map(tasks.map((t) => [t.id, t.description]))
   const lateProject = project.target_date && project.status !== 'done' && (daysUntil(project.target_date) ?? 0) < 0
@@ -292,12 +307,58 @@ export default function ProjectView() {
                     </div>
                   </div>
                   {list.length === 0 ? (
-                    <p className="text-sm text-slate-400">אין משימות בתחום.</p>
+                    <p
+                      className={classNames('rounded-lg py-2 text-sm text-slate-400', dragId && 'border border-dashed border-brand-300 bg-brand-50/40 text-center')}
+                      onDragOver={(e) => dragId && e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault()
+                        if (dragId) place(dragId, a.id, null)
+                        setDragId(null)
+                      }}
+                    >
+                      {dragId ? 'שחרר כאן להעברה לתחום' : 'אין משימות בתחום.'}
+                    </p>
                   ) : (
                     <div className="divide-y divide-slate-100">
-                      {list.map((t) => (
-                        <TaskLine
+                      {list.map((t, idx) => (
+                        <div
                           key={t.id}
+                          draggable
+                          onDragStart={() => setDragId(t.id)}
+                          onDragEnd={() => {
+                            setDragId(null)
+                            setOverId(null)
+                          }}
+                          onDragOver={(e) => {
+                            if (dragId && dragId !== t.id) {
+                              e.preventDefault()
+                              setOverId(t.id)
+                            }
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault()
+                            if (dragId) place(dragId, a.id, t.id)
+                            setDragId(null)
+                            setOverId(null)
+                          }}
+                          className={classNames('flex items-start gap-1', dragId === t.id && 'opacity-40', overId === t.id && 'border-t-2 border-brand-400')}
+                        >
+                          <div className="flex shrink-0 flex-col items-center pt-1.5 text-slate-300">
+                            <GripVertical size={14} className="hidden cursor-grab md:block" />
+                            <button className="rounded p-0.5 hover:text-brand-600 disabled:opacity-20" disabled={idx === 0} aria-label="הזז למעלה" onClick={() => place(t.id, a.id, list[idx - 1].id)}>
+                              <ArrowUp size={14} />
+                            </button>
+                            <button
+                              className="rounded p-0.5 hover:text-brand-600 disabled:opacity-20"
+                              disabled={idx === list.length - 1}
+                              aria-label="הזז למטה"
+                              onClick={() => place(t.id, a.id, list[idx + 2]?.id ?? null)}
+                            >
+                              <ArrowDown size={14} />
+                            </button>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                        <TaskLine
                           t={t}
                           onOpen={() => open(t)}
                           onStatus={(s) => change(t, s)}
@@ -311,6 +372,8 @@ export default function ProjectView() {
                             })
                           }
                         />
+                          </div>
+                        </div>
                       ))}
                     </div>
                   )}
