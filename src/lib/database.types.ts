@@ -992,6 +992,45 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_training: {
+        Row: {
+          agent_id: string
+          completed_on: string
+          created_at: string
+          created_by: string | null
+          file_name: string
+          file_path: string | null
+          id: string
+          notes: string
+          procedure_id: string
+          stage: string
+        }
+        Insert: {
+          agent_id: string
+          completed_on?: string
+          created_at?: string
+          created_by?: string | null
+          file_name?: string
+          file_path?: string | null
+          id?: string
+          notes?: string
+          procedure_id: string
+          stage: string
+        }
+        Update: {
+          agent_id?: string
+          completed_on?: string
+          created_at?: string
+          created_by?: string | null
+          file_name?: string
+          file_path?: string | null
+          id?: string
+          notes?: string
+          procedure_id?: string
+          stage?: string
+        }
+        Relationships: []
+      }
       agent_notes: {
         Row: {
           agent_id: string

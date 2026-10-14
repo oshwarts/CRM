@@ -5,7 +5,8 @@ import { useAgents } from '../lib/api'
 import { useAgentGoals, useMetricData } from '../lib/agentsApi'
 import { computeAgentMetrics, goalProgress, monthPeriod, overlaps, quarterPeriod } from '../lib/agentMetrics'
 import { useAuth } from '../context/AuthProvider'
-import { EmptyState, Spinner } from '../components/ui'
+import { EmptyState, Spinner, Tab, TabList, TabPanel, Tabs } from '../components/ui'
+import { TrainingMatrix } from '../components/TrainingMatrix'
 import { classNames } from '../lib/utils'
 
 /** managers: all agents side by side for a month or a quarter */
@@ -16,6 +17,7 @@ export default function Agents() {
   const { data, loading } = useMetricData()
   const [kind, setKind] = useState<'month' | 'quarter'>('month')
   const [offset, setOffset] = useState(0)
+  const [view, setView] = useState('perf')
   const period = kind === 'month' ? monthPeriod(offset) : quarterPeriod(offset)
 
   const rows = useMemo(
@@ -49,7 +51,7 @@ export default function Agents() {
           </h1>
           <p className="text-sm text-slate-400">השוואה בין הסוכנים. לחץ על סוכן כדי לראות לוז, משימות, יעדים ושיחות מעקב.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className={classNames("flex items-center gap-2", view !== "perf" && "invisible")}>
           <select className="input !w-auto" value={kind} onChange={(e) => { setKind(e.target.value as 'month' | 'quarter'); setOffset(0) }}>
             <option value="month">חודשי</option>
             <option value="quarter">רבעוני</option>
@@ -64,6 +66,15 @@ export default function Agents() {
         </div>
       </div>
 
+      <Tabs value={view} onChange={setView}>
+        <TabList>
+          <Tab id="perf">ביצועים</Tab>
+          <Tab id="training">הכשרות</Tab>
+        </TabList>
+        <TabPanel id="training">
+          <TrainingMatrix />
+        </TabPanel>
+        <TabPanel id="perf">
       {rows.length === 0 ? (
         <EmptyState title="אין סוכנים" hint="סוכנים נוספים נרשמים במסך הכניסה, והמנהל מאשר אותם בניהול מערכת" />
       ) : (
@@ -122,6 +133,8 @@ export default function Agents() {
       <p className="text-xs text-slate-400">
         משימות פתוחות, באיחור ותקועות הן המצב כרגע; שאר המדדים לפי התקופה שנבחרה. "רופאים באיחור קשר" נספר מהרופאים המועדפים של הסוכן שהוגדר להם קצב קשר.
       </p>
+        </TabPanel>
+      </Tabs>
     </div>
   )
 }

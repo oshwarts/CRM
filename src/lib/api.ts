@@ -3,6 +3,7 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
+import { addMonths } from 'date-fns'
 import { supabase } from './supabase'
 import { useAuth } from '../context/AuthProvider'
 import { actingUserId } from './actingAs'
@@ -50,12 +51,14 @@ function unwrap<T>(res: { data: unknown; error: unknown }): T {
 /* ============================ Reference data ============================ */
 
 export function useAgents() {
+  const { impersonating } = useAuth()
   return useQuery({
     queryKey: ['agents'],
     queryFn: async () =>
       unwrap<Profile[]>(
         await supabase.from('profiles').select('*').order('full_name'),
       ).filter((p) => p.active !== false),
+    select: (rows) => rows.filter((u) => !u.is_test || u.id === impersonating?.id),
   })
 }
 
@@ -1756,7 +1759,7 @@ function nextDue(due: string, recurrence: string): string {
   today.setHours(0, 0, 0, 0)
   const d = base > today ? base : today
   if (recurrence === 'weekly') d.setDate(d.getDate() + 7)
-  else d.setMonth(d.getMonth() + 1)
+  else return isoOf(addMonths(d, 1)) // clamps to month end (31 Jan → 28 Feb); setMonth would roll over into March
   return isoOf(d)
 }
 
@@ -1851,6 +1854,9 @@ export const BACKUP_TABLES = [
   'consumable_count_lines', 'app_settings', 'procedure_template_stages', 'doctor_surgical_courses',
   'doctor_course_stages', 'doctor_course_items', 'info_categories', 'info_documents', 'info_document_procedures',
   'competitor_intel', 'audit_log',
+  // added later than the first version of the backup: projects, agent management, equipment parts
+  'projects', 'project_areas', 'project_updates', 'project_files', 'agent_goals', 'agent_reviews', 'agent_notes',
+  'equipment_item_parts',
 ] as const
 
 export async function exportBackup(onProgress?: (table: string) => void) {

@@ -19,6 +19,7 @@ import type { AgentGoal, AgentReview, TaskRow } from '../lib/types'
 import { useAuth } from '../context/AuthProvider'
 import { GoalFormModal } from '../components/GoalFormModal'
 import { GoalBars } from '../components/GoalBars'
+import { TrainingPanel } from '../components/TrainingPanel'
 import { REVIEW_KINDS, ReviewFormModal } from '../components/ReviewFormModal'
 import { TaskFormModal } from '../components/TaskFormModal'
 import { ConfirmButton, EmptyState, Spinner, Tab, TabList, TabPanel, Tabs } from '../components/ui'
@@ -137,6 +138,7 @@ export default function AgentView() {
           <Tab id="schedule">לוז</Tab>
           <Tab id="tasks">משימות ופרויקטים</Tab>
           <Tab id="goals">יעדים ({myGoals.length})</Tab>
+          <Tab id="training">הכשרות</Tab>
           <Tab id="reviews">שיחות והערות</Tab>
           <Tab id="evaluation">הערכה</Tab>
         </TabList>
@@ -308,6 +310,11 @@ export default function AgentView() {
               </details>
             )}
           </div>
+        </TabPanel>
+
+        {/* ---------- training ---------- */}
+        <TabPanel id="training">
+          <TrainingPanel agentId={id} />
         </TabPanel>
 
         {/* ---------- 1:1 and notes ---------- */}

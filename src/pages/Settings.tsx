@@ -759,6 +759,7 @@ const EMPTY_CONTACT = {
   name: '',
   role: '',
   phone: '',
+  office_phone: '',
   email: '',
   notes: '',
   hospital_id: '',
@@ -790,6 +791,7 @@ function ContactsSettings() {
       name: draft.name.trim(),
       role: draft.role,
       phone: draft.phone,
+      office_phone: draft.office_phone,
       email: draft.email,
       notes: draft.notes,
       hospital_id: draft.hospital_id || null,
@@ -859,6 +861,14 @@ function ContactsSettings() {
                 className="input text-right"
                 value={draft.phone}
                 onChange={(e) => setDraft({ ...draft, phone: e.target.value })}
+              />
+            </Field>
+            <Field label="טלפון משרד">
+              <input
+                dir="ltr"
+                className="input text-right"
+                value={draft.office_phone}
+                onChange={(e) => setDraft({ ...draft, office_phone: e.target.value })}
               />
             </Field>
             <Field label="אימייל">
@@ -941,7 +951,7 @@ function ContactsSettings() {
                   )}
                 </p>
                 <p className="text-xs text-slate-400">
-                  {[c.phone, c.email, hospitalName(c.hospital_id), doctorName(c.doctor_id)]
+                  {[c.phone, c.office_phone ? `משרד ${c.office_phone}` : '', c.email, hospitalName(c.hospital_id), doctorName(c.doctor_id)]
                     .filter(Boolean)
                     .join(' · ') || '—'}
                 </p>
@@ -955,6 +965,7 @@ function ContactsSettings() {
                       name: c.name,
                       role: c.role,
                       phone: c.phone,
+                      office_phone: c.office_phone,
                       email: c.email,
                       notes: c.notes,
                       hospital_id: c.hospital_id ?? '',
