@@ -11,6 +11,7 @@ import {
 } from '../lib/api'
 import { useAuth } from '../context/AuthProvider'
 import { TaskFormModal } from '../components/TaskFormModal'
+import { useTaskGuess } from '../components/TaskSuggestions'
 import { PendingMark } from '../components/PendingMark'
 import { EmptyState, ErrorState, Spinner } from '../components/ui'
 import { normalizeHe } from '../lib/contactMatch'
@@ -58,6 +59,7 @@ export default function Tasks() {
   const [urgentOnly, setUrgentOnly] = useState(false)
   const [q, setQ] = useState('')
   const [quickText, setQuickText] = useState('')
+  const quickGuess = useTaskGuess(quickText)
   const [editing, setEditing] = useState<TaskRow | null>(null)
   const [adding, setAdding] = useState(false)
   const [open, setOpen] = useState<Set<string>>(new Set())
@@ -112,13 +114,14 @@ export default function Tasks() {
     setError('')
     quick.mutate(
       {
-        description: text,
+        // what was understood (date, urgency, doctor, hospital) is used — it is shown under the field
+        description: quickGuess?.description ?? text,
         notes: '',
-        due_date: null,
-        priority: 'normal',
-        doctor_id: null,
-        hospital_id: null,
-        recurrence: 'none',
+        due_date: quickGuess?.due_date ?? null,
+        priority: quickGuess?.priority ?? 'normal',
+        doctor_id: quickGuess?.doctor_id ?? null,
+        hospital_id: quickGuess?.hospital_id ?? null,
+        recurrence: quickGuess?.recurrence ?? 'none',
         assignee_id: isAdmin && who !== 'me' && who !== 'all' ? who : (user?.id ?? null),
         subtasks: [],
       },
@@ -326,6 +329,16 @@ export default function Tasks() {
           הוסף
         </button>
       </form>
+      {quickGuess && (
+        <div className="-mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-sm text-violet-700">
+          <span>זיהיתי ויישמר עם המשימה:</span>
+          {quickGuess.found.map((f, i) => (
+            <span key={i} className="chip border-violet-200 bg-white !px-2 !py-0 text-violet-700">
+              {f.label}
+            </span>
+          ))}
+        </div>
+      )}
 
       <div className="card space-y-3 p-3">
         <label className="relative block">

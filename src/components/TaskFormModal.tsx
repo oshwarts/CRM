@@ -4,6 +4,7 @@ import { useAgents, useDeleteTask, useDoctors, useHospitals, useSaveTask, type T
 import { useAuth } from '../context/AuthProvider'
 import type { TaskRow } from '../lib/types'
 import { ConfirmButton, Field, Modal } from './ui'
+import { TaskSuggestions, useTaskGuess } from './TaskSuggestions'
 
 const emptyForm = (assignee: string | null): TaskFormData => ({
   description: '',
@@ -51,6 +52,7 @@ export function TaskFormModal({
       : { ...emptyForm(user?.id ?? null), ...defaults },
   )
   const [error, setError] = useState('')
+  const guess = useTaskGuess(task ? '' : d.description) // suggestions only for a new task
   const set = (p: Partial<TaskFormData>) => setD((x) => ({ ...x, ...p }))
 
   async function submit() {
@@ -79,7 +81,23 @@ export function TaskFormModal({
             value={d.description}
             onChange={(e) => set({ description: e.target.value })}
           />
+          <p className="mt-1 text-xs text-slate-400">
+            אפשר להכתיב: לחץ על המיקרופון במקלדת. למשל "לשלוח הצעה לשוחט עד יום חמישי, דחוף" — המערכת תזהה תאריך, עדיפות, רופא ובית חולים.
+          </p>
         </Field>
+        <TaskSuggestions
+          guess={guess}
+          onApply={(g) =>
+            set({
+              description: g.description,
+              due_date: g.due_date ?? d.due_date,
+              priority: g.priority ?? d.priority,
+              recurrence: g.recurrence ?? d.recurrence,
+              doctor_id: g.doctor_id ?? d.doctor_id,
+              hospital_id: g.hospital_id ?? d.hospital_id,
+            })
+          }
+        />
 
         <div className="grid gap-3 sm:grid-cols-3">
           <Field label="תאריך יעד">
