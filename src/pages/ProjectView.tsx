@@ -107,7 +107,18 @@ export default function ProjectView() {
   const [newArea, setNewArea] = useState('')
 
   const project = (projects.data ?? []).find((p) => p.id === id) as ProjectWithRelations | undefined
-  const tasks = useMemo(() => (allTasks.data ?? []).filter((t) => t.project_id === id), [allTasks.data, id])
+  // the project's order: by area, then by the order the user gave the tasks inside the area
+  const tasks = useMemo(() => {
+    const areaIdx = new Map((project?.areas ?? []).map((a, i) => [a.id, i]))
+    return (allTasks.data ?? [])
+      .filter((t) => t.project_id === id)
+      .sort(
+        (a, b) =>
+          (areaIdx.get(a.area_id ?? '') ?? 999) - (areaIdx.get(b.area_id ?? '') ?? 999) ||
+          a.sort - b.sort ||
+          a.created_at.localeCompare(b.created_at),
+      )
+  }, [allTasks.data, id, project])
   const stats = useMemo(() => projectStats(tasks), [tasks])
 
   if (projects.isLoading || allTasks.isLoading) return <Spinner />

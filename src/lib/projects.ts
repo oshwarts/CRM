@@ -19,7 +19,7 @@ export type ProjectStats = {
   percent: number
   blocked: TaskRow[]
   overdue: TaskRow[]
-  /** the next things to do: overdue first, then by due date; blocked tasks are not "next steps" */
+  /** the next things to do (blocked tasks are not "next steps") */
   next: TaskRow[]
 }
 
@@ -36,7 +36,8 @@ export function projectStats(tasks: TaskRow[]): ProjectStats {
     overdue: open.filter(isOverdue),
     next: open
       .filter((t) => t.status !== 'blocked')
-      .sort((a, b) => rank(a) - rank(b) || (a.due_date ?? '9999').localeCompare(b.due_date ?? '9999'))
+      // overdue first, then what is in progress, then the rest in the order the user arranged (the input is already in project order)
+      .sort((a, b) => rank(a) - rank(b))
       .slice(0, 6),
   }
 }
