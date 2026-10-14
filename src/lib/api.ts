@@ -1858,7 +1858,7 @@ export const BACKUP_TABLES = [
   'competitor_intel', 'audit_log',
   // added later than the first version of the backup: projects, agent management, equipment parts
   'projects', 'project_areas', 'project_updates', 'project_files', 'agent_goals', 'agent_reviews', 'agent_notes',
-  'equipment_item_parts',
+  'equipment_item_parts', 'agent_training',
 ] as const
 
 export async function exportBackup(onProgress?: (table: string) => void) {
