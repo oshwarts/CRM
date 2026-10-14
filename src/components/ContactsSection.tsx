@@ -14,11 +14,12 @@ type Draft = {
   name: string
   role: string
   phone: string
+  office_phone: string
   email: string
   notes: string
 }
 
-const empty: Draft = { name: '', role: '', phone: '', email: '', notes: '' }
+const empty: Draft = { name: '', role: '', phone: '', office_phone: '', email: '', notes: '' }
 // a contact added on a doctor's card is usually his secretary
 const emptyFor = (doctorId?: string): Draft => ({ ...empty, role: doctorId ? 'מזכירת רופא' : '' })
 
@@ -86,6 +87,7 @@ export function ContactsSection({
                 name: c.name,
                 role: c.role,
                 phone: c.phone,
+                office_phone: c.office_phone,
                 email: c.email,
                 notes: c.notes,
               })
@@ -131,6 +133,11 @@ function ContactCard({
           {c.phone && (
             <a href={`tel:${c.phone}`} className="inline-flex items-center gap-1" dir="ltr">
               <Phone size={13} /> {c.phone}
+            </a>
+          )}
+          {c.office_phone && (
+            <a href={`tel:${c.office_phone}`} className="inline-flex items-center gap-1" dir="ltr" title="טלפון במשרד">
+              <Phone size={13} /> {c.office_phone} <span className="text-xs text-slate-400">(משרד)</span>
             </a>
           )}
           {c.email && (
@@ -208,6 +215,14 @@ function ContactForm({
             className="input text-right"
             value={draft.phone}
             onChange={(e) => onChange({ ...draft, phone: e.target.value })}
+          />
+        </Field>
+        <Field label="טלפון נוסף במשרד">
+          <input
+            dir="ltr"
+            className="input text-right"
+            value={draft.office_phone}
+            onChange={(e) => onChange({ ...draft, office_phone: e.target.value })}
           />
         </Field>
         <Field label="אימייל">

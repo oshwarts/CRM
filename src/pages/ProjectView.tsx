@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { AlertTriangle, ArrowDown, ArrowRight, ArrowUp, Building2, CalendarDays, Clock, GripVertical, Mail, Pencil, Phone, Plus, Trash2, User, Users } from 'lucide-react'
+import { AlertTriangle, ArrowDown, Copy, Search, X, ArrowRight, ArrowUp, Building2, CalendarDays, Clock, GripVertical, Mail, Pencil, Phone, Plus, Trash2, User, Users } from 'lucide-react'
 import { useTasks } from '../lib/api'
 import { useDeleteArea, useDeleteProject, useProjectUpdates, useProjects, useMoveTask, useReorderAreas, useSaveArea, useSetAreaContact, useSetTaskStatus, useSetTasksContact } from '../lib/projectsApi'
 import { PROJECT_STATUS, STATUS_ORDER, TASK_STATUS, isOverdue, projectStats } from '../lib/projects'
@@ -8,6 +8,7 @@ import { ProjectFormModal } from '../components/ProjectFormModal'
 import { ProjectTaskModal } from '../components/ProjectTaskModal'
 import { ProjectUpdates } from '../components/ProjectUpdates'
 import { ContactPickerModal } from '../components/ContactPickerModal'
+import { normalizeHe } from '../lib/contactMatch'
 import { ConfirmButton, EmptyState, ErrorState, Spinner, Tab, TabList, TabPanel, Tabs } from '../components/ui'
 import type { ProjectWithRelations, TaskRow } from '../lib/types'
 import { classNames, daysUntil, formatDate } from '../lib/utils'
@@ -59,6 +60,11 @@ function TaskLine({ t, onOpen, showArea, onStatus, selected, onSelect, last }: {
                   {t.contact.phone}
                 </a>
               )}
+              {t.contact.office_phone && (
+                <a href={`tel:${t.contact.office_phone}`} dir="ltr" className="mr-1 underline" title="טלפון במשרד" onClick={(e) => e.stopPropagation()}>
+                  {t.contact.office_phone} (משרד)
+                </a>
+              )}
             </span>
           )}
           {last && (
@@ -106,6 +112,9 @@ export default function ProjectView() {
   const [dragArea, setDragArea] = useState<string | null>(null)
   const [overArea, setOverArea] = useState<string | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
+  const [contactFilter, setContactFilter] = useState('') // '' | 'c:<contact id>' | 'x:<outside party text>'
+  const [q, setQ] = useState('')
+  const [copied, setCopied] = useState(false)
   const [overId, setOverId] = useState<string | null>(null)
   const [areaContactFor, setAreaContactFor] = useState<{ id: string; name: string; contactId: string | null; text: string } | null>(null)
   const [picked, setPicked] = useState<Set<string>>(new Set())
@@ -140,7 +149,38 @@ export default function ProjectView() {
     tasks
       .filter((t) => (t.area_id ?? null) === areaId)
       .sort((a, b) => a.sort - b.sort || a.created_at.localeCompare(b.created_at))
+  // ---- search: by the person we work with and / or free text; the summary tab always shows the whole project
+  const words = normalizeHe(q).split(' ').filter(Boolean)
+  const filtering = !!contactFilter || words.length > 0
+  const matches = (t: TaskRow) => {
+    if (contactFilter.startsWith('c:') && t.contact_id !== contactFilter.slice(2)) return false
+    if (contactFilter.startsWith('x:') && (t.contact_id || t.external_owner.trim() !== contactFilter.slice(2))) return false
+    if (!words.length) return true
+    const hay = normalizeHe([t.description, t.notes, t.waiting_for, t.contact?.name, t.external_owner, t.area?.name, t.assignee?.full_name].filter(Boolean).join(' '))
+    return words.every((w) => hay.includes(w))
+  }
+  const visibleTasks = tasks.filter(matches)
+  const byAreaV = (areaId: string | null) => visibleTasks.filter((t) => (t.area_id ?? null) === areaId)
   const noArea = byArea(null)
+  const noAreaV = byAreaV(null)
+  // everyone the project's tasks are connected to, for the picker
+  const people = (() => {
+    const m = new Map<string, { key: string; label: string; open: number }>()
+    for (const t of tasks) {
+      const key = t.contact_id ? `c:${t.contact_id}` : t.external_owner.trim() ? `x:${t.external_owner.trim()}` : ''
+      if (!key) continue
+      const e = m.get(key) ?? { key, label: t.contact ? `${t.contact.name}${t.contact.role ? ` · ${t.contact.role}` : ''}` : t.external_owner.trim(), open: 0 }
+      if (t.status !== 'done') e.open++
+      m.set(key, e)
+    }
+    return [...m.values()].sort((a, b) => b.open - a.open || a.label.localeCompare(b.label, 'he'))
+  })()
+  const person = contactFilter ? tasks.find((t) => (contactFilter.startsWith('c:') ? t.contact_id === contactFilter.slice(2) : !t.contact_id && t.external_owner.trim() === contactFilter.slice(2))) : undefined
+  const personTasks = contactFilter ? tasks.filter((t) => (contactFilter.startsWith('c:') ? t.contact_id === contactFilter.slice(2) : !t.contact_id && t.external_owner.trim() === contactFilter.slice(2))) : []
+  function pickPerson(key: string) {
+    setContactFilter(key)
+    if (key) setTab('areas')
+  }
   const open = (t: TaskRow) => setTaskModal({ task: t })
   /** puts an area before another area (null = last) */
   function placeArea(areaId: string, beforeId: string | null) {
@@ -219,6 +259,98 @@ export default function ProjectView() {
         </div>
       </div>
 
+      {/* find all the tasks with one person (when sitting with him) or search the project */}
+      <div className="card flex flex-wrap items-center gap-2 p-3">
+        <Users size={16} className="shrink-0 text-sky-600" />
+        <select className="input !w-auto min-w-48 flex-1 sm:flex-none" value={contactFilter} onChange={(e) => pickPerson(e.target.value)} aria-label="סינון לפי איש קשר">
+          <option value="">כל אנשי הקשר</option>
+          {people.map((e) => (
+            <option key={e.key} value={e.key}>
+              {e.label} ({e.open} פתוחות)
+            </option>
+          ))}
+        </select>
+        <label className="relative block min-w-40 flex-1">
+          <Search size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="search"
+            className="input !py-1.5 !pr-9"
+            placeholder="חיפוש במשימות: טקסט, איש קשר, תחום…"
+            value={q}
+            onChange={(e) => {
+              setQ(e.target.value)
+              if (e.target.value) setTab((t) => (t === 'summary' ? 'areas' : t))
+            }}
+          />
+        </label>
+        {filtering && (
+          <button
+            className="btn-ghost text-sm text-brand-600"
+            onClick={() => {
+              setContactFilter('')
+              setQ('')
+            }}
+          >
+            <X size={14} /> נקה סינון
+          </button>
+        )}
+      </div>
+
+      {contactFilter && person && (
+        <div className="card space-y-2 border-sky-200 bg-sky-50/40 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p dir="auto" className="font-semibold text-slate-800">
+                {person.contact ? person.contact.name : person.external_owner}
+                {person.contact?.role && <span className="font-normal text-slate-500"> · {person.contact.role}</span>}
+              </p>
+              <p className="mt-0.5 flex flex-wrap items-center gap-x-4 text-sm">
+                {person.contact?.phone && (
+                  <a href={`tel:${person.contact.phone}`} dir="ltr" className="inline-flex items-center gap-1 text-brand-600 hover:underline">
+                    <Phone size={13} /> {person.contact.phone}
+                  </a>
+                )}
+                {person.contact?.office_phone && (
+                  <a href={`tel:${person.contact.office_phone}`} dir="ltr" className="inline-flex items-center gap-1 text-brand-600 hover:underline">
+                    <Phone size={13} /> {person.contact.office_phone} <span className="text-xs text-slate-400">(משרד)</span>
+                  </a>
+                )}
+                {person.contact?.email && (
+                  <a href={`mailto:${person.contact.email}`} dir="ltr" className="inline-flex items-center gap-1 text-brand-600 hover:underline">
+                    <Mail size={13} /> {person.contact.email}
+                  </a>
+                )}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                {personTasks.filter((t) => t.status !== 'done').length} משימות פתוחות · {personTasks.filter((t) => t.status === 'blocked').length} תקועות · {personTasks.filter((t) => t.status === 'done').length} הושלמו
+              </p>
+            </div>
+            <button
+              className="btn-secondary"
+              onClick={async () => {
+                const lines = personTasks
+                  .filter((t) => t.status !== 'done')
+                  .map((t) => {
+                    const last = lastNote.get(t.id)
+                    return `• ${t.description}${t.area ? ` (${t.area.name})` : ''} — ${TASK_STATUS[t.status]?.label ?? ''}${t.due_date ? `, יעד ${formatDate(t.due_date)}` : ''}${t.waiting_for ? `, ממתין ל: ${t.waiting_for}` : ''}${last ? `, עדכון אחרון ${formatDate(last.date)}: ${last.body}` : ''}`
+                  })
+                const phones = [person.contact?.phone, person.contact?.office_phone && `${person.contact.office_phone} (משרד)`].filter(Boolean).join(' · ')
+                const text = `משימות פתוחות מול ${person.contact ? person.contact.name : person.external_owner}${phones ? ` (${phones})` : ''} — ${project.name}\n${lines.join('\n')}`
+                try {
+                  await navigator.clipboard.writeText(text)
+                  setCopied(true)
+                  setTimeout(() => setCopied(false), 2000)
+                } catch {
+                  window.prompt('העתק את הרשימה:', text)
+                }
+              }}
+            >
+              <Copy size={15} /> {copied ? 'הועתק' : 'העתק רשימת משימות פתוחות'}
+            </button>
+          </div>
+        </div>
+      )}
+
       <Tabs value={tab} onChange={setTab}>
         <TabList>
           <Tab id="summary">סיכום</Tab>
@@ -252,7 +384,7 @@ export default function ProjectView() {
             </div>
 
             <div className="space-y-4">
-              <WorkingWith tasks={tasks} />
+              <WorkingWith tasks={tasks} onPick={pickPerson} />
               <div className={classNames('card p-4', stats.blocked.length > 0 && 'border-red-200')}>
                 <h2 className="mb-2 flex items-center gap-2 font-semibold text-slate-800">
                   <AlertTriangle size={16} className={stats.blocked.length ? 'text-red-500' : 'text-slate-300'} />
@@ -287,8 +419,11 @@ export default function ProjectView() {
         {/* ---- areas: the tasks of each area ---- */}
         <TabPanel id="areas">
           <div className="space-y-4">
-            {[...areas.map((a) => ({ id: a.id as string | null, name: a.name })), ...(noArea.length ? [{ id: null, name: 'ללא תחום' }] : [])].map((a) => {
-              const list = byArea(a.id)
+            {filtering && visibleTasks.length === 0 && <EmptyState title="לא נמצאו משימות" hint="נסה לנקות את הסינון או לשנות את החיפוש" />}
+            {[...areas.map((a) => ({ id: a.id as string | null, name: a.name })), ...(noArea.length ? [{ id: null, name: 'ללא תחום' }] : [])]
+              .filter((a) => !filtering || (a.id ? byAreaV(a.id).length > 0 : noAreaV.length > 0))
+              .map((a) => {
+              const list = byAreaV(a.id)
               const s = projectStats(list)
               return (
                 <section
@@ -483,7 +618,7 @@ export default function ProjectView() {
         <TabPanel id="board">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {STATUS_ORDER.map((s) => {
-              const col = tasks.filter((t) => t.status === s)
+              const col = visibleTasks.filter((t) => t.status === s)
               return (
                 <div key={s} className="rounded-xl bg-slate-100/70 p-2">
                   <p className="mb-2 flex items-center justify-between px-1 text-sm font-semibold text-slate-700">
@@ -509,7 +644,7 @@ export default function ProjectView() {
 
         {/* ---- timeline: by due date ---- */}
         <TabPanel id="timeline">
-          <Timeline tasks={tasks} project={project} onOpen={open} onStatus={change} />
+          <Timeline tasks={visibleTasks} project={project} onOpen={open} onStatus={change} />
         </TabPanel>
 
         <TabPanel id="updates">
@@ -566,8 +701,8 @@ export default function ProjectView() {
 }
 
 /** the people outside the team the project depends on: hospital contacts and outside parties named on tasks */
-function WorkingWith({ tasks }: { tasks: TaskRow[] }) {
-  type Entry = { key: string; name: string; role: string; phone: string; email: string; open: TaskRow[]; done: number }
+function WorkingWith({ tasks, onPick }: { tasks: TaskRow[]; onPick: (key: string) => void }) {
+  type Entry = { key: string; name: string; role: string; phone: string; officePhone: string; email: string; open: TaskRow[]; done: number }
   const map = new Map<string, Entry>()
   for (const t of tasks) {
     const key = t.contact ? `c:${t.contact.id}` : t.external_owner.trim() ? `x:${t.external_owner.trim()}` : ''
@@ -577,6 +712,7 @@ function WorkingWith({ tasks }: { tasks: TaskRow[] }) {
       name: t.contact?.name ?? t.external_owner.trim(),
       role: t.contact?.role ?? '',
       phone: t.contact?.phone ?? '',
+      officePhone: t.contact?.office_phone ?? '',
       email: t.contact?.email ?? '',
       open: [],
       done: 0,
@@ -600,14 +736,21 @@ function WorkingWith({ tasks }: { tasks: TaskRow[] }) {
             <li key={e.key} className="py-2 text-sm">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p dir="auto" className="font-medium text-slate-800">
-                    {e.name}
-                    {e.role && <span className="font-normal text-slate-500"> · {e.role}</span>}
-                  </p>
+                  <button className="text-right" onClick={() => onPick(e.key)} title="הצג את כל המשימות מול איש קשר זה">
+                    <span dir="auto" className="font-medium text-slate-800 hover:text-brand-600 hover:underline">
+                      {e.name}
+                      {e.role && <span className="font-normal text-slate-500"> · {e.role}</span>}
+                    </span>
+                  </button>
                   <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs text-slate-400">
                     {e.phone && (
                       <a href={`tel:${e.phone}`} dir="ltr" className="inline-flex items-center gap-1 text-brand-600 hover:underline">
                         <Phone size={12} /> {e.phone}
+                      </a>
+                    )}
+                    {e.officePhone && (
+                      <a href={`tel:${e.officePhone}`} dir="ltr" className="inline-flex items-center gap-1 text-brand-600 hover:underline">
+                        <Phone size={12} /> {e.officePhone} (משרד)
                       </a>
                     )}
                     {e.email && (
@@ -615,7 +758,7 @@ function WorkingWith({ tasks }: { tasks: TaskRow[] }) {
                         <Mail size={12} /> {e.email}
                       </a>
                     )}
-                    {!e.phone && !e.email && e.key.startsWith('x:') && <span>גורם חיצוני (ללא איש קשר במערכת)</span>}
+                    {!e.phone && !e.officePhone && !e.email && e.key.startsWith('x:') && <span>גורם חיצוני (ללא איש קשר במערכת)</span>}
                   </p>
                 </div>
                 <span className="shrink-0 text-xs text-slate-500">

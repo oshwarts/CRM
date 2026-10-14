@@ -58,6 +58,7 @@ export function ContactPickerModal({
                 {c.name}
                 {c.role ? ` · ${c.role}` : ''}
                 {c.phone ? ` · ${c.phone}` : ''}
+                {c.office_phone ? ` · משרד ${c.office_phone}` : ''}
               </option>
             ))}
           </select>

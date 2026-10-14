@@ -416,6 +416,11 @@ function HospitalPanel({ hospital }: { hospital: MapHospital }) {
                     {c.phone}
                   </a>
                 ) : null}
+                {c.office_phone ? (
+                  <a href={`tel:${c.office_phone}`} dir="ltr" className="block text-xs text-slate-400">
+                    {c.office_phone} (משרד)
+                  </a>
+                ) : null}
                 {c.email ? (
                   <a href={`mailto:${c.email}`} dir="ltr" className="block break-all text-xs text-slate-400">
                     {c.email}

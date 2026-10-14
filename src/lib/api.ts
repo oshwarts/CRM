@@ -812,6 +812,7 @@ export function useUpsertContact() {
         name: c.name,
         role: c.role ?? '',
         phone: c.phone ?? '',
+        office_phone: c.office_phone ?? '',
         email: c.email ?? '',
         notes: c.notes ?? '',
         hospital_id: c.hospital_id ?? null,
@@ -1694,7 +1695,7 @@ export async function openInfoDocument(d: InfoDocument): Promise<string | null> 
 // meeting_tasks is the single tasks table: tasks from meeting summaries and stand-alone tasks
 
 const TASK_SELECT =
-  '*, subtasks:task_subtasks(*), doctor:doctors(id, name, title), hospital:hospitals(id, name), assignee:profiles!meeting_tasks_assignee_id_fkey(id, full_name), meeting:meetings(id, subject), project:projects(id, name), area:project_areas(id, name), contact:contacts(id, name, role, phone, email)'
+  '*, subtasks:task_subtasks(*), doctor:doctors(id, name, title), hospital:hospitals(id, name), assignee:profiles!meeting_tasks_assignee_id_fkey(id, full_name), meeting:meetings(id, subject), project:projects(id, name), area:project_areas(id, name), contact:contacts(id, name, role, phone, office_phone, email)'
 
 /** every task the signed-in user may see (his own; admins see all) */
 export function useTasks() {

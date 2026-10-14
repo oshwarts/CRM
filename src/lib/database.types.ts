@@ -27,6 +27,7 @@ export type Database = {
           id: string
           name: string
           notes: string
+          office_phone: string
           phone: string
           role: string
           updated_at: string
@@ -39,6 +40,7 @@ export type Database = {
           id?: string
           name: string
           notes?: string
+          office_phone?: string
           phone?: string
           role?: string
           updated_at?: string
@@ -51,6 +53,7 @@ export type Database = {
           id?: string
           name?: string
           notes?: string
+          office_phone?: string
           phone?: string
           role?: string
           updated_at?: string

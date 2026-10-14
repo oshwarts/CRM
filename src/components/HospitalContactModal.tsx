@@ -15,7 +15,7 @@ export function HospitalContactModal({
   onClose: () => void
 }) {
   const upsert = useUpsertContact()
-  const [d, setD] = useState({ name: '', role: '', phone: '', email: '', notes: '' })
+  const [d, setD] = useState({ name: '', role: '', phone: '', office_phone: '', email: '', notes: '' })
   const [error, setError] = useState('')
   const set = (p: Partial<typeof d>) => setD((x) => ({ ...x, ...p }))
 
@@ -27,6 +27,7 @@ export function HospitalContactModal({
         name: d.name.trim(),
         role: d.role.trim(),
         phone: d.phone.trim(),
+        office_phone: d.office_phone.trim(),
         email: d.email.trim(),
         notes: d.notes.trim(),
         hospital_id: hospitalId,
@@ -60,6 +61,9 @@ export function HospitalContactModal({
           </Field>
           <Field label="טלפון">
             <input dir="ltr" className="input text-right" value={d.phone} onChange={(e) => set({ phone: e.target.value })} />
+          </Field>
+          <Field label="טלפון נוסף במשרד">
+            <input dir="ltr" className="input text-right" value={d.office_phone} onChange={(e) => set({ office_phone: e.target.value })} />
           </Field>
           <Field label="אימייל">
             <input dir="ltr" className="input text-right" value={d.email} onChange={(e) => set({ email: e.target.value })} />
