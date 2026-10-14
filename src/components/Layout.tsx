@@ -16,6 +16,7 @@ import {
   Target,
   FolderKanban,
   ListChecks,
+  UserCheck,
   Swords,
   Users as UsersIcon,
   X,
@@ -42,13 +43,14 @@ const NAV = [
   { to: '/competitors', label: 'פעילות מתחרים', short: 'מתחרים', icon: Swords, end: false },
   { to: '/reports', label: 'דוחות', short: 'דוחות', icon: BarChart3, end: false },
   { to: '/settings', label: 'הגדרות', short: 'הגדרות', icon: Settings, end: false },
+  { to: '/agents', label: 'ניהול סוכנים', short: 'סוכנים', icon: UserCheck, end: false, adminOnly: true },
   { to: '/users', label: 'ניהול מערכת', short: 'ניהול', icon: UsersIcon, end: false, adminOnly: true },
 ]
 
 // the five destinations reachable with one thumb tap on a phone
 const TABS = ['/', '/doctors', '/schedule', '/meetings', '/scans']
 
-const VERSION = 'v72 · סריקות: נסרק, הועלה דיסק, תוכנית מוכנה'
+const VERSION = 'v73 · ניהול סוכנים'
 
 export function Layout() {
   const { profile, signOut } = useAuth()

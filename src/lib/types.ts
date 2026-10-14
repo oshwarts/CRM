@@ -16,6 +16,9 @@ export type CompetitorIntelRow = CompetitorIntel & {
 }
 export type AuditEntry = Tables<'audit_log'>
 /** a task with everything the tasks page shows */
+export type AgentGoal = Tables<'agent_goals'>
+export type AgentReview = Tables<'agent_reviews'>
+export type AgentNote = Tables<'agent_notes'>
 export type Project = Tables<'projects'>
 export type ProjectArea = Tables<'project_areas'>
 export type ProjectUpdate = Tables<'project_updates'>

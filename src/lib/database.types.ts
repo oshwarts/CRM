@@ -571,6 +571,7 @@ export type Database = {
           contact_id: string | null
           priority: string
           recurrence: string
+          review_id: string | null
           sort: number
           updated_at: string
         }
@@ -595,6 +596,7 @@ export type Database = {
           contact_id?: string | null
           priority?: string
           recurrence?: string
+          review_id?: string | null
           sort?: number
           updated_at?: string
         }
@@ -619,6 +621,7 @@ export type Database = {
           contact_id?: string | null
           priority?: string
           recurrence?: string
+          review_id?: string | null
           sort?: number
           updated_at?: string
         }
@@ -890,6 +893,126 @@ export type Database = {
           task_id?: string | null
           update_id?: string | null
           uploaded_by?: string | null
+        }
+        Relationships: []
+      }
+      agent_goals: {
+        Row: {
+          agent_id: string
+          category: string
+          created_at: string
+          created_by: string | null
+          current_value: number
+          id: string
+          metric: string
+          notes: string
+          period_end: string
+          period_start: string
+          progress_pct: number
+          target: number | null
+          title: string
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          current_value?: number
+          id?: string
+          metric?: string
+          notes?: string
+          period_end: string
+          period_start: string
+          progress_pct?: number
+          target?: number | null
+          title: string
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          current_value?: number
+          id?: string
+          metric?: string
+          notes?: string
+          period_end?: string
+          period_start?: string
+          progress_pct?: number
+          target?: number | null
+          title?: string
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      agent_reviews: {
+        Row: {
+          agent_id: string
+          agreements: string
+          created_at: string
+          created_by: string | null
+          id: string
+          kind: string
+          rating: number | null
+          review_date: string
+          summary: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          agreements?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind?: string
+          rating?: number | null
+          review_date?: string
+          summary?: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          agreements?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind?: string
+          rating?: number | null
+          review_date?: string
+          summary?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      agent_notes: {
+        Row: {
+          agent_id: string
+          body: string
+          created_at: string
+          created_by: string | null
+          id: string
+          note_date: string
+        }
+        Insert: {
+          agent_id: string
+          body: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note_date?: string
+        }
+        Update: {
+          agent_id?: string
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note_date?: string
         }
         Relationships: []
       }

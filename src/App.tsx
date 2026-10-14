@@ -18,6 +18,8 @@ import Consumables from './pages/Consumables'
 import Settings from './pages/Settings'
 import Users from './pages/Users'
 import Tasks from './pages/Tasks'
+import Agents from './pages/Agents'
+import AgentView from './pages/AgentView'
 import Projects from './pages/Projects'
 import ProjectView from './pages/ProjectView'
 import Competitors from './pages/Competitors'
@@ -65,6 +67,8 @@ export default function App() {
         <Route path="/settings" element={<Settings />} />
         <Route path="/users" element={<Users />} />
         <Route path="/tasks" element={<Tasks />} />
+        <Route path="/agents" element={<Agents />} />
+        <Route path="/agents/:id" element={<AgentView />} />
         <Route path="/projects" element={<Projects />} />
         <Route path="/projects/:id" element={<ProjectView />} />
         <Route path="/competitors" element={<Competitors />} />

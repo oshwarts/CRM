@@ -9,6 +9,7 @@ import { contactState, cadenceLabel } from '../lib/cadence'
 import { SCAN_PROCEDURE_LABELS } from '../lib/types'
 import { classNames, daysUntil, formatDate, formatTime, plusDaysISO, todayISO } from '../lib/utils'
 import { HomeTasks } from './HomeTasks'
+import { MyGoals } from './MyGoals'
 import { MeetingFormModal } from './MeetingFormModal'
 
 const dayWord = (iso: string) => (iso === todayISO() ? 'היום' : 'מחר')
@@ -160,6 +161,8 @@ export function TodayBlock() {
           </ul>
         </div>
       )}
+
+      <MyGoals />
 
       <HomeTasks embedded />
 
