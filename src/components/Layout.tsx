@@ -25,6 +25,7 @@ import { useAuth } from '../context/AuthProvider'
 import { ProfileModal } from './ProfileModal'
 import { RefreshButton } from './RefreshButton'
 import { OfflineBanner } from './OfflineBanner'
+import { DeveloperBar, DeveloperSwitcher } from './DeveloperSwitch'
 import { clearOutbox, drain, outboxSize } from '../lib/outbox'
 import { classNames } from '../lib/utils'
 
@@ -50,10 +51,10 @@ const NAV = [
 // the five destinations reachable with one thumb tap on a phone
 const TABS = ['/', '/doctors', '/schedule', '/meetings', '/scans']
 
-const VERSION = 'v76 · הבנת משימות מטקסט והכתבה'
+const VERSION = 'v77 · משתמש מפתח'
 
 export function Layout() {
-  const { profile, signOut } = useAuth()
+  const { profile, signOut, impersonating } = useAuth()
   const navItems = NAV.filter((n) => !('adminOnly' in n) || profile?.role === 'admin')
   const navigate = useNavigate()
   const location = useLocation()
@@ -94,6 +95,7 @@ export function Layout() {
         {profile?.role === 'admin' && ' · מנהל'}
         <span className="block text-[11px] text-brand-500">עריכת פרופיל</span>
       </button>
+      <DeveloperSwitcher />
       <RefreshButton label />
       <button className="btn-ghost w-full justify-start" onClick={handleSignOut}>
         <LogOut size={16} />
@@ -116,9 +118,10 @@ export function Layout() {
   )
 
   return (
-    <div className="flex min-h-full">
+    <div className="flex min-h-full" style={impersonating ? ({ '--banner': '2rem' } as React.CSSProperties) : undefined}>
+      <DeveloperBar />
       {/* desktop sidebar */}
-      <aside className="sticky top-0 hidden h-screen max-h-dvh w-60 flex-col border-l border-slate-200 bg-white md:flex">
+      <aside className="sticky top-[var(--banner,0px)] hidden h-[calc(100dvh-var(--banner,0px))] w-60 flex-col border-l border-slate-200 bg-white md:flex">
         <div className="px-5 py-5">{brand}</div>
         <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 pb-2">
           {navItems.map(({ to, label, icon: Icon, end }) => (
@@ -132,7 +135,7 @@ export function Layout() {
       </aside>
 
       {/* mobile top bar */}
-      <header className="fixed inset-x-0 top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white/95 px-4 pb-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] backdrop-blur md:hidden">
+      <header className="fixed inset-x-0 top-[var(--banner,0px)] z-30 flex items-center justify-between border-b border-slate-200 bg-white/95 px-4 pb-2 pt-[calc(env(safe-area-inset-top)+0.5rem)] backdrop-blur md:hidden">
         {/* the menu button is on the right edge (easier for the right thumb) */}
         <div className="flex items-center gap-1">
           <button className="btn-ghost !px-2" onClick={() => setDrawer(true)} aria-label="תפריט">
@@ -147,7 +150,7 @@ export function Layout() {
       {drawer && (
         <div className="fixed inset-0 z-40 md:hidden">
           <div className="absolute inset-0 bg-slate-900/40" onClick={() => setDrawer(false)} />
-          <aside className="absolute inset-y-0 right-0 flex w-72 max-w-[85%] flex-col bg-white pt-[env(safe-area-inset-top)] shadow-xl">
+          <aside className="absolute bottom-0 right-0 top-[var(--banner,0px)] flex w-72 max-w-[85%] flex-col bg-white pt-[env(safe-area-inset-top)] shadow-xl">
             <div className="flex items-center justify-between px-4 py-4">
               {brand}
               <button className="btn-ghost !px-2" onClick={() => setDrawer(false)} aria-label="סגור">
@@ -168,7 +171,7 @@ export function Layout() {
       )}
 
       <main className="min-w-0 flex-1 overflow-x-clip">
-        <div className="mx-auto max-w-6xl px-3 pb-[calc(env(safe-area-inset-bottom)+5rem)] pt-[calc(env(safe-area-inset-top)+4.5rem)] md:px-6 md:pb-6 md:pt-6">
+        <div className="mx-auto max-w-6xl px-3 pb-[calc(env(safe-area-inset-bottom)+5rem)] pt-[calc(env(safe-area-inset-top)+4.5rem+var(--banner,0px))] md:px-6 md:pb-6 md:pt-[calc(1.5rem+var(--banner,0px))]">
           <Outlet />
         </div>
       </main>

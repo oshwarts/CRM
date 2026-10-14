@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from './supabase'
+import { actingUserId } from './actingAs'
 import { useDoctors, useMapData, useMeetings, usePatientScans, useTasks } from './api'
 import type { MetricData } from './agentMetrics'
 import type { AgentGoal, AgentNote, AgentReview } from './types'
@@ -121,8 +122,8 @@ export function useSaveReview() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (r: ReviewInput) => {
-      const { data: userRes } = await supabase.auth.getUser()
-      const me = userRes.user?.id ?? null
+      const actingId = await actingUserId()
+      const me = actingId
       const row = { agent_id: r.agent_id, kind: r.kind, review_date: r.review_date, summary: r.summary.trim(), agreements: r.agreements.trim(), rating: r.rating }
       let id = r.id
       if (id) unwrap(await supabase.from('agent_reviews').update(row).eq('id', id))

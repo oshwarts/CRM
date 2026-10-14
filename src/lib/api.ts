@@ -4,6 +4,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import { supabase } from './supabase'
+import { actingUserId } from './actingAs'
 import type {
   CaseVolumeRow,
   InfoCategory,
@@ -243,7 +244,7 @@ export function useCreateDoctor() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (d: DoctorFormData) => {
-      const { data: userRes } = await supabase.auth.getUser()
+      const actingId = await actingUserId()
       const row: TablesInsert<'doctors'> = {
         name: d.name,
         title: d.title,
@@ -256,7 +257,7 @@ export function useCreateDoctor() {
         pipeline_stage: d.pipeline_stage,
         next_step_date: d.next_step_date,
         contact_cadence_days: d.contact_cadence_days,
-        created_by: userRes.user?.id ?? null,
+        created_by: actingId,
       }
       const created = unwrap<Doctor>(
         await supabase.from('doctors').insert(row).select().single(),
@@ -367,13 +368,13 @@ export function useFavorites() {
   return useQuery({
     queryKey: ['favorites'],
     queryFn: async () => {
-      const { data: userRes } = await supabase.auth.getUser()
-      if (!userRes.user) return [] as string[]
+      const actingId = await actingUserId()
+      if (!actingId) return [] as string[]
       const rows = unwrap<{ doctor_id: string }[]>(
         await supabase
           .from('favorites')
           .select('doctor_id')
-          .eq('user_id', userRes.user.id),
+          .eq('user_id', actingId),
       )
       return rows.map((r) => r.doctor_id)
     },
@@ -390,8 +391,8 @@ export function useToggleFavorite() {
       doctorId: string
       isFavorite: boolean
     }) => {
-      const { data: userRes } = await supabase.auth.getUser()
-      const userId = userRes.user?.id
+      const actingId = await actingUserId()
+      const userId = actingId ?? undefined
       if (!userId) throw new Error('לא מחובר')
       if (isFavorite) {
         unwrap(
@@ -1212,11 +1213,11 @@ export function useUpsertPatientScan() {
             .eq('id', id),
         )
       } else {
-        const { data: userRes } = await supabase.auth.getUser()
+        const actingId = await actingUserId()
         unwrap(
           await supabase
             .from('patient_scans')
-            .insert({ ...rest, created_by: userRes.user?.id ?? null } as never),
+            .insert({ ...rest, created_by: actingId } as never),
         )
       }
     },
@@ -1292,13 +1293,13 @@ export function useUpdateMyProfile() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (fullName: string) => {
-      const { data: userRes } = await supabase.auth.getUser()
-      if (!userRes.user) throw new Error('לא מחובר')
+      const actingId = await actingUserId()
+      if (!actingId) throw new Error('לא מחובר')
       unwrap(
         await supabase
           .from('profiles')
           .update({ full_name: fullName })
-          .eq('id', userRes.user.id),
+          .eq('id', actingId),
       )
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['agents'] }),
@@ -1612,7 +1613,7 @@ export function useSaveInfoDoc() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (d: InfoDocInput) => {
-      const { data: userRes } = await supabase.auth.getUser()
+      const actingId = await actingUserId()
       const meta: Record<string, unknown> = {
         title: d.title.trim(),
         description: d.description.trim(),
@@ -1642,7 +1643,7 @@ export function useSaveInfoDoc() {
         const created = unwrap<{ id: string }>(
           await supabase
             .from('info_documents')
-            .insert({ ...meta, uploaded_by: userRes.user?.id ?? null } as never)
+            .insert({ ...meta, uploaded_by: actingId } as never)
             .select('id')
             .single(),
         )

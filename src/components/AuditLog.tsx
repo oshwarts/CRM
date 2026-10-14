@@ -29,7 +29,7 @@ export const FIELD_LABELS: Record<string, string> = {
   patient_name: 'שם מטופל', patient_phone: 'טלפון מטופל', patient_id_number: 'ת״ז', is_done: 'בוצע', due_date: 'תאריך יעד',
   assignee_id: 'אחראי', description: 'תיאור', priority: 'עדיפות', summary: 'סיכום', subject: 'נושא', meeting_date: 'תאריך',
   contact_cadence_days: 'קצב קשר', plan_ready: 'תוכנית מוכנה', scanned: 'נסרק', disk_collected: 'הועלה דיסק',
-  pipeline_stage: 'שלב', tracking_notes: 'הערות מעקב', title: 'כותרת',
+  impersonating_id: 'התחזות', pipeline_stage: 'שלב', tracking_notes: 'הערות מעקב', title: 'כותרת',
 }
 
 const fmt = (iso: string) =>
@@ -90,6 +90,11 @@ export function AuditLog() {
                 {e.changed_fields.length > 0 && (
                   <span className="text-xs text-slate-400">
                     ({e.changed_fields.map((c) => FIELD_LABELS[c] ?? c).join(', ')})
+                  </span>
+                )}
+                {e.detail && typeof e.detail === 'object' && !Array.isArray(e.detail) && (e.detail as Record<string, unknown>).as_user_name != null && (
+                  <span className="chip border-amber-200 bg-amber-50 !px-2 !py-0 text-xs text-amber-700">
+                    מצב מפתח · בהתחזות ל-{String((e.detail as Record<string, unknown>).as_user_name)}
                   </span>
                 )}
                 {e.table_name === 'profiles' && e.detail && typeof e.detail === 'object' && !Array.isArray(e.detail) && (

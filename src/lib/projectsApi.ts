@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from './supabase'
+import { actingUserId } from './actingAs'
 import { INFO_BUCKET } from './api'
 import { PROJECT_TEMPLATES } from './projects'
 import type { ProjectFile, ProjectUpdate, ProjectWithRelations } from './types'
@@ -47,8 +48,8 @@ export function useSaveProject() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (p: ProjectInput) => {
-      const { data: userRes } = await supabase.auth.getUser()
-      const me = userRes.user?.id ?? null
+      const actingId = await actingUserId()
+      const me = actingId
       const row = {
         name: p.name.trim(),
         description: p.description.trim(),
@@ -137,7 +138,7 @@ export function useSaveProjectTask() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (t: ProjectTaskInput) => {
-      const { data: userRes } = await supabase.auth.getUser()
+      const actingId = await actingUserId()
       const row = {
         project_id: t.project_id,
         area_id: t.area_id,
@@ -153,7 +154,7 @@ export function useSaveProjectTask() {
         hospital_id: t.hospital_id,
       }
       if (t.id) unwrap(await supabase.from('meeting_tasks').update(row).eq('id', t.id))
-      else unwrap(await supabase.from('meeting_tasks').insert({ ...row, created_by: userRes.user?.id ?? null }))
+      else unwrap(await supabase.from('meeting_tasks').insert({ ...row, created_by: actingId }))
     },
     onSuccess: () => invalidate(qc),
   })

@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import { supabase } from './supabase'
+import { actingUserId } from './actingAs'
 import { openDb, OFFLINE_MESSAGE } from './offline'
 import { queryClient } from './queryClient'
 
@@ -90,9 +91,15 @@ export function isNetworkError(e: unknown): boolean {
   return msg.includes(OFFLINE_MESSAGE) || /failed to fetch|networkerror|network request failed|load failed|fetch failed/i.test(msg)
 }
 
-export async function currentUserId(): Promise<string> {
+/** the signed-in account (the queue belongs to it) */
+async function realUserId(): Promise<string> {
   const { data } = await supabase.auth.getSession()
   return data.session?.user.id ?? ''
+}
+
+/** the user the app acts as — differs from the account only for the developer switched to another user */
+export async function currentUserId(): Promise<string> {
+  return (await actingUserId()) ?? ''
 }
 
 /** all changes of the queue go through one lock (shared by every tab), always starting from what is saved */
@@ -108,7 +115,7 @@ async function mutate(change: () => void | Promise<void>): Promise<void> {
 }
 
 export async function enqueue(op: NewOp, extra: Partial<Op> = {}): Promise<void> {
-  const uid = userId || (await currentUserId())
+  const uid = userId || (await realUserId())
   await mutate(() => {
     ops = [...ops, { ...op, id: crypto.randomUUID(), userId: uid, createdAt: Date.now(), state: 'pending' as const, ...extra }]
   })
@@ -145,7 +152,7 @@ export async function drain(): Promise<void> {
     let touched = false
     try {
       await reload()
-      userId = await currentUserId()
+      userId = await realUserId()
       if (!userId) return
       for (const op of ops.filter((o) => o.userId === userId && o.state === 'pending')) {
         const exec = executors.get(op.kind)
@@ -277,7 +284,7 @@ export async function mergePatch(
 /* ---------- start ---------- */
 if (typeof window !== 'undefined') {
   void reload().then(async () => {
-    userId = await currentUserId()
+    userId = await realUserId()
     refreshSnapshot()
     void drain()
   })

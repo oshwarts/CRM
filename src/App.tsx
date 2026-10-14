@@ -26,7 +26,7 @@ import Competitors from './pages/Competitors'
 import Pending from './pages/Pending'
 
 export default function App() {
-  const { session, loading, profile } = useAuth()
+  const { session, loading, realProfile } = useAuth()
 
   if (loading) {
     return (
@@ -46,7 +46,7 @@ export default function App() {
   }
 
   // signed in but not approved yet (new sign-up) or deactivated by an admin
-  if (profile && profile.active === false) return <Pending />
+  if (realProfile && realProfile.active === false) return <Pending />
 
   return (
     <Routes>
