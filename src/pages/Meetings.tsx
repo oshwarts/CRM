@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useCanDelete } from '../lib/permissions'
 import { PendingMark } from '../components/PendingMark'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
@@ -40,6 +41,7 @@ type FilterKey = 'all' | 'upcoming' | 'past' | 'followup'
 export default function Meetings() {
   const meetings = useMeetings()
   const deleteMeeting = useDeleteMeeting()
+  const canDelete = useCanDelete()
   const toggleTask = useToggleMeetingTask()
 
   const [filter, setFilter] = useState<FilterKey>('all')
@@ -293,12 +295,14 @@ export default function Meetings() {
                 >
                   <Pencil size={15} />
                 </button>
-                <ConfirmButton
-                  className="btn-ghost !px-2 text-red-500"
-                  onConfirm={() => deleteMeeting.mutate(m.id)}
-                >
-                  <Trash2 size={15} />
-                </ConfirmButton>
+                {canDelete(m.created_by) && (
+                  <ConfirmButton
+                    className="btn-ghost !px-2 text-red-500"
+                    onConfirm={() => deleteMeeting.mutate(m.id)}
+                  >
+                    <Trash2 size={15} />
+                  </ConfirmButton>
+                )}
               </div>
             </div>
 

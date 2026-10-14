@@ -2018,7 +2018,10 @@ async function execTaskSave(p: TaskSavePayload): Promise<ExecResult> {
         .upsert({ id: d.id, ...taskFields(d), assignee_id: d.assignee_id || p.userId, created_by: p.userId }),
     )
   } else {
-    if (d.assignee_id) unwrap(await supabase.from('meeting_tasks').update({ assignee_id: d.assignee_id }).eq('id', d.id))
+    // the assignee is written only when this edit changed it (otherwise a manager's reassignment made meanwhile would be undone)
+    if (d.assignee_id && (p.base === null || d.assignee_id !== p.base.assignee_id)) {
+      unwrap(await supabase.from('meeting_tasks').update({ assignee_id: d.assignee_id }).eq('id', d.id))
+    }
     result = await mergePatch('meeting_tasks', d.id, taskFields(d), p.base)
   }
   // sub-tasks: only the ones this edit removed are deleted (a step another agent added meanwhile stays)
@@ -2049,7 +2052,7 @@ export function useSaveTask() {
       const payload: TaskSavePayload = {
         data,
         isNew,
-        base: isNew ? null : pickKeys(cached, TASK_FIELDS),
+        base: isNew ? null : pickKeys(cached, [...TASK_FIELDS, 'assignee_id']),
         baseSubIds: isNew ? null : (cached?.subtasks.map((s) => s.id) ?? null),
         userId,
       }
@@ -2432,22 +2435,12 @@ export function useSaveEquipmentItem() {
       if (id) unwrap(await supabase.from('equipment_items').update(row).eq('id', id))
       else id = unwrap<{ id: string }>(await supabase.from('equipment_items').insert(row).select('id').single()).id
 
-      // the list of parts is replaced as a whole (order = sort)
-      unwrap(await supabase.from('equipment_item_parts').delete().eq('item_id', id))
-      const parts = e.parts.filter((p) => p.catalog_no.trim() || p.description.trim())
-      if (parts.length)
-        unwrap(
-          await supabase.from('equipment_item_parts').insert(
-            parts.map((p, i) => ({
-              item_id: id,
-              position: p.position,
-              catalog_no: p.catalog_no.trim(),
-              description: p.description.trim(),
-              qty: Math.max(1, p.qty || 1),
-              sort: i,
-            })),
-          ),
-        )
+      // the list of parts is replaced as a whole (order = sort), in one database transaction: a failure keeps the old list
+      const parts = e.parts
+        .filter((p) => p.catalog_no.trim() || p.description.trim())
+        .map((p, i) => ({ position: p.position, catalog_no: p.catalog_no.trim(), description: p.description.trim(), qty: Math.max(1, p.qty || 1), sort: i }))
+      const { error } = await supabase.rpc('replace_equipment_parts', { p_item: id, p_parts: parts })
+      if (error) throw error
       return id
     },
     onSuccess: () => {

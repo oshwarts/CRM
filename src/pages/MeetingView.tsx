@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useCanDelete } from '../lib/permissions'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   ArrowRight,
@@ -36,6 +37,7 @@ export default function MeetingView() {
   const meeting = useMeeting(id)
   const toggleTask = useToggleMeetingTask()
   const deleteMeeting = useDeleteMeeting()
+  const canDelete = useCanDelete()
   const [editing, setEditing] = useState(false)
   const [pickedDoctor, setPickedDoctor] = useState<string | null>(null)
   const { profile } = useAuth()
@@ -85,12 +87,14 @@ export default function MeetingView() {
           <button className="btn-ghost !px-2" onClick={() => setEditing(true)} aria-label="עריכה">
             <Pencil size={16} />
           </button>
-          <ConfirmButton
-            className="btn-ghost !px-2 text-red-500"
-            onConfirm={() => deleteMeeting.mutate(m.id, { onSuccess: () => navigate('/meetings') })}
-          >
-            <Trash2 size={16} />
-          </ConfirmButton>
+          {canDelete(m.created_by) && (
+            <ConfirmButton
+              className="btn-ghost !px-2 text-red-500"
+              onConfirm={() => deleteMeeting.mutate(m.id, { onSuccess: () => navigate('/meetings') })}
+            >
+              <Trash2 size={16} />
+            </ConfirmButton>
+          )}
         </div>
       </div>
 

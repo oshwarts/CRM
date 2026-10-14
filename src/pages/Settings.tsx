@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useAuth } from '../context/AuthProvider'
 import { BookUser, FileUp, Image as ImageIcon, Pencil, Plus, Trash2 } from 'lucide-react'
 import { SmartContactImport } from '../components/SmartContactImport'
 import {
@@ -446,6 +447,7 @@ function HospitalsSettings() {
   const agents = useAgents()
   const hospitalAgents = useHospitalAgents()
   const del = useDeleteHospital()
+  const { isAdmin } = useAuth()
   const [editing, setEditing] = useState<HospitalListItem | 'new' | null>(null)
 
   return (
@@ -496,12 +498,14 @@ function HospitalsSettings() {
                   >
                     <Pencil size={15} />
                   </button>
-                  <ConfirmButton
-                    className="btn-ghost !px-2 text-red-500"
-                    onConfirm={() => del.mutate(h.id)}
-                  >
-                    <Trash2 size={15} />
-                  </ConfirmButton>
+                  {isAdmin && (
+                    <ConfirmButton
+                      className="btn-ghost !px-2 text-red-500"
+                      onConfirm={() => del.mutate(h.id)}
+                    >
+                      <Trash2 size={15} />
+                    </ConfirmButton>
+                  )}
                 </div>
               </li>
             )

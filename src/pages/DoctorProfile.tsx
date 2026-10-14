@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useCanDelete } from '../lib/permissions'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowRight,
@@ -60,6 +61,7 @@ export default function DoctorProfile() {
   const favorites = useFavorites()
   const toggleFav = useToggleFavorite()
   const deleteDoctor = useDeleteDoctor()
+  const canDelete = useCanDelete()
   const linkedTasks = useLinkedTasks({ doctorId: id })
 
   const [tab, setTab] = useState('details')
@@ -192,6 +194,7 @@ export default function DoctorProfile() {
             <Pencil size={16} />
             עריכה
           </button>
+          {canDelete(d.created_by) && (
           <ConfirmButton
             className="btn-ghost text-red-500"
             message={`למחוק את ${d.name}? כל הפגישות והתכנונים המשויכים יימחקו.`}
@@ -201,6 +204,7 @@ export default function DoctorProfile() {
           >
             <Trash2 size={16} />
           </ConfirmButton>
+          )}
         </div>
       </div>
 
