@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet'
+import { CircleMarker, MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import {
   Activity,
@@ -8,6 +8,7 @@ import {
   Bot,
   Building2,
   CalendarDays,
+  Navigation,
   Phone,
   Plus,
   Search,
@@ -36,6 +37,15 @@ function pinIcon(active: boolean, count: number) {
     iconSize: [26, 26],
     iconAnchor: [13, 26],
   })
+}
+
+/** distance in km between two coordinates */
+function km(a: [number, number], b: [number, number]) {
+  const rad = (x: number) => (x * Math.PI) / 180
+  const dLat = rad(b[0] - a[0])
+  const dLng = rad(b[1] - a[1])
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a[0])) * Math.cos(rad(b[0])) * Math.sin(dLng / 2) ** 2
+  return 6371 * 2 * Math.asin(Math.sqrt(h))
 }
 
 // ignore case, quotes / geresh marks, dots and dashes so "הדסה עין-כרם" matches "הדסה עין כרם"
@@ -71,6 +81,23 @@ export default function MapPage() {
   const [orgFilter, setOrgFilter] = useState('')
   const [query, setQuery] = useState('')
   const panelRef = useRef<HTMLDivElement>(null)
+  // where the user is (asked once when the page opens); the map starts on the nearest hospital
+  const [pos, setPos] = useState<[number, number] | null>(null)
+  const [geo, setGeo] = useState<'asking' | 'ok' | 'denied'>('asking')
+
+  function locate() {
+    if (!navigator.geolocation) return setGeo('denied')
+    setGeo('asking')
+    navigator.geolocation.getCurrentPosition(
+      (r) => {
+        setPos([r.coords.latitude, r.coords.longitude])
+        setGeo('ok')
+      },
+      () => setGeo('denied'),
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 5 * 60 * 1000 },
+    )
+  }
+  useEffect(locate, [])
 
   // on a phone the panel sits below the map — bring it into view when a pin is tapped
   useEffect(() => {
@@ -84,14 +111,27 @@ export default function MapPage() {
     return [...s].sort()
   }, [map.data])
 
+  // distance of every hospital from the user, and the nearest one
+  const distances = useMemo(() => {
+    const m = new Map<string, number>()
+    if (pos) for (const h of map.data ?? []) if (h.lat != null && h.lng != null) m.set(h.id, km(pos, [h.lat, h.lng]))
+    return m
+  }, [pos, map.data])
+  const nearest = useMemo(() => {
+    let best: MapHospital | null = null
+    for (const h of map.data ?? []) if (distances.has(h.id) && (!best || (distances.get(h.id) as number) < (distances.get(best.id) as number))) best = h
+    return best
+  }, [distances, map.data])
+
   const filtered = useMemo(() => {
     const q = normalize(query)
-    return (map.data ?? []).filter(
+    const list = (map.data ?? []).filter(
       (h) =>
         (!orgFilter || h.organization?.name === orgFilter) &&
         (!q || normalize(`${h.name} ${h.city}`).includes(q)),
     )
-  }, [map.data, orgFilter, query])
+    return pos ? [...list].sort((a, b) => (distances.get(a.id) ?? 1e9) - (distances.get(b.id) ?? 1e9)) : list
+  }, [map.data, orgFilter, query, pos, distances])
 
   const withCoords = useMemo(
     () => filtered.filter((h) => h.lat != null && h.lng != null),
@@ -106,10 +146,12 @@ export default function MapPage() {
       : null
   const focusBounds: [number, number][] = query
     ? withCoords.map((h) => [h.lat as number, h.lng as number])
-    : [
-        [29.6, 34.2],
-        [33.3, 35.9],
-      ]
+    : pos && nearest && nearest.lat != null && nearest.lng != null
+      ? [pos, [nearest.lat, nearest.lng]]
+      : [
+          [29.6, 34.2],
+          [33.3, 35.9],
+        ]
 
   if (map.isLoading) return <Spinner />
   if (map.error) return <ErrorState error={map.error} />
@@ -153,6 +195,24 @@ export default function MapPage() {
         </select>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        {nearest ? (
+          <button
+            className="chip border-brand-200 bg-brand-50 text-brand-700 hover:underline"
+            onClick={() => setSelectedId(nearest.id)}
+          >
+            <Navigation size={13} /> הקרוב אליך: {nearest.name} · {(distances.get(nearest.id) as number).toFixed(1)} ק״מ
+          </button>
+        ) : geo === 'asking' ? (
+          <span className="text-slate-400">מאתר את המיקום שלך…</span>
+        ) : (
+          <button className="chip border-slate-200 bg-white text-slate-600 hover:bg-slate-50" onClick={locate}>
+            <Navigation size={13} /> מצא בית חולים קרוב אליי
+          </button>
+        )}
+        {geo === 'denied' && !nearest && <span className="text-xs text-slate-400">אפשר מיקום בדפדפן כדי להתחיל מהקרוב אליך</span>}
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
         <div className="card h-[50vh] min-h-[300px] overflow-hidden lg:h-[560px]">
           <MapContainer
@@ -166,11 +226,16 @@ export default function MapPage() {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             <MapFocus target={focusTarget} bounds={focusBounds} />
+            {pos && (
+              <CircleMarker center={pos} radius={8} pathOptions={{ color: '#fff', weight: 3, fillColor: '#2563eb', fillOpacity: 1 }}>
+                <Tooltip direction="top">המיקום שלך</Tooltip>
+              </CircleMarker>
+            )}
             {withCoords.map((h) => (
               <Marker
                 key={h.id}
                 position={[h.lat as number, h.lng as number]}
-                icon={pinIcon(h.id === selectedId, h.doctor_hospitals.length)}
+                icon={pinIcon(h.id === selectedId || (!selectedId && !query && h.id === nearest?.id), h.doctor_hospitals.length)}
                 eventHandlers={{ click: () => setSelectedId(h.id) }}
               >
                 <Tooltip direction="top">{h.name}</Tooltip>
@@ -215,6 +280,7 @@ export default function MapPage() {
                 >
                   <span className="text-slate-700">{h.name}</span>
                   <span className="text-xs text-slate-400">
+                    {distances.has(h.id) ? `${(distances.get(h.id) as number).toFixed(1)} ק״מ · ` : ''}
                     {h.doctor_hospitals.length} רופאים
                   </span>
                 </button>
