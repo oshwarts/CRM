@@ -4,6 +4,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import { supabase } from './supabase'
+import { useAuth } from '../context/AuthProvider'
 import { actingUserId } from './actingAs'
 import type {
   CaseVolumeRow,
@@ -59,7 +60,19 @@ export function useAgents() {
 }
 
 /** every account, active or not — for the admin user-management page */
+/** every user — the fictitious test users of the developer are left out (unless the developer is acting as one) */
 export function useAllUsers() {
+  const { impersonating } = useAuth()
+  return useQuery({
+    queryKey: ['all-users'],
+    queryFn: async () =>
+      unwrap<Profile[]>(await supabase.from('profiles').select('*').order('created_at')),
+    select: (rows) => rows.filter((u) => !u.is_test || u.id === impersonating?.id),
+  })
+}
+
+/** developer only: everyone one can switch to, test users included */
+export function useSwitchableUsers() {
   return useQuery({
     queryKey: ['all-users'],
     queryFn: async () =>

@@ -1112,6 +1112,7 @@ export type Database = {
           id: string
           impersonating_id: string | null
           is_developer: boolean
+          is_test: boolean
           role: string
           status_changed_at: string | null
           status_changed_by: string | null
@@ -1124,6 +1125,7 @@ export type Database = {
           id: string
           impersonating_id?: string | null
           is_developer?: boolean
+          is_test?: boolean
           role?: string
           status_changed_at?: string | null
           status_changed_by?: string | null
@@ -1136,6 +1138,7 @@ export type Database = {
           id?: string
           impersonating_id?: string | null
           is_developer?: boolean
+          is_test?: boolean
           role?: string
           status_changed_at?: string | null
           status_changed_by?: string | null
@@ -1147,6 +1150,7 @@ export type Database = {
     Functions: {
       is_admin: { Args: Record<string, never>; Returns: boolean }
       is_active: { Args: Record<string, never>; Returns: boolean }
+      reset_test_user: { Args: { p_target: string }; Returns: undefined }
       set_impersonation: { Args: { target: string | null }; Returns: undefined }
       admin_user_activity: {
         Args: Record<string, never>
