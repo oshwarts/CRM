@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { AlertTriangle, ArrowDown, ArrowRight, ArrowUp, Building2, CalendarDays, Clock, GripVertical, Mail, Pencil, Phone, Plus, Trash2, User, Users } from 'lucide-react'
 import { useTasks } from '../lib/api'
-import { useDeleteArea, useDeleteProject, useProjects, useMoveTask, useSaveArea, useSetAreaContact, useSetTaskStatus, useSetTasksContact } from '../lib/projectsApi'
+import { useDeleteArea, useDeleteProject, useProjectUpdates, useProjects, useMoveTask, useSaveArea, useSetAreaContact, useSetTaskStatus, useSetTasksContact } from '../lib/projectsApi'
 import { PROJECT_STATUS, STATUS_ORDER, TASK_STATUS, isOverdue, projectStats } from '../lib/projects'
 import { ProjectFormModal } from '../components/ProjectFormModal'
 import { ProjectTaskModal } from '../components/ProjectTaskModal'
@@ -26,7 +26,7 @@ const dueText = (d: string | null) => {
 }
 
 /** a task line used in the area list, the board and the next-steps list */
-function TaskLine({ t, onOpen, showArea, onStatus, selected, onSelect }: { t: TaskRow; onOpen: () => void; showArea?: boolean; onStatus: (s: string) => void; selected?: boolean; onSelect?: () => void }) {
+function TaskLine({ t, onOpen, showArea, onStatus, selected, onSelect, last }: { t: TaskRow; onOpen: () => void; showArea?: boolean; onStatus: (s: string) => void; selected?: boolean; onSelect?: () => void; last?: { date: string; body: string } }) {
   const st = TASK_STATUS[t.status] ?? TASK_STATUS.todo
   const owner = t.assignee?.full_name || t.external_owner
   return (
@@ -61,6 +61,11 @@ function TaskLine({ t, onOpen, showArea, onStatus, selected, onSelect }: { t: Ta
               )}
             </span>
           )}
+          {last && (
+            <span dir="auto" className="inline-flex max-w-full items-center gap-1 truncate text-slate-500">
+              <CalendarDays size={11} className="shrink-0" /> עדכון אחרון {formatDate(last.date)}: {last.body || 'קובץ'}
+            </span>
+          )}
           {t.waiting_for && t.status !== 'done' && (
             <span className="inline-flex items-center gap-1 text-amber-600">
               <Clock size={11} /> ממתין ל: {t.waiting_for}
@@ -93,6 +98,7 @@ export default function ProjectView() {
   const saveArea = useSaveArea()
   const delArea = useDeleteArea()
   const del = useDeleteProject()
+  const updatesQ = useProjectUpdates(id)
   const setAreaContact = useSetAreaContact()
   const setTasksContact = useSetTasksContact()
   const moveTask = useMoveTask()
@@ -144,6 +150,10 @@ export default function ProjectView() {
   }
   const change = (t: TaskRow, status: string) => setStatus.mutate({ id: t.id, status })
   const taskNames = new Map(tasks.map((t) => [t.id, t.description]))
+  // the latest dated note of each task
+  const lastNote = new Map<string, { date: string; body: string }>()
+  for (const u of [...(updatesQ.data ?? [])].sort((a, b) => a.event_date.localeCompare(b.event_date) || a.created_at.localeCompare(b.created_at)))
+    if (u.task_id) lastNote.set(u.task_id, { date: u.event_date, body: u.body })
   const lateProject = project.target_date && project.status !== 'done' && (daysUntil(project.target_date) ?? 0) < 0
 
   return (
@@ -242,7 +252,7 @@ export default function ProjectView() {
                 ) : (
                   <div className="divide-y divide-slate-100">
                     {stats.blocked.map((t) => (
-                      <TaskLine key={t.id} t={t} showArea onOpen={() => open(t)} onStatus={(s) => change(t, s)} />
+                      <TaskLine key={t.id} t={t} showArea onOpen={() => open(t)} onStatus={(s) => change(t, s)} last={lastNote.get(t.id)} />
                     ))}
                   </div>
                 )}
@@ -254,7 +264,7 @@ export default function ProjectView() {
                 ) : (
                   <div className="divide-y divide-slate-100">
                     {stats.next.map((t) => (
-                      <TaskLine key={t.id} t={t} showArea onOpen={() => open(t)} onStatus={(s) => change(t, s)} />
+                      <TaskLine key={t.id} t={t} showArea onOpen={() => open(t)} onStatus={(s) => change(t, s)} last={lastNote.get(t.id)} />
                     ))}
                   </div>
                 )}
@@ -373,6 +383,7 @@ export default function ProjectView() {
                           t={t}
                           onOpen={() => open(t)}
                           onStatus={(s) => change(t, s)}
+                          last={lastNote.get(t.id)}
                           selected={picked.has(t.id)}
                           onSelect={() =>
                             setPicked((x) => {
@@ -424,7 +435,7 @@ export default function ProjectView() {
                   <div className="space-y-2">
                     {col.map((t) => (
                       <div key={t.id} className="card p-2">
-                        <TaskLine t={t} showArea onOpen={() => open(t)} onStatus={(x) => change(t, x)} />
+                        <TaskLine t={t} showArea onOpen={() => open(t)} onStatus={(x) => change(t, x)} last={lastNote.get(t.id)} />
                       </div>
                     ))}
                     {col.length === 0 && <p className="px-1 py-3 text-center text-xs text-slate-400">ריק</p>}

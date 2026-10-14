@@ -185,7 +185,8 @@ export function useProjectUpdates(projectId: string | undefined) {
     enabled: !!projectId,
     queryFn: async () =>
       unwrap<ProjectUpdate[]>(
-        await supabase.from('project_updates').select('*').eq('project_id', projectId!).order('created_at', { ascending: false }),
+        await supabase.from('project_updates').select('*').eq('project_id', projectId!).order('event_date', { ascending: false })
+          .order('created_at', { ascending: false }),
       ),
   })
 }
@@ -204,13 +205,13 @@ const MAX_FILE = 50 * 1024 * 1024
 export function useAddProjectUpdate() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (u: { projectId: string; taskId: string | null; body: string; files: File[]; authorName: string }) => {
+    mutationFn: async (u: { projectId: string; taskId: string | null; body: string; files: File[]; authorName: string; eventDate: string }) => {
       const tooBig = u.files.find((f) => f.size > MAX_FILE)
       if (tooBig) throw new Error(`הקובץ ${tooBig.name} גדול מ-50MB`)
       const created = unwrap<{ id: string }>(
         await supabase
           .from('project_updates')
-          .insert({ project_id: u.projectId, task_id: u.taskId, body: u.body.trim(), author_name: u.authorName })
+          .insert({ project_id: u.projectId, task_id: u.taskId, body: u.body.trim(), author_name: u.authorName, event_date: u.eventDate })
           .select('id')
           .single(),
       )
@@ -300,6 +301,16 @@ export function useMoveTask() {
         ),
       )
     },
+    onSuccess: () => invalidate(qc),
+  })
+}
+
+/** change the date an update refers to (back-dating an event) */
+export function useSetUpdateDate() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (a: { id: string; eventDate: string }) =>
+      unwrap(await supabase.from('project_updates').update({ event_date: a.eventDate }).eq('id', a.id)),
     onSuccess: () => invalidate(qc),
   })
 }

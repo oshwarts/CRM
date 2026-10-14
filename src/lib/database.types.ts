@@ -824,6 +824,7 @@ export type Database = {
           author_name: string
           body: string
           created_at: string
+          event_date: string
           id: string
           project_id: string
           task_id: string | null
@@ -833,6 +834,7 @@ export type Database = {
           author_name?: string
           body?: string
           created_at?: string
+          event_date?: string
           id?: string
           project_id: string
           task_id?: string | null
@@ -842,6 +844,7 @@ export type Database = {
           author_name?: string
           body?: string
           created_at?: string
+          event_date?: string
           id?: string
           project_id?: string
           task_id?: string | null

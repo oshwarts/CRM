@@ -130,7 +130,7 @@ export function ProjectTaskModal({
         <Field label="ממתין ל… (גורם או אדם שאנחנו תלויים בו)">
           <input className="input" dir="auto" value={d.waiting_for} onChange={(e) => set({ waiting_for: e.target.value })} placeholder="למשל: אישור ועדת רכש — נתעדכן ביום ראשון" />
         </Field>
-        <Field label="הערות">
+        <Field label="פרטים קבועים על המשימה (ההערות עם תאריך — למטה)">
           <textarea className="input min-h-14" dir="auto" value={d.notes} onChange={(e) => set({ notes: e.target.value })} />
         </Field>
 
@@ -155,7 +155,7 @@ export function ProjectTaskModal({
 
         {task && (
           <div className="border-t border-slate-200 pt-3">
-            <p className="mb-2 text-sm font-semibold text-slate-700">עדכונים וקבצים למשימה זו</p>
+            <p className="mb-2 text-sm font-semibold text-slate-700">הערות לפי תאריך וקבצים — מה קרה ומתי</p>
             <ProjectUpdates projectId={project.id} taskId={task.id} />
           </div>
         )}
