@@ -62,7 +62,7 @@ function UsersTab() {
     return <EmptyState title="אין הרשאה" hint="מסך ניהול המשתמשים זמין למנהלים בלבד" />
   }
   if (users.isLoading) return <Spinner />
-  if (users.error) return <ErrorState error={users.error} />
+  if (users.error && !users.data) return <ErrorState error={users.error} /> // cached data stays visible when only a background refresh failed
 
   const inactive = list.filter((u) => !u.active)
   const active = list.filter((u) => u.active)

@@ -151,7 +151,7 @@ export default function Info() {
   }
 
   if (docs.isLoading) return <Spinner />
-  if (docs.error) return <ErrorState error={docs.error} />
+  if (docs.error && !docs.data) return <ErrorState error={docs.error} /> // cached data stays visible when only a background refresh failed
 
   const chip = (key: string, label: string) => (
     <button

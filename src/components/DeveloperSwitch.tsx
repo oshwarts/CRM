@@ -70,12 +70,20 @@ export function DeveloperBar() {
   const [error, setError] = useState('')
   if (!impersonating) return null
   return (
-    <div className="fixed inset-x-0 top-0 z-[60] flex h-8 items-center justify-center gap-3 bg-amber-500 px-3 text-xs font-medium text-white shadow">
+    <div
+      className={`fixed inset-x-0 top-0 z-[60] flex h-8 items-center gap-2 px-3 text-xs font-medium text-white shadow ${
+        // red while acting as a real colleague (the changes are real); amber for the fictitious test users
+        impersonating.is_test ? 'bg-amber-500' : 'bg-red-600'
+      }`}
+    >
       <FlaskConical size={14} className="shrink-0" />
-      <span className="truncate">
-        {impersonating.is_test
-          ? `מצב מפתח: ${impersonating.full_name} — משתמש פיקטיבי`
-          : `מצב מפתח: אתה פועל כ-${impersonating.full_name || impersonating.email} — השינויים נשמרים באמת ומתועדים על שמך`}
+      {/* on a phone only the name fits: the explanation is for wider screens */}
+      <span className="min-w-0 flex-1 truncate">
+        {impersonating.is_test ? 'מצב מפתח: ' : 'פועל כ-'}
+        <b>{impersonating.full_name || impersonating.email}</b>
+        <span className="hidden sm:inline">
+          {impersonating.is_test ? ' — משתמש פיקטיבי' : ' — השינויים נשמרים באמת ומתועדים על שמך'}
+        </span>
       </span>
       {impersonating.is_test && (
         <button
@@ -92,7 +100,7 @@ export function DeveloperBar() {
             setBusy(false)
           }}
         >
-          אפס משתמש בדיקה
+          איפוס<span className="hidden sm:inline"> משתמש בדיקה</span>
         </button>
       )}
       <button

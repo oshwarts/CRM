@@ -1694,6 +1694,8 @@ export function useDeleteInfoDoc() {
 /** opens a document in a new tab (files through a short-lived signed link) */
 export async function openInfoDocument(d: InfoDocument): Promise<string | null> {
   if (d.kind === 'link') {
+    // the form only accepts http(s), but a row can also be written straight to the API: never open javascript: / data: links
+    if (!/^https?:\/\//i.test(d.url.trim())) return 'הקישור אינו תקין'
     window.open(d.url, '_blank', 'noopener,noreferrer')
     return null
   }

@@ -32,7 +32,7 @@ import {
   MEETING_STATUS_LABELS,
   type MeetingWithRelations,
 } from '../lib/types'
-import { classNames, formatDate, formatTime, isOverdue } from '../lib/utils'
+import { classNames, formatDate, formatTime, isOverdue, todayISO } from '../lib/utils'
 import { normalizeHe } from '../lib/contactMatch'
 
 type FilterKey = 'all' | 'upcoming' | 'past' | 'followup'
@@ -52,7 +52,7 @@ export default function Meetings() {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayISO() // local date: toISOString() is UTC, a day behind in Israel between midnight and 2-3 AM
 
   // doctors that appear in at least one meeting
   const doctorOptions = useMemo(() => {

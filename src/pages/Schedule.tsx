@@ -129,7 +129,7 @@ export default function Schedule() {
   const byDay = (d: Date) => weekItems.filter((it) => it.date === iso(d))
 
   if (meetings.isLoading || scans.isLoading) return <Spinner />
-  if (meetings.error) return <ErrorState error={meetings.error} />
+  if (meetings.error && !meetings.data) return <ErrorState error={meetings.error} /> // cached data stays visible when only a background refresh failed
 
   return (
     <div className="space-y-4">

@@ -168,7 +168,7 @@ export default function Consumables() {
   }
 
   if (hospitals.isLoading || items.isLoading) return <Spinner />
-  if (hospitals.error) return <ErrorState error={hospitals.error} />
+  if (hospitals.error && !hospitals.data) return <ErrorState error={hospitals.error} /> // cached data stays visible when only a background refresh failed
 
   return (
     <div className="space-y-4 pb-24 md:pb-4">

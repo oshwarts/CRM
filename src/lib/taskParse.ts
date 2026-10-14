@@ -45,6 +45,16 @@ function dayMonth(today: Date, d: number, m: number, y?: number): Date | null {
   return dt
 }
 
+const NUMERIC_DATE = /\s(עד\s+|ב-?|ל-?)?(\d{1,2})([./])(\d{1,2})(?:[./](\d{2,4}))?\s/
+
+/** is there a real numeric date in the text (valid day/month, and not a bare "2.5" decimal)? */
+function numericDate(text: string, today: Date): boolean {
+  const m = text.match(NUMERIC_DATE)
+  if (!m) return false
+  if (m[3] === '.' && !m[1] && !m[5]) return false
+  return dayMonth(today, Number(m[2]), Number(m[4]), m[5] ? Number(m[5]) : undefined) !== null
+}
+
 const STOP = new Set(['מרכז', 'רפואי', 'בית', 'חולים', 'מרפאה', 'המרכז', 'הרפואי', 'ד״ר', 'דר', 'פרופ', 'פרופסור', 'דוקטור', 'של', 'את', 'עם', 'אל'])
 const PREFIX = 'ובלמהכש'
 
@@ -65,7 +75,8 @@ export function guessTask(
 ): TaskGuess {
   const today = ctx.today ?? new Date()
   // punctuation (comma, colon …) becomes a space so the patterns below can rely on whitespace between words
-  let rest = ` ${raw.replace(/[,;:!?()]/g, ' ')} `
+  // (a clock time such as 14:30 keeps its colon — it is not date punctuation and must survive in the description)
+  let rest = ` ${raw.replace(/(\d{1,2}):(\d{2})/g, '$1\u0001$2').replace(/[,;:!?()]/g, ' ')} `
   const found: TaskGuess['found'] = []
   const take = (re: RegExp): RegExpMatchArray | null => {
     const m = rest.match(re)
@@ -93,8 +104,10 @@ export function guessTask(
 
   if ((m = take(new RegExp(`\\s(?:עד\\s+)?(?:[בל]-?)?(?:ה-?)?(\\d{1,2})\\s*[בל]?-?\\s*(${MONTH_RE})(?:\\s+(\\d{4}))?\\s`)))) {
     due = dayMonth(today, Number(m[1]), MONTHS[m[2]], m[3] ? Number(m[3]) : undefined)
-  } else if ((m = take(/\s(?:עד\s+|ב-?|ל-?)?(\d{1,2})[./](\d{1,2})(?:[./](\d{2,4}))?\s/))) {
-    due = dayMonth(today, Number(m[1]), Number(m[2]), m[3] ? Number(m[3]) : undefined)
+  } else if (numericDate(rest, today)) {
+    // 5/12, 5.12.26, "עד 5.12" — but not a decimal quantity like "2.5 מטר" (a bare d.m needs a "by / on" word or a year)
+    const nm = take(NUMERIC_DATE)!
+    due = dayMonth(today, Number(nm[2]), Number(nm[4]), nm[5] ? Number(nm[5]) : undefined)
   } else if (take(/\sמחרתיים\s/)) due = addDays(today, 2)
   else if (take(/\sמחר\s/)) due = addDays(today, 1)
   else if (take(/\s(?:עד\s+)?היום\s/)) due = today
@@ -109,7 +122,7 @@ export function guessTask(
   else if (take(/\s(?:עד\s+)?סוף\s+השבוע\s/)) due = nextWeekday(addDays(today, -1), 4) // the coming Thursday
   else {
     // "יום חמישי", "ביום ה׳", "בחמישי", optionally "בשבוע הבא"
-    const weekdayRe = new RegExp(`\\s(?:עד\\s+)?(?:(?:ב)?יום\\s+(${Object.keys(WEEKDAYS).join('|')}|[א-ו][׳'])|ב(חמישי|שישי|רביעי|שלישי|שבת))(\\s+ב?שבוע\\s+הבא)?\\s`)
+    const weekdayRe = new RegExp(`\\s(?:עד\\s+)?(?:(?:ב)?יום\\s+(${Object.keys(WEEKDAYS).join('|')}|[א-ו][׳'])|ב(ראשון|חמישי|שישי|רביעי|שלישי|שבת))(\\s+ב?שבוע\\s+הבא)?\\s`)
     if ((m = take(weekdayRe))) {
       const name = m[1] ?? m[2]
       const wd = /[׳']$/.test(name) ? LETTER_DAY[name[0]] : WEEKDAYS[name]
@@ -158,6 +171,7 @@ export function guessTask(
   }
 
   const description = rest
+    .replace(/\u0001/g, ':')
     .replace(/\s+/g, ' ')
     .replace(/^[\s,.:;–-]+|[\s,.:;–-]+$/g, '')
     .replace(/\s+[,.]/g, (x) => x.trim())

@@ -290,6 +290,10 @@ if (typeof window !== 'undefined') {
   })
   channel?.addEventListener('message', () => void reload())
   window.addEventListener('online', () => void drain())
+  // an installed iPhone app coming back from the background often gets no "online" event: try again when it is shown
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && ops.some((o) => o.state === 'pending')) void drain()
+  })
   supabase.auth.onAuthStateChange((_e, session) => {
     userId = session?.user.id ?? ''
     refreshSnapshot()

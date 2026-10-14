@@ -47,7 +47,7 @@ export default function Competitors() {
   }, [all])
 
   if (intel.isLoading) return <Spinner />
-  if (intel.error) return <ErrorState error={intel.error} />
+  if (intel.error && !intel.data) return <ErrorState error={intel.error} /> // cached data stays visible when only a background refresh failed
 
   return (
     <div className="space-y-4">

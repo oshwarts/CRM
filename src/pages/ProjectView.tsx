@@ -140,8 +140,8 @@ export default function ProjectView() {
   const stats = useMemo(() => projectStats(tasks), [tasks])
 
   if (projects.isLoading || allTasks.isLoading) return <Spinner />
-  if (projects.error) return <ErrorState error={projects.error} />
-  if (allTasks.error) return <ErrorState error={allTasks.error} />
+  if (projects.error && !projects.data) return <ErrorState error={projects.error} /> // cached data stays visible when only a background refresh failed
+  if (allTasks.error && !allTasks.data) return <ErrorState error={allTasks.error} /> // cached data stays visible when only a background refresh failed
   if (!project) return <EmptyState title="הפרויקט לא נמצא" hint="ייתכן שאין לך גישה אליו או שנמחק" />
 
   const areas = project.areas

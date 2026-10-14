@@ -58,7 +58,7 @@ export default function MeetingView() {
   const others = (history.data ?? []).filter((x) => x.id !== id)
 
   if (meeting.isLoading) return <Spinner />
-  if (meeting.error || !m) return <ErrorState error={meeting.error ?? new Error('הפגישה לא נמצאה')} />
+  if (!m) return <ErrorState error={meeting.error ?? new Error('הפגישה לא נמצאה')} />
 
   const mail = meetingMailText(m, profile?.full_name ?? '')
   const links = composeMail(mailTo.trim(), mail.subject, mail.body)

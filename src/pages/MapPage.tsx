@@ -154,7 +154,7 @@ export default function MapPage() {
         ]
 
   if (map.isLoading) return <Spinner />
-  if (map.error) return <ErrorState error={map.error} />
+  if (map.error && !map.data) return <ErrorState error={map.error} /> // cached data stays visible when only a background refresh failed
 
   return (
     <div className="space-y-4">

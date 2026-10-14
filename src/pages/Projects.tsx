@@ -26,8 +26,8 @@ export default function Projects() {
   )
 
   if (projects.isLoading) return <Spinner />
-  if (projects.error) return <ErrorState error={projects.error} />
-  if (tasks.error) return <ErrorState error={tasks.error} />
+  if (projects.error && !projects.data) return <ErrorState error={projects.error} /> // cached data stays visible when only a background refresh failed
+  if (tasks.error && !tasks.data) return <ErrorState error={tasks.error} /> // cached data stays visible when only a background refresh failed
 
   const open = rows.filter((r) => r.p.status !== 'done')
   const closed = rows.filter((r) => r.p.status === 'done')

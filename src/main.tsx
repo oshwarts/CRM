@@ -17,6 +17,8 @@ supabase.auth.onAuthStateChange((event) => {
   }
 })
 registerServiceWorker()
+// asks the browser not to evict the saved data / unsent changes when the device runs low on space (Safari clears unused sites)
+void navigator.storage?.persist?.().catch(() => undefined)
 if (import.meta.env.DEV) (window as unknown as { __qc: typeof queryClient }).__qc = queryClient
 
 const root = ReactDOM.createRoot(document.getElementById('root')!)

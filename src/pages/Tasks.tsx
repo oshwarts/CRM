@@ -277,7 +277,7 @@ export default function Tasks() {
   }
 
   if (tasks.isLoading) return <Spinner />
-  if (tasks.error) return <ErrorState error={tasks.error} />
+  if (tasks.error && !tasks.data) return <ErrorState error={tasks.error} /> // cached data stays visible when only a background refresh failed
 
   const chip = (active: boolean, label: string, onClick: () => void) => (
     <button

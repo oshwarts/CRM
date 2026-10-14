@@ -55,6 +55,7 @@ export default function Login() {
                 className="input"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
+                autoComplete="name"
                 required
               />
             </div>
@@ -65,6 +66,8 @@ export default function Login() {
               type="email"
               dir="ltr"
               className="input"
+              autoComplete="username"
+              inputMode="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -76,6 +79,7 @@ export default function Login() {
               type="password"
               dir="ltr"
               className="input"
+              autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               minLength={6}

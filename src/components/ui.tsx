@@ -33,7 +33,8 @@ export function Modal({
   const maxW = { md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' }[size]
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/40 sm:p-8">
+    // starts below the developer-mode strip (--banner is set by the Layout while the developer acts as another user)
+    <div className="fixed inset-x-0 bottom-0 top-[var(--banner,0px)] z-50 flex items-start justify-center overflow-y-auto bg-slate-900/40 sm:p-8">
       <div
         className={classNames(
           'card w-full animate-[fadeIn_.12s_ease-out] max-sm:min-h-full max-sm:rounded-none',

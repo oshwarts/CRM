@@ -68,7 +68,7 @@ export default function DoctorProfile() {
   const [picking, setPicking] = useState(false)
 
   if (doctor.isLoading) return <Spinner />
-  if (doctor.error) return <ErrorState error={doctor.error} />
+  if (doctor.error && !doctor.data) return <ErrorState error={doctor.error} /> // cached data stays visible when only a background refresh failed
   if (!doctor.data) return <EmptyState title="הרופא לא נמצא" />
 
   const d = doctor.data
