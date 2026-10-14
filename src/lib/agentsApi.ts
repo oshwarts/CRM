@@ -180,9 +180,17 @@ export function useDeleteAgentNote() {
 
 /* ---------------- training ---------------- */
 import { INFO_BUCKET } from './api'
-import type { AgentTraining } from './types'
+import type { AgentTraining, TrainingStage } from './types'
 
-/** every agent's training rows (managers) or just the signed-in agent's own — decided by the database */
+/** the stages the manager defined (general ones and per procedure) */
+export function useTrainingStages() {
+  return useQuery({
+    queryKey: ['training-stages'],
+    queryFn: async () => unwrap<TrainingStage[]>(await supabase.from('training_stages').select('*').order('sort').order('created_at')),
+  })
+}
+
+/** every agent's completions (managers) or just the signed-in agent's own — decided by the database */
 export function useTraining() {
   return useQuery({
     queryKey: ['agent-training'],
@@ -190,22 +198,66 @@ export function useTraining() {
   })
 }
 
-export type TrainingInput = {
+export type StageInput = { id?: string; procedure_id: string | null; name: string; required_count: number; sort: number }
+
+export function useSaveStage() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (s: StageInput) => {
+      const row = { procedure_id: s.procedure_id, name: s.name.trim(), required_count: Math.max(1, Math.round(s.required_count) || 1), sort: s.sort }
+      if (s.id) unwrap(await supabase.from('training_stages').update(row).eq('id', s.id))
+      else unwrap(await supabase.from('training_stages').insert(row))
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['training-stages'] }),
+  })
+}
+
+/** swaps the order of two stages */
+export function useSwapStages() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ a, b }: { a: TrainingStage; b: TrainingStage }) => {
+      // equal sort values (possible after inserts) are separated by using the neighbour's position
+      const sa = a.sort === b.sort ? b.sort + 1 : b.sort
+      unwrap(await supabase.from('training_stages').update({ sort: sa }).eq('id', a.id))
+      unwrap(await supabase.from('training_stages').update({ sort: a.sort }).eq('id', b.id))
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['training-stages'] }),
+  })
+}
+
+/** deleting a stage also deletes the completions recorded for it */
+export function useDeleteStage() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (s: TrainingStage) => {
+      const files = unwrap<{ file_path: string | null }[]>(await supabase.from('agent_training').select('file_path').eq('stage_id', s.id))
+      unwrap(await supabase.from('training_stages').delete().eq('id', s.id))
+      const paths = files.flatMap((f) => (f.file_path ? [f.file_path] : []))
+      if (paths.length) await supabase.storage.from(INFO_BUCKET).remove(paths)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['training-stages'] })
+      qc.invalidateQueries({ queryKey: ['agent-training'] })
+    },
+  })
+}
+
+export type CompletionInput = {
   agent_id: string
-  procedure_id: string
-  stage: string
+  stage_id: string
   completed_on: string
   notes: string
   file: File | null
-  /** a file already attached stays unless removeFile is set or a new one is chosen */
+  /** set when editing an existing completion; its file stays unless removed or replaced */
   existing: AgentTraining | null
   removeFile: boolean
 }
 
-export function useSaveTrainingStage() {
+export function useSaveCompletion() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (t: TrainingInput) => {
+    mutationFn: async (t: CompletionInput) => {
       let file_path = t.existing?.file_path ?? null
       let file_name = t.existing?.file_name ?? ''
       const oldPath = file_path
@@ -221,21 +273,16 @@ export function useSaveTrainingStage() {
         file_path = path
         file_name = t.file.name
       }
-      unwrap(
-        await supabase
-          .from('agent_training')
-          .upsert(
-            { agent_id: t.agent_id, procedure_id: t.procedure_id, stage: t.stage, completed_on: t.completed_on, notes: t.notes.trim(), file_path, file_name },
-            { onConflict: 'agent_id,procedure_id,stage' },
-          ),
-      )
+      const row = { agent_id: t.agent_id, stage_id: t.stage_id, completed_on: t.completed_on, notes: t.notes.trim(), file_path, file_name }
+      if (t.existing) unwrap(await supabase.from('agent_training').update(row).eq('id', t.existing.id))
+      else unwrap(await supabase.from('agent_training').insert(row))
       if (oldPath && oldPath !== file_path) await supabase.storage.from(INFO_BUCKET).remove([oldPath])
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['agent-training'] }),
   })
 }
 
-export function useRemoveTrainingStage() {
+export function useRemoveCompletion() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (t: AgentTraining) => {

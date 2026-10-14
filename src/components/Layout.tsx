@@ -51,7 +51,7 @@ const NAV = [
 // the five destinations reachable with one thumb tap on a phone
 const TABS = ['/', '/doctors', '/schedule', '/tasks', '/scans']
 
-const VERSION = 'v81 · הרשאות מחיקה, משימות בסרגל, תיקוני QA'
+const VERSION = 'v82 · הכשרות: שלבים ניתנים לעריכה (JR101, קורס MAKO, 6 סולו)'
 
 export function Layout() {
   const { profile, signOut, impersonating } = useAuth()

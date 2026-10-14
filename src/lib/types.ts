@@ -20,6 +20,7 @@ export type AgentGoal = Tables<'agent_goals'>
 export type AgentReview = Tables<'agent_reviews'>
 export type AgentNote = Tables<'agent_notes'>
 export type AgentTraining = Tables<'agent_training'>
+export type TrainingStage = Tables<'training_stages'>
 export type Project = Tables<'projects'>
 export type ProjectArea = Tables<'project_areas'>
 export type ProjectUpdate = Tables<'project_updates'>

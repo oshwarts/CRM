@@ -1002,8 +1002,7 @@ export type Database = {
           file_path: string | null
           id: string
           notes: string
-          procedure_id: string
-          stage: string
+          stage_id: string
         }
         Insert: {
           agent_id: string
@@ -1014,8 +1013,7 @@ export type Database = {
           file_path?: string | null
           id?: string
           notes?: string
-          procedure_id: string
-          stage: string
+          stage_id: string
         }
         Update: {
           agent_id?: string
@@ -1026,9 +1024,14 @@ export type Database = {
           file_path?: string | null
           id?: string
           notes?: string
-          procedure_id?: string
-          stage?: string
+          stage_id?: string
         }
+        Relationships: []
+      }
+      training_stages: {
+        Row: { created_at: string; id: string; name: string; procedure_id: string | null; required_count: number; sort: number }
+        Insert: { created_at?: string; id?: string; name: string; procedure_id?: string | null; required_count?: number; sort?: number }
+        Update: { created_at?: string; id?: string; name?: string; procedure_id?: string | null; required_count?: number; sort?: number }
         Relationships: []
       }
       agent_notes: {

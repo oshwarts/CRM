@@ -1,30 +1,35 @@
 import { Link } from 'react-router-dom'
 import { AlertTriangle } from 'lucide-react'
 import { useAgents, useProcedures } from '../lib/api'
-import { useTraining } from '../lib/agentsApi'
-import { TRAINING_STAGES, trainingOf, trainingState } from '../lib/training'
-import { stageTone } from './TrainingPanel'
+import { useTraining, useTrainingStages } from '../lib/agentsApi'
+import { scopeState, stagesOf } from '../lib/training'
+import { scopeTone } from './TrainingPanel'
 import { EmptyState, Spinner } from './ui'
 import { classNames, formatDate, todayISO } from '../lib/utils'
 
-/** managers: all agents against all procedures — who is certified in what and where each one stands */
+/** managers: all agents against the general stages and every procedure — who completed what and where each one stands */
 export function TrainingMatrix() {
   const agents = useAgents()
   const procedures = useProcedures()
+  const stages = useTrainingStages()
   const training = useTraining()
-  if (agents.isLoading || procedures.isLoading || training.isLoading) return <Spinner />
+  if (agents.isLoading || procedures.isLoading || stages.isLoading || training.isLoading) return <Spinner />
   const list = (agents.data ?? []).filter((a) => a.role === 'agent')
-  const procs = procedures.data ?? []
   if (list.length === 0) return <EmptyState title="אין סוכנים" />
   const today = todayISO()
+  const allStages = stages.data ?? []
   const all = training.data ?? []
+  const scopes = [
+    { key: 'general', title: 'כללי', procedureId: null as string | null },
+    ...(procedures.data ?? []).map((p) => ({ key: p.id, title: p.name, procedureId: p.id as string | null })),
+  ].filter((sc) => stagesOf(allStages, sc.procedureId).length > 0)
+  if (scopes.length === 0) return <EmptyState title="לא הוגדרו שלבי הכשרה" hint="פתח כרטיס סוכן ← הכשרות ← עריכת שלבים" />
 
-  const stuck = list.flatMap((a) =>
-    procs.flatMap((p) => {
-      const st = trainingState(trainingOf(all, a.id, p.id), today)
-      return st.stuck ? [{ a, p, st }] : []
-    }),
-  )
+  const cells = list.map((a) => {
+    const mine = all.filter((r) => r.agent_id === a.id)
+    return { a, states: scopes.map((sc) => ({ sc, st: scopeState(stagesOf(allStages, sc.procedureId), mine, today) })) }
+  })
+  const stuck = cells.flatMap(({ a, states }) => states.filter((s) => s.st.stuck).map((s) => ({ a, ...s })))
 
   return (
     <div className="space-y-3">
@@ -34,12 +39,12 @@ export function TrainingMatrix() {
             <AlertTriangle size={15} /> {stuck.length} הכשרות תקועות
           </p>
           <ul className="space-y-0.5 text-xs">
-            {stuck.map(({ a, p, st }) => (
-              <li key={`${a.id}-${p.id}`}>
+            {stuck.map(({ a, sc, st }) => (
+              <li key={`${a.id}-${sc.key}`}>
                 <Link to={`/agents/${a.id}`} className="font-medium underline">
                   {a.full_name || a.email}
                 </Link>{' '}
-                — {p.name}: אחרי "{TRAINING_STAGES[st.top].label}" ({formatDate(st.last!)}), {st.daysSince} ימים בלי התקדמות
+                — {sc.title}: {st.current ? `"${st.current.stage.name}" ${st.current.count}/${st.current.stage.required_count}` : ''} (אחרון {formatDate(st.last!)}), {st.daysSince} ימים בלי התקדמות
               </li>
             ))}
           </ul>
@@ -50,43 +55,43 @@ export function TrainingMatrix() {
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50 text-right text-xs text-slate-500">
               <th className="p-2.5 font-medium">סוכן</th>
-              {procs.map((p) => (
-                <th key={p.id} className="p-2.5 text-center font-medium">
-                  {p.name}
+              {scopes.map((sc) => (
+                <th key={sc.key} className="p-2.5 text-center font-medium">
+                  {sc.title}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {list.map((a) => (
+            {cells.map(({ a, states }) => (
               <tr key={a.id} className="border-b border-slate-100">
                 <td className="p-2.5">
                   <Link to={`/agents/${a.id}`} className="font-medium text-brand-700 hover:underline">
                     {a.full_name || a.email}
                   </Link>
                 </td>
-                {procs.map((p) => {
-                  const st = trainingState(trainingOf(all, a.id, p.id), today)
-                  return (
-                    <td key={p.id} className="p-1.5 text-center">
-                      <span
-                        className={classNames('inline-block min-w-24 rounded-lg border px-2 py-1 text-xs', stageTone(st.top, st.certified, st.stuck))}
-                        title={st.last ? `אחרון: ${formatDate(st.last)}` : 'לא התחיל'}
-                      >
-                        {st.top < 0 ? '—' : TRAINING_STAGES[st.top].label}
-                        {st.stuck && ' ⚠'}
-                      </span>
-                    </td>
-                  )
-                })}
+                {states.map(({ sc, st }) => (
+                  <td key={sc.key} className="p-1.5 text-center">
+                    <span
+                      className={classNames('inline-block min-w-24 rounded-lg border px-2 py-1 text-xs', scopeTone(st))}
+                      title={st.last ? `אחרון: ${formatDate(st.last)}` : 'לא התחיל'}
+                    >
+                      {st.complete ? 'הושלם' : st.started ? `${st.doneCount}/${st.total}` : '—'}
+                      {st.stuck && ' ⚠'}
+                      {!st.complete && st.started && st.current && (
+                        <span className="block text-[10px] opacity-80">
+                          {st.current.stage.name} {st.current.count}/{st.current.stage.required_count}
+                        </span>
+                      )}
+                    </span>
+                  </td>
+                ))}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-slate-400">
-        השלבים לפי הסדר: {TRAINING_STAGES.map((s) => s.label).join(' ← ')}. לחץ על סוכן כדי לעדכן שלבים, להוסיף תאריך, הערות וקובץ.
-      </p>
+      <p className="text-xs text-slate-400">הטבלה מראה כמה שלבים הושלמו בכל תחום ואיפה הסוכן עומד כרגע. לחץ על סוכן כדי לעדכן השלמות ולערוך שלבים.</p>
     </div>
   )
 }

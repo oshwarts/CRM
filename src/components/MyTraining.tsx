@@ -1,41 +1,55 @@
 import { GraduationCap } from 'lucide-react'
 import { useProcedures } from '../lib/api'
-import { useTraining } from '../lib/agentsApi'
+import { useTraining, useTrainingStages } from '../lib/agentsApi'
 import { useAuth } from '../context/AuthProvider'
-import { TRAINING_STAGES, trainingOf, trainingState } from '../lib/training'
-import { classNames, formatDate, todayISO } from '../lib/utils'
+import { scopeState, stagesOf } from '../lib/training'
+import { classNames, todayISO } from '../lib/utils'
 
 /** the signed-in agent's own training progress (read-only); shown only once something was recorded */
 export function MyTraining() {
   const { user } = useAuth()
   const procedures = useProcedures()
+  const stages = useTrainingStages()
   const training = useTraining()
   const mine = (training.data ?? []).filter((r) => r.agent_id === user?.id)
   if (mine.length === 0) return null
   const today = todayISO()
-  const rows = (procedures.data ?? []).flatMap((p) => {
-    const st = trainingState(trainingOf(mine, user!.id, p.id), today)
-    return st.top >= 0 ? [{ p, st }] : []
+  const all = stages.data ?? []
+  const scopes = [
+    { key: 'general', title: 'כללי', procedureId: null as string | null },
+    ...(procedures.data ?? []).map((p) => ({ key: p.id, title: p.name, procedureId: p.id as string | null })),
+  ]
+  const rows = scopes.flatMap((sc) => {
+    const st = scopeState(stagesOf(all, sc.procedureId), mine, today)
+    return st.total > 0 && st.started ? [{ sc, st }] : []
   })
   return (
     <div>
       <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
         <GraduationCap size={12} /> ההכשרות שלי
       </p>
-      <ul className="space-y-2">
-        {rows.map(({ p, st }) => (
-          <li key={p.id} className="text-sm">
+      <ul className="space-y-2.5">
+        {rows.map(({ sc, st }) => (
+          <li key={sc.key} className="text-sm">
             <div className="flex items-center justify-between gap-2">
-              <span className="font-medium text-slate-800">{p.name}</span>
-              <span className={classNames('text-xs', st.certified ? 'text-emerald-600' : 'text-slate-500')}>
-                {TRAINING_STAGES[st.top].label} · {formatDate(st.last!)}
+              <span className="font-medium text-slate-800">{sc.title}</span>
+              <span className={classNames('text-xs', st.complete ? 'text-emerald-600' : 'text-slate-500')}>
+                {st.complete ? 'הושלם' : `${st.doneCount}/${st.total} שלבים`}
               </span>
             </div>
-            <div className="mt-1 flex gap-1">
-              {TRAINING_STAGES.map((s, i) => (
-                <span key={s.key} className={classNames('h-1.5 flex-1 rounded-full', i <= st.top ? (st.certified ? 'bg-emerald-500' : 'bg-brand-500') : 'bg-slate-100')} title={s.label} />
+            <ul className="mt-1 space-y-0.5">
+              {st.stages.map((sp) => (
+                <li key={sp.stage.id} className="flex items-center gap-2 text-xs text-slate-600">
+                  <span className={classNames('w-28 truncate', sp.done && 'text-emerald-700')}>{sp.stage.name}</span>
+                  <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+                    <span className={classNames('block h-full', sp.done ? 'bg-emerald-500' : 'bg-brand-500')} style={{ width: `${Math.min(100, (sp.count / sp.stage.required_count) * 100)}%` }} />
+                  </span>
+                  <span className="w-8 text-left text-slate-400">
+                    {sp.count}/{sp.stage.required_count}
+                  </span>
+                </li>
               ))}
-            </div>
+            </ul>
           </li>
         ))}
       </ul>
