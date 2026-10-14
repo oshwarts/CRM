@@ -13,6 +13,7 @@ import {
 } from '../lib/api'
 import { useAuth } from '../context/AuthProvider'
 import { ConfirmButton, EmptyState, ErrorState, Spinner } from '../components/ui'
+import { StockForecast } from '../components/StockForecast'
 import {
   CONSUMABLES_EMAIL_KEY,
   CONSUMABLES_INTRO_KEY,
@@ -360,6 +361,14 @@ export default function Consumables() {
             )}
             {notice && <p className="text-xs text-slate-500">{notice}</p>}
           </div>
+
+          {!viewed && hospitalId && (
+            <StockForecast
+              hospitalId={hospitalId}
+              lastCount={counts.data?.[0]}
+              minOf={(itemId, fallback) => overrides.get(itemId) ?? fallback}
+            />
+          )}
 
           <section className="card p-4">
             <h2 className="mb-2 font-semibold text-slate-800">היסטוריית ספירות</h2>

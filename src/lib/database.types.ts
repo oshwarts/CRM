@@ -1028,6 +1028,12 @@ export type Database = {
         }
         Relationships: []
       }
+      consumable_usage: {
+        Row: { item_id: string; procedure_type: string; qty_per_case: number }
+        Insert: { item_id: string; procedure_type: string; qty_per_case?: number }
+        Update: { item_id?: string; procedure_type?: string; qty_per_case?: number }
+        Relationships: []
+      }
       learn_topics: {
         Row: { created_at: string; description: string; id: string; sort: number; title: string }
         Insert: { created_at?: string; description?: string; id?: string; sort?: number; title: string }

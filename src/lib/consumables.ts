@@ -52,3 +52,69 @@ export function shortageText(opts: {
 
 export const CONSUMABLES_EMAIL_KEY = 'consumables_email'
 export const CONSUMABLES_INTRO_KEY = 'consumables_email_intro'
+
+/* ---------------- stock forecast from the planned surgeries ---------------- */
+
+export type UsageMap = Map<string, Partial<Record<'knee' | 'uni' | 'hip', number>>>
+export type ForecastRow = {
+  item: ConsumableItem
+  /** the quantity in the last stock count, null when the hospital was never counted */
+  counted: number | null
+  /** used by the surgeries done after the count, up to today */
+  usedSince: number
+  /** needed by the surgeries planned from tomorrow to the horizon */
+  planned: number
+  /** counted - usedSince - planned (null without a count) */
+  projected: number | null
+  min: number
+  /** how many to bring so that the stock is back at the minimum after the planned surgeries */
+  order: number
+}
+
+const TYPES = ['knee', 'uni', 'hip'] as const
+const NONE = { knee: 0, uni: 0, hip: 0 }
+
+/** surgeries of the hospital in a date window, counted per procedure type (cancelled ones are left out) */
+export function surgeriesBetween(
+  scans: { hospital_id: string; status: string; surgery_date: string | null; procedure_type: string }[],
+  hospitalId: string,
+  after: string,
+  upTo: string,
+): Record<'knee' | 'uni' | 'hip', number> {
+  const out = { ...NONE }
+  for (const s of scans) {
+    if (s.hospital_id !== hospitalId || s.status === 'cancelled' || !s.surgery_date) continue
+    if (s.surgery_date > after && s.surgery_date <= upTo && (TYPES as readonly string[]).includes(s.procedure_type)) out[s.procedure_type as 'knee']++
+  }
+  return out
+}
+
+export function forecastStock(opts: {
+  items: ConsumableItem[]
+  usage: UsageMap
+  minOf: (itemId: string, fallback: number) => number
+  lastCount: { counted_on: string; lines: { item_id: string; qty: number }[] } | undefined
+  scans: Parameters<typeof surgeriesBetween>[0]
+  hospitalId: string
+  today: string
+  horizon: string
+}): { rows: ForecastRow[]; since: Record<'knee' | 'uni' | 'hip', number>; ahead: Record<'knee' | 'uni' | 'hip', number> } {
+  const from = opts.lastCount?.counted_on ?? opts.today
+  const since = opts.lastCount ? surgeriesBetween(opts.scans, opts.hospitalId, from, opts.today) : { ...NONE }
+  const ahead = surgeriesBetween(opts.scans, opts.hospitalId, opts.today, opts.horizon)
+  const lines = new Map((opts.lastCount?.lines ?? []).map((l) => [l.item_id, l.qty]))
+  const rows: ForecastRow[] = []
+  for (const item of opts.items) {
+    const u = opts.usage.get(item.id)
+    if (!u || !TYPES.some((t) => (u[t] ?? 0) > 0)) continue
+    const per = (n: Record<'knee' | 'uni' | 'hip', number>) => TYPES.reduce((s, t) => s + n[t] * (u[t] ?? 0), 0)
+    const usedSince = per(since)
+    const planned = per(ahead)
+    const counted = lines.has(item.id) ? lines.get(item.id)! : null
+    const projected = counted === null ? null : counted - usedSince - planned
+    const min = opts.minOf(item.id, item.default_min)
+    const order = Math.ceil(Math.max(0, projected === null ? planned : min - projected) - 1e-9)
+    rows.push({ item, counted, usedSince, planned, projected, min, order })
+  }
+  return { rows: rows.sort((a, b) => b.order - a.order), since, ahead }
+}

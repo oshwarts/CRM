@@ -9,6 +9,7 @@ import {
 } from '../lib/api'
 import { useAuth } from '../context/AuthProvider'
 import { ConfirmButton, Spinner } from './ui'
+import { ConsumableUsageEditor } from './ConsumableUsageEditor'
 import {
   CONSUMABLES_EMAIL_KEY,
   CONSUMABLES_INTRO_KEY,
@@ -200,6 +201,7 @@ export function ConsumablesSettings() {
           </ul>
         )}
       </div>
+      <ConsumableUsageEditor />
     </div>
   )
 }
