@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthProvider'
 import { EmptyState, ErrorState, Spinner, Tab, TabList, TabPanel, Tabs } from '../components/ui'
 import { AuditLog } from '../components/AuditLog'
 import { BackupPanel } from '../components/BackupPanel'
+import { DataQuality } from '../components/DataQuality'
 import { normalizeHe } from '../lib/contactMatch'
 import { classNames, formatDate } from '../lib/utils'
 import type { Profile } from '../lib/types'
@@ -21,6 +22,7 @@ export default function Users() {
         <TabList>
           <Tab id="users">משתמשים</Tab>
           <Tab id="audit">יומן פעולות</Tab>
+          <Tab id="quality">איכות נתונים</Tab>
           <Tab id="backup">גיבוי</Tab>
         </TabList>
         <TabPanel id="users">
@@ -28,6 +30,9 @@ export default function Users() {
         </TabPanel>
         <TabPanel id="audit">
           <AuditLog />
+        </TabPanel>
+        <TabPanel id="quality">
+          <DataQuality />
         </TabPanel>
         <TabPanel id="backup">
           <BackupPanel />

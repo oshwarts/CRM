@@ -1216,6 +1216,7 @@ export type Database = {
     Functions: {
       is_admin: { Args: Record<string, never>; Returns: boolean }
       is_active: { Args: Record<string, never>; Returns: boolean }
+      merge_records: { Args: { p_table: string; p_keep: string; p_drop: string }; Returns: undefined }
       replace_equipment_parts: { Args: { p_item: string; p_parts: unknown }; Returns: undefined }
       reset_test_user: { Args: { p_target: string }; Returns: undefined }
       set_impersonation: { Args: { target: string | null }; Returns: undefined }
