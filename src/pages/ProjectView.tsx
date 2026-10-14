@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { AlertTriangle, ArrowDown, ArrowRight, ArrowUp, Building2, CalendarDays, Clock, GripVertical, Mail, Pencil, Phone, Plus, Trash2, User, Users } from 'lucide-react'
 import { useTasks } from '../lib/api'
-import { useDeleteArea, useDeleteProject, useProjectUpdates, useProjects, useMoveTask, useSaveArea, useSetAreaContact, useSetTaskStatus, useSetTasksContact } from '../lib/projectsApi'
+import { useDeleteArea, useDeleteProject, useProjectUpdates, useProjects, useMoveTask, useReorderAreas, useSaveArea, useSetAreaContact, useSetTaskStatus, useSetTasksContact } from '../lib/projectsApi'
 import { PROJECT_STATUS, STATUS_ORDER, TASK_STATUS, isOverdue, projectStats } from '../lib/projects'
 import { ProjectFormModal } from '../components/ProjectFormModal'
 import { ProjectTaskModal } from '../components/ProjectTaskModal'
@@ -102,6 +102,9 @@ export default function ProjectView() {
   const setAreaContact = useSetAreaContact()
   const setTasksContact = useSetTasksContact()
   const moveTask = useMoveTask()
+  const reorderAreas = useReorderAreas()
+  const [dragArea, setDragArea] = useState<string | null>(null)
+  const [overArea, setOverArea] = useState<string | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
   const [overId, setOverId] = useState<string | null>(null)
   const [areaContactFor, setAreaContactFor] = useState<{ id: string; name: string; contactId: string | null; text: string } | null>(null)
@@ -139,6 +142,14 @@ export default function ProjectView() {
       .sort((a, b) => a.sort - b.sort || a.created_at.localeCompare(b.created_at))
   const noArea = byArea(null)
   const open = (t: TaskRow) => setTaskModal({ task: t })
+  /** puts an area before another area (null = last) */
+  function placeArea(areaId: string, beforeId: string | null) {
+    if (areaId === beforeId) return
+    const ids = areas.map((a) => a.id).filter((x) => x !== areaId)
+    const at = beforeId ? ids.indexOf(beforeId) : -1
+    ids.splice(at < 0 ? ids.length : at, 0, areaId)
+    reorderAreas.mutate(ids)
+  }
   /** places a task in an area, before another task (or at the end) — also used by the arrows (swap with the neighbour) */
   function place(taskId: string, areaId: string | null, beforeId: string | null) {
     const moved = tasks.find((t) => t.id === taskId)
@@ -280,9 +291,59 @@ export default function ProjectView() {
               const list = byArea(a.id)
               const s = projectStats(list)
               return (
-                <section key={a.id ?? 'none'} className="card p-4">
-                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                    <h2 className="flex items-baseline gap-2 font-semibold text-slate-800">
+                <section
+                  key={a.id ?? 'none'}
+                  className={classNames('card p-4', overArea === a.id && dragArea && 'border-t-4 border-t-brand-400')}
+                  onDragOver={(e) => {
+                    if (dragArea && a.id && dragArea !== a.id) {
+                      e.preventDefault()
+                      setOverArea(a.id)
+                    }
+                  }}
+                  onDrop={(e) => {
+                    if (dragArea && a.id) {
+                      e.preventDefault()
+                      placeArea(dragArea, a.id)
+                      setDragArea(null)
+                      setOverArea(null)
+                    }
+                  }}
+                >
+                  <div
+                    className="mb-2 flex flex-wrap items-center justify-between gap-2"
+                    draggable={!!a.id}
+                    onDragStart={(e) => {
+                      if (!a.id) return
+                      e.stopPropagation()
+                      setDragArea(a.id)
+                    }}
+                    onDragEnd={() => {
+                      setDragArea(null)
+                      setOverArea(null)
+                    }}
+                  >
+                    <h2 className="flex items-center gap-2 font-semibold text-slate-800">
+                      {a.id && (
+                        <span className="flex items-center text-slate-300">
+                          <GripVertical size={14} className="hidden cursor-grab md:block" />
+                          <button
+                            className="rounded p-0.5 hover:text-brand-600 disabled:opacity-20"
+                            disabled={areas[0]?.id === a.id}
+                            aria-label="הזז תחום למעלה"
+                            onClick={() => placeArea(a.id as string, areas[areas.findIndex((x) => x.id === a.id) - 1]?.id ?? null)}
+                          >
+                            <ArrowUp size={15} />
+                          </button>
+                          <button
+                            className="rounded p-0.5 hover:text-brand-600 disabled:opacity-20"
+                            disabled={areas[areas.length - 1]?.id === a.id}
+                            aria-label="הזז תחום למטה"
+                            onClick={() => placeArea(a.id as string, areas[areas.findIndex((x) => x.id === a.id) + 2]?.id ?? null)}
+                          >
+                            <ArrowDown size={15} />
+                          </button>
+                        </span>
+                      )}
                       {a.name}
                       <span className="text-xs font-normal text-slate-400">
                         {s.done}/{s.total}

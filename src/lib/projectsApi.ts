@@ -314,3 +314,14 @@ export function useSetUpdateDate() {
     onSuccess: () => invalidate(qc),
   })
 }
+
+/** saves the order of the project's areas (ids in the wanted order) */
+export function useReorderAreas() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (orderedIds: string[]) => {
+      await Promise.all(orderedIds.map((id, i) => supabase.from('project_areas').update({ sort: i }).eq('id', id).then((r) => unwrap(r))))
+    },
+    onSuccess: () => invalidate(qc),
+  })
+}
