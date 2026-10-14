@@ -23,6 +23,8 @@ import AgentView from './pages/AgentView'
 import Projects from './pages/Projects'
 import ProjectView from './pages/ProjectView'
 import Competitors from './pages/Competitors'
+import Learn from './pages/Learn'
+import LearnTopic from './pages/LearnTopic'
 import Pending from './pages/Pending'
 
 export default function App() {
@@ -72,6 +74,8 @@ export default function App() {
         <Route path="/projects" element={<Projects />} />
         <Route path="/projects/:id" element={<ProjectView />} />
         <Route path="/competitors" element={<Competitors />} />
+        <Route path="/learn" element={<Learn />} />
+        <Route path="/learn/:id" element={<LearnTopic />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

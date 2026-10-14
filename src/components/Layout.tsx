@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   BarChart3,
   BookOpen,
+  GraduationCap,
   Boxes,
   CalendarDays,
   CalendarRange,
@@ -39,6 +40,7 @@ const NAV = [
   { to: '/map', label: 'בתי חולים', short: 'בתי חולים', icon: MapIcon, end: false },
   { to: '/scans', label: 'סריקות MAKO', short: 'סריקות', icon: ScanLine, end: false },
   { to: '/info', label: 'מידע קליני', short: 'מידע קליני', icon: BookOpen, end: false },
+  { to: '/learn', label: 'לומדה', short: 'לומדה', icon: GraduationCap, end: false },
   { to: '/consumables', label: 'מתכלים MAKO', short: 'מתכלים', icon: Boxes, end: false },
   { to: '/pipeline', label: 'פוטנציאליים', short: 'פוטנציאליים', icon: Target, end: false },
   { to: '/competitors', label: 'פעילות מתחרים', short: 'מתחרים', icon: Swords, end: false },
@@ -51,7 +53,7 @@ const NAV = [
 // the five destinations reachable with one thumb tap on a phone
 const TABS = ['/', '/doctors', '/schedule', '/tasks', '/scans']
 
-const VERSION = 'v82 · הכשרות: שלבים ניתנים לעריכה (JR101, קורס MAKO, 6 סולו)'
+const VERSION = 'v83 · לומדה'
 
 export function Layout() {
   const { profile, signOut, impersonating } = useAuth()

@@ -20,6 +20,7 @@ import { useAuth } from '../context/AuthProvider'
 import { GoalFormModal } from '../components/GoalFormModal'
 import { GoalBars } from '../components/GoalBars'
 import { TrainingPanel } from '../components/TrainingPanel'
+import { LearnSummary } from '../components/LearnSummary'
 import { REVIEW_KINDS, ReviewFormModal } from '../components/ReviewFormModal'
 import { TaskFormModal } from '../components/TaskFormModal'
 import { ConfirmButton, EmptyState, Spinner, Tab, TabList, TabPanel, Tabs } from '../components/ui'
@@ -315,6 +316,7 @@ export default function AgentView() {
         {/* ---------- training ---------- */}
         <TabPanel id="training">
           <TrainingPanel agentId={id} />
+          <LearnSummary agentId={id} />
         </TabPanel>
 
         {/* ---------- 1:1 and notes ---------- */}

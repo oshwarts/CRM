@@ -1028,6 +1028,30 @@ export type Database = {
         }
         Relationships: []
       }
+      learn_topics: {
+        Row: { created_at: string; description: string; id: string; sort: number; title: string }
+        Insert: { created_at?: string; description?: string; id?: string; sort?: number; title: string }
+        Update: { created_at?: string; description?: string; id?: string; sort?: number; title?: string }
+        Relationships: []
+      }
+      learn_cards: {
+        Row: { answer: string; created_at: string; id: string; question: string; sort: number; topic_id: string }
+        Insert: { answer: string; created_at?: string; id?: string; question: string; sort?: number; topic_id: string }
+        Update: { answer?: string; created_at?: string; id?: string; question?: string; sort?: number; topic_id?: string }
+        Relationships: []
+      }
+      learn_progress: {
+        Row: { card_id: string; correct_count: number; id: string; known: boolean; last_seen: string; topic_id: string; user_id: string; wrong_count: number }
+        Insert: { card_id: string; correct_count?: number; id?: string; known?: boolean; last_seen?: string; topic_id: string; user_id?: string; wrong_count?: number }
+        Update: { card_id?: string; correct_count?: number; id?: string; known?: boolean; last_seen?: string; topic_id?: string; user_id?: string; wrong_count?: number }
+        Relationships: []
+      }
+      learn_attempts: {
+        Row: { id: string; score: number; taken_at: string; topic_id: string; total: number; user_id: string }
+        Insert: { id?: string; score: number; taken_at?: string; topic_id: string; total: number; user_id?: string }
+        Update: { id?: string; score?: number; taken_at?: string; topic_id?: string; total?: number; user_id?: string }
+        Relationships: []
+      }
       training_stages: {
         Row: { created_at: string; id: string; name: string; procedure_id: string | null; required_count: number; sort: number }
         Insert: { created_at?: string; id?: string; name: string; procedure_id?: string | null; required_count?: number; sort?: number }
