@@ -6,7 +6,7 @@ import {
   type ReactNode,
 } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
-import { supabase } from '../lib/supabase'
+import { openedFromResetLink, supabase } from '../lib/supabase'
 import { setActingId } from '../lib/actingAs'
 import { outboxSize } from '../lib/outbox'
 import { queryClient } from '../lib/queryClient'
@@ -24,6 +24,9 @@ type AuthContextValue = {
   /** set while the developer is switched to another user */
   impersonating: Profile | null
   switchUser: (id: string | null) => Promise<void>
+  /** true after the user opened a password-reset link, until a new password is chosen */
+  recovering: boolean
+  setNewPassword: (password: string) => Promise<void>
   loading: boolean
   isAdmin: boolean
   signIn: (email: string, password: string) => Promise<void>
@@ -39,6 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [realProfile, setRealProfile] = useState<Profile | null>(null)
   const [impersonating, setImpersonating] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [recovering, setRecovering] = useState(openedFromResetLink)
 
   async function loadProfile(userId: string) {
     const { data } = await supabase
@@ -63,14 +67,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
     })
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, next) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, next) => {
+      if (event === 'PASSWORD_RECOVERY') setRecovering(true)
       setSession(next)
-      if (next?.user) await loadProfile(next.user.id)
-      else {
-        setActingId(null)
-        setImpersonating(null)
-        setRealProfile(null)
-      }
+      // supabase calls made straight inside this callback can deadlock the client: continue on the next tick
+      setTimeout(() => {
+        if (next?.user) void loadProfile(next.user.id)
+        else {
+          setActingId(null)
+          setImpersonating(null)
+          setRealProfile(null)
+        }
+      }, 0)
     })
 
     return () => sub.subscription.unsubscribe()
@@ -94,6 +102,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryClient.clear()
       await idbPersister.removeClient()
       window.location.assign('/')
+    },
+    recovering,
+    async setNewPassword(password) {
+      const { error } = await supabase.auth.updateUser({ password })
+      if (error) throw error
+      setRecovering(false)
+      // the link's address (with its token) is replaced by the app's home
+      window.history.replaceState(null, '', '/')
     },
     loading,
     isAdmin: profile?.role === 'admin',

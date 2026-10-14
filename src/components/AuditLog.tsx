@@ -29,7 +29,7 @@ export const FIELD_LABELS: Record<string, string> = {
   patient_name: 'שם מטופל', patient_phone: 'טלפון מטופל', patient_id_number: 'ת״ז', is_done: 'בוצע', due_date: 'תאריך יעד',
   assignee_id: 'אחראי', description: 'תיאור', priority: 'עדיפות', summary: 'סיכום', subject: 'נושא', meeting_date: 'תאריך',
   contact_cadence_days: 'קצב קשר', plan_ready: 'תוכנית מוכנה', scanned: 'נסרק', disk_collected: 'הועלה דיסק',
-  impersonating_id: 'התחזות', pipeline_stage: 'שלב', tracking_notes: 'הערות מעקב', title: 'כותרת',
+  impersonating_id: 'התחזות', password_reset_link: 'קישור לאיפוס סיסמה', pipeline_stage: 'שלב', tracking_notes: 'הערות מעקב', title: 'כותרת',
 }
 
 const fmt = (iso: string) =>

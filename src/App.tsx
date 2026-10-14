@@ -26,9 +26,10 @@ import Competitors from './pages/Competitors'
 import Learn from './pages/Learn'
 import LearnTopic from './pages/LearnTopic'
 import Pending from './pages/Pending'
+import SetPassword from './pages/SetPassword'
 
 export default function App() {
-  const { session, loading, realProfile } = useAuth()
+  const { session, loading, realProfile, recovering } = useAuth()
 
   if (loading) {
     return (
@@ -37,6 +38,9 @@ export default function App() {
       </div>
     )
   }
+
+  // opened from a password-reset link: choose the new password first
+  if (session && recovering) return <SetPassword />
 
   if (!session) {
     return (

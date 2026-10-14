@@ -10,6 +10,9 @@ export const configError: string | null =
     ? 'חסרים משתני סביבה VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY. יש להגדיר אותם ב-Vercel (Project → Settings → Environment Variables) עבור סביבת Production ולבצע Redeploy.'
     : null
 
+// opened from a password-reset link? (read before the client removes the token from the address)
+export const openedFromResetLink = typeof window !== 'undefined' && /type=recovery/.test(window.location.hash)
+
 // offline the app is read-only: any write fails immediately with a clear message instead of hanging
 const offlineAwareFetch: typeof fetch = (input, init) => {
   const method = (init?.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase()

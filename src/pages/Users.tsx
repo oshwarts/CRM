@@ -6,6 +6,7 @@ import { EmptyState, ErrorState, Spinner, Tab, TabList, TabPanel, Tabs } from '.
 import { AuditLog } from '../components/AuditLog'
 import { BackupPanel } from '../components/BackupPanel'
 import { DataQuality } from '../components/DataQuality'
+import { ResetLinkButton } from '../components/ResetLinkButton'
 import { normalizeHe } from '../lib/contactMatch'
 import { classNames, formatDate } from '../lib/utils'
 import type { Profile } from '../lib/types'
@@ -142,6 +143,7 @@ function UsersTab() {
                 <li key={u.id} className="card flex flex-wrap items-center justify-between gap-3 p-3">
                   <Who u={u} me={me} sub={`נרשם ${formatDate(u.created_at.slice(0, 10))} · כניסה אחרונה ${lastSeen(u.id)}`} />
                   <div className="flex items-center gap-2">
+                    {!me && !u.is_developer && <ResetLinkButton user={u} />}
                     <select
                       className="input !w-auto"
                       value={u.role}
