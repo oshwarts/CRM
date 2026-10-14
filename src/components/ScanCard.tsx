@@ -11,14 +11,13 @@ import {
 import { classNames, formatDate, formatTime } from '../lib/utils'
 
 type Patch = Partial<
-  Pick<PatientScanRow, 'scanned' | 'disk_collected' | 'plan_ready' | 'uploaded'>
+  Pick<PatientScanRow, 'scanned' | 'disk_collected' | 'plan_ready'>
 >
 
 const TOGGLES: { key: keyof Patch; label: string }[] = [
   { key: 'scanned', label: 'נסרק' },
-  { key: 'disk_collected', label: 'דיסק' },
-  { key: 'plan_ready', label: 'תוכנית' },
-  { key: 'uploaded', label: 'הועלה' },
+  { key: 'disk_collected', label: 'הועלה דיסק' },
+  { key: 'plan_ready', label: 'תוכנית מוכנה' },
 ]
 
 export function ScanCard({

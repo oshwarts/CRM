@@ -8,7 +8,7 @@ export function weekMissing(s: PatientScanRow): string[] {
   if (d === null || d < 0 || d > 7) return []
   const out: string[] = []
   if (!s.scanned) out.push('CT טרם בוצע')
-  else if (!s.disk_collected) out.push('דיסק לא נאסף')
+  else if (!s.disk_collected) out.push('דיסק לא הועלה')
   if (!s.plan_ready) out.push('תוכנית לא מוכנה')
   return out
 }

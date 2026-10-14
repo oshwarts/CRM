@@ -132,7 +132,7 @@ export function ScanFormModal({
         rescan_date: d.rescan && d.rescan_date ? d.rescan_date : null,
         rescan_reason: d.rescan ? d.rescan_reason.trim() : '',
         rescan_done: d.rescan ? d.rescan_done : false,
-        uploaded: d.uploaded,
+        uploaded: d.disk_collected,
         status: d.status,
         implant_data: d.implant_data,
         notes: d.notes.trim(),
@@ -258,11 +258,7 @@ export function ScanFormModal({
           </label>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" className="h-4 w-4" checked={d.disk_collected} onChange={(e) => set({ disk_collected: e.target.checked })} />
-            דיסק נאסף
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" className="h-4 w-4" checked={d.uploaded} onChange={(e) => set({ uploaded: e.target.checked })} />
-            הועלה
+            הועלה דיסק
           </label>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" className="h-4 w-4" checked={d.plan_ready} onChange={(e) => set({ plan_ready: e.target.checked })} />

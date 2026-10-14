@@ -28,7 +28,7 @@ export const FIELD_LABELS: Record<string, string> = {
   surgery_date: 'תאריך ניתוח', ct_date: 'תאריך CT', side: 'צד', hospital_id: 'בית חולים', surgeon_id: 'מנתח',
   patient_name: 'שם מטופל', patient_phone: 'טלפון מטופל', patient_id_number: 'ת״ז', is_done: 'בוצע', due_date: 'תאריך יעד',
   assignee_id: 'אחראי', description: 'תיאור', priority: 'עדיפות', summary: 'סיכום', subject: 'נושא', meeting_date: 'תאריך',
-  contact_cadence_days: 'קצב קשר', plan_ready: 'תוכנית מוכנה', scanned: 'נסרק', disk_collected: 'דיסק נאסף',
+  contact_cadence_days: 'קצב קשר', plan_ready: 'תוכנית מוכנה', scanned: 'נסרק', disk_collected: 'הועלה דיסק',
   pipeline_stage: 'שלב', tracking_notes: 'הערות מעקב', title: 'כותרת',
 }
 

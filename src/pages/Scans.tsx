@@ -149,8 +149,8 @@ export default function Scans() {
   function exportCsv() {
     const head = [
       'תאריך ניתוח', 'בית חולים', 'שם מלא', 'תז', 'טלפון', 'תאריך לידה', 'קופה', 'ביטוח',
-      'מנתח', 'סוג', 'רגל', 'תאריך CT', 'שעת CT', 'מרדים', 'נסרק', 'דיסק נאסף', 'תוכנית מוכנה',
-      'סריקה חוזרת', 'תאריך סריקה חוזרת', 'סיבת סריקה חוזרת', 'הועלה', 'מידות שתל', 'סטטוס', 'הערות',
+      'מנתח', 'סוג', 'רגל', 'תאריך CT', 'שעת CT', 'מרדים', 'נסרק', 'הועלה דיסק', 'תוכנית מוכנה',
+      'סריקה חוזרת', 'תאריך סריקה חוזרת', 'סיבת סריקה חוזרת', 'מידות שתל', 'סטטוס', 'הערות',
     ]
     const body = rows.map((s) => [
       formatDate(s.surgery_date), s.hospital?.name ?? '', s.patient_name, s.patient_id_number,
@@ -160,7 +160,6 @@ export default function Scans() {
       formatDate(s.ct_date), formatTime(s.ct_time), s.anaesthesia_note,
       s.scanned ? 'כן' : 'לא', s.disk_collected ? 'כן' : 'לא', s.plan_ready ? 'כן' : 'לא',
       s.rescan ? (s.rescan_done ? 'בוצעה' : 'כן') : '', formatDate(s.rescan_date), s.rescan_reason,
-      s.uploaded ? 'כן' : 'לא',
       implantSummary(s), SCAN_STATUS_LABELS[s.status] ?? s.status, s.notes,
     ])
     const csv = [head, ...body]
@@ -224,7 +223,7 @@ export default function Scans() {
         )}
         {noDiskSoonCount > 0 && (
           <span className="chip border-orange-200 bg-orange-50 text-orange-700">
-            ניתוח השבוע — דיסק לא נאסף · {noDiskSoonCount}
+            ניתוח השבוע — דיסק לא הועלה · {noDiskSoonCount}
           </span>
         )}
         {weekOpenCount > 0 && (
@@ -314,7 +313,7 @@ export default function Scans() {
                 <th className="p-2">
                   <input type="checkbox" className="h-4 w-4" checked={allSelected} onChange={toggleAll} title="בחר הכל" />
                 </th>
-                {['ניתוח', 'בית חולים', 'שם מלא', 'ת״ז', 'טלפון', 'קופה', 'מנתח', 'סוג', 'רגל', 'CT', 'מרדים', 'נסרק', 'דיסק', 'תוכנית', 'הועלה', 'מידות שתל', 'סטטוס', ''].map((h) => (
+                {['ניתוח', 'בית חולים', 'שם מלא', 'ת״ז', 'טלפון', 'קופה', 'מנתח', 'סוג', 'רגל', 'CT', 'מרדים', 'נסרק', 'הועלה דיסק', 'תוכנית מוכנה', 'מידות שתל', 'סטטוס', ''].map((h) => (
                   <th key={h} className="whitespace-nowrap p-2 font-medium">{h}</th>
                 ))}
               </tr>
@@ -351,7 +350,7 @@ export default function Scans() {
                       )}
                       {!noCtSoon && noDiskSoon && (
                         <span
-                          title="ניתוח בשבוע הקרוב — הדיסק לא נאסף"
+                          title="ניתוח בשבוע הקרוב — הדיסק לא הועלה"
                           className="mr-1 chip border-orange-200 bg-orange-100 text-orange-700"
                         >
                           אין דיסק
@@ -403,10 +402,6 @@ export default function Scans() {
                     <td className="p-2 text-center">
                       <input type="checkbox" className="h-4 w-4" checked={s.plan_ready}
                         onChange={(e) => patch.mutate({ id: s.id, patch: { plan_ready: e.target.checked } })} />
-                    </td>
-                    <td className="p-2 text-center">
-                      <input type="checkbox" className="h-4 w-4" checked={s.uploaded}
-                        onChange={(e) => patch.mutate({ id: s.id, patch: { uploaded: e.target.checked } })} />
                     </td>
                     <td className="max-w-[180px] p-2 text-xs text-slate-500">{implantSummary(s) || '—'}</td>
                     <td className="whitespace-nowrap p-2">

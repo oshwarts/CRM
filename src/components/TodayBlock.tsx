@@ -101,7 +101,7 @@ export function TodayBlock() {
                     {[s.hospital?.name, s.surgeon ? `${s.surgeon.title} ${s.surgeon.name}`.trim() : ''].filter(Boolean).join(' · ')}
                   </span>
                   {!s.plan_ready && <span className="chip border-amber-200 bg-amber-50 !px-2 !py-0 text-xs text-amber-700">תוכנית לא מוכנה</span>}
-                  {s.ct_date && !s.disk_collected && <span className="chip border-amber-200 bg-amber-50 !px-2 !py-0 text-xs text-amber-700">דיסק לא נאסף</span>}
+                  {s.ct_date && !s.disk_collected && <span className="chip border-amber-200 bg-amber-50 !px-2 !py-0 text-xs text-amber-700">דיסק לא הועלה</span>}
                 </Link>
               </li>
             ))}

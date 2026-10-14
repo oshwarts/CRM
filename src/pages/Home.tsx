@@ -130,7 +130,7 @@ export default function Home() {
       ),
       // ניתוח בשבוע הקרוב, ועדיין אין תאריך CT מתואם
       noCtSoon: active.filter((s) => surgerySoon(s) && !s.ct_date),
-      // ניתוח בשבוע הקרוב, יש CT אבל הדיסק טרם נאסף
+      // ניתוח בשבוע הקרוב, יש CT אבל הדיסק טרם הועלה
       noDiskSoon: active.filter(
         (s) => surgerySoon(s) && !!s.ct_date && !s.disk_collected,
       ),
@@ -393,7 +393,7 @@ export default function Home() {
                 )}
               >
                 <p className="text-2xl font-bold text-orange-600">{scanAlerts.noDiskSoon.length}</p>
-                <p className="text-xs text-slate-400">ניתוח עד התאריך — הדיסק לא נאסף</p>
+                <p className="text-xs text-slate-400">ניתוח עד התאריך — הדיסק לא הועלה</p>
               </Link>
             </div>
           </>
@@ -439,7 +439,7 @@ export default function Home() {
                   <span className="mr-2 text-xs text-slate-400">{s.hospital?.name}</span>
                 </span>
                 <span className="chip border-orange-200 bg-orange-50 text-orange-700">
-                  ניתוח {formatDate(s.surgery_date)} · דיסק לא נאסף
+                  ניתוח {formatDate(s.surgery_date)} · דיסק לא הועלה
                 </span>
               </li>
             ))}

@@ -2138,7 +2138,9 @@ registerExecutor<ScanPatchPayload>('scan.patch', (p) => mergePatch('patient_scan
 export function usePatchPatientScan() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, patch }: { id: string; patch: Partial<PatientScan> }) => {
+    mutationFn: async ({ id, patch: given }: { id: string; patch: Partial<PatientScan> }) => {
+      // "disk uploaded" is the one disk flag now; the old "uploaded" column simply follows it
+      const patch: Partial<PatientScan> = 'disk_collected' in given ? { ...given, uploaded: given.disk_collected } : given
       const cached = queryClient.getQueryData<PatientScanRow[]>(['patient-scans'])?.find((s) => s.id === id)
       const payload: ScanPatchPayload = {
         id,
