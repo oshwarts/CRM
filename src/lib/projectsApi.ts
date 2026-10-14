@@ -325,3 +325,38 @@ export function useReorderAreas() {
     onSuccess: () => invalidate(qc),
   })
 }
+
+/** edit a written update: its text, its date, remove files, add files */
+export function useEditProjectUpdate() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (e: { id: string; projectId: string; taskId: string | null; body: string; eventDate: string; removeFiles: ProjectFile[]; newFiles: File[] }) => {
+      const tooBig = e.newFiles.find((f) => f.size > MAX_FILE)
+      if (tooBig) throw new Error(`הקובץ ${tooBig.name} גדול מ-50MB`)
+      unwrap(await supabase.from('project_updates').update({ body: e.body.trim(), event_date: e.eventDate, edited_at: new Date().toISOString() }).eq('id', e.id))
+      if (e.removeFiles.length) {
+        unwrap(await supabase.from('project_files').delete().in('id', e.removeFiles.map((f) => f.id)))
+        // the stored copy can only be deleted by a manager; for others the file just disappears from the update
+        await supabase.storage.from(INFO_BUCKET).remove(e.removeFiles.map((f) => f.storage_path))
+      }
+      for (const f of e.newFiles) {
+        const ext = (f.name.match(/\.[A-Za-z0-9]{1,6}$/)?.[0] ?? '').toLowerCase()
+        const path = `projects/${e.projectId}/${crypto.randomUUID()}${ext}`
+        const up = await supabase.storage.from(INFO_BUCKET).upload(path, f, { contentType: f.type || 'application/octet-stream' })
+        if (up.error) throw up.error
+        unwrap(
+          await supabase.from('project_files').insert({
+            project_id: e.projectId,
+            task_id: e.taskId,
+            update_id: e.id,
+            storage_path: path,
+            file_name: f.name,
+            file_size: f.size,
+            mime: f.type,
+          }),
+        )
+      }
+    },
+    onSuccess: () => invalidate(qc),
+  })
+}
