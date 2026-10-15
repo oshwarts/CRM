@@ -223,23 +223,24 @@ export type DoctorFormData = {
  * connection) therefore leaves the old rows in place instead of a doctor / meeting with nothing attached.
  */
 async function syncJoin(
-  table: 'doctor_companies' | 'doctor_procedures' | 'doctor_robotic_systems' | 'doctor_hospitals' | 'meeting_doctors' | 'meeting_agents' | 'meeting_contacts',
-  parentCol: 'doctor_id' | 'meeting_id',
+  table: 'doctor_companies' | 'doctor_procedures' | 'doctor_robotic_systems' | 'doctor_hospitals' | 'meeting_doctors' | 'meeting_agents' | 'meeting_contacts' | 'hospital_agents',
+  parentCol: 'doctor_id' | 'meeting_id' | 'hospital_id',
   parentId: string,
   otherCol: string,
   wanted: Record<string, unknown>[],
 ) {
   const byOther = new Map<string, Record<string, unknown>>()
   for (const w of wanted) byOther.set(String(w[otherCol]), w) // one row per target (a duplicate would break the upsert)
-  const existing = unwrap<Record<string, string>[]>(await supabase.from(table).select(otherCol).eq(parentCol, parentId))
+  // the table / column names are chosen by the callers above; the typed client cannot follow a union of tables
+  const t = () => supabase.from(table as 'meeting_doctors')
+  const pc = parentCol as 'meeting_id'
+  const existing = unwrap<Record<string, string>[]>(await t().select(otherCol).eq(pc, parentId))
   const drop = existing.map((r) => r[otherCol]).filter((id) => !byOther.has(id))
   if (byOther.size)
     unwrap(
-      await supabase
-        .from(table)
-        .upsert([...byOther.values()].map((w) => ({ [parentCol]: parentId, ...w })) as never, { onConflict: `${parentCol},${otherCol}` }),
+      await t().upsert([...byOther.values()].map((w) => ({ [parentCol]: parentId, ...w })) as never, { onConflict: `${parentCol},${otherCol}` }),
     )
-  if (drop.length) unwrap(await supabase.from(table).delete().eq(parentCol, parentId).in(otherCol, drop))
+  if (drop.length) unwrap(await t().delete().eq(pc, parentId).in(otherCol as 'doctor_id', drop))
 }
 
 async function saveDoctorRelations(doctorId: string, d: DoctorFormData) {
@@ -650,13 +651,7 @@ export function useSetHospitalAgents() {
       hospitalId: string
       agentIds: string[]
     }) => {
-      await supabase.from('hospital_agents').delete().eq('hospital_id', hospitalId)
-      if (agentIds.length)
-        unwrap(
-          await supabase
-            .from('hospital_agents')
-            .insert(agentIds.map((agent_id) => ({ hospital_id: hospitalId, agent_id }))),
-        )
+      await syncJoin('hospital_agents', 'hospital_id', hospitalId, 'agent_id', agentIds.map((agent_id) => ({ agent_id })))
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['map-data'] })
@@ -1478,21 +1473,31 @@ export function useDoctorCourses(doctorId: string | undefined) {
 export type CourseDraft = { title: string; items: string[] }[]
 
 async function writeCourseStages(courseId: string, draft: CourseDraft) {
-  unwrap(await supabase.from('doctor_course_stages').delete().eq('course_id', courseId))
-  for (const [i, st] of draft.entries()) {
-    const created = unwrap<{ id: string }>(
-      await supabase
-        .from('doctor_course_stages')
-        .insert({ course_id: courseId, title: st.title.trim() || 'שלב', sort: i + 1 })
-        .select('id')
-        .single(),
-    )
-    const items = st.items
-      .map((t) => t.trim())
-      .filter(Boolean)
-      .map((text, k) => ({ stage_id: created.id, text, sort: k + 1 }))
-    if (items.length) unwrap(await supabase.from('doctor_course_items').insert(items))
+  // the new stages are written first and the old ones removed only after that succeeded: a dropped connection half way
+  // never leaves the course empty (the stages typed by the agent are the valuable part)
+  const old = unwrap<{ id: string }[]>(await supabase.from('doctor_course_stages').select('id').eq('course_id', courseId)).map((x) => x.id)
+  const created: string[] = []
+  try {
+    for (const [i, st] of draft.entries()) {
+      const stage = unwrap<{ id: string }>(
+        await supabase
+          .from('doctor_course_stages')
+          .insert({ course_id: courseId, title: st.title.trim() || 'שלב', sort: i + 1 })
+          .select('id')
+          .single(),
+      )
+      created.push(stage.id)
+      const items = st.items
+        .map((t) => t.trim())
+        .filter(Boolean)
+        .map((text, k) => ({ stage_id: stage.id, text, sort: k + 1 }))
+      if (items.length) unwrap(await supabase.from('doctor_course_items').insert(items))
+    }
+  } catch (e) {
+    if (created.length) await supabase.from('doctor_course_stages').delete().in('id', created) // best effort: drop the half-written copy
+    throw e
   }
+  if (old.length) unwrap(await supabase.from('doctor_course_stages').delete().in('id', old))
 }
 
 /** a new course starts as a copy of the procedure's template stages (empty lines) */
