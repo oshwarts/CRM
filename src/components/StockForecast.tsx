@@ -1,5 +1,5 @@
+import { SettingsLink } from './SettingsLink'
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { addDays, format } from 'date-fns'
 import { Copy, TrendingDown } from 'lucide-react'
 import { useConsumableItems, usePatientScans } from '../lib/api'
@@ -51,9 +51,7 @@ export function StockForecast({ hospitalId, lastCount, minOf }: { hospitalId: st
         </h2>
         <p className="text-sm text-slate-400">
           כדי לחשב תחזית צריך להגדיר כמה מכל מתכלה נצרך בניתוח (ברך / יוני / ירך).{' '}
-          <Link to="/settings" className="font-medium text-brand-600 underline">
-            הגדרות ← מתכלים ← צריכה לניתוח
-          </Link>
+          <SettingsLink className="font-medium text-brand-600 underline">הגדרות ← מתכלים ← צריכה לניתוח</SettingsLink>
         </p>
       </section>
     )

@@ -1,3 +1,4 @@
+import { SettingsLink } from './SettingsLink'
 import { useMemo, useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import {
@@ -9,7 +10,6 @@ import {
 import { ConfirmButton, EmptyState, Spinner } from './ui'
 import { EquipmentViewModal } from './EquipmentViewModal'
 import type { EquipmentItemWithCompany } from '../lib/types'
-import { Link } from 'react-router-dom'
 
 export function EquipmentPlanEditor({
   doctorId,
@@ -55,9 +55,7 @@ export function EquipmentPlanEditor({
       {catalog.data && catalog.data.length === 0 && (
         <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
           קטלוג הציוד ריק.{' '}
-          <Link to="/settings" className="font-medium underline">
-            הוסף פריטים בהגדרות → ציוד
-          </Link>
+          <SettingsLink className="font-medium underline">הוסף פריטים בהגדרות → ציוד</SettingsLink>
         </p>
       )}
 

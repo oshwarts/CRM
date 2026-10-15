@@ -11,8 +11,10 @@ import {
   Home,
   ArrowRight,
   LogOut,
+  ChevronDown,
   Plus,
   Search,
+  Star,
   Map as MapIcon,
   Menu,
   ScanLine,
@@ -38,6 +40,7 @@ import { ThemeToggle } from './ThemeToggle'
 import { useTasks } from '../lib/api'
 import { clearOutbox, drain, outboxSize } from '../lib/outbox'
 import { classNames } from '../lib/utils'
+import { useLocalSetting } from '../lib/useLocalSetting'
 
 const NAV = [
   { to: '/', label: 'דף הבית', short: 'בית', icon: Home, end: true },
@@ -55,7 +58,7 @@ const NAV = [
   { to: '/pipeline', label: 'פוטנציאליים', short: 'פוטנציאליים', icon: Target, end: false },
   { to: '/competitors', label: 'פעילות מתחרים', short: 'מתחרים', icon: Swords, end: false },
   { to: '/reports', label: 'דוחות', short: 'דוחות', icon: BarChart3, end: false },
-  { to: '/settings', label: 'הגדרות', short: 'הגדרות', icon: Settings, end: false },
+  { to: '/settings', label: 'הגדרות', short: 'הגדרות', icon: Settings, end: false, adminOnly: true },
   { to: '/agents', label: 'ניהול סוכנים', short: 'סוכנים', icon: UserCheck, end: false, adminOnly: true },
   { to: '/users', label: 'ניהול מערכת', short: 'ניהול', icon: UsersIcon, end: false, adminOnly: true },
 ]
@@ -69,10 +72,13 @@ const GROUPS: { title: string; paths: string[] }[] = [
   { title: 'ניהול', paths: ['/agents', '/users', '/settings'] },
 ]
 
+// shown at the top of the menu until the person picks their own (the star next to an item)
+const DEFAULT_FAVORITES = ['/doctors', '/tasks', '/meetings', '/projects', '/map', '/info', '/learn']
+
 // scroll position of each visited page, so that going back returns to the same place
 const scrollOf = new Map<string, number>()
 
-const VERSION = 'v105 · נגישות: תוויות לכפתורים, פחות תנועה'
+const VERSION = 'v106 · תפריט: מועדפים וקבוצות; הגדרות למנהל בלבד'
 
 export function Layout() {
   const { profile, signOut, impersonating } = useAuth()
@@ -83,6 +89,9 @@ export function Layout() {
   const [drawer, setDrawer] = useState(false)
   const [searching, setSearching] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [favorites, setFavorites] = useLocalSetting<string[]>('menu.favorites', DEFAULT_FAVORITES)
+  const [openGroups, setOpenGroups] = useLocalSetting<string[]>('menu.open', [])
+  const [editingMenu, setEditingMenu] = useState(false)
   const navType = useNavigationType()
   const tasks = useTasks()
   const { user } = useAuth()
@@ -163,29 +172,84 @@ export function Layout() {
 
   const brand = <BrandLogo size="md" />
 
-  const renderNav = () =>
-    GROUPS.map((g, gi) => {
-      const items = navItems.filter((n) => g.paths.includes(n.to))
-      if (items.length === 0) return null
-      return (
-        <div key={g.title} className={gi > 0 ? 'pt-3' : ''}>
-          <p className="px-3 pb-1 text-xs font-semibold text-slate-500">{g.title}</p>
+  const toggleFavorite = (to: string) => setFavorites((f) => (f.includes(to) ? f.filter((x) => x !== to) : [...f, to]))
+
+  const renderItem = ({ to, label, icon: Icon, end }: (typeof NAV)[number]) => {
+    const starred = favorites.includes(to)
+    return (
+      <div key={to} className="group relative">
+        <NavLink to={to} end={end} className={navLinkClass}>
+          <Icon size={18} />
+          {label}
+          {to === '/tasks' && overdue > 0 && (
+            <span className={classNames('mr-auto rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-white', editingMenu && 'invisible')} title="משימות באיחור">
+              {overdue}
+            </span>
+          )}
+        </NavLink>
+        {editingMenu && to !== '/' && (
+          <button
+            type="button"
+            className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full p-1.5 hover:bg-slate-100"
+            aria-label={starred ? `הסר את ${label} מהמועדפים` : `הוסף את ${label} למועדפים`}
+            aria-pressed={starred}
+            onClick={() => toggleFavorite(to)}
+          >
+            <Star size={16} className={starred ? 'fill-amber-400 text-amber-500' : 'text-slate-400'} />
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  // the menu: home, then my favourites, then the rest in folding groups (the group of the open page opens by itself)
+  const renderNav = () => {
+    const home = navItems.find((n) => n.to === '/')
+    const favItems = navItems.filter((n) => n.to !== '/' && favorites.includes(n.to))
+    return (
+      <>
+        {home && <div className="space-y-0.5">{renderItem(home)}</div>}
+        <div className="pt-3">
+          <div className="flex items-center justify-between px-3 pb-1">
+            <p className="text-xs font-semibold text-slate-500">המועדפים שלי</p>
+            <button
+              type="button"
+              className={classNames('rounded-full px-2 py-0.5 text-xs font-medium', editingMenu ? 'bg-brand-500 text-white' : 'text-brand-600 hover:bg-brand-50')}
+              onClick={() => setEditingMenu((v) => !v)}
+            >
+              {editingMenu ? 'סיום' : 'עריכה'}
+            </button>
+          </div>
           <div className="space-y-0.5">
-            {items.map(({ to, label, icon: Icon, end }) => (
-              <NavLink key={to} to={to} end={end} className={navLinkClass}>
-                <Icon size={18} />
-                {label}
-                {to === '/tasks' && overdue > 0 && (
-                  <span className="mr-auto rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-white" title="משימות באיחור">
-                    {overdue}
-                  </span>
-                )}
-              </NavLink>
-            ))}
+            {favItems.map(renderItem)}
+            {favItems.length === 0 && <p className="px-3 py-2 text-xs text-slate-400">לחץ/י על "עריכה" וסמן/י כוכב ליד הדפים שחשובים לך</p>}
           </div>
         </div>
-      )
-    })
+        {GROUPS.map((g) => {
+          const items = navItems.filter((n) => n.to !== '/' && g.paths.includes(n.to) && (editingMenu || !favorites.includes(n.to)))
+          if (items.length === 0) return null
+          const hasActive = items.some((n) => location.pathname === n.to || (n.to !== '/' && location.pathname.startsWith(n.to + '/')))
+          const open = editingMenu || hasActive || openGroups.includes(g.title)
+          return (
+            <div key={g.title} className="pt-3">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between rounded-lg px-3 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-100"
+                aria-expanded={open}
+                onClick={() => setOpenGroups((o) => (o.includes(g.title) ? o.filter((x) => x !== g.title) : [...o, g.title]))}
+              >
+                <span>
+                  {g.title} <span className="font-normal text-slate-400">({items.length})</span>
+                </span>
+                <ChevronDown size={14} className={classNames('transition', open && 'rotate-180')} />
+              </button>
+              {open && <div className="mt-1 space-y-0.5">{items.map(renderItem)}</div>}
+            </div>
+          )
+        })}
+      </>
+    )
+  }
 
   const searchButton = (
     <button

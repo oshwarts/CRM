@@ -16,6 +16,7 @@ import Schedule from './pages/Schedule'
 import Info from './pages/Info'
 import Consumables from './pages/Consumables'
 import Settings from './pages/Settings'
+import { AdminOnly } from './components/AdminOnly'
 import Users from './pages/Users'
 import Tasks from './pages/Tasks'
 import Agents from './pages/Agents'
@@ -73,7 +74,7 @@ export default function App() {
         <Route path="/info" element={<Info />} />
         <Route path="/consumables" element={<Consumables />} />
         <Route path="/reports" element={<Reports />} />
-        <Route path="/settings" element={<Settings />} />
+        <Route path="/settings" element={<AdminOnly><Settings /></AdminOnly>} />
         <Route path="/users" element={<Users />} />
         <Route path="/tasks" element={<Tasks />} />
         <Route path="/agents" element={<Agents />} />

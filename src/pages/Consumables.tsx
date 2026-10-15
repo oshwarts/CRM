@@ -1,6 +1,7 @@
+import { SettingsLink } from '../components/SettingsLink'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { PendingMark } from '../components/PendingMark'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { Copy, Eye, Mail, Save, Trash2 } from 'lucide-react'
 import {
   useAppSetting,
@@ -351,7 +352,7 @@ export default function Consumables() {
             {!to && (
               <p className="text-xs text-amber-600">
                 לא הוגדרה כתובת מייל לשליחת חוסרים — הגדרה בעמוד{' '}
-                <Link to="/settings" className="font-medium underline">הגדרות ← מתכלים</Link>.
+                <SettingsLink className="font-medium underline">הגדרות ← מתכלים</SettingsLink>.
               </p>
             )}
             {to && missing.length > 0 && !notice && (
