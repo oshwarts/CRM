@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
-import { Download, PencilLine, Table2 } from 'lucide-react'
+import { BarChart3, Download, PencilLine, Table2 } from 'lucide-react'
 import { useAllCaseVolumes } from '../lib/api'
 import { CaseVolumesManager } from '../components/CaseVolumesManager'
+import { SalesReports } from '../components/SalesReports'
 import { EmptyState, ErrorState, Spinner } from '../components/ui'
 import type { CaseVolumeRow } from '../lib/types'
 import { classNames, csvCell } from '../lib/utils'
@@ -34,7 +35,7 @@ function downloadCsv(filename: string, headers: string[], rows: (string | number
 
 export default function Reports() {
   const volumes = useAllCaseVolumes()
-  const [view, setView] = useState<'report' | 'edit'>('report')
+  const [view, setView] = useState<'report' | 'edit' | 'sales'>('sales')
   const [groupBy, setGroupBy] = useState<GroupBy>('hospital')
   const [year, setYear] = useState<string>('')
 
@@ -90,9 +91,9 @@ export default function Reports() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-brand-800 sm:text-3xl">כמויות מקרים</h1>
+          <h1 className="text-2xl font-semibold text-brand-800 sm:text-3xl">{view === 'sales' ? 'דוחות מכירה' : 'כמויות מקרים'}</h1>
           <p className="text-sm text-slate-400">
-            כל מקרה משויך לרופא ולבית חולים – הסכומים מתאזנים
+            {view === 'sales' ? 'פעילות הצוות, ניתוחי MAKO ומשפך הרופאים' : 'כל מקרה משויך לרופא ולבית חולים – הסכומים מתאזנים'}
           </p>
         </div>
         {view === 'report' && (
@@ -109,6 +110,16 @@ export default function Reports() {
 
       <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
         <button
+          onClick={() => setView('sales')}
+          className={classNames(
+            'flex items-center gap-1 rounded-lg px-4 py-1.5 text-sm font-medium transition',
+            view === 'sales' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-500 hover:text-slate-700',
+          )}
+        >
+          <BarChart3 size={15} />
+          פעילות ומכירות
+        </button>
+        <button
           onClick={() => setView('report')}
           className={classNames(
             'flex items-center gap-1 rounded-lg px-4 py-1.5 text-sm font-medium transition',
@@ -118,7 +129,7 @@ export default function Reports() {
           )}
         >
           <Table2 size={15} />
-          דוח
+          כמויות מקרים
         </button>
         <button
           onClick={() => setView('edit')}
@@ -133,6 +144,8 @@ export default function Reports() {
           הוספה ועריכה
         </button>
       </div>
+
+      {view === 'sales' && <SalesReports />}
 
       {view === 'edit' && <CaseVolumesManager />}
 

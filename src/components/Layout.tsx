@@ -20,7 +20,7 @@ import { BrandLogo } from './BrandLogo'
 import { GlobalSearch } from './GlobalSearch'
 import { QuickCreate } from './QuickCreate'
 import { ThemeToggle } from './ThemeToggle'
-import { useTasks } from '../lib/api'
+import { usePendingSignups, useTasks } from '../lib/api'
 import { NAV } from '../lib/navItems'
 import { useMenu } from '../lib/useMenu'
 import { clearOutbox, drain, outboxSize } from '../lib/outbox'
@@ -34,7 +34,7 @@ const TABS = ['/', '/doctors', '/tasks', '/schedule']
 // scroll position of each visited page, so that going back returns to the same place
 const scrollOf = new Map<string, number>()
 
-const VERSION = 'v116 · בדיקות לומדה בשרת, QA'
+const VERSION = 'v117 · דוחות מכירה + התראת הרשמות'
 
 export function Layout() {
   const { profile, signOut, impersonating, isDeveloper } = useAuth()
@@ -52,6 +52,7 @@ export function Layout() {
   const { user } = useAuth()
   const todayStr = todayISO() // local date (UTC is a day behind in Israel after midnight)
   // overdue tasks of mine: a small red-pink counter next to "tasks"
+  const pendingSignups = usePendingSignups().data?.length ?? 0
   const overdue = (tasks.data ?? []).filter((t) => !t.is_done && t.status !== 'done' && t.assignee_id === user?.id && !!t.due_date && t.due_date < todayStr).length
 
   // Ctrl/Cmd+K opens the search from anywhere
@@ -154,6 +155,11 @@ export function Layout() {
       {to === '/tasks' && overdue > 0 && (
         <span className="mr-auto rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-white" title="משימות באיחור">
           {overdue}
+        </span>
+      )}
+      {to === '/users' && pendingSignups > 0 && (
+        <span className="mr-auto rounded-full bg-amber-500 px-2 py-0.5 text-xs font-semibold text-white" title="משתמשים שממתינים לאישור">
+          {pendingSignups}
         </span>
       )}
     </NavLink>

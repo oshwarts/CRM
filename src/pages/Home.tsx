@@ -13,10 +13,12 @@ import {
   ScanLine,
   Stethoscope,
   Target,
+  UserPlus,
   X,
 } from 'lucide-react'
 import {
   useDoctors,
+  usePendingSignups,
   useFavorites,
   useMeetings,
   usePatientScans,
@@ -76,14 +78,25 @@ function Kpi({ href, icon, value, label, tone }: { href: string; icon: React.Rea
     amber: value > 0 ? 'border-t-[#d98e0a]' : 'border-t-slate-200',
     green: 'border-t-[#1d9a6c]',
   }
-  return (
-    <a href={href} className={classNames('card flex items-center gap-3 border-t-[3px] p-3.5 transition hover:shadow-pop', edge[tone])}>
+  const cls = classNames('card flex items-center gap-3 border-t-[3px] p-3.5 transition hover:shadow-pop', edge[tone])
+  const body = (
+    <>
       <span className={classNames('grid h-11 w-11 shrink-0 place-items-center rounded-xl', tones[tone])}>{icon}</span>
       <span className="min-w-0">
         <span className="block text-2xl font-semibold leading-none text-brand-800">{value}</span>
         <span className="mt-1 block text-xs leading-tight text-slate-600">{label}</span>
       </span>
+    </>
+  )
+  // a page link goes through the router (a plain <a href="/tasks"> reloads the whole app); "#…" jumps inside this page
+  return href.startsWith('#') ? (
+    <a href={href} className={cls}>
+      {body}
     </a>
+  ) : (
+    <Link to={href} className={cls}>
+      {body}
+    </Link>
   )
 }
 
@@ -127,7 +140,8 @@ function Fold({ title, count, tone, children }: { title: string; count: number; 
 }
 
 export default function Home() {
-  const { user, profile } = useAuth()
+  const { user, profile, isAdmin } = useAuth()
+  const pendingSignups = usePendingSignups().data ?? []
   const doctors = useDoctors()
   const favorites = useFavorites()
   const meetings = useMeetings()
@@ -389,6 +403,22 @@ export default function Home() {
           <Kpi href="#home-favorites" icon={<Stethoscope size={20} />} value={toFollow} label="רופאים לחזרה" tone="amber" />
         </div>
       </div>
+
+      {isAdmin && pendingSignups.length > 0 && (
+        <Link to="/users" className="card flex items-center gap-3 border-amber-300 bg-amber-50 p-3.5 text-amber-900 transition hover:shadow-pop">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-100 text-amber-700">
+            <UserPlus size={20} />
+          </span>
+          <span className="min-w-0 text-sm">
+            <span className="block font-semibold">
+              {pendingSignups.length === 1 ? 'משתמש אחד ממתין לאישור' : `${pendingSignups.length} משתמשים ממתינים לאישור`}
+            </span>
+            <span className="block truncate text-xs text-amber-800">
+              {pendingSignups.map((u) => u.full_name || u.email).join(' · ')} — לחץ לאישור
+            </span>
+          </span>
+        </Link>
+      )}
 
       <TodayBlock />
 

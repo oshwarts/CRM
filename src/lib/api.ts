@@ -88,6 +88,17 @@ export function useAllUsers() {
   })
 }
 
+/** managers: people who signed up and wait for approval (never approved or disabled before) */
+export function usePendingSignups() {
+  const { isAdmin } = useAuth()
+  return useQuery({
+    queryKey: ['all-users'],
+    enabled: isAdmin,
+    queryFn: async () => unwrap<Profile[]>(await supabase.from('profiles').select('*').order('created_at')),
+    select: (rows) => rows.filter((u) => !u.active && !u.status_changed_at && !u.is_test),
+  })
+}
+
 /** developer only: everyone one can switch to, test users included */
 export function useSwitchableUsers() {
   return useQuery({
