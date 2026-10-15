@@ -301,7 +301,7 @@ export default function Tasks() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-800">
+          <h1 className="flex items-center gap-2 text-2xl font-semibold text-brand-800 sm:text-3xl">
             <ListChecks size={24} className="text-brand-500" />
             משימות
           </h1>

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BookUser, Heart, Plus, Search } from 'lucide-react'
+import { BookUser, Building2, Clock, Heart, Phone, Plus, Search, SlidersHorizontal } from 'lucide-react'
 import {
   useCompanies,
   useDoctorActivity,
@@ -32,6 +32,8 @@ export default function Doctors() {
   const [procedureId, setProcedureId] = useState('')
   const [hospitalId, setHospitalId] = useState('')
   const [status, setStatus] = useState('')
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const activeFilters = [status, hospitalId, procedureId, companyId].filter(Boolean).length
 
   const favSet = new Set(favorites.data ?? [])
 
@@ -53,10 +55,10 @@ export default function Doctors() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">רופאים</h1>
-          <p className="text-sm text-slate-400">
+          <h1 className="text-3xl font-semibold text-brand-800">רופאים</h1>
+          <p className="text-sm text-slate-500">
             {doctors.data ? `${doctors.data.length} רופאים במערכת` : ' '}
           </p>
         </div>
@@ -73,18 +75,17 @@ export default function Doctors() {
       </div>
 
       <div className="card grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-5">
-        <div className="relative">
-          <Search
-            size={16}
-            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
-          />
-          <input
-            className="input pr-9"
-            placeholder="חיפוש לפי שם / תפקיד"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
+        <div className="flex gap-2">
+          <div className="relative min-w-0 flex-1">
+            <Search size={16} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input className="input !pr-10" placeholder="חיפוש לפי שם / תפקיד" value={q} onChange={(e) => setQ(e.target.value)} />
+          </div>
+          <button type="button" className="btn-secondary shrink-0 sm:hidden" onClick={() => setFiltersOpen((o) => !o)} aria-expanded={filtersOpen}>
+            <SlidersHorizontal size={16} />
+            סינון{activeFilters > 0 ? ` (${activeFilters})` : ''}
+          </button>
         </div>
+        <div className={classNames('grid gap-3 sm:contents', filtersOpen ? 'grid' : 'hidden sm:contents')}>
         <select className="input" value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">כל הסטטוסים</option>
           {Object.entries(DOCTOR_STATUS_LABELS).map(([v, l]) => (
@@ -117,6 +118,7 @@ export default function Doctors() {
             </option>
           ))}
         </select>
+        </div>
       </div>
 
       {doctors.isLoading && <Spinner />}
@@ -133,67 +135,58 @@ export default function Doctors() {
           const isFav = favSet.has(d.id)
           const lastMeeting = activity.data?.[d.id]?.lastMeeting ?? null
           return (
-            <div key={d.id} className="card flex flex-col gap-3 p-4">
-              <div className="flex items-start justify-between">
-                <Link to={`/doctors/${d.id}`} className="min-w-0">
-                  <p className="truncate font-semibold text-slate-800">
-                    {d.title} {d.name}
-                  </p>
-                  <p className="truncate text-sm text-slate-500">
-                    {d.position || '—'}
-                  </p>
-                  {d.email && (
-                    <p className="truncate text-xs text-slate-400" dir="ltr">
-                      {d.email}
-                    </p>
-                  )}
-                  {d.status === 'potential' && (
-                    <span className="chip mt-1 border-amber-200 bg-amber-50 text-amber-700">
-                      {DOCTOR_STATUS_LABELS.potential}
+            <div key={d.id} className="card flex flex-col gap-3 p-4 transition hover:border-brand-300 hover:shadow-pop">
+              <div className="flex items-start gap-3">
+                <Link to={`/doctors/${d.id}`} className="flex min-w-0 flex-1 items-start gap-3">
+                  <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-brand-50 text-lg font-semibold text-brand-700">
+                    {(d.name.trim()[0] ?? '?').toUpperCase()}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-base font-semibold text-brand-800">
+                      {d.title} {d.name}
                     </span>
-                  )}
+                    <span className="block truncate text-sm text-slate-600">{d.position || '—'}</span>
+                    {d.status === 'potential' && (
+                      <span className="chip mt-1 border-amber-200 bg-amber-50 !py-0 text-amber-700">{DOCTOR_STATUS_LABELS.potential}</span>
+                    )}
+                  </span>
                 </Link>
                 <button
-                  className={classNames(
-                    'btn-ghost !px-2',
-                    isFav ? 'text-red-500' : 'text-slate-300',
-                  )}
-                  onClick={() =>
-                    toggleFav.mutate({ doctorId: d.id, isFavorite: isFav })
-                  }
-                  aria-label="מועדף"
+                  className={classNames('btn-ghost !px-2', isFav ? 'text-red-500' : 'text-slate-300 hover:text-red-400')}
+                  onClick={() => toggleFav.mutate({ doctorId: d.id, isFavorite: isFav })}
+                  aria-label={isFav ? 'הסר ממועדפים' : 'הוסף למועדפים'}
                 >
-                  <Heart size={18} fill={isFav ? 'currentColor' : 'none'} />
+                  <Heart size={20} fill={isFav ? 'currentColor' : 'none'} />
                 </button>
               </div>
 
-              <div className="flex flex-wrap gap-1">
-                {d.doctor_hospitals.slice(0, 3).map((h) => (
-                  <span
-                    key={h.hospital_id}
-                    className="chip border-slate-200 bg-slate-50 text-slate-500"
-                  >
-                    {h.hospital?.name ?? '—'}
-                  </span>
-                ))}
-                {d.doctor_hospitals.length > 3 && (
-                  <span className="chip border-slate-200 bg-slate-50 text-slate-400">
-                    +{d.doctor_hospitals.length - 3}
-                  </span>
+              {d.doctor_hospitals.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Building2 size={14} className="text-slate-400" />
+                  {d.doctor_hospitals.slice(0, 2).map((h) => (
+                    <span key={h.hospital_id} className="chip border-brand-100 bg-brand-50 !py-0 text-brand-700">
+                      {h.hospital?.name ?? '—'}
+                    </span>
+                  ))}
+                  {d.doctor_hospitals.length > 2 && <span className="chip border-slate-200 bg-slate-50 !py-0 text-slate-500">+{d.doctor_hospitals.length - 2}</span>}
+                </div>
+              )}
+
+              <div className="mt-auto flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
+                <span className="flex items-center gap-1.5 text-xs text-slate-500">
+                  <Clock size={13} />
+                  {lastMeeting ? `פגישה אחרונה ${formatDate(lastMeeting)}` : 'אין פגישות'}
+                </span>
+                {d.phone ? (
+                  <a href={`tel:${d.phone}`} dir="ltr" className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1.5 text-sm font-medium text-brand-700 hover:bg-brand-100">
+                    <Phone size={14} /> {d.phone}
+                  </a>
+                ) : (
+                  <Link to={`/doctors/${d.id}`} className="text-sm font-medium text-brand-600 hover:underline">
+                    לכרטיס ←
+                  </Link>
                 )}
               </div>
-
-              <p className="text-xs text-slate-400">
-                פעילות אחרונה:{' '}
-                {lastMeeting ? formatDate(lastMeeting) : 'אין פגישות'}
-              </p>
-
-              <Link
-                to={`/doctors/${d.id}`}
-                className="mt-auto text-sm font-medium text-brand-600 hover:underline"
-              >
-                לכרטיס הרופא →
-              </Link>
             </div>
           )
         })}

@@ -25,7 +25,7 @@ export default function LearnReview() {
       <Link to="/learn" className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700">
         <ArrowRight size={15} /> לומדה
       </Link>
-      <h1 className="text-2xl font-bold text-slate-800">חזרה על שאלות</h1>
+      <h1 className="text-2xl font-semibold text-brand-800 sm:text-3xl">חזרה על שאלות</h1>
       {cards.length === 0 ? (
         <EmptyState title="אין שאלות לחזרה כרגע" hint="שאלות חוזרות בזמן הנכון אחרי שתענה עליהן בכרטיסיות או במבחן" />
       ) : (

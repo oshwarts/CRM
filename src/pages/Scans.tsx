@@ -181,7 +181,7 @@ export default function Scans() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">סריקות MAKO</h1>
+          <h1 className="text-2xl font-semibold text-brand-800 sm:text-3xl">סריקות MAKO</h1>
           <p className="text-sm text-slate-400">
             מעקב סריקות CT למטופלי MAKO — כל בתי החולים יחד
           </p>

@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useCanDelete } from '../lib/permissions'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
-  ArrowRight,
   Building2,
   Heart,
   Mail,
@@ -87,18 +86,14 @@ export default function DoctorProfile() {
 
   return (
     <div className="space-y-5">
-      <Link
-        to="/doctors"
-        className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
-      >
-        <ArrowRight size={15} />
-        חזרה לרשימת הרופאים
-      </Link>
-
       <div className="card flex flex-wrap items-start justify-between gap-4 p-5">
-        <div>
+        <div className="flex min-w-0 flex-1 items-start gap-4">
+          <span className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-brand-50 text-2xl font-semibold text-brand-700">
+            {(d.name.trim()[0] ?? '?').toUpperCase()}
+          </span>
+        <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-bold text-slate-800">
+            <h1 className="text-3xl font-semibold text-brand-800">
               {d.title} {d.name}
             </h1>
             <span
@@ -115,12 +110,12 @@ export default function DoctorProfile() {
           <p className="text-slate-500">{d.position || '—'}</p>
           <div className="mt-2 flex flex-wrap gap-3 text-sm text-slate-500">
             {d.phone && (
-              <a href={`tel:${d.phone}`} className="inline-flex items-center gap-1 hover:text-brand-600" dir="ltr">
+              <a href={`tel:${d.phone}`} className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 font-medium text-brand-700 hover:bg-brand-100" dir="ltr">
                 <Phone size={14} /> {d.phone}
               </a>
             )}
             {d.email && (
-              <a href={`mailto:${d.email}`} className="inline-flex items-center gap-1 hover:text-brand-600" dir="ltr">
+              <a href={`mailto:${d.email}`} className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 font-medium text-brand-700 hover:bg-brand-100" dir="ltr">
                 <Mail size={14} /> {d.email}
               </a>
             )}
@@ -175,7 +170,8 @@ export default function DoctorProfile() {
             )}
           </div>
         </div>
-        <div className="flex gap-2">
+        </div>
+        <div className="flex flex-wrap gap-2">
           <button
             className={classNames(
               'btn-secondary',

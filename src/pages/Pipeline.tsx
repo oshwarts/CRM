@@ -11,7 +11,7 @@ export default function Pipeline() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">רופאים פוטנציאליים</h1>
+        <h1 className="text-2xl font-semibold text-brand-800 sm:text-3xl">רופאים פוטנציאליים</h1>
         <p className="text-sm text-slate-400">
           רופאים שעדיין לא עובדים איתנו – כמה מקרים הם עושים, עם מי, ואיפה עומד התהליך
         </p>

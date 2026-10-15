@@ -12,7 +12,7 @@ export default function Pending() {
         <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-amber-100 text-amber-600">
           <Clock size={22} />
         </div>
-        <h1 className="text-xl font-bold text-slate-800">
+        <h1 className="text-xl font-semibold text-brand-800">
           {deactivated ? 'החשבון הושבת' : 'ממתין לאישור מנהל'}
         </h1>
         <p className="text-sm text-slate-500">

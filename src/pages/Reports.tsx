@@ -94,7 +94,7 @@ export default function Reports() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">כמויות מקרים</h1>
+          <h1 className="text-2xl font-semibold text-brand-800 sm:text-3xl">כמויות מקרים</h1>
           <p className="text-sm text-slate-400">
             כל מקרה משויך לרופא ולבית חולים – הסכומים מתאזנים
           </p>

@@ -174,7 +174,7 @@ export default function Consumables() {
   return (
     <div className="space-y-4 pb-24 md:pb-4">
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">מתכלים MAKO</h1>
+        <h1 className="text-2xl font-semibold text-brand-800 sm:text-3xl">מתכלים MAKO</h1>
         <p className="text-sm text-slate-400">
           ספירת מלאי בבית חולים · המערכת מחשבת אוטומטית כמה חסר מול המינימום
         </p>
@@ -371,7 +371,7 @@ export default function Consumables() {
           )}
 
           <section className="card p-4">
-            <h2 className="mb-2 font-semibold text-slate-800">היסטוריית ספירות</h2>
+            <h2 className="mb-2 font-semibold text-brand-800">היסטוריית ספירות</h2>
             {(counts.data ?? []).length === 0 ? (
               <p className="text-sm text-slate-400">עוד לא בוצעו ספירות בבית חולים זה.</p>
             ) : (

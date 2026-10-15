@@ -723,7 +723,7 @@ export default function Home() {
       {/* potential doctors */}
       {potentialDoctors.length > 0 && (
         <section className="card p-5">
-          <h2 className="mb-3 flex items-center gap-2 font-semibold text-slate-800">
+          <h2 className="mb-3 flex items-center gap-2 font-semibold text-brand-800">
             <Target size={18} className="text-amber-500" />
             רופאים פוטנציאליים במעקב ({potentialDoctors.length})
           </h2>

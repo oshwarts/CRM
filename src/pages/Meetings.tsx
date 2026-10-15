@@ -12,6 +12,7 @@ import {
   Pencil,
   Plus,
   Search,
+  SlidersHorizontal,
   Square,
   Trash2,
   User,
@@ -38,6 +39,20 @@ import { normalizeHe } from '../lib/contactMatch'
 
 type FilterKey = 'all' | 'upcoming' | 'past' | 'followup'
 
+/** the date of a meeting as a small calendar tile: day and month, tinted when it is today or already past */
+function DateTile({ date, status }: { date: string | null; status: string }) {
+  if (!date) return <span className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-slate-50 text-xs text-slate-400">ללא תאריך</span>
+  const d = new Date(`${date}T12:00:00`)
+  const today = todayISO()
+  const tone = status === 'cancelled' ? 'bg-slate-100 text-slate-400' : date === today ? 'bg-brand-500 text-white' : date < today && status === 'scheduled' ? 'bg-red-50 text-red-600' : 'bg-brand-50 text-brand-700'
+  return (
+    <span className={classNames('flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-xl leading-tight', tone)}>
+      <span className="text-xl font-semibold">{d.getDate()}</span>
+      <span className="text-xs">{new Intl.DateTimeFormat('he-IL', { month: 'short' }).format(d)}</span>
+    </span>
+  )
+}
+
 export default function Meetings() {
   const meetings = useMeetings()
   const deleteMeeting = useDeleteMeeting()
@@ -51,6 +66,7 @@ export default function Meetings() {
   const [params] = useSearchParams()
   const [hospitalId, setHospitalId] = useState(params.get('hospital') ?? '')
   const [doctorId, setDoctorId] = useState('')
+  const [advanced, setAdvanced] = useState(false)
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
 
@@ -148,23 +164,23 @@ export default function Meetings() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-800">פגישות</h1>
+        <h1 className="text-2xl font-semibold text-brand-800 sm:text-3xl">פגישות</h1>
         <button className="btn-primary" onClick={() => setShowAdd(true)}>
           <Plus size={16} />
           הוספת פגישה
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1">
+      <div className="flex flex-wrap gap-1 rounded-full bg-brand-50 p-1">
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => setFilter(t.key)}
             className={classNames(
-              'rounded-lg px-3 py-1.5 text-sm font-medium transition',
+              'rounded-full px-4 py-1.5 text-sm font-medium transition',
               filter === t.key
-                ? 'bg-white text-brand-600 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700',
+                ? 'bg-white text-brand-700 shadow-sm'
+                : 'text-slate-600 hover:text-brand-700',
             )}
           >
             {t.label}
@@ -186,7 +202,10 @@ export default function Meetings() {
             onChange={(e) => setQ(e.target.value)}
           />
         </label>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <button type="button" className="btn-secondary sm:hidden" onClick={() => setAdvanced((o) => !o)} aria-expanded={advanced}>
+          <SlidersHorizontal size={16} /> סינון מתקדם
+        </button>
+        <div className={classNames("gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-4", advanced ? "grid" : "hidden")}>
           <select className="input" value={hospitalId} onChange={(e) => setHospitalId(e.target.value)}>
             <option value="">כל בתי החולים</option>
             {hospitalOptions.map(([id, name]) => (
@@ -245,12 +264,14 @@ export default function Meetings() {
 
       <div className="space-y-3">
         {filtered.map((m) => (
-          <div key={m.id} className="card p-4">
+          <div key={m.id} className="card p-4 transition hover:border-brand-300">
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
+              <div className="flex min-w-0 flex-1 items-start gap-3">
+                <DateTile date={m.meeting_date} status={m.status} />
+                <div className="min-w-0">
                 <Link
                   to={`/meetings/${m.id}`}
-                  className="font-semibold text-slate-800 hover:text-brand-600 hover:underline"
+                  className="text-base font-semibold text-brand-800 hover:text-brand-600 hover:underline"
                 >
                   {m.subject || 'פגישה'} <PendingMark id={m.id} />
                 </Link>
@@ -275,9 +296,10 @@ export default function Meetings() {
                     </span>
                   )}
                 </div>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="chip border-slate-200 bg-slate-50 text-slate-500">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="chip border-slate-200 bg-slate-50 text-slate-600">
                   {MEETING_STATUS_LABELS[m.status]}
                 </span>
                 <Link

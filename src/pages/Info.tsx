@@ -170,7 +170,7 @@ export default function Info() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">מידע קליני</h1>
+          <h1 className="text-2xl font-semibold text-brand-800 sm:text-3xl">מידע קליני</h1>
           <p className="text-sm text-slate-400">פרוטוקולים, טכניקות ניתוח, מחקרים ומידע על הציוד — לפי פרוצדורה</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -240,7 +240,7 @@ export default function Info() {
       ) : (
         sections.map((s) => (
           <section key={s.key} className="space-y-2">
-            <h2 className="flex items-baseline gap-2 text-lg font-semibold text-slate-800">
+            <h2 className="flex items-baseline gap-2 text-lg font-semibold text-brand-800">
               {s.name}
               <span className="text-sm font-normal text-slate-400">{s.docs.length}</span>
             </h2>

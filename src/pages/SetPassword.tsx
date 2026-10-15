@@ -31,7 +31,7 @@ export default function SetPassword() {
           <div className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-500 text-white">
             <KeyRound size={22} />
           </div>
-          <h1 className="text-xl font-bold text-slate-800">סיסמה חדשה</h1>
+          <h1 className="text-xl font-semibold text-brand-800">סיסמה חדשה</h1>
           <p className="text-sm text-slate-400">בחר סיסמה חדשה לחשבון שלך</p>
         </div>
         <form onSubmit={submit} className="space-y-3">

@@ -134,7 +134,7 @@ export default function Schedule() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">לוז שבועי</h1>
+        <h1 className="text-2xl font-semibold text-brand-800 sm:text-3xl">לוז שבועי</h1>
         <p className="text-sm text-slate-400">פגישות, ניתוחים, CT, סריקות חוזרות ותאריכי מעקב — במקום אחד</p>
       </div>
 
@@ -189,20 +189,20 @@ export default function Schedule() {
             <section
               key={iso(d)}
               className={classNames(
-                'card min-w-0 p-2.5',
-                isToday && 'border-brand-400 ring-1 ring-brand-300',
+                'card min-w-0 p-3',
+                isToday && 'border-brand-400 ring-2 ring-brand-200',
                 // on a phone only days with something in them (and today) take up room
                 list.length === 0 && !isToday && 'hidden lg:block',
               )}
             >
-              <h2 className="mb-2 flex items-baseline justify-between text-sm font-semibold text-slate-700">
+              <h2 className={classNames('mb-2 flex items-baseline justify-between rounded-lg px-2 py-1 text-base font-semibold', isToday ? 'bg-brand-500 text-white' : 'bg-brand-50 text-brand-800')}>
                 <span>יום {DAY_NAMES[d.getDay()]}</span>
-                <span className={classNames('text-xs font-normal', isToday ? 'text-brand-600' : 'text-slate-400')}>
+                <span className={classNames('text-xs font-normal', isToday ? 'text-white/80' : 'text-slate-500')}>
                   {format(d, 'dd/MM')}
                 </span>
               </h2>
               {list.length === 0 ? (
-                <p className="py-2 text-center text-xs text-slate-300">—</p>
+                <p className="py-2 text-center text-xs text-slate-400">—</p>
               ) : (
                 <ul className="space-y-1.5">
                   {list.map((it) => (
@@ -210,7 +210,7 @@ export default function Schedule() {
                       <Link
                         to={it.to}
                         className={classNames(
-                          'block rounded-lg border px-2 py-1.5 text-xs transition hover:shadow-sm',
+                          'block rounded-xl border px-2.5 py-2 text-sm transition hover:shadow-sm lg:text-xs',
                           KINDS[it.kind].chip,
                           it.muted && 'opacity-50',
                         )}

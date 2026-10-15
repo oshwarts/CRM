@@ -18,7 +18,7 @@ export default function Users() {
   if (!isAdmin) return <EmptyState title="אין הרשאה" hint="מסך הניהול זמין למנהלים בלבד" />
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-slate-800">ניהול מערכת</h1>
+      <h1 className="text-2xl font-semibold text-brand-800 sm:text-3xl">ניהול מערכת</h1>
       <Tabs value={tab} onChange={setTab}>
         <TabList>
           <Tab id="users">משתמשים</Tab>
@@ -112,7 +112,7 @@ function UsersTab() {
 
       {inactive.length > 0 && (
         <section className="space-y-2">
-          <h2 className="text-lg font-semibold text-slate-800">
+          <h2 className="text-lg font-semibold text-brand-800">
             ממתינים לאישור / מושבתים <span className="text-sm font-normal text-slate-400">{inactive.length}</span>
           </h2>
           <ul className="space-y-2">
@@ -130,7 +130,7 @@ function UsersTab() {
       )}
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold text-slate-800">
+        <h2 className="text-lg font-semibold text-brand-800">
           משתמשים פעילים <span className="text-sm font-normal text-slate-400">{active.length}</span>
         </h2>
         {active.length === 0 ? (

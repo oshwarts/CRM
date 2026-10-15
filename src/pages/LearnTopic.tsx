@@ -68,7 +68,7 @@ export default function LearnTopic() {
       </Link>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">{topic.title}</h1>
+          <h1 className="text-2xl font-semibold text-brand-800 sm:text-3xl">{topic.title}</h1>
           <p className="text-sm text-slate-500">
             {studied.length} שאלות · ידוע {studied.filter((c) => known.has(c.id)).length} ({studied.length ? Math.round((studied.filter((c) => known.has(c.id)).length / studied.length) * 100) : 0}%)
             {myAttempts[0] && ` · מבחן אחרון ${myAttempts[0].score}/${myAttempts[0].total} (${formatDate(myAttempts[0].taken_at.slice(0, 10))})`}

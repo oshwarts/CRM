@@ -125,7 +125,7 @@ export default function AgentView() {
       </Link>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">{agent.full_name || agent.email}</h1>
+          <h1 className="text-2xl font-semibold text-brand-800 sm:text-3xl">{agent.full_name || agent.email}</h1>
           <p dir="ltr" className="text-right text-sm text-slate-400">
             {agent.email}
           </p>
@@ -159,7 +159,7 @@ export default function AgentView() {
             </div>
             <div className="card p-4">
               <div className="mb-3 flex items-center justify-between">
-                <h2 className="font-semibold text-slate-800">יעדים — {period.label}</h2>
+                <h2 className="font-semibold text-brand-800">יעדים — {period.label}</h2>
                 <button className="btn-secondary" onClick={() => setGoalModal({})}>
                   <Plus size={15} /> יעד
                 </button>
@@ -262,7 +262,7 @@ export default function AgentView() {
               </section>
             ))}
             <section className="card p-4">
-              <h2 className="mb-1 font-semibold text-slate-800">פרויקטים באחריותו ({ownedProjects.length})</h2>
+              <h2 className="mb-1 font-semibold text-brand-800">פרויקטים באחריותו ({ownedProjects.length})</h2>
               {ownedProjects.length === 0 ? (
                 <p className="text-sm text-slate-400">אין פרויקטים פעילים.</p>
               ) : (
@@ -324,7 +324,7 @@ export default function AgentView() {
           <div className="grid gap-4 lg:grid-cols-2">
             <section className="space-y-3">
               <div className="flex items-center justify-between">
-                <h2 className="font-semibold text-slate-800">שיחות וסיכומים</h2>
+                <h2 className="font-semibold text-brand-800">שיחות וסיכומים</h2>
                 <button className="btn-primary" onClick={() => setReviewing(true)}>
                   <Plus size={16} /> סיכום שיחה
                 </button>
@@ -380,7 +380,7 @@ export default function AgentView() {
             </section>
 
             <section className="space-y-3">
-              <h2 className="font-semibold text-slate-800">הערות מנהל (גלויות רק למנהלים)</h2>
+              <h2 className="font-semibold text-brand-800">הערות מנהל (גלויות רק למנהלים)</h2>
               <form
                 className="space-y-2"
                 onSubmit={(e) => {
@@ -424,7 +424,7 @@ export default function AgentView() {
             </div>
             <div className="card space-y-4 p-5">
               <div>
-                <h2 className="text-lg font-bold text-slate-800">
+                <h2 className="text-lg font-bold text-brand-800">
                   סיכום ביצועים — {agent.full_name || agent.email}
                 </h2>
                 <p className="text-sm text-slate-400">{period.label}</p>

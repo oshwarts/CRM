@@ -70,7 +70,7 @@ export default function Settings() {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold text-slate-800">הגדרות</h1>
+      <h1 className="text-2xl font-semibold text-brand-800 sm:text-3xl">הגדרות</h1>
 
       <Tabs value={tab} onChange={setTab}>
         <TabList>

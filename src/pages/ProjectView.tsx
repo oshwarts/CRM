@@ -227,7 +227,7 @@ export default function ProjectView() {
       <div className="card p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h1 dir="auto" className="text-xl font-bold text-slate-800">
+            <h1 dir="auto" className="text-xl font-semibold text-brand-800">
               {project.name}
             </h1>
             <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500">
@@ -374,7 +374,7 @@ export default function ProjectView() {
         <TabPanel id="summary">
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="card space-y-3 p-4">
-              <h2 className="font-semibold text-slate-800">התקדמות לפי תחום</h2>
+              <h2 className="font-semibold text-brand-800">התקדמות לפי תחום</h2>
               {areas.length === 0 && noArea.length === 0 && <p className="text-sm text-slate-400">אין עדיין תחומים — הוסף בלשונית "תחומים ומשימות".</p>}
               {areas.map((a) => {
                 const s = projectStats(byArea(a.id))
@@ -396,7 +396,7 @@ export default function ProjectView() {
             <div className="space-y-4">
               <WorkingWith tasks={tasks} onPick={pickPerson} />
               <div className={classNames('card p-4', stats.blocked.length > 0 && 'border-red-200')}>
-                <h2 className="mb-2 flex items-center gap-2 font-semibold text-slate-800">
+                <h2 className="mb-2 flex items-center gap-2 font-semibold text-brand-800">
                   <AlertTriangle size={16} className={stats.blocked.length ? 'text-red-500' : 'text-slate-300'} />
                   מה תקוע ({stats.blocked.length})
                 </h2>
@@ -411,7 +411,7 @@ export default function ProjectView() {
                 )}
               </div>
               <div className="card p-4">
-                <h2 className="mb-2 font-semibold text-slate-800">הצעדים הבאים</h2>
+                <h2 className="mb-2 font-semibold text-brand-800">הצעדים הבאים</h2>
                 {stats.next.length === 0 ? (
                   <p className="text-sm text-slate-400">{stats.total ? 'כל המשימות הושלמו או תקועות.' : 'אין משימות.'}</p>
                 ) : (
@@ -467,7 +467,7 @@ export default function ProjectView() {
                       setOverArea(null)
                     }}
                   >
-                    <h2 className="flex items-center gap-2 font-semibold text-slate-800">
+                    <h2 className="flex items-center gap-2 font-semibold text-brand-800">
                       {a.id && (
                         <span className="flex items-center text-slate-300">
                           <GripVertical size={14} className="hidden cursor-grab md:block" />
@@ -734,7 +734,7 @@ function WorkingWith({ tasks, onPick }: { tasks: TaskRow[]; onPick: (key: string
   const list = [...map.values()].sort((a, b) => b.open.length - a.open.length)
   return (
     <div className="card p-4">
-      <h2 className="mb-2 flex items-center gap-2 font-semibold text-slate-800">
+      <h2 className="mb-2 flex items-center gap-2 font-semibold text-brand-800">
         <Users size={16} className="text-brand-500" />
         מול מי עובדים
       </h2>

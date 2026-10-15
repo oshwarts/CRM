@@ -160,7 +160,7 @@ ${mail.body}`)) ? 'הסיכום הועתק.' : 'ההעתקה נכשלה.')}
       <div className="card space-y-3 p-4 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-xl font-bold text-slate-800">{m.subject || 'פגישה'}</h1>
+            <h1 className="text-xl font-semibold text-brand-800">{m.subject || 'פגישה'}</h1>
             <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500">
               {m.meeting_date && (
                 <span className="inline-flex items-center gap-1">
@@ -301,7 +301,7 @@ ${mail.body}`)) ? 'הסיכום הועתק.' : 'ההעתקה נכשלה.')}
       {contextDoctor && (
         <section className="space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="font-semibold text-slate-800">
+            <h2 className="font-semibold text-brand-800">
               פגישות נוספות עם {contextDoctor.title} {contextDoctor.name}
             </h2>
             <Link to={`/doctors/${contextDoctor.id}`} className="text-sm font-medium text-brand-600 hover:underline">
