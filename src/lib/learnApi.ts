@@ -265,11 +265,14 @@ export function useDeleteCard() {
 export function useImportCards() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ topicId, cards }: { topicId: string; cards: ParsedCard[] }) => {
+    // draft = saved as not approved, for a manager to review and approve
+    mutationFn: async ({ topicId, cards, draft }: { topicId: string; cards: ParsedCard[]; draft?: boolean }) => {
       const existing = unwrap<{ question: string; sort: number }[]>(await supabase.from('learn_cards').select('question, sort').eq('topic_id', topicId).limit(5000))
       const have = new Set(existing.map((e) => e.question.trim().toLowerCase()))
       let sort = existing.reduce((m, e) => Math.max(m, e.sort), -1) + 1
-      const fresh = cards.filter((c) => !have.has(c.question.trim().toLowerCase())).map((c) => ({ topic_id: topicId, question: c.question, answer: c.answer, sort: sort++ }))
+      const fresh = cards
+        .filter((c) => !have.has(c.question.trim().toLowerCase()))
+        .map((c) => ({ topic_id: topicId, question: c.question, answer: c.answer, wrong_options: c.wrong ?? [], explanation: c.explanation ?? '', ...(draft ? { approved: false } : {}), sort: sort++ }))
       for (let i = 0; i < fresh.length; i += 200) unwrap(await supabase.from('learn_cards').insert(fresh.slice(i, i + 200)))
       return { added: fresh.length, skipped: cards.length - fresh.length }
     },

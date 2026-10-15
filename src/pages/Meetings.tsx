@@ -318,12 +318,14 @@ export default function Meetings() {
                 {m.meeting_doctors.map(
                   (d) =>
                     d.doctor && (
-                      <span
+                      <Link
                         key={d.doctor.id}
-                        className="chip border-brand-200 bg-brand-50 text-brand-700"
+                        to={`/doctors/${d.doctor.id}`}
+                        className="chip border-brand-200 bg-brand-50 text-brand-700 transition hover:bg-brand-100"
+                        title="פתח את כרטיס הרופא"
                       >
                         {d.doctor.title} {d.doctor.name}
-                      </span>
+                      </Link>
                     ),
                 )}
                 {m.meeting_agents.map(

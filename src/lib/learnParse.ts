@@ -1,7 +1,8 @@
 // Reads question/answer pairs from text the user pastes or uploads (a Quizlet export, a CSV, a tab-separated list).
 // Everything happens in the browser.
 
-export type ParsedCard = { question: string; answer: string }
+/** wrong answers and an explanation are present when the row has the extended columns */
+export type ParsedCard = { question: string; answer: string; wrong?: string[]; explanation?: string }
 
 /** splits delimited text into rows of cells; quoted cells may hold the separator and line breaks ("" = a quote) */
 function parseDelimited(text: string, sep: string): string[][] {
@@ -62,12 +63,20 @@ export function parseCards(text: string, sep: Separator = 'auto'): ParsedCard[] 
   const seen = new Set<string>()
   const out: ParsedCard[] = []
   for (const r of rows) {
-    // more than two cells: the answer is everything after the first cell (an unquoted comma inside the answer)
     const question = (r[0] ?? '').trim()
-    const answer = r.slice(1).join(sep === 'comma' || (sep === 'auto' && !clean.includes('\t')) ? ', ' : ' ').trim()
-    if (!question || !answer) continue
     const key = question.toLowerCase()
-    if (seen.has(key)) continue
+    if (!question || seen.has(key)) continue
+    // extended row: question, correct answer, 3 wrong answers, explanation (tab-separated, 5 or 6 columns)
+    if (r.length >= 5 && (sep === 'tab' || (sep === 'auto' && clean.includes('\t')))) {
+      const answer = (r[1] ?? '').trim()
+      if (!answer) continue
+      seen.add(key)
+      out.push({ question, answer, wrong: r.slice(2, 5).map((w) => w.trim()).filter(Boolean), explanation: (r[5] ?? '').trim() })
+      continue
+    }
+    // more than two cells: the answer is everything after the first cell (an unquoted comma inside the answer)
+    const answer = r.slice(1).join(sep === 'comma' || (sep === 'auto' && !clean.includes('\t')) ? ', ' : ' ').trim()
+    if (!answer) continue
     seen.add(key)
     out.push({ question, answer })
   }

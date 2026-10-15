@@ -10,6 +10,7 @@ export function LearnImport({ topicId, topicTitle, onClose }: { topicId: string;
   const [raw, setRaw] = useState('')
   const [sep, setSep] = useState<Separator>('auto')
   const [error, setError] = useState('')
+  const [draft, setDraft] = useState(true)
   const [result, setResult] = useState<{ added: number; skipped: number } | null>(null)
   const cards = useMemo(() => parseCards(raw, sep), [raw, sep])
 
@@ -32,7 +33,7 @@ export function LearnImport({ topicId, topicTitle, onClose }: { topicId: string;
         <div className="space-y-3">
           <p className="text-sm text-slate-500">
             הדבק רשימה, שורה לכל שאלה, כשהשאלה והתשובה מופרדות בטאב (כך נראה ייצוא מכרטיסיות), בפסיק, בנקודה-פסיק או במקף. אפשר גם להעלות קובץ CSV או טקסט.
-            ייבא רק חומר שיש לך רשות להשתמש בו.
+            שורה עם 5 או 6 עמודות מופרדות בטאב נקראת כשאלה אמריקאית: שאלה, תשובה נכונה, 3 תשובות שגויות, הסבר. ייבא רק חומר שיש לך רשות להשתמש בו.
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <label className="btn-secondary cursor-pointer">
@@ -61,11 +62,16 @@ export function LearnImport({ topicId, topicTitle, onClose }: { topicId: string;
                 {cards.slice(0, 3).map((c, i) => (
                   <li key={i}>
                     <b>{c.question.slice(0, 100)}</b> → {c.answer.slice(0, 100)}
+                    {c.wrong && c.wrong.length > 0 && <span className="text-slate-400"> (+{c.wrong.length} wrong answers{c.explanation ? ', explanation' : ''})</span>}
                   </li>
                 ))}
               </ul>
             </div>
           )}
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input type="checkbox" checked={draft} onChange={(e) => setDraft(e.target.checked)} />
+            שמור כטיוטה — השאלות לא יופיעו לסוכנים עד שמנהל מאשר אותן
+          </label>
           {raw.trim() && cards.length === 0 && <p className="text-sm text-amber-600">לא זוהו שאלות. בדוק את המפריד.</p>}
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex justify-end gap-2">
@@ -75,7 +81,7 @@ export function LearnImport({ topicId, topicTitle, onClose }: { topicId: string;
             <button
               className="btn-primary"
               disabled={cards.length === 0 || importCards.isPending}
-              onClick={() => importCards.mutate({ topicId, cards }, { onSuccess: setResult, onError: (e) => setError(e instanceof Error ? e.message : 'הייבוא נכשל') })}
+              onClick={() => importCards.mutate({ topicId, cards, draft }, { onSuccess: setResult, onError: (e) => setError(e instanceof Error ? e.message : 'הייבוא נכשל') })}
             >
               {importCards.isPending ? 'מייבא…' : `ייבא ${cards.length} שאלות`}
             </button>
