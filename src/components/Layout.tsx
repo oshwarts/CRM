@@ -54,7 +54,7 @@ const NAV = [
 // the five destinations reachable with one thumb tap on a phone
 const TABS = ['/', '/doctors', '/schedule', '/tasks', '/scans']
 
-const VERSION = 'v92 · כפתור חזרה בכל העמודים, קטגוריה חדשה במידע קליני'
+const VERSION = 'v93 · לומדה: נכון/לא נכון, השלמה, התאמה, סדר נכון, רצף ונקודות'
 
 export function Layout() {
   const { profile, signOut, impersonating } = useAuth()

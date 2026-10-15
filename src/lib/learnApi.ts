@@ -4,7 +4,8 @@ import { supabase } from './supabase'
 import { actingUserId } from './actingAs'
 import { INFO_BUCKET } from './api'
 import { useAuth } from '../context/AuthProvider'
-import type { LearnAttempt, LearnCard, LearnCase, LearnLesson, LearnProgress, LearnTopic, LearnTrack, LearnTrackItem } from './types'
+import type { LearnAttempt, LearnCard, LearnCase, LearnDaily, LearnLesson, LearnProgress, LearnSequence, LearnTopic, LearnTrack, LearnTrackItem } from './types'
+import { POINTS } from './learnGame'
 import type { ParsedCard } from './learnParse'
 
 function unwrap<T>(res: { data: unknown; error: unknown }): T {
@@ -139,9 +140,14 @@ export function useRecordAnswer() {
         last_seen: new Date().toISOString(),
       }
       unwrap(await supabase.from('learn_progress').upsert(row, { onConflict: 'user_id,card_id' }))
+      // the day's points (streak, goal and badges are built from them); a failure here must not lose the answer
+      await supabase.rpc('learn_add_points', { p_points: a.correct ? POINTS.correct : POINTS.tried, p_answers: 1, p_correct: a.correct ? 1 : 0 })
       return row
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['learn-progress'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['learn-progress'] })
+      qc.invalidateQueries({ queryKey: ['learn-daily'] })
+    },
   })
 }
 
@@ -172,8 +178,11 @@ export function useSaveAttempt() {
       // passing a quiz can complete the training stage linked to the topic
       const { error } = await supabase.rpc('sync_learning_stages')
       if (error) throw error
+      const bonus = POINTS.quizDone + (a.total > 0 && a.score === a.total ? POINTS.perfect : 0)
+      await supabase.rpc('learn_add_points', { p_points: bonus, p_answers: 0, p_correct: 0 })
     },
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['learn-daily'] })
       qc.invalidateQueries({ queryKey: ['learn-attempts'] })
       qc.invalidateQueries({ queryKey: ['agent-training'] })
     },
@@ -369,7 +378,7 @@ export function useDeleteCase() {
 
 /* ---------------- approval (managers) ---------------- */
 
-export type PendingItem = { table: 'learn_cards' | 'learn_lessons' | 'learn_cases'; id: string; topic_id: string; label: string }
+export type PendingItem = { table: 'learn_cards' | 'learn_lessons' | 'learn_cases' | 'learn_sequences'; id: string; topic_id: string; label: string }
 
 /** everything an editor wrote that waits for a manager's approval */
 export function usePendingApprovals(enabled: boolean) {
@@ -377,15 +386,17 @@ export function usePendingApprovals(enabled: boolean) {
     queryKey: ['learn-pending'],
     enabled,
     queryFn: async () => {
-      const [cards, lessons, cases] = await Promise.all([
+      const [cards, lessons, cases, sequences] = await Promise.all([
         supabase.from('learn_cards').select('id, topic_id, question').eq('approved', false).limit(500),
         supabase.from('learn_lessons').select('id, topic_id, title').eq('approved', false).limit(200),
         supabase.from('learn_cases').select('id, topic_id, title').eq('approved', false).limit(200),
+        supabase.from('learn_sequences').select('id, topic_id, title').eq('approved', false).limit(200),
       ])
       const out: PendingItem[] = []
       for (const c of unwrap<{ id: string; topic_id: string; question: string }[]>(cards)) out.push({ table: 'learn_cards', id: c.id, topic_id: c.topic_id, label: c.question })
       for (const l of unwrap<{ id: string; topic_id: string; title: string }[]>(lessons)) out.push({ table: 'learn_lessons', id: l.id, topic_id: l.topic_id, label: l.title })
       for (const c of unwrap<{ id: string; topic_id: string; title: string }[]>(cases)) out.push({ table: 'learn_cases', id: c.id, topic_id: c.topic_id, label: c.title })
+      for (const c of unwrap<{ id: string; topic_id: string; title: string }[]>(sequences)) out.push({ table: 'learn_sequences', id: c.id, topic_id: c.topic_id, label: c.title })
       return out
     },
   })
@@ -395,7 +406,7 @@ export function useApprove() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (items: PendingItem[]) => {
-      for (const t of ['learn_cards', 'learn_lessons', 'learn_cases'] as const) {
+      for (const t of ['learn_cards', 'learn_lessons', 'learn_cases', 'learn_sequences'] as const) {
         const ids = items.filter((i) => i.table === t).map((i) => i.id)
         for (let k = 0; k < ids.length; k += 100) unwrap(await supabase.from(t).update({ approved: true }).in('id', ids.slice(k, k + 100)))
       }
@@ -499,5 +510,59 @@ export function useAddGeneratedCards() {
       return { added: rows.length, skipped: a.items.length - rows.length }
     },
     onSuccess: () => invalidateContent(qc),
+  })
+}
+
+/* ---------------- daily activity (streak, points) ---------------- */
+
+export function useLearnDaily(userId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['learn-daily', userId],
+    enabled: !!userId,
+    queryFn: async () => unwrap<LearnDaily[]>(await supabase.from('learn_daily').select('*').eq('user_id', userId!).order('day', { ascending: false }).limit(400)),
+  })
+}
+
+/** points for an activity that is not a stored card answer (a sequence, a matching round, a case) */
+export function useAddPoints() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (a: { points: number; answers: number; correct: number }) => {
+      await supabase.rpc('learn_add_points', { p_points: a.points, p_answers: a.answers, p_correct: a.correct })
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['learn-daily'] }),
+  })
+}
+
+/* ---------------- sequences ("put the steps in order") ---------------- */
+
+export function useSequences(topicId: string | undefined) {
+  return useQuery({
+    queryKey: ['learn-sequences', topicId],
+    enabled: !!topicId,
+    queryFn: async () => unwrap<LearnSequence[]>(await supabase.from('learn_sequences').select('*').eq('topic_id', topicId!).order('sort').order('created_at')),
+  })
+}
+
+export function useSaveSequence() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (q: { id?: string; topic_id: string; title: string; steps: string[]; sort: number }) => {
+      const row = { topic_id: q.topic_id, title: q.title.trim(), steps: q.steps.map((x) => x.trim()).filter(Boolean) }
+      if (q.id) unwrap(await supabase.from('learn_sequences').update(row).eq('id', q.id))
+      else unwrap(await supabase.from('learn_sequences').insert({ ...row, sort: q.sort }))
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['learn-sequences'] })
+      qc.invalidateQueries({ queryKey: ['learn-pending'] })
+    },
+  })
+}
+
+export function useDeleteSequence() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => unwrap(await supabase.from('learn_sequences').delete().eq('id', id)),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['learn-sequences'] }),
   })
 }

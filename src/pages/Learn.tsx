@@ -4,6 +4,7 @@ import { Check, GraduationCap, Lock, Plus, Repeat, Route, Settings2 } from 'luci
 import { useAuth } from '../context/AuthProvider'
 import { bestPercent, useApprove, useCanEditLearning, useLearnAttempts, useLearnProgress, useLearnTopics, usePendingApprovals, useSaveTopic, useTracks } from '../lib/learnApi'
 import { TrackManager } from '../components/TrackManager'
+import { LearnStats } from '../components/LearnStats'
 import { EmptyState, ErrorState, Field, Modal, Spinner } from '../components/ui'
 import { classNames, todayISO } from '../lib/utils'
 
@@ -57,6 +58,8 @@ export default function Learn() {
           )}
         </div>
       </div>
+
+      <LearnStats />
 
       {due > 0 && (
         <Link to="/learn/review" className="card flex items-center justify-between gap-3 border-brand-300 bg-brand-50/50 p-4 transition hover:bg-brand-50">

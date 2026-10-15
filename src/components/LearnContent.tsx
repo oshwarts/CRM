@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom'
 import { BookOpenText, Check, ChevronDown, ChevronUp, FileText, Pencil, Plus, Sparkles, Trash2, Upload, X } from 'lucide-react'
 import { useAuth } from '../context/AuthProvider'
 import { openInfoDocument, useInfoDocuments, useProcedures, useSaveInfoDoc } from '../lib/api'
-import { useApprove, useCanEditLearning, useCases, useDeleteCard, useDeleteCase, useDeleteLesson, useLearnCards, useLessons, useSaveCase, useSaveLesson } from '../lib/learnApi'
-import type { InfoDocument, LearnCard, LearnCase, LearnLesson } from '../lib/types'
+import { useApprove, useCanEditLearning, useCases, useDeleteCard, useDeleteCase, useDeleteLesson, useDeleteSequence, useLearnCards, useLessons, useSaveCase, useSaveLesson, useSaveSequence, useSequences } from '../lib/learnApi'
+import { SequenceStudy } from './LearnModes'
+import type { InfoDocument, LearnCard, LearnCase, LearnLesson, LearnSequence } from '../lib/types'
 import { DocReader } from './DocReader'
 import { GenerateQuestions } from './GenerateQuestions'
 import { LearnCardModal } from './LearnCardModal'
@@ -16,7 +17,7 @@ import { ConfirmButton, EmptyState, Field, Modal, MultiSelectChips, Spinner } fr
 import { classNames } from '../lib/utils'
 
 /** the "waiting for approval" tag, with the manager's approve button */
-export function ApprovalTag({ approved, table, id, topicId, label }: { approved: boolean; table: 'learn_cards' | 'learn_lessons' | 'learn_cases'; id: string; topicId: string; label: string }) {
+export function ApprovalTag({ approved, table, id, topicId, label }: { approved: boolean; table: 'learn_cards' | 'learn_lessons' | 'learn_cases' | 'learn_sequences'; id: string; topicId: string; label: string }) {
   const { isAdmin } = useAuth()
   const approve = useApprove()
   if (approved) return null
@@ -554,6 +555,87 @@ export function CasesPanel({ topicId }: { topicId: string }) {
         </ul>
       )}
       {modal && <CaseModal topicId={topicId} item={modal.item} nextSort={list.length} onClose={() => setModal(null)} />}
+    </div>
+  )
+}
+
+/* ---------------------------------------------------------------- the right order */
+
+function SequenceModal({ topicId, item, nextSort, onClose }: { topicId: string; item: LearnSequence | null; nextSort: number; onClose: () => void }) {
+  const save = useSaveSequence()
+  const [title, setTitle] = useState(item?.title ?? '')
+  const [steps, setSteps] = useState((item?.steps ?? []).join('\n'))
+  const [error, setError] = useState('')
+  const list = steps.split('\n').map((x) => x.trim()).filter(Boolean)
+  return (
+    <Modal open onClose={onClose} title={item ? 'עריכת תרגיל סדר' : 'תרגיל סדר חדש'} size="lg">
+      <form
+        className="space-y-3"
+        onSubmit={(e) => {
+          e.preventDefault()
+          save.mutate({ id: item?.id, topic_id: topicId, title, steps: list, sort: item?.sort ?? nextSort }, { onSuccess: onClose, onError: (er) => setError(er instanceof Error ? er.message : 'השמירה נכשלה') })
+        }}
+      >
+        <Field label="כותרת (למשל: שלבי ניתוח ברך MAKO)">
+          <input className="input" dir="auto" required value={title} onChange={(e) => setTitle(e.target.value)} />
+        </Field>
+        <Field label="השלבים בסדר הנכון — שלב בכל שורה">
+          <textarea className="input min-h-40" dir="auto" value={steps} onChange={(e) => setSteps(e.target.value)} />
+        </Field>
+        <p className="text-xs text-slate-400">{list.length} שלבים. הסוכן יקבל אותם בסדר מעורבב ויצטרך לסדר. נדרשים לפחות 3 שלבים.</p>
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        <div className="flex justify-end gap-2">
+          <button type="button" className="btn-secondary" onClick={onClose}>
+            ביטול
+          </button>
+          <button className="btn-primary" disabled={!title.trim() || list.length < 3 || save.isPending}>
+            שמור
+          </button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
+/** exercises where the steps of a procedure must be put in the right order */
+export function SequencesPanel({ topicId }: { topicId: string }) {
+  const seqs = useSequences(topicId)
+  const canEdit = useCanEditLearning()
+  const del = useDeleteSequence()
+  const [modal, setModal] = useState<{ item: LearnSequence | null } | null>(null)
+  if (seqs.isLoading) return <Spinner />
+  const list = seqs.data ?? []
+  return (
+    <div className="space-y-3">
+      {canEdit && (
+        <div className="space-y-2">
+          <button className="btn-secondary" onClick={() => setModal({ item: null })}>
+            <Plus size={15} /> תרגיל סדר
+          </button>
+          {list.length > 0 && (
+            <ul className="space-y-1">
+              {list.map((q) => (
+                <li key={q.id} className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-2 py-1 text-sm">
+                  <span dir="auto" className="flex items-center gap-2">
+                    {q.title}
+                    <ApprovalTag approved={q.approved} table="learn_sequences" id={q.id} topicId={topicId} label={q.title} />
+                  </span>
+                  <span className="flex gap-1">
+                    <button className="btn-ghost !px-1.5" aria-label="עריכה" onClick={() => setModal({ item: q })}>
+                      <Pencil size={13} />
+                    </button>
+                    <ConfirmButton className="btn-ghost !px-1.5 text-red-500" message="למחוק את התרגיל?" onConfirm={() => del.mutate(q.id)}>
+                      <Trash2 size={13} />
+                    </ConfirmButton>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+      <SequenceStudy sequences={list.filter((q) => q.approved && q.steps.length >= 3)} />
+      {modal && <SequenceModal topicId={topicId} item={modal.item} nextSort={list.length} onClose={() => setModal(null)} />}
     </div>
   )
 }

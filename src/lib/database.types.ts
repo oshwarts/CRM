@@ -1076,6 +1076,18 @@ export type Database = {
         Update: { id?: string; pass_pct?: number; sort?: number; stage_id?: string | null; topic_id?: string; track_id?: string }
         Relationships: []
       }
+      learn_daily: {
+        Row: { answers: number; correct: number; day: string; points: number; user_id: string }
+        Insert: { answers?: number; correct?: number; day?: string; points?: number; user_id?: string }
+        Update: { answers?: number; correct?: number; day?: string; points?: number; user_id?: string }
+        Relationships: []
+      }
+      learn_sequences: {
+        Row: { approved: boolean; created_at: string; id: string; sort: number; steps: string[]; title: string; topic_id: string }
+        Insert: { approved?: boolean; created_at?: string; id?: string; sort?: number; steps?: string[]; title: string; topic_id: string }
+        Update: { approved?: boolean; created_at?: string; id?: string; sort?: number; steps?: string[]; title?: string; topic_id?: string }
+        Relationships: []
+      }
       learn_attempts: {
         Row: { id: string; score: number; taken_at: string; topic_id: string; total: number; user_id: string }
         Insert: { id?: string; score: number; taken_at?: string; topic_id: string; total: number; user_id?: string }
@@ -1249,6 +1261,7 @@ export type Database = {
     Functions: {
       is_admin: { Args: Record<string, never>; Returns: boolean }
       is_active: { Args: Record<string, never>; Returns: boolean }
+      learn_add_points: { Args: { p_points: number; p_answers: number; p_correct: number }; Returns: undefined }
       sync_learning_stages: { Args: Record<string, never>; Returns: number }
       can_edit_learning: { Args: Record<string, never>; Returns: boolean }
       merge_records: { Args: { p_table: string; p_keep: string; p_drop: string }; Returns: undefined }

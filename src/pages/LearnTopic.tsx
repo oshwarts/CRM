@@ -20,7 +20,8 @@ import { FlashStudy, QuizStudy } from '../components/LearnStudy'
 import { LearnImport } from '../components/LearnImport'
 import { LearnImage } from '../components/LearnMedia'
 import { LearnCardModal } from '../components/LearnCardModal'
-import { ApprovalTag, CasesPanel, LessonsPanel } from '../components/LearnContent'
+import { ApprovalTag, CasesPanel, LessonsPanel, SequencesPanel } from '../components/LearnContent'
+import { ClozeStudy, MatchStudy, TrueFalseStudy } from '../components/LearnModes'
 import { ConfirmButton, EmptyState, Spinner, Tab, TabList, TabPanel, Tabs } from '../components/ui'
 import { classNames, formatDate } from '../lib/utils'
 
@@ -114,13 +115,17 @@ export default function LearnTopic() {
           <Tab id="lessons">שיעורים</Tab>
           <Tab id="flash">כרטיסיות</Tab>
           <Tab id="quiz">מבחן</Tab>
+          <Tab id="tf">נכון / לא נכון</Tab>
+          <Tab id="cloze">השלמה</Tab>
+          <Tab id="match">התאמה</Tab>
+          <Tab id="order">סדר נכון</Tab>
           <Tab id="cases">מקרים קליניים</Tab>
           <Tab id="list">כל השאלות ({all.length})</Tab>
         </TabList>
         <TabPanel id="lessons">
           <LessonsPanel topicId={id} topicTitle={topic.title} />
         </TabPanel>
-        {lessonFilter && tab !== 'lessons' && tab !== 'cases' && tab !== 'list' && (
+        {lessonFilter && tab !== 'lessons' && tab !== 'cases' && tab !== 'list' && tab !== 'order' && (
           <p className="mb-3 flex flex-wrap items-center gap-2 rounded-lg bg-brand-50 px-3 py-2 text-sm text-brand-700">
             מתרגל רק את שאלות השיעור: {filterLesson?.title ?? ''}
             <button className="text-xs underline" onClick={() => setParams({}, { replace: true })}>
@@ -133,6 +138,18 @@ export default function LearnTopic() {
         </TabPanel>
         <TabPanel id="quiz">
           <QuizStudy key={lessonFilter ?? 'all'} topicId={id} cards={studied} progress={mine} passPct={lessonFilter ? undefined : passPct} />
+        </TabPanel>
+        <TabPanel id="tf">
+          <TrueFalseStudy key={lessonFilter ?? 'all'} cards={studied} progress={mine} />
+        </TabPanel>
+        <TabPanel id="cloze">
+          <ClozeStudy key={lessonFilter ?? 'all'} cards={studied} progress={mine} />
+        </TabPanel>
+        <TabPanel id="match">
+          <MatchStudy key={lessonFilter ?? 'all'} cards={studied} progress={mine} />
+        </TabPanel>
+        <TabPanel id="order">
+          <SequencesPanel topicId={id} />
         </TabPanel>
         <TabPanel id="cases">
           <CasesPanel topicId={id} />
