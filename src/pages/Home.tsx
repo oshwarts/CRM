@@ -15,6 +15,7 @@ import {
   Target,
   UserPlus,
   X,
+  Scissors,
 } from 'lucide-react'
 import {
   useDoctors,
@@ -32,6 +33,7 @@ import { useTasks } from '../lib/api'
 import { TodayBlock } from '../components/TodayBlock'
 import { ReferralImportModal } from '../components/ReferralImportModal'
 import { ScanFormModal, type ScanDraft } from '../components/ScanFormModal'
+import { PlannedSurgeryModal } from '../components/PlannedSurgeryModal'
 import {
   classNames,
   daysUntil,
@@ -161,6 +163,7 @@ export default function Home() {
     }
   })
   const [addScan, setAddScan] = useState(false)
+  const [addSurgery, setAddSurgery] = useState(false)
   const [importReferral, setImportReferral] = useState(false)
   const [scanPrefill, setScanPrefill] = useState<{ draft: Partial<ScanDraft>; notices: string[] } | null>(null)
 
@@ -386,6 +389,9 @@ export default function Home() {
               </button>
               <button className="btn border border-white/40 bg-white/10 text-white hover:bg-white/20" onClick={() => setNewTask(true)}>
                 <CheckSquare size={16} /> משימה חדשה
+              </button>
+              <button className="btn border border-white/40 bg-white/10 text-white hover:bg-white/20" onClick={() => setAddSurgery(true)}>
+                <Scissors size={16} /> ניתוח חדש
               </button>
               <button className="btn border border-white/40 bg-white/10 text-white hover:bg-white/20" onClick={() => setAddScan(true)}>
                 <ScanLine size={16} /> סריקה חדשה
@@ -755,6 +761,7 @@ export default function Home() {
       )}
 
       {addScan && <ScanFormModal onClose={() => setAddScan(false)} />}
+      {addSurgery && <PlannedSurgeryModal onClose={() => setAddSurgery(false)} />}
       {importReferral && (
         <ReferralImportModal
           onClose={() => setImportReferral(false)}

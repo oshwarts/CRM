@@ -1,15 +1,17 @@
 import { useState } from 'react'
-import { CalendarDays, CheckSquare, ScanLine, Stethoscope, X } from 'lucide-react'
+import { CalendarDays, CheckSquare, ScanLine, Scissors, Stethoscope, X } from 'lucide-react'
 import { MeetingFormModal } from './MeetingFormModal'
 import { TaskFormModal } from './TaskFormModal'
 import { ScanFormModal } from './ScanFormModal'
 import { DoctorFormModal } from './DoctorFormModal'
+import { PlannedSurgeryModal } from './PlannedSurgeryModal'
 
-type Kind = 'meeting' | 'task' | 'scan' | 'doctor'
+type Kind = 'meeting' | 'task' | 'surgery' | 'scan' | 'doctor'
 
 const OPTIONS: { kind: Kind; label: string; hint: string; icon: React.ReactNode }[] = [
   { kind: 'meeting', label: 'פגישה', hint: 'קביעה או תיעוד של פגישה', icon: <CalendarDays size={22} /> },
   { kind: 'task', label: 'משימה', hint: 'דבר שצריך לעשות', icon: <CheckSquare size={22} /> },
+  { kind: 'surgery', label: 'ניתוח', hint: 'ניתוח אחד או כמה ללוז', icon: <Scissors size={22} /> },
   { kind: 'scan', label: 'סריקה', hint: 'מטופל חדש ל-MAKO', icon: <ScanLine size={22} /> },
   { kind: 'doctor', label: 'רופא', hint: 'כרטיס רופא חדש', icon: <Stethoscope size={22} /> },
 ]
@@ -19,6 +21,7 @@ export function QuickCreate({ onClose }: { onClose: () => void }) {
   const [kind, setKind] = useState<Kind | null>(null)
   if (kind === 'meeting') return <MeetingFormModal open onClose={onClose} />
   if (kind === 'task') return <TaskFormModal onClose={onClose} />
+  if (kind === 'surgery') return <PlannedSurgeryModal onClose={onClose} />
   if (kind === 'scan') return <ScanFormModal onClose={onClose} />
   if (kind === 'doctor') return <DoctorFormModal open onClose={onClose} />
   return (
