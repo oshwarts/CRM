@@ -36,15 +36,21 @@ export function GenerateQuestions({
     const { data, error: err } = await supabase.functions.invoke('generate-questions', { body: { text, count, topic: topicTitle } })
     setBusy(false)
     if (err || !data?.questions) {
-      const code = (data as { error?: string } | null)?.error
+      // on a non-2xx answer the client gives no data: the reason is in the response the error carries
+      let info = (data ?? null) as { error?: string; status?: number; detail?: string } | null
+      const ctx = (err as { context?: unknown } | null)?.context
+      if (!info && ctx instanceof Response) info = await ctx.clone().json().catch(() => null)
+      const code = info?.error
       setError(
         code === 'not_configured'
           ? 'שירות הבינה המלאכותית עוד לא חובר: צריך להוסיף מפתח ANTHROPIC_API_KEY ב-Supabase (Edge Functions ← Secrets).'
           : code === 'text_too_short'
-            ? 'לא נמצא מספיק טקסט במסמך.'
+            ? 'לא נמצא מספיק טקסט במסמך (ייתכן שזה סריקה או תמונות).'
             : code === 'forbidden'
               ? 'אין הרשאה: רק מנהל או עורך תוכן.'
-              : `יצירת השאלות נכשלה${code ? ` (${code})` : ''}. נסה שוב.`,
+              : code === 'ai_failed'
+                ? `שירות הבינה המלאכותית החזיר שגיאה (${info?.status ?? ''}). ${info?.detail ?? ''}`
+                : `יצירת השאלות נכשלה${code ? ` (${code})` : err ? ` (${err.message})` : ''}. נסה שוב.`,
       )
       return
     }
