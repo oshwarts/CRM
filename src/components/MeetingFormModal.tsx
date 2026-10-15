@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { QuickDates } from './QuickDates'
 import { Link } from 'react-router-dom'
 import { Mail, Plus, Trash2 } from 'lucide-react'
 import {
@@ -146,6 +147,7 @@ export function MeetingFormModal({
                 value={data.meeting_date ?? ''}
                 onChange={(e) => patch({ meeting_date: e.target.value || null })}
               />
+              <QuickDates value={data.meeting_date} onPick={(iso) => patch({ meeting_date: iso })} />
             </Field>
             <Field label="שעה">
               <input

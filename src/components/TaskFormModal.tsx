@@ -1,4 +1,7 @@
 import { useState } from 'react'
+import { useDraft } from '../lib/useDraft'
+import { QuickDates } from './QuickDates'
+import { SearchSelect } from './SearchSelect'
 import { Plus, X } from 'lucide-react'
 import { useAgents, useDeleteTask, useDoctors, useHospitals, useSaveTask, type TaskFormData } from '../lib/api'
 import { useAuth } from '../context/AuthProvider'
@@ -36,7 +39,7 @@ export function TaskFormModal({
   const save = useSaveTask()
   const del = useDeleteTask()
 
-  const [d, setD] = useState<TaskFormData>(() =>
+  const initialData: TaskFormData =
     task
       ? {
           id: task.id,
@@ -52,8 +55,12 @@ export function TaskFormModal({
           coordinator_text: task.coordinator_text,
           subtasks: task.subtasks.map((s) => ({ id: s.id, text: s.text, is_done: s.is_done })),
         }
-      : { ...emptyForm(user?.id ?? null), ...defaults },
-  )
+      : { ...emptyForm(user?.id ?? null), ...defaults }
+  // a new task is kept as a draft on the device while it is written (not when it starts from a doctor's card)
+  const draft = useDraft<TaskFormData>('task', initialData, !task && !defaults)
+  const d = draft.value
+  const setD = draft.setValue
+  const [more, setMore] = useState(!!task || !!defaults)
   const [error, setError] = useState('')
   const guess = useTaskGuess(task ? '' : d.description) // suggestions only for a new task
   const set = (p: Partial<TaskFormData>) => setD((x) => ({ ...x, ...p }))
@@ -63,6 +70,7 @@ export function TaskFormModal({
     if (!d.description.trim()) return setError('כתוב מה המשימה')
     try {
       await save.mutateAsync(d)
+      draft.clear()
       onClose()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'השמירה נכשלה')
@@ -88,6 +96,14 @@ export function TaskFormModal({
             אפשר להכתיב: לחץ על המיקרופון במקלדת. למשל "לשלוח הצעה לשוחט עד יום חמישי, דחוף" — המערכת תזהה תאריך, עדיפות, רופא ובית חולים.
           </p>
         </Field>
+        {draft.restored && (
+          <p className="flex items-center justify-between gap-2 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            שוחזרה טיוטה שלא נשמרה
+            <button type="button" className="font-medium underline" onClick={() => { setD(initialData); draft.clear() }}>
+              התחל מחדש
+            </button>
+          </p>
+        )}
         <TaskSuggestions
           guess={guess}
           onApply={(g) =>
@@ -102,9 +118,10 @@ export function TaskFormModal({
           }
         />
 
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <Field label="תאריך יעד">
             <input type="date" className="input" value={d.due_date ?? ''} onChange={(e) => set({ due_date: e.target.value || null })} />
+            <QuickDates value={d.due_date} onPick={(iso) => set({ due_date: iso })} />
           </Field>
           <Field label="עדיפות">
             <select className="input" value={d.priority} onChange={(e) => set({ priority: e.target.value as TaskFormData['priority'] })}>
@@ -112,6 +129,14 @@ export function TaskFormModal({
               <option value="urgent">דחוף</option>
             </select>
           </Field>
+        </div>
+
+        <button type="button" className="text-sm font-medium text-brand-600 hover:underline" onClick={() => setMore((m) => !m)} aria-expanded={more}>
+          {more ? '− פחות פרטים' : '+ עוד פרטים (רופא, בית חולים, חזרה, מתאם, שלבים)'}
+        </button>
+        {more && (
+          <div className="space-y-4 rounded-2xl border border-brand-100 bg-brand-50/30 p-3">
+        <div className="grid gap-3 sm:grid-cols-1">
           <Field label="חוזרת">
             <select className="input" value={d.recurrence} onChange={(e) => set({ recurrence: e.target.value as TaskFormData['recurrence'] })}>
               <option value="none">לא</option>
@@ -121,29 +146,20 @@ export function TaskFormModal({
           </Field>
         </div>
         {d.recurrence !== 'none' && (
-          <p className="-mt-2 text-xs text-slate-400">אחרי סימון "בוצע" תיווצר אוטומטית המשימה הבאה (דורש תאריך יעד).</p>
+          <p className="-mt-2 text-xs text-slate-500">אחרי סימון "בוצע" תיווצר אוטומטית המשימה הבאה (דורש תאריך יעד).</p>
         )}
 
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="רופא (אופציונלי)">
-            <select className="input" value={d.doctor_id ?? ''} onChange={(e) => set({ doctor_id: e.target.value || null })}>
-              <option value="">—</option>
-              {(doctors.data ?? []).map((x) => (
-                <option key={x.id} value={x.id}>
-                  {x.name}
-                </option>
-              ))}
-            </select>
+            <SearchSelect
+              options={(doctors.data ?? []).map((x) => ({ id: x.id, label: `${x.title} ${x.name}`.trim(), hint: x.position }))}
+              value={d.doctor_id}
+              onChange={(id) => set({ doctor_id: id })}
+              placeholder="בחר רופא…"
+            />
           </Field>
           <Field label="בית חולים (אופציונלי)">
-            <select className="input" value={d.hospital_id ?? ''} onChange={(e) => set({ hospital_id: e.target.value || null })}>
-              <option value="">—</option>
-              {(hospitals.data ?? []).map((x) => (
-                <option key={x.id} value={x.id}>
-                  {x.name}
-                </option>
-              ))}
-            </select>
+            <SearchSelect options={(hospitals.data ?? []).map((x) => ({ id: x.id, label: x.name }))} value={d.hospital_id} onChange={(id) => set({ hospital_id: id })} placeholder="בחר בית חולים…" />
           </Field>
         </div>
 
@@ -190,6 +206,9 @@ export function TaskFormModal({
             הוסף שלב
           </button>
         </div>
+
+          </div>
+        )}
 
         {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
 

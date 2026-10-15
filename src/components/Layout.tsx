@@ -71,7 +71,7 @@ const GROUPS: { title: string; paths: string[] }[] = [
 // scroll position of each visited page, so that going back returns to the same place
 const scrollOf = new Map<string, number>()
 
-const VERSION = 'v102 · דחוף עכשיו, ציר זמן לרופא, ביטול לסימון משימה'
+const VERSION = 'v103 · טפסים: תאריכים מהירים, חיפוש ברשימות, עוד פרטים, טיוטה'
 
 export function Layout() {
   const { profile, signOut, impersonating } = useAuth()
