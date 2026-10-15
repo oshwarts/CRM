@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate, useNavigationType } from 'react-router-dom'
 import {
+  AlertTriangle,
   BarChart3,
   BookOpen,
   GraduationCap,
@@ -39,6 +40,7 @@ import { classNames } from '../lib/utils'
 
 const NAV = [
   { to: '/', label: 'דף הבית', short: 'בית', icon: Home, end: true },
+  { to: '/now', label: 'דחוף עכשיו', short: 'עכשיו', icon: AlertTriangle, end: false },
   { to: '/doctors', label: 'רופאים', short: 'רופאים', icon: Stethoscope, end: false },
   { to: '/tasks', label: 'משימות', short: 'משימות', icon: ListChecks, end: false },
   { to: '/projects', label: 'פרויקטים', short: 'פרויקטים', icon: FolderKanban, end: false },
@@ -61,7 +63,7 @@ const NAV = [
 const TABS = ['/', '/doctors', '/tasks', '/schedule']
 
 const GROUPS: { title: string; paths: string[] }[] = [
-  { title: 'יומיומי', paths: ['/', '/doctors', '/tasks', '/schedule', '/meetings', '/scans'] },
+  { title: 'יומיומי', paths: ['/', '/now', '/doctors', '/tasks', '/schedule', '/meetings', '/scans'] },
   { title: 'עבודה וידע', paths: ['/projects', '/map', '/info', '/learn', '/consumables', '/pipeline', '/competitors', '/reports'] },
   { title: 'ניהול', paths: ['/agents', '/users', '/settings'] },
 ]
@@ -69,7 +71,7 @@ const GROUPS: { title: string; paths: string[] }[] = [
 // scroll position of each visited page, so that going back returns to the same place
 const scrollOf = new Map<string, number>()
 
-const VERSION = 'v101 · חיפוש כללי, כפתור +, התראות, תפריט מקובץ'
+const VERSION = 'v102 · דחוף עכשיו, ציר זמן לרופא, ביטול לסימון משימה'
 
 export function Layout() {
   const { profile, signOut, impersonating } = useAuth()

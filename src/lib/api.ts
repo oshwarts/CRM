@@ -1985,6 +1985,7 @@ async function setTaskDoneOffline(task: DoneTask & { subtasks?: { text: string }
 export function useSetTaskDone() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { silent: true },
     mutationFn: ({ task, done }: { task: TaskRow; done: boolean }) => setTaskDoneOffline(task, done),
     onSuccess: () => invalidateTasks(qc),
   })

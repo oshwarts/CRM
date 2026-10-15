@@ -24,6 +24,7 @@ import Projects from './pages/Projects'
 import ProjectView from './pages/ProjectView'
 import Competitors from './pages/Competitors'
 import Learn from './pages/Learn'
+import Now from './pages/Now'
 import LearnTopic from './pages/LearnTopic'
 import LearnReview from './pages/LearnReview'
 import Pending from './pages/Pending'
@@ -60,6 +61,7 @@ export default function App() {
       <Route path="/login" element={<Navigate to="/" replace />} />
       <Route element={<Layout />}>
         <Route path="/" element={<Home />} />
+        <Route path="/now" element={<Now />} />
         <Route path="/doctors" element={<Doctors />} />
         <Route path="/doctors/:id" element={<DoctorProfile />} />
         <Route path="/meetings" element={<Meetings />} />

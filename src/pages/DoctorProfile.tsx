@@ -3,6 +3,8 @@ import { useCanDelete } from '../lib/permissions'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   Building2,
+  CalendarDays,
+  CheckSquare,
   Heart,
   Mail,
   Package,
@@ -23,6 +25,8 @@ import {
 } from '../lib/api'
 import { DoctorFormModal } from '../components/DoctorFormModal'
 import { MeetingFormModal } from '../components/MeetingFormModal'
+import { TaskFormModal } from '../components/TaskFormModal'
+import { DoctorTimeline } from '../components/DoctorTimeline'
 import { SurgicalCourseSection } from '../components/SurgicalCourse'
 import { LinkedTasks, useLinkedTasks } from '../components/LinkedTasks'
 import { cadenceLabel, contactState } from '../lib/cadence'
@@ -63,9 +67,10 @@ export default function DoctorProfile() {
   const canDelete = useCanDelete()
   const linkedTasks = useLinkedTasks({ doctorId: id })
 
-  const [tab, setTab] = useState('details')
+  const [tab, setTab] = useState('timeline')
   const [editing, setEditing] = useState(false)
   const [addMeeting, setAddMeeting] = useState(false)
+  const [addTask, setAddTask] = useState(false)
   const [picking, setPicking] = useState(false)
 
   if (doctor.isLoading) return <Spinner />
@@ -172,6 +177,14 @@ export default function DoctorProfile() {
         </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          <button className="btn-primary" onClick={() => setAddMeeting(true)}>
+            <CalendarDays size={16} />
+            פגישה חדשה
+          </button>
+          <button className="btn-secondary" onClick={() => setAddTask(true)}>
+            <CheckSquare size={16} />
+            משימה
+          </button>
           <button
             className={classNames(
               'btn-secondary',
@@ -206,6 +219,7 @@ export default function DoctorProfile() {
 
       <Tabs value={tab} onChange={setTab}>
         <TabList>
+          <Tab id="timeline">ציר זמן</Tab>
           <Tab id="details">פרטים</Tab>
           <Tab id="hospitals">בתי חולים</Tab>
           <Tab id="procedures">הליכים</Tab>
@@ -218,6 +232,10 @@ export default function DoctorProfile() {
           <Tab id="tasks">משימות ({linkedTasks.open.length})</Tab>
           <Tab id="meetings">פגישות ({meetings.data?.length ?? 0})</Tab>
         </TabList>
+
+        <TabPanel id="timeline">
+          <DoctorTimeline doctorId={d.id} />
+        </TabPanel>
 
         <TabPanel id="details">
           <div className="card space-y-4 p-5">
@@ -371,6 +389,7 @@ export default function DoctorProfile() {
           defaultDoctorId={d.id}
         />
       )}
+      {addTask && <TaskFormModal defaults={{ doctor_id: d.id }} onClose={() => setAddTask(false)} />}
       {picking && (
         <PickingListModal
           doctorId={d.id}

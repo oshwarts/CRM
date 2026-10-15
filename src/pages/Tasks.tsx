@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { toast } from '../lib/toast'
 import { Link } from 'react-router-dom'
 import { Building2, CalendarDays, ChevronDown, ChevronLeft, Flame, ListChecks, Pencil, Plus, Repeat, Search, Stethoscope, User } from 'lucide-react'
 import {
@@ -141,7 +142,18 @@ export default function Tasks() {
             type="checkbox"
             className="mt-1 h-6 w-6 shrink-0 cursor-pointer accent-emerald-600"
             checked={t.is_done}
-            onChange={(e) => setDone.mutate({ task: t, done: e.target.checked }, { onError: fail })}
+            onChange={(e) => {
+              const done = e.target.checked
+              setDone.mutate(
+                { task: t, done },
+                {
+                  onError: fail,
+                  // a repeating task opens the next one when completed, so only the others can be undone
+                  onSuccess: () =>
+                    toast(done ? 'המשימה סומנה כבוצעה' : 'המשימה נפתחה מחדש', t.recurrence === 'none' ? { action: { label: 'ביטול', run: () => setDone.mutate({ task: t, done: !done }) } } : {}),
+                },
+              )
+            }}
             aria-label="סמן כבוצע"
           />
           <div className="min-w-0 flex-1">
