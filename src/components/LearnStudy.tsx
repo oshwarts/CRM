@@ -210,7 +210,7 @@ export function QuizStudy({ topicId, cards, progress, passPct }: { topicId: stri
   function finish() {
     setFinished(true)
     setReviewing(false)
-    saveAttempt.mutate({ topic_id: topicId, score, total })
+    saveAttempt.mutate({ topic_id: topicId, picks: quiz!.map((q, k) => ({ card_id: q.card.id, answer: picks[k] })) })
   }
 
   if (finished) {

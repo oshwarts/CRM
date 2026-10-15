@@ -49,6 +49,19 @@ function unwrap<T>(res: { data: unknown; error: unknown }): T {
   return res.data as T
 }
 
+/**
+ * The API returns at most 1000 rows per request and cuts the rest without saying so. Lists that grow with use (meetings,
+ * tasks, scans, doctors, contacts, case volumes) are read page by page; `id` is the last sort key so pages never overlap.
+ */
+async function fetchAll<T>(page: (from: number, to: number) => PromiseLike<{ data: unknown; error: unknown }>): Promise<T[]> {
+  const out: T[] = []
+  for (let from = 0; ; from += 1000) {
+    const rows = unwrap<T[]>(await page(from, from + 999))
+    out.push(...rows)
+    if (rows.length < 1000) return out
+  }
+}
+
 /* ============================ Reference data ============================ */
 
 export function useAgents() {
@@ -174,13 +187,8 @@ const DOCTOR_FULL_SELECT =
 export function useDoctors() {
   return useQuery({
     queryKey: ['doctors'],
-    queryFn: async () =>
-      unwrap<DoctorListItem[]>(
-        await supabase
-          .from('doctors')
-          .select(DOCTOR_LIST_SELECT)
-          .order('name'),
-      ),
+    queryFn: () =>
+      fetchAll<DoctorListItem>((a, b) => supabase.from('doctors').select(DOCTOR_LIST_SELECT).order('name').order('id').range(a, b)),
   })
 }
 
@@ -439,12 +447,9 @@ const MEETING_SELECT =
 export function useMeetings() {
   return useQuery({
     queryKey: ['meetings'],
-    queryFn: async () =>
-      unwrap<MeetingWithRelations[]>(
-        await supabase
-          .from('meetings')
-          .select(MEETING_SELECT)
-          .order('meeting_date', { ascending: false, nullsFirst: false }),
+    queryFn: () =>
+      fetchAll<MeetingWithRelations>((a, b) =>
+        supabase.from('meetings').select(MEETING_SELECT).order('meeting_date', { ascending: false, nullsFirst: false }).order('id').range(a, b),
       ),
   })
 }
@@ -789,10 +794,7 @@ export function useMapData() {
 export function useContacts() {
   return useQuery({
     queryKey: ['contacts'],
-    queryFn: async () =>
-      unwrap<Contact[]>(
-        await supabase.from('contacts').select('*').order('name'),
-      ),
+    queryFn: () => fetchAll<Contact>((a, b) => supabase.from('contacts').select('*').order('name').order('id').range(a, b)),
   })
 }
 
@@ -887,13 +889,8 @@ export function useCaseVolumes(filter: {
 export function useAllCaseVolumes() {
   return useQuery({
     queryKey: ['case-volumes-all'],
-    queryFn: async () =>
-      unwrap<CaseVolumeRow[]>(
-        await supabase
-          .from('case_volumes')
-          .select(CASE_VOLUME_SELECT)
-          .order('year', { ascending: false }),
-      ),
+    queryFn: () =>
+      fetchAll<CaseVolumeRow>((a, b) => supabase.from('case_volumes').select(CASE_VOLUME_SELECT).order('year', { ascending: false }).order('id').range(a, b)),
   })
 }
 
@@ -1174,12 +1171,9 @@ const SCAN_SELECT =
 export function usePatientScans() {
   return useQuery({
     queryKey: ['patient-scans'],
-    queryFn: async () =>
-      unwrap<PatientScanRow[]>(
-        await supabase
-          .from('patient_scans')
-          .select(SCAN_SELECT)
-          .order('ct_date', { ascending: false, nullsFirst: false }),
+    queryFn: () =>
+      fetchAll<PatientScanRow>((a, b) =>
+        supabase.from('patient_scans').select(SCAN_SELECT).order('ct_date', { ascending: false, nullsFirst: false }).order('id').range(a, b),
       ),
   })
 }
@@ -1711,12 +1705,14 @@ export function useTasks() {
   return useQuery({
     queryKey: ['tasks'],
     queryFn: async () => {
-      const rows = unwrap<TaskRow[]>(
-        await supabase
+      const rows = await fetchAll<TaskRow>((a, b) =>
+        supabase
           .from('meeting_tasks')
           .select(TASK_SELECT)
           .order('due_date', { ascending: true, nullsFirst: false })
-          .order('created_at', { ascending: false }),
+          .order('created_at', { ascending: false })
+          .order('id')
+          .range(a, b),
       )
       return rows.map((t) => ({ ...t, subtasks: [...t.subtasks].sort((a, b) => a.sort - b.sort) }))
     },

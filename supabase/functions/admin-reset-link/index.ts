@@ -29,10 +29,15 @@ Deno.serve(async (req) => {
     if (!/^[0-9a-f-]{36}$/i.test(userId)) return json({ error: 'bad user id' }, 400)
 
     const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
-    const { data: target } = await admin.from('profiles').select('id, email, full_name, is_test, is_developer').eq('id', userId).maybeSingle()
+    const { data: target } = await admin.from('profiles').select('id, email, full_name, role, is_test, is_developer').eq('id', userId).maybeSingle()
     if (!target || target.is_test) return json({ error: 'user not found' }, 404)
     // the developer account cannot be taken over by someone else
     if (target.is_developer && target.id !== me.user.id) return json({ error: 'not allowed for this account' }, 403)
+    // a manager's account is reset only by the developer: whoever holds the link can set the password and sign in as that manager
+    if (target.role === 'admin' && target.id !== me.user.id) {
+      const { data: isDev } = await caller.rpc('is_real_developer')
+      if (isDev !== true) return json({ error: 'only the developer can reset the password of a manager' }, 403)
+    }
 
     const { data, error } = await admin.auth.admin.generateLink({ type: 'recovery', email: target.email, options: { redirectTo: origin } })
     if (error || !data?.properties?.action_link) return json({ error: error?.message ?? 'could not create link' }, 500)

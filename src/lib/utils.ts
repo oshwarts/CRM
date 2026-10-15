@@ -37,3 +37,13 @@ export function daysUntil(value: string | null | undefined): number | null {
 export function classNames(...parts: (string | false | null | undefined)[]): string {
   return parts.filter(Boolean).join(' ')
 }
+
+/**
+ * One cell of a CSV file. A text that starts with = + - @ would be run as a formula by Excel (CSV injection, e.g. a doctor
+ * named "=HYPERLINK(…)"): it gets a leading apostrophe. Plain numbers are left alone.
+ */
+export function csvCell(v: unknown): string {
+  let s = String(v ?? '')
+  if (typeof v !== 'number' && /^[=+\-@\t\r]/.test(s) && !/^[+-]?\d+([.,]\d+)?$/.test(s)) s = `'${s}`
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+}

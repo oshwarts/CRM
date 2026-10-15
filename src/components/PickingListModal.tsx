@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Download, Plus, Printer, Trash2 } from 'lucide-react'
 import { useDoctorEquipment } from '../lib/api'
 import { EmptyState, Modal, Spinner } from './ui'
+import { csvCell } from '../lib/utils'
 
 type Line = { procedure_id: string; count: number }
 
@@ -65,12 +66,7 @@ export function PickingListModal({
     ]
     const body = rows
       .map((r) =>
-        r
-          .map((v) => {
-            const s = String(v)
-            return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
-          })
-          .join(','),
+        r.map(csvCell).join(','),
       )
       .join('\n')
     const blob = new Blob(['﻿' + body], { type: 'text/csv;charset=utf-8;' })

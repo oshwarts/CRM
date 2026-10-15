@@ -54,10 +54,24 @@ export type CalEvent = {
 const esc = (t: string) =>
   t.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n')
 
+/** RFC 5545: lines are at most 75 BYTES; Hebrew takes 2 bytes a letter, and a split must not cut a character in half */
 function fold(line: string): string {
+  const enc = new TextEncoder()
   const out: string[] = []
-  for (let i = 0; i < line.length; i += 60) out.push((i ? ' ' : '') + line.slice(i, i + 60))
-  return out.join('\r\n')
+  let cur = ''
+  let bytes = 0
+  for (const ch of line) {
+    const n = enc.encode(ch).length
+    if (bytes + n > (out.length ? 74 : 75)) {
+      out.push(cur)
+      cur = ''
+      bytes = 0
+    }
+    cur += ch
+    bytes += n
+  }
+  out.push(cur)
+  return out.map((l, i) => (i ? ' ' : '') + l).join('\r\n')
 }
 
 const stamp = (d: Date) =>

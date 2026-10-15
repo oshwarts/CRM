@@ -26,6 +26,7 @@ import {
 } from '../lib/scanExport'
 import {
   classNames,
+  csvCell,
   daysUntil,
   formatDate,
   formatTime,
@@ -163,10 +164,7 @@ export default function Scans() {
       implantSummary(s), SCAN_STATUS_LABELS[s.status] ?? s.status, s.notes,
     ])
     const csv = [head, ...body]
-      .map((r) => r.map((v) => {
-        const t = String(v ?? '')
-        return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t
-      }).join(','))
+      .map((r) => r.map(csvCell).join(','))
       .join('\n')
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)

@@ -4,7 +4,7 @@ import { useAllCaseVolumes } from '../lib/api'
 import { CaseVolumesManager } from '../components/CaseVolumesManager'
 import { EmptyState, ErrorState, Spinner } from '../components/ui'
 import type { CaseVolumeRow } from '../lib/types'
-import { classNames } from '../lib/utils'
+import { classNames, csvCell } from '../lib/utils'
 
 type GroupBy = 'hospital' | 'doctor' | 'company'
 
@@ -22,11 +22,7 @@ function keyOf(r: CaseVolumeRow, by: GroupBy): string {
 }
 
 function downloadCsv(filename: string, headers: string[], rows: (string | number)[][]) {
-  const esc = (v: string | number) => {
-    const s = String(v)
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
-  }
-  const csv = [headers, ...rows].map((r) => r.map(esc).join(',')).join('\n')
+  const csv = [headers, ...rows].map((r) => r.map(csvCell).join(',')).join('\n')
   const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')

@@ -1268,6 +1268,7 @@ export type Database = {
       is_admin: { Args: Record<string, never>; Returns: boolean }
       is_active: { Args: Record<string, never>; Returns: boolean }
       learn_add_points: { Args: { p_points: number; p_answers: number; p_correct: number }; Returns: undefined }
+      learn_submit_attempt: { Args: { p_topic: string; p_picks: unknown }; Returns: { o_score: number; o_total: number }[] }
       sync_learning_stages: { Args: Record<string, never>; Returns: number }
       can_edit_learning: { Args: Record<string, never>; Returns: boolean }
       merge_records: { Args: { p_table: string; p_keep: string; p_drop: string }; Returns: undefined }

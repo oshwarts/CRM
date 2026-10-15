@@ -6,7 +6,7 @@ export function buildMailto(
   to: string,
   subject: string,
   body: string,
-  pasteNote = 'שלום,\n\nהתוכן המלא הועתק — הדבק אותו כאן (Ctrl+V).',
+  pasteNote = 'שלום,\n\nהתוכן המלא הועתק — הדבק אותו כאן (הדבקה / Ctrl+V).',
 ): { url: string; mode: 'full' | 'copied' } {
   const make = (b: string) =>
     `mailto:${encodeURIComponent(to).replace(/%40/g, '@')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(b).replace(/%0A/g, '%0D%0A')}`
@@ -32,7 +32,7 @@ export function composeMail(to: string, subject: string, body: string) {
     full.length <= OUTLOOK_LIMIT
       ? { url: full, mode: 'full' as const }
       : {
-          url: buildOutlookWebUrl(to, subject, 'שלום,\n\nהתוכן המלא הועתק — הדבק אותו כאן (Ctrl+V).'),
+          url: buildOutlookWebUrl(to, subject, 'שלום,\n\nהתוכן המלא הועתק — הדבק אותו כאן (הדבקה / Ctrl+V).'),
           mode: 'copied' as const,
         }
   return { mailto, outlook }

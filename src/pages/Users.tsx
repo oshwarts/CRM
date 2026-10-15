@@ -45,7 +45,7 @@ export default function Users() {
 
 /** approve new sign-ups, change roles, deactivate accounts */
 function UsersTab() {
-  const { isAdmin, user } = useAuth()
+  const { isAdmin, user, isDeveloper } = useAuth()
   const users = useAllUsers()
   const activity = useUserActivity()
   const update = useUpdateUser()
@@ -149,7 +149,7 @@ function UsersTab() {
                         עורך תוכן
                       </label>
                     )}
-                    {!me && !u.is_developer && <ResetLinkButton user={u} />}
+                    {!me && !u.is_developer && (u.role !== 'admin' || isDeveloper) && <ResetLinkButton user={u} />}
                     <select
                       className="input !w-auto"
                       value={u.role}

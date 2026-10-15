@@ -173,14 +173,15 @@ export function useSaveAttempt() {
   const qc = useQueryClient()
   return useMutation({
     meta: { silent: true },
-    mutationFn: async (a: { topic_id: string; score: number; total: number }) => {
-      const user_id = await actingUserId()
-      if (!user_id) throw new Error('לא מחובר')
-      unwrap(await supabase.from('learn_attempts').insert({ ...a, user_id }))
+    // the picked answers go to the server, which grades them against the cards and writes the attempt itself
+    mutationFn: async (a: { topic_id: string; picks: { card_id: string; answer: string | null }[] }) => {
+      const { data, error: gradeError } = await supabase.rpc('learn_submit_attempt', { p_topic: a.topic_id, p_picks: a.picks })
+      if (gradeError) throw gradeError
+      const graded = (data as { o_score: number; o_total: number }[])[0]
       // passing a quiz can complete the training stage linked to the topic
       const { error } = await supabase.rpc('sync_learning_stages')
       if (error) throw error
-      const bonus = POINTS.quizDone + (a.total > 0 && a.score === a.total ? POINTS.perfect : 0)
+      const bonus = POINTS.quizDone + (graded && graded.o_total > 0 && graded.o_score === graded.o_total ? POINTS.perfect : 0)
       await supabase.rpc('learn_add_points', { p_points: bonus, p_answers: 0, p_correct: 0 })
     },
     onSuccess: () => {
