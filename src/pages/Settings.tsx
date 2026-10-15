@@ -1,3 +1,4 @@
+import { RobotLinks } from '../components/RobotLinks'
 import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthProvider'
 import { BookUser, FileUp, Image as ImageIcon, Pencil, Plus, Trash2 } from 'lucide-react'
@@ -85,6 +86,7 @@ export default function Settings() {
             <SimpleListSettings
               title="חברות"
               placeholder="שם חברה חדשה"
+              extra={(id) => <RobotLinks kind="company" ownerId={id} editable />}
               useList={useCompanies}
               useUpsert={useUpsertCompany}
               useDelete={useDeleteCompany}
@@ -147,12 +149,15 @@ function SimpleListSettings({
   useList,
   useUpsert,
   useDelete,
+  extra,
 }: {
   title: string
   placeholder: string
   useList: ListHook
   useUpsert: UpsertHook
   useDelete: DeleteHook
+  /** shown under each row (for example the robots of a company) */
+  extra?: (id: string) => React.ReactNode
 }) {
   const list = useList()
   const upsert = useUpsert()
@@ -191,6 +196,7 @@ function SimpleListSettings({
               label={c.name}
               onRename={(v) => upsert.mutate({ id: c.id, name: v })}
               onDelete={() => del.mutate(c.id)}
+              extra={extra?.(c.id)}
             />
           ))}
         </ul>
@@ -915,16 +921,18 @@ function Row({
   label,
   onRename,
   onDelete,
+  extra,
 }: {
   label: string
   onRename: (v: string) => void
   onDelete: () => void
+  extra?: React.ReactNode
 }) {
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState(label)
 
   return (
-    <li className="flex items-center justify-between gap-2 py-2 text-sm">
+    <li className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
       {editing ? (
         <input
           className="input max-w-xs"
@@ -974,6 +982,7 @@ function Row({
           </>
         )}
       </div>
+      {extra && <div className="basis-full">{extra}</div>}
     </li>
   )
 }

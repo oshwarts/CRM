@@ -4,6 +4,7 @@ import { ArrowRight, BookOpen, ExternalLink, Plus, Swords } from 'lucide-react'
 import { useCompetitorIntel, useCompetitors, useDeleteCompetitor, useSaveCompetitor, type CompetitorInput } from '../lib/api'
 import { useLearnTopics } from '../lib/learnApi'
 import { useAuth } from '../context/AuthProvider'
+import { RobotLinks } from '../components/RobotLinks'
 import { IntelChips, IntelFormModal, IntelPicture } from '../components/CompetitorSection'
 import { ConfirmButton, EmptyState, Field, Spinner } from '../components/ui'
 import { LOYALTY_LABELS, LOYALTY_TONE } from '../lib/competitors'
@@ -101,6 +102,9 @@ export default function CompetitorView() {
             {c.name}
           </h1>
           <p className="text-sm text-slate-500">{c.products || 'ללא מוצרים רשומים'}</p>
+          <div className="mt-1.5">
+            <RobotLinks kind="competitor" ownerId={c.id} editable={isAdmin} />
+          </div>
         </div>
         <button className="btn-primary" onClick={() => setAdding(true)}>
           <Plus size={16} /> רישום על {c.name}
