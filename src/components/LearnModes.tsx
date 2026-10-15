@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { ArrowDown, ArrowUp, Check, RotateCcw, X } from 'lucide-react'
+import { useMemo, useState, type ReactNode } from 'react'
+import { ArrowDown, ArrowUp, Check, ChevronLeft, ChevronRight, RotateCcw, X } from 'lucide-react'
 import { useAddPoints, useRecordAnswer } from '../lib/learnApi'
 import { POINTS } from '../lib/learnGame'
 import { buildCloze, buildMatchRound, buildTrueFalse, shuffle, type ClozeItem, type TFItem } from '../lib/learnModes'
@@ -36,19 +36,92 @@ function Result({ score, total, onAgain }: { score: number; total: number; onAga
   )
 }
 
-function Bar({ i, total, score }: { i: number; total: number; score: number }) {
+
+/** one question at a time with a numbered strip: skip, go back, and at the end return to the unanswered ones */
+function RoundShell({ total, status, render, onFinish }: { total: number; status: (k: number) => 'none' | 'right' | 'wrong'; render: (i: number) => ReactNode; onFinish: () => void }) {
+  const [i, setI] = useState(0)
+  const [reviewing, setReviewing] = useState(false)
+  const states = Array.from({ length: total }, (_, k) => status(k))
+  const unanswered = states.map((st, k) => (st === 'none' ? k : -1)).filter((k) => k >= 0)
+  const score = states.filter((st) => st === 'right').length
+
+  const strip = (
+    <div className="flex flex-wrap gap-1" dir="ltr">
+      {states.map((st, k) => (
+        <button
+          key={k}
+          type="button"
+          aria-label={`שאלה ${k + 1}`}
+          onClick={() => {
+            setI(k)
+            setReviewing(false)
+          }}
+          className={classNames(
+            'h-7 w-7 rounded-lg border text-xs font-medium transition',
+            !reviewing && k === i && 'ring-2 ring-brand-500 ring-offset-1',
+            st === 'none' ? 'border-slate-200 bg-white text-slate-500' : st === 'right' ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-red-300 bg-red-50 text-red-600',
+          )}
+        >
+          {k + 1}
+        </button>
+      ))}
+    </div>
+  )
+
+  if (reviewing) {
+    return (
+      <div className="space-y-3">
+        {strip}
+        <div className="card space-y-3 p-5 text-center">
+          {unanswered.length > 0 ? (
+            <>
+              <p className="text-lg font-semibold text-amber-700">נשארו {unanswered.length} שאלות שלא נענו</p>
+              <p className="text-sm text-slate-500">שאלה: {unanswered.map((k) => k + 1).join(', ')}</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                <button className="btn-primary" onClick={() => { setI(unanswered[0]); setReviewing(false) }}>
+                  חזור לשאלות שלא נענו
+                </button>
+                <button className="btn-secondary" onClick={onFinish}>
+                  סיים בכל זאת
+                </button>
+              </div>
+              <p className="text-xs text-slate-400">שאלה שלא נענתה נספרת כטעות בציון.</p>
+            </>
+          ) : (
+            <>
+              <p className="text-lg font-semibold text-emerald-700">ענית על כל השאלות</p>
+              <button className="btn-primary" onClick={onFinish}>
+                סיום וצפייה בציון
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  const last = i === total - 1
+  const answered = states[i] !== 'none'
   return (
-    <>
+    <div className="space-y-3">
       <div className="flex items-center justify-between text-xs text-slate-500">
         <span>
-          {Math.min(i + 1, total)} מתוך {total}
+          שאלה {i + 1} מתוך {total} · נענו {total - unanswered.length}
         </span>
         <span>ניקוד: {score}</span>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
-        <div className="h-full bg-brand-500" style={{ width: `${(i / total) * 100}%` }} />
+      {strip}
+      {render(i)}
+      <div className="flex gap-2">
+        <button className="btn-secondary" disabled={i === 0} onClick={() => setI(i - 1)}>
+          <ChevronRight size={16} /> הקודמת
+        </button>
+        <button className={answered ? 'btn-primary flex-1' : 'btn-secondary flex-1'} onClick={() => (last ? setReviewing(true) : setI(i + 1))}>
+          {last ? (unanswered.length > 0 ? 'לסיכום ולשאלות שנשארו' : 'סיום וצפייה בציון') : answered ? 'הבאה' : 'דלג'}
+          {!last && <ChevronLeft size={16} />}
+        </button>
       </div>
-    </>
+    </div>
   )
 }
 
@@ -58,60 +131,74 @@ export function TrueFalseStudy({ cards, progress }: { cards: LearnCard[]; progre
   const record = useRecordAnswer()
   const byCard = useMemo(() => new Map(progress.map((p) => [p.card_id, p])), [progress])
   const [items, setItems] = useState<TFItem[] | null>(null)
-  const [i, setI] = useState(0)
-  const [picked, setPicked] = useState<boolean | null>(null)
-  const [score, setScore] = useState(0)
+  const [picks, setPicks] = useState<(boolean | null)[]>([])
+  const [finished, setFinished] = useState(false)
 
   if (cards.length < 2) return <p className="text-sm text-slate-400">צריך לפחות שתי שאלות בנושא.</p>
   if (!items)
-    return <Intro title="נכון או לא נכון" body="מוצגת שאלה עם תשובה אפשרית. החלט אם התשובה נכונה. מהיר, וטוב לחזרה לפני פגישה." onStart={() => { setItems(buildTrueFalse(cards, Math.min(15, cards.length))); setI(0); setPicked(null); setScore(0) }} />
-  if (i >= items.length) return <Result score={score} total={items.length} onAgain={() => setItems(null)} />
+    return (
+      <Intro
+        title="נכון או לא נכון"
+        body="מוצגת שאלה עם תשובה אפשרית. החלט אם התשובה נכונה. אפשר לדלג, לחזור אחורה, ובסוף לחזור לשאלות שלא נענו."
+        onStart={() => {
+          const it = buildTrueFalse(cards, Math.min(15, cards.length))
+          setItems(it)
+          setPicks(it.map(() => null))
+          setFinished(false)
+        }}
+      />
+    )
+  if (finished) return <Result score={items.filter((it, k) => picks[k] === it.truth).length} total={items.length} onAgain={() => setItems(null)} />
 
-  const it = items[i]
-  const answered = picked !== null
-  const choose = (v: boolean) => {
-    if (answered) return
-    const right = v === it.truth
-    setPicked(v)
-    if (right) setScore((s) => s + 1)
-    record.mutate({ card: it.card, correct: right, prev: byCard.get(it.card.id) })
-  }
   return (
-    <div className="space-y-3">
-      <Bar i={i} total={items.length} score={score} />
-      <div className="card space-y-3 p-5" dir="ltr">
-        <p className={classNames(text, 'text-lg leading-relaxed text-slate-800')}>{it.card.question}</p>
-        {it.card.image_path && <LearnImage path={it.card.image_path} />}
-        <p className={classNames(text, 'rounded-lg bg-slate-50 p-3 text-slate-700')}>{it.shown}</p>
-      </div>
-      {!answered ? (
-        <div className="grid grid-cols-2 gap-2">
-          <button className="btn-secondary !border-red-200 !py-3 !text-red-600" onClick={() => choose(false)}>
-            <X size={16} /> לא נכון
-          </button>
-          <button className="btn-primary !bg-emerald-600 !py-3 hover:!bg-emerald-700" onClick={() => choose(true)}>
-            <Check size={16} /> נכון
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          <p className={classNames('text-center font-semibold', picked === it.truth ? 'text-emerald-600' : 'text-red-600')}>{picked === it.truth ? 'נכון!' : 'לא נכון'}</p>
-          {!it.truth && (
-            <p dir="ltr" className={classNames(text, 'rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800')}>
-              {it.card.answer}
-            </p>
-          )}
-          {it.card.explanation && (
-            <p dir="ltr" className={classNames(text, 'rounded-lg bg-slate-50 p-3 text-sm text-slate-600')}>
-              {it.card.explanation}
-            </p>
-          )}
-          <button className="btn-primary w-full" onClick={() => { setI((n) => n + 1); setPicked(null) }}>
-            {i + 1 >= items.length ? 'סיום' : 'הבאה'}
-          </button>
-        </div>
-      )}
-    </div>
+    <RoundShell
+      total={items.length}
+      onFinish={() => setFinished(true)}
+      status={(k) => (picks[k] === null ? 'none' : picks[k] === items[k].truth ? 'right' : 'wrong')}
+      render={(i) => {
+        const it = items[i]
+        const picked = picks[i]
+        const answered = picked !== null
+        const choose = (v: boolean) => {
+          if (answered) return
+          setPicks((x) => x.map((p, k) => (k === i ? v : p)))
+          record.mutate({ card: it.card, correct: v === it.truth, prev: byCard.get(it.card.id) })
+        }
+        return (
+          <>
+            <div className="card space-y-3 p-5" dir="ltr">
+              <p className={classNames(text, 'text-lg leading-relaxed text-slate-800')}>{it.card.question}</p>
+              {it.card.image_path && <LearnImage path={it.card.image_path} />}
+              <p className={classNames(text, 'rounded-lg bg-slate-50 p-3 text-slate-700')}>{it.shown}</p>
+            </div>
+            {!answered ? (
+              <div className="grid grid-cols-2 gap-2">
+                <button className="btn-secondary !border-red-200 !py-3 !text-red-600" onClick={() => choose(false)}>
+                  <X size={16} /> לא נכון
+                </button>
+                <button className="btn-primary !bg-emerald-600 !py-3 hover:!bg-emerald-700" onClick={() => choose(true)}>
+                  <Check size={16} /> נכון
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className={classNames('text-center font-semibold', picked === it.truth ? 'text-emerald-600' : 'text-red-600')}>{picked === it.truth ? 'נכון!' : 'לא נכון'}</p>
+                {!it.truth && (
+                  <p dir="ltr" className={classNames(text, 'rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800')}>
+                    {it.card.answer}
+                  </p>
+                )}
+                {it.card.explanation && (
+                  <p dir="ltr" className={classNames(text, 'rounded-lg bg-slate-50 p-3 text-sm text-slate-600')}>
+                    {it.card.explanation}
+                  </p>
+                )}
+              </div>
+            )}
+          </>
+        )
+      }}
+    />
   )
 }
 
@@ -121,69 +208,75 @@ export function ClozeStudy({ cards, progress }: { cards: LearnCard[]; progress: 
   const record = useRecordAnswer()
   const byCard = useMemo(() => new Map(progress.map((p) => [p.card_id, p])), [progress])
   const [items, setItems] = useState<ClozeItem[] | null>(null)
-  const [i, setI] = useState(0)
-  const [picked, setPicked] = useState<string | null>(null)
-  const [score, setScore] = useState(0)
+  const [picks, setPicks] = useState<(string | null)[]>([])
+  const [finished, setFinished] = useState(false)
   const possible = useMemo(() => buildCloze(cards, 1000).length, [cards])
 
   if (!items)
     return (
       <Intro
         title="השלמת מילה חסרה"
-        body="מוצגת שאלה והתשובה שלה עם חור: מספר, מונח או מילה חשובה חסרים. בחר מה מתאים. כך זוכרים את הפרטים המדויקים."
+        body="מוצגת שאלה והתשובה שלה עם חור: מספר, מונח או מילה חשובה חסרים. בחר מה מתאים. אפשר לדלג, לחזור אחורה, ובסוף לחזור לשאלות שלא נענו."
         hint={possible < 3 ? 'אין מספיק תשובות עם מספרים או מונחים כדי ליצור תרגיל. הוסף שאלות עם תשובות מלאות.' : `אפשר ליצור ${possible} תרגילים מהשאלות בנושא.`}
         disabled={possible < 3}
-        onStart={() => { setItems(buildCloze(cards, 12)); setI(0); setPicked(null); setScore(0) }}
+        onStart={() => {
+          const it = buildCloze(cards, 12)
+          setItems(it)
+          setPicks(it.map(() => null))
+          setFinished(false)
+        }}
       />
     )
-  if (i >= items.length) return <Result score={score} total={items.length} onAgain={() => setItems(null)} />
+  if (finished) return <Result score={items.filter((it, k) => picks[k] === it.correct).length} total={items.length} onAgain={() => setItems(null)} />
 
-  const it = items[i]
-  const answered = picked !== null
-  const choose = (o: string) => {
-    if (answered) return
-    const right = o === it.correct
-    setPicked(o)
-    if (right) setScore((s) => s + 1)
-    record.mutate({ card: it.card, correct: right, prev: byCard.get(it.card.id) })
-  }
-  const [before, after] = it.text.split('_____')
   return (
-    <div className="space-y-3">
-      <Bar i={i} total={items.length} score={score} />
-      <div className="card space-y-3 p-5" dir="ltr">
-        <p className={classNames(text, 'text-sm font-medium text-slate-500')}>{it.card.question}</p>
-        <p className={classNames(text, 'text-lg leading-relaxed text-slate-800')}>
-          {before}
-          <span className={classNames('rounded px-1.5', !answered ? 'bg-amber-100 text-amber-700' : picked === it.correct ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700')}>{answered ? it.correct : '_____'}</span>
-          {after}
-        </p>
-      </div>
-      <div className="grid grid-cols-2 gap-2" dir="ltr">
-        {it.options.map((o) => (
-          <button
-            key={o}
-            type="button"
-            disabled={answered}
-            onClick={() => choose(o)}
-            className={classNames(
-              'rounded-xl border px-3 py-2.5 text-sm transition',
-              !answered && 'border-slate-200 bg-white hover:border-brand-300 hover:bg-brand-50',
-              answered && o === it.correct && 'border-emerald-400 bg-emerald-50 text-emerald-800',
-              answered && o !== it.correct && o === picked && 'border-red-400 bg-red-50 text-red-700',
-              answered && o !== it.correct && o !== picked && 'border-slate-200 text-slate-400',
-            )}
-          >
-            {o}
-          </button>
-        ))}
-      </div>
-      {answered && (
-        <button className="btn-primary w-full" onClick={() => { setI((n) => n + 1); setPicked(null) }}>
-          {i + 1 >= items.length ? 'סיום' : 'הבאה'}
-        </button>
-      )}
-    </div>
+    <RoundShell
+      total={items.length}
+      onFinish={() => setFinished(true)}
+      status={(k) => (picks[k] === null ? 'none' : picks[k] === items[k].correct ? 'right' : 'wrong')}
+      render={(i) => {
+        const it = items[i]
+        const picked = picks[i]
+        const answered = picked !== null
+        const choose = (o: string) => {
+          if (answered) return
+          setPicks((x) => x.map((p, k) => (k === i ? o : p)))
+          record.mutate({ card: it.card, correct: o === it.correct, prev: byCard.get(it.card.id) })
+        }
+        const [before, after] = it.text.split('_____')
+        return (
+          <>
+            <div className="card space-y-3 p-5" dir="ltr">
+              <p className={classNames(text, 'text-sm font-medium text-slate-500')}>{it.card.question}</p>
+              <p className={classNames(text, 'text-lg leading-relaxed text-slate-800')}>
+                {before}
+                <span className={classNames('rounded px-1.5', !answered ? 'bg-amber-100 text-amber-700' : picked === it.correct ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700')}>{answered ? it.correct : '_____'}</span>
+                {after}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2" dir="ltr">
+              {it.options.map((o) => (
+                <button
+                  key={o}
+                  type="button"
+                  disabled={answered}
+                  onClick={() => choose(o)}
+                  className={classNames(
+                    'rounded-xl border px-3 py-2.5 text-sm transition',
+                    !answered && 'border-slate-200 bg-white hover:border-brand-300 hover:bg-brand-50',
+                    answered && o === it.correct && 'border-emerald-400 bg-emerald-50 text-emerald-800',
+                    answered && o !== it.correct && o === picked && 'border-red-400 bg-red-50 text-red-700',
+                    answered && o !== it.correct && o !== picked && 'border-slate-200 text-slate-400',
+                  )}
+                >
+                  {o}
+                </button>
+              ))}
+            </div>
+          </>
+        )
+      }}
+    />
   )
 }
 
