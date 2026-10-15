@@ -273,40 +273,40 @@ export default function Meetings() {
       <div className="space-y-3">
         {filtered.map((m) => (
           <div key={m.id} className="card p-4 transition hover:border-brand-300">
-            <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="flex min-w-0 flex-1 items-start gap-3">
                 <DateTile date={m.meeting_date} status={m.status} />
                 <div className="min-w-0">
                 <Link
                   to={`/meetings/${m.id}`}
-                  className="text-base font-semibold text-brand-800 hover:text-brand-600 hover:underline"
+                  className="break-words text-base font-semibold text-brand-800 hover:text-brand-600 hover:underline"
                 >
                   {m.subject || 'פגישה'} <PendingMark id={m.id} />
                 </Link>
-                <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500">
+                <div className="mt-1 flex flex-col gap-y-1 text-sm text-slate-500 sm:flex-row sm:flex-wrap sm:gap-x-4">
                   {m.meeting_date && (
-                    <span className="inline-flex items-center gap-1">
-                      <CalendarDays size={14} />
+                    <span className="inline-flex items-start gap-1">
+                      <CalendarDays size={14} className="mt-1 shrink-0" />
                       {formatDate(m.meeting_date)}
                       {m.meeting_time ? ` · ${formatTime(m.meeting_time)}` : ''}
                     </span>
                   )}
                   {m.location && (
-                    <span className="inline-flex items-center gap-1">
-                      <MapPin size={14} />
+                    <span className="inline-flex items-start gap-1 break-words">
+                      <MapPin size={14} className="mt-1 shrink-0" />
                       {m.location}
                     </span>
                   )}
                   {m.responsible_agent?.full_name && (
-                    <span className="inline-flex items-center gap-1">
-                      <User size={14} />
+                    <span className="inline-flex items-start gap-1">
+                      <User size={14} className="mt-1 shrink-0" />
                       {m.responsible_agent.full_name}
                     </span>
                   )}
                 </div>
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end">
                 <span className="chip border-slate-200 bg-slate-50 text-slate-600">
                   {MEETING_STATUS_LABELS[m.status]}
                 </span>

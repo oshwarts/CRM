@@ -33,7 +33,7 @@ const TABS = ['/', '/doctors', '/tasks', '/schedule']
 // scroll position of each visited page, so that going back returns to the same place
 const scrollOf = new Map<string, number>()
 
-const VERSION = 'v111 · עמוד התאמת התפריט'
+const VERSION = 'v112 · פגישות בטלפון: מלל לא עולה אחד על השני'
 
 export function Layout() {
   const { profile, signOut, impersonating } = useAuth()

@@ -159,8 +159,8 @@ ${mail.body}`)) ? 'הסיכום הועתק.' : 'ההעתקה נכשלה.')}
 
       <div className="card space-y-3 p-4 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-semibold text-brand-800">{m.subject || 'פגישה'}</h1>
+          <div className="min-w-0">
+            <h1 className="break-words text-xl font-semibold text-brand-800">{m.subject || 'פגישה'}</h1>
             <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500">
               {m.meeting_date && (
                 <span className="inline-flex items-center gap-1">

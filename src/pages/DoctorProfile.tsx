@@ -351,11 +351,11 @@ export default function DoctorProfile() {
                 to={`/meetings/${m.id}?doctor=${d.id}`}
                 className="card block p-4 hover:border-brand-200"
               >
-                <div className="flex items-center justify-between">
-                  <p className="font-medium text-slate-800">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="min-w-0 break-words font-medium text-slate-800">
                     {m.subject || 'פגישה'}
                   </p>
-                  <span className="text-sm text-slate-400">
+                  <span className="shrink-0 text-sm text-slate-400">
                     {formatDate(m.meeting_date)}
                   </span>
                 </div>
