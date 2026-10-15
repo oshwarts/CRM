@@ -1,27 +1,38 @@
-import { useState } from 'react'
-import { Stethoscope } from 'lucide-react'
+import { useId } from 'react'
 import { classNames } from '../lib/utils'
 
 /**
- * The company logo. Put the file in public/ami-logo.png (or .svg: change LOGO_SRC) and it appears everywhere;
- * until the file exists a simple mark with the system name is shown.
+ * The company logo (striped circle, "AMI", "technologies"), drawn as SVG so that it stays sharp at every size and
+ * its colours follow the light / dark theme. `light` = white version for the navy backgrounds (login, banners).
+ * This is a redraw from the logo image; to use the original artwork exactly, replace the SVG below with the file.
  */
-const LOGO_SRC = '/ami-logo.png'
-
 export function BrandLogo({ size = 'md', light, className }: { size?: 'sm' | 'md' | 'lg'; light?: boolean; className?: string }) {
-  const [missing, setMissing] = useState(false)
+  const clip = useId()
   const h = size === 'lg' ? 'h-14' : size === 'md' ? 'h-9' : 'h-7'
-  if (!missing)
-    return <img src={LOGO_SRC} alt="AMI Technologies" className={classNames(h, 'w-auto object-contain', light && 'brightness-0 invert', className)} onError={() => setMissing(true)} />
+  const ink = light ? 'fill-white' : 'fill-[#00326d] dark:fill-white'
+  const blue = light ? 'fill-white' : 'fill-[#1863dc] dark:fill-[#4d8be6]'
+  const gap = light ? 'fill-[#00326d]' : 'fill-white dark:fill-[#101e33]'
   return (
-    <div className={classNames('flex items-center gap-2.5', className)}>
-      <div className={classNames('grid place-items-center rounded-xl', light ? 'bg-white/15 text-white' : 'bg-[#00326d] text-white', size === 'lg' ? 'h-14 w-14' : size === 'md' ? 'h-10 w-10' : 'h-8 w-8')}>
-        <Stethoscope size={size === 'lg' ? 26 : 18} />
-      </div>
-      <div className="leading-tight">
-        <p className={classNames('font-semibold', light ? 'text-white' : 'text-brand-800', size === 'lg' ? 'text-2xl' : 'text-sm')}>AMI JR CRM</p>
-        {size !== 'sm' && <p className={classNames('text-xs', light ? 'text-white/70' : 'text-slate-500')}>AMI Technologies</p>}
-      </div>
-    </div>
+    <svg viewBox="0 0 156 56" role="img" aria-label="AMI Technologies" style={{ direction: 'ltr' }} className={classNames(h, 'w-auto shrink-0', className)}>
+      <defs>
+        <clipPath id={clip}>
+          <circle cx="28" cy="28" r="27" />
+        </clipPath>
+      </defs>
+      <circle cx="28" cy="28" r="27" className={blue} />
+      <g clipPath={`url(#${clip})`} className={gap}>
+        <rect x="0" y="9" width="56" height="2.6" />
+        <rect x="0" y="18" width="56" height="2.6" />
+        <rect x="0" y="27" width="56" height="2.6" />
+        <rect x="0" y="36" width="56" height="2.6" />
+        <rect x="0" y="45" width="56" height="2.6" />
+      </g>
+      <text x="64" y="34" fontFamily="'Arial Black', 'Segoe UI', Arial, sans-serif" fontWeight="900" fontSize="34" letterSpacing="-1" className={ink}>
+        AMI
+      </text>
+      <text x="65" y="50" fontFamily="'Segoe UI', Arial, sans-serif" fontWeight="600" fontSize="14.5" className={blue}>
+        technologies
+      </text>
+    </svg>
   )
 }

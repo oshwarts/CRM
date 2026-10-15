@@ -6,10 +6,8 @@ import {
   CalendarDays,
   CheckSquare,
   Heart,
-  Mail,
   Package,
   Pencil,
-  Phone,
   Plus,
   Trash2,
 } from 'lucide-react'
@@ -27,6 +25,7 @@ import { DoctorFormModal } from '../components/DoctorFormModal'
 import { MeetingFormModal } from '../components/MeetingFormModal'
 import { TaskFormModal } from '../components/TaskFormModal'
 import { DoctorTimeline } from '../components/DoctorTimeline'
+import { QuickContact } from '../components/QuickContact'
 import { SurgicalCourseSection } from '../components/SurgicalCourse'
 import { LinkedTasks, useLinkedTasks } from '../components/LinkedTasks'
 import { cadenceLabel, contactState } from '../lib/cadence'
@@ -91,39 +90,40 @@ export default function DoctorProfile() {
 
   return (
     <div className="space-y-5">
-      <div className="card flex flex-wrap items-start justify-between gap-4 p-5">
-        <div className="flex min-w-0 flex-1 items-start gap-4">
-          <span className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-brand-50 text-2xl font-semibold text-brand-700">
-            {(d.name.trim()[0] ?? '?').toUpperCase()}
-          </span>
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-3xl font-semibold text-brand-800">
-              {d.title} {d.name}
-            </h1>
-            <span
-              className={classNames(
-                'chip',
-                d.status === 'potential'
-                  ? 'border-amber-200 bg-amber-50 text-amber-700'
-                  : 'border-green-200 bg-green-50 text-green-700',
-              )}
-            >
-              {DOCTOR_STATUS_LABELS[d.status] ?? d.status}
+      <div className="card overflow-hidden">
+        <div aria-hidden className="h-1.5 bg-gradient-to-l from-[#00326d] via-[#1863dc] to-[#cc3366]" />
+        <div className="space-y-4 p-5">
+          <div className="flex min-w-0 items-start gap-4">
+            <span className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-[#00326d] text-2xl font-semibold text-white">
+              {(d.name.trim()[0] ?? '?').toUpperCase()}
             </span>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-3xl font-semibold text-brand-800">
+                  {d.title} {d.name}
+                </h1>
+                <span
+                  className={classNames(
+                    'chip',
+                    d.status === 'potential' ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-green-200 bg-green-50 text-green-700',
+                  )}
+                >
+                  {DOCTOR_STATUS_LABELS[d.status] ?? d.status}
+                </span>
+              </div>
+              <p className="text-slate-500">{d.position || '—'}</p>
+              {d.doctor_hospitals[0]?.hospital && (
+                <p className="mt-0.5 flex items-center gap-1.5 text-sm text-slate-500">
+                  <Building2 size={14} className="shrink-0" /> {d.doctor_hospitals[0].hospital.name}
+                  {d.doctor_hospitals.length > 1 ? ` +${d.doctor_hospitals.length - 1}` : ''}
+                </p>
+              )}
+            </div>
           </div>
-          <p className="text-slate-500">{d.position || '—'}</p>
-          <div className="mt-2 flex flex-wrap gap-3 text-sm text-slate-500">
-            {d.phone && (
-              <a href={`tel:${d.phone}`} className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 font-medium text-brand-700 hover:bg-brand-100" dir="ltr">
-                <Phone size={14} /> {d.phone}
-              </a>
-            )}
-            {d.email && (
-              <a href={`mailto:${d.email}`} className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 font-medium text-brand-700 hover:bg-brand-100" dir="ltr">
-                <Mail size={14} /> {d.email}
-              </a>
-            )}
+
+          <QuickContact phone={d.phone} email={d.email} place={d.doctor_hospitals[0]?.hospital ? [d.doctor_hospitals[0].hospital.name, d.doctor_hospitals[0].hospital.city].filter(Boolean).join(' ') : null} />
+
+          <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-slate-500">
             {d.doctor_companies.length > 0 && (
               <span className="inline-flex items-center gap-1">
                 {d.doctor_companies.map((c) => c.company?.name).filter(Boolean).join(' · ')}
@@ -174,46 +174,42 @@ export default function DoctorProfile() {
               </span>
             )}
           </div>
-        </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button className="btn-primary" onClick={() => setAddMeeting(true)}>
-            <CalendarDays size={16} />
-            פגישה חדשה
-          </button>
-          <button className="btn-secondary" onClick={() => setAddTask(true)}>
-            <CheckSquare size={16} />
-            משימה
-          </button>
-          <button
-            className={classNames(
-              'btn-secondary',
-              isFav && 'border-red-200 text-red-500',
+
+          <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+            <button className="btn-primary" onClick={() => setAddMeeting(true)}>
+              <CalendarDays size={16} />
+              פגישה חדשה
+            </button>
+            <button className="btn-secondary" onClick={() => setAddTask(true)}>
+              <CheckSquare size={16} />
+              משימה
+            </button>
+            <span className="flex-1" />
+            <button
+              className={classNames('btn-secondary !px-3', isFav && 'border-red-200 text-red-500')}
+              title={isFav ? 'הסר מהמועדפים' : 'הוסף למועדפים'}
+              aria-label={isFav ? 'הסר מהמועדפים' : 'הוסף למועדפים'}
+              aria-pressed={isFav}
+              onClick={() => toggleFav.mutate({ doctorId: d.id, isFavorite: isFav })}
+            >
+              <Heart size={16} fill={isFav ? 'currentColor' : 'none'} />
+            </button>
+            <button className="btn-secondary !px-3" title="רשימת ליקוט" aria-label="רשימת ליקוט" onClick={() => setPicking(true)}>
+              <Package size={16} />
+            </button>
+            <button className="btn-secondary !px-3" title="עריכה" aria-label="עריכת פרטי הרופא" onClick={() => setEditing(true)}>
+              <Pencil size={16} />
+            </button>
+            {canDelete(d.created_by) && (
+              <ConfirmButton
+                className="btn-ghost !px-3 text-red-500"
+                message={`למחוק את ${d.name}? כל הפגישות והתכנונים המשויכים יימחקו.`}
+                onConfirm={() => deleteDoctor.mutate(d.id, { onSuccess: () => navigate('/doctors') })}
+              >
+                <Trash2 size={16} />
+              </ConfirmButton>
             )}
-            onClick={() => toggleFav.mutate({ doctorId: d.id, isFavorite: isFav })}
-          >
-            <Heart size={16} fill={isFav ? 'currentColor' : 'none'} />
-            {isFav ? 'במועדפים' : 'הוסף למועדפים'}
-          </button>
-          <button className="btn-secondary" onClick={() => setPicking(true)}>
-            <Package size={16} />
-            רשימת ליקוט
-          </button>
-          <button className="btn-secondary" onClick={() => setEditing(true)}>
-            <Pencil size={16} />
-            עריכה
-          </button>
-          {canDelete(d.created_by) && (
-          <ConfirmButton
-            className="btn-ghost text-red-500"
-            message={`למחוק את ${d.name}? כל הפגישות והתכנונים המשויכים יימחקו.`}
-            onConfirm={() =>
-              deleteDoctor.mutate(d.id, { onSuccess: () => navigate('/doctors') })
-            }
-          >
-            <Trash2 size={16} />
-          </ConfirmButton>
-          )}
+          </div>
         </div>
       </div>
 
