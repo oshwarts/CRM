@@ -24,7 +24,7 @@ import { useTasks } from '../lib/api'
 import { NAV } from '../lib/navItems'
 import { useMenu } from '../lib/useMenu'
 import { clearOutbox, drain, outboxSize } from '../lib/outbox'
-import { classNames } from '../lib/utils'
+import { classNames, todayISO } from '../lib/utils'
 import { useLocalSetting } from '../lib/useLocalSetting'
 
 
@@ -34,7 +34,7 @@ const TABS = ['/', '/doctors', '/tasks', '/schedule']
 // scroll position of each visited page, so that going back returns to the same place
 const scrollOf = new Map<string, number>()
 
-const VERSION = 'v114 · שמירה בטוחה של קשרים (QA)'
+const VERSION = 'v115 · תיקוני QA'
 
 export function Layout() {
   const { profile, signOut, impersonating, isDeveloper } = useAuth()
@@ -50,7 +50,7 @@ export function Layout() {
   const navType = useNavigationType()
   const tasks = useTasks()
   const { user } = useAuth()
-  const todayStr = new Date().toISOString().slice(0, 10)
+  const todayStr = todayISO() // local date (UTC is a day behind in Israel after midnight)
   // overdue tasks of mine: a small red-pink counter next to "tasks"
   const overdue = (tasks.data ?? []).filter((t) => !t.is_done && t.status !== 'done' && t.assignee_id === user?.id && !!t.due_date && t.due_date < todayStr).length
 

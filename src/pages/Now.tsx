@@ -135,14 +135,14 @@ export default function Now() {
             <ul className="divide-y divide-white/70">
               {g.items.map((it) => (
                 <li key={it.key}>
-                  <Link to={it.to} className="flex items-center gap-3 rounded-xl px-2 py-2.5 transition hover:bg-white/70">
+                  <Link to={it.to} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl px-2 py-2.5 transition hover:bg-white/70">
                     <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white text-brand-600 shadow-sm">{it.icon}</span>
-                    <span className="min-w-0 flex-1">
-                      <span dir="auto" className="block truncate text-sm font-medium text-slate-800">
+                    <span className="min-w-[8rem] flex-1">
+                      <span dir="auto" className="line-clamp-2 break-words text-sm font-medium text-slate-800">
                         {it.title}
                       </span>
                       {it.sub && (
-                        <span dir="auto" className="block truncate text-xs text-slate-600">
+                        <span dir="auto" className="line-clamp-2 break-words text-xs text-slate-600">
                           {it.sub}
                         </span>
                       )}

@@ -239,7 +239,8 @@ export default function Home() {
         const cur = map.get(md.doctor.id) ?? {}
         if (upcoming) {
           if (!cur.next || m.meeting_date < cur.next) cur.next = m.meeting_date
-        } else if (!cur.last || m.meeting_date > cur.last) {
+        } else if (m.status !== 'scheduled' && (!cur.last || m.meeting_date > cur.last)) {
+          // (a "scheduled" meeting whose date passed was never closed — it is not a meeting that took place)
           cur.last = m.meeting_date
           cur.followupFrom = m.meeting_date
           cur.followup = m.next_followup_date ?? undefined
