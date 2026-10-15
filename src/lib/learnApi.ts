@@ -124,6 +124,7 @@ export const dueDate = (box: number) => format(addDays(new Date(), INTERVALS[box
 export function useRecordAnswer() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { silent: true },
     mutationFn: async (a: { card: LearnCard; correct: boolean; prev: LearnProgress | undefined }) => {
       const user_id = await actingUserId()
       if (!user_id) throw new Error('לא מחובר')
@@ -171,6 +172,7 @@ export function useDueCards(userId: string | null | undefined, progress: LearnPr
 export function useSaveAttempt() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { silent: true },
     mutationFn: async (a: { topic_id: string; score: number; total: number }) => {
       const user_id = await actingUserId()
       if (!user_id) throw new Error('לא מחובר')
@@ -527,6 +529,7 @@ export function useLearnDaily(userId: string | null | undefined) {
 export function useAddPoints() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { silent: true },
     mutationFn: async (a: { points: number; answers: number; correct: number }) => {
       await supabase.rpc('learn_add_points', { p_points: a.points, p_answers: a.answers, p_correct: a.correct })
     },

@@ -1,0 +1,44 @@
+import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react'
+import { dismissToast, useToasts } from '../lib/toast'
+import { classNames } from '../lib/utils'
+
+/** the notifications of the app: above the phone's tab bar, centred on the desktop */
+export function ToastHost() {
+  const toasts = useToasts()
+  if (toasts.length === 0) return null
+  return (
+    <div className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] z-[70] flex flex-col items-center gap-2 px-4 md:bottom-6" role="status" aria-live="polite">
+      {toasts.map((t) => {
+        const Icon = t.kind === 'error' ? AlertCircle : t.kind === 'info' ? Info : CheckCircle2
+        return (
+          <div
+            key={t.id}
+            className={classNames(
+              'pointer-events-auto flex max-w-md items-center gap-2.5 rounded-full px-4 py-2.5 text-sm font-medium text-white shadow-pop',
+              t.kind === 'error' ? 'bg-red-600' : t.kind === 'info' ? 'bg-brand-700' : 'bg-brand-800',
+            )}
+          >
+            <Icon size={17} className="shrink-0" />
+            <span dir="auto" className="min-w-0">
+              {t.text}
+            </span>
+            {t.action && (
+              <button
+                className="shrink-0 rounded-full bg-white/20 px-3 py-0.5 text-sm font-semibold hover:bg-white/30"
+                onClick={() => {
+                  t.action!.run()
+                  dismissToast(t.id)
+                }}
+              >
+                {t.action.label}
+              </button>
+            )}
+            <button className="shrink-0 opacity-70 hover:opacity-100" onClick={() => dismissToast(t.id)} aria-label="סגור">
+              <X size={15} />
+            </button>
+          </div>
+        )
+      })}
+    </div>
+  )
+}

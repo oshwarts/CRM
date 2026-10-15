@@ -404,6 +404,7 @@ export function useFavorites() {
 export function useToggleFavorite() {
   const qc = useQueryClient()
   return useMutation({
+    meta: { silent: true },
     mutationFn: async ({
       doctorId,
       isFavorite,

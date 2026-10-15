@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { usePersisted } from '../lib/usePersisted'
 import { Link } from 'react-router-dom'
 import { BookUser, Building2, Clock, Heart, Phone, Plus, Search, SlidersHorizontal } from 'lucide-react'
 import {
@@ -27,11 +28,11 @@ export default function Doctors() {
 
   const [showAdd, setShowAdd] = useState(false)
   const [showImport, setShowImport] = useState(false)
-  const [q, setQ] = useState('')
-  const [companyId, setCompanyId] = useState('')
-  const [procedureId, setProcedureId] = useState('')
-  const [hospitalId, setHospitalId] = useState('')
-  const [status, setStatus] = useState('')
+  const [q, setQ] = usePersisted('doctors.q', '')
+  const [companyId, setCompanyId] = usePersisted('doctors.company', '')
+  const [procedureId, setProcedureId] = usePersisted('doctors.procedure', '')
+  const [hospitalId, setHospitalId] = usePersisted('doctors.hospital', '')
+  const [status, setStatus] = usePersisted('doctors.status', '')
   const [filtersOpen, setFiltersOpen] = useState(false)
   const activeFilters = [status, hospitalId, procedureId, companyId].filter(Boolean).length
 
@@ -127,6 +128,11 @@ export default function Doctors() {
         <EmptyState
           title="לא נמצאו רופאים"
           hint="נסה לשנות את הסינון או הוסף רופא חדש"
+          action={
+            <button className="btn-primary" onClick={() => setShowAdd(true)}>
+              <Plus size={16} /> הוספת רופא
+            </button>
+          }
         />
       )}
 

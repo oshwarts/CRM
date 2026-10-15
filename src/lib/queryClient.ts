@@ -1,5 +1,6 @@
-import { QueryCache, QueryClient } from '@tanstack/react-query'
-import { CACHE_MAX_AGE, newVersionAvailable } from './offline'
+import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query'
+import { toast } from './toast'
+import { CACHE_MAX_AGE, newVersionAvailable, OFFLINE_MESSAGE } from './offline'
 
 // one client for the whole app (also used by the offline outbox to update the screen optimistically)
 const RELOADED = 'ami.reloadedForUpdate'
@@ -13,6 +14,17 @@ export const queryClient = new QueryClient({
         sessionStorage.setItem(RELOADED, '1')
         window.location.reload()
       }
+    },
+  }),
+  // every save tells the user how it went: a short "saved" (not for background bookkeeping marked meta.silent) or what failed
+  mutationCache: new MutationCache({
+    onSuccess: (_d, _v, _c, mutation) => {
+      if (!mutation.meta?.silent) toast('נשמר')
+    },
+    onError: (e, _v, _c, mutation) => {
+      if (mutation.meta?.silent) return
+      const msg = e instanceof Error ? e.message : typeof e === 'object' && e && 'message' in e ? String((e as { message: unknown }).message) : ''
+      toast(msg === OFFLINE_MESSAGE ? 'אין חיבור לרשת — השינוי לא נשמר' : msg ? `הפעולה נכשלה: ${msg}` : 'הפעולה נכשלה', { kind: 'error' })
     },
   }),
   defaultOptions: {

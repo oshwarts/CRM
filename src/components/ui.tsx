@@ -111,9 +111,19 @@ export function TabPanel({ id, children }: { id: string; children: ReactNode }) 
 
 /* ---------------- Misc ---------------- */
 
-export function Spinner({ label = 'טוען…' }: { label?: string }) {
+/** while data loads: grey placeholder lines in the shape of a list (or a spinner with a text when a label is given) */
+export function Spinner({ label }: { label?: string }) {
+  if (label === undefined)
+    return (
+      <div className="animate-pulse space-y-3 p-4" role="status" aria-label="טוען">
+        <div className="h-5 w-2/5 rounded-lg bg-slate-200/80" />
+        <div className="h-4 w-4/5 rounded-lg bg-slate-200/60" />
+        <div className="h-4 w-3/5 rounded-lg bg-slate-200/60" />
+        <div className="h-24 w-full rounded-2xl bg-slate-200/50" />
+      </div>
+    )
   return (
-    <div className="flex items-center justify-center gap-3 p-10 text-slate-400">
+    <div className="flex items-center justify-center gap-3 p-10 text-slate-500">
       <span className="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-brand-500" />
       {label}
     </div>
@@ -130,9 +140,9 @@ export function EmptyState({
   action?: ReactNode
 }) {
   return (
-    <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-white/60 p-10 text-center">
-      <p className="font-medium text-slate-600">{title}</p>
-      {hint && <p className="text-sm text-slate-400">{hint}</p>}
+    <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-brand-200 bg-white/70 p-10 text-center">
+      <p className="text-lg font-medium text-brand-800">{title}</p>
+      {hint && <p className="text-sm text-slate-500">{hint}</p>}
       {action}
     </div>
   )

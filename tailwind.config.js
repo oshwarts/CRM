@@ -24,6 +24,7 @@ export default {
     extend: {
       colors: {
         brand,
+        accent: '#cc3366',
         // one calm colour language: blue = information and navigation, amber = needs attention,
         // red = urgent / late, green = done / fine. The other hues of the default palette point at these.
         sky: brand,

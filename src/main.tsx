@@ -7,6 +7,7 @@ import { AuthProvider } from './context/AuthProvider'
 import { configError, supabase } from './lib/supabase'
 import { CACHE_BUSTER, CACHE_MAX_AGE, idbPersister, registerServiceWorker } from './lib/offline'
 import { queryClient } from './lib/queryClient'
+import { ToastHost } from './components/ToastHost'
 import './index.css'
 
 // data kept on the device for offline reading is wiped as soon as the user signs out
@@ -60,6 +61,7 @@ if (configError) {
         <BrowserRouter>
           <AuthProvider>
             <App />
+            <ToastHost />
           </AuthProvider>
         </BrowserRouter>
       </PersistQueryClientProvider>

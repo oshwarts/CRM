@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { usePersisted } from '../lib/usePersisted'
 import { useCanDelete } from '../lib/permissions'
 import { PendingMark } from '../components/PendingMark'
 import { Link, useSearchParams } from 'react-router-dom'
@@ -59,16 +60,16 @@ export default function Meetings() {
   const canDelete = useCanDelete()
   const toggleTask = useToggleMeetingTask()
 
-  const [filter, setFilter] = useState<FilterKey>('all')
+  const [filter, setFilter] = usePersisted<FilterKey>('meetings.filter', 'all')
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState<MeetingWithRelations | null>(null)
-  const [q, setQ] = useState('')
+  const [q, setQ] = usePersisted('meetings.q', '')
   const [params] = useSearchParams()
   const [hospitalId, setHospitalId] = useState(params.get('hospital') ?? '')
   const [doctorId, setDoctorId] = useState('')
   const [advanced, setAdvanced] = useState(false)
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
+  const [from, setFrom] = usePersisted('meetings.from', '')
+  const [to, setTo] = usePersisted('meetings.to', '')
 
   const today = todayISO() // local date: toISOString() is UTC, a day behind in Israel between midnight and 2-3 AM
 
@@ -259,6 +260,13 @@ export default function Meetings() {
         <EmptyState
           title="אין פגישות להצגה"
           hint={hasSearch ? 'נסה לשנות או לנקות את החיפוש' : undefined}
+          action={
+            !hasSearch ? (
+              <button className="btn-primary" onClick={() => setShowAdd(true)}>
+                <Plus size={16} /> הוספת פגישה
+              </button>
+            ) : undefined
+          }
         />
       )}
 
