@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { addDays, format, startOfWeek } from 'date-fns'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import {
   useAgents,
   useHospitalAgents,
@@ -11,8 +11,10 @@ import {
 import { SCAN_PROCEDURE_LABELS } from '../lib/types'
 import { classNames, formatDate, todayISO } from '../lib/utils'
 import { EmptyState, ErrorState, Spinner } from '../components/ui'
+import { PlannedSurgeryModal } from '../components/PlannedSurgeryModal'
+import { usePlannedSurgeries, type PlannedSurgery } from '../lib/plannedSurgeries'
 
-type Kind = 'meeting' | 'surgery' | 'ct' | 'rescan' | 'followup'
+type Kind = 'meeting' | 'surgery' | 'other' | 'ct' | 'rescan' | 'followup'
 
 type Item = {
   id: string
@@ -22,13 +24,16 @@ type Item = {
   title: string
   sub: string
   to: string
+  /** a planned (non-MAKO) surgery: opens the quick-entry form instead of a page */
+  surgery?: PlannedSurgery
   muted?: boolean
   agentIds: string[]
 }
 
 const KINDS: Record<Kind, { label: string; chip: string }> = {
   meeting: { label: 'פגישה', chip: 'border-brand-200 bg-brand-50 text-brand-700' },
-  surgery: { label: 'ניתוח', chip: 'border-violet-200 bg-violet-50 text-violet-700' },
+  surgery: { label: 'ניתוח MAKO', chip: 'border-violet-200 bg-violet-50 text-violet-700' },
+  other: { label: 'ניתוח (לא מאקו)', chip: 'border-slate-300 bg-slate-100 text-slate-700' },
   ct: { label: 'CT', chip: 'border-sky-200 bg-sky-50 text-sky-700' },
   rescan: { label: 'סריקה חוזרת', chip: 'border-rose-200 bg-rose-50 text-rose-700' },
   followup: { label: 'מעקב', chip: 'border-amber-200 bg-amber-50 text-amber-700' },
@@ -41,6 +46,8 @@ const hhmm = (t: string | null | undefined) => (t ? t.slice(0, 5) : '')
 export default function Schedule() {
   const meetings = useMeetings()
   const scans = usePatientScans()
+  const planned = usePlannedSurgeries()
+  const [entry, setEntry] = useState<{ surgery?: PlannedSurgery; date?: string } | null>(null)
   const agents = useAgents()
   const hospitalAgents = useHospitalAgents()
 
@@ -49,6 +56,7 @@ export default function Schedule() {
   const [shown, setShown] = useState<Record<Kind, boolean>>({
     meeting: true,
     surgery: true,
+    other: true,
     ct: true,
     rescan: true,
     followup: true,
@@ -114,8 +122,18 @@ export default function Schedule() {
           title: `סריקה חוזרת – ${s.patient_name}`, sub: [s.rescan_reason, base].filter(Boolean).join(' · '), to: link, agentIds: ag,
         })
     }
+    for (const x of planned.data ?? []) {
+      if (x.status === 'cancelled') continue
+      const doctor = x.doctor ? `${x.doctor.title} ${x.doctor.name}` : ''
+      out.push({
+        id: `p-${x.id}`, date: x.surgery_date, time: hhmm(x.surgery_time), kind: 'other',
+        title: [x.procedure || 'ניתוח', x.company].filter(Boolean).join(' · '),
+        sub: [x.hospital?.name, doctor, x.notes].filter(Boolean).join(' · '), to: '', surgery: x,
+        muted: x.status === 'done', agentIds: x.agent_id ? [x.agent_id] : [],
+      })
+    }
     return out
-  }, [meetings.data, scans.data, agentsOfHospital])
+  }, [meetings.data, scans.data, planned.data, agentsOfHospital])
 
   const weekItems = useMemo(
     () =>
@@ -133,9 +151,14 @@ export default function Schedule() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold text-brand-800 sm:text-3xl">לוז שבועי</h1>
-        <p className="text-sm text-slate-400">פגישות, ניתוחים, CT, סריקות חוזרות ותאריכי מעקב — במקום אחד</p>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-semibold text-brand-800 sm:text-3xl">לוז שבועי</h1>
+          <p className="text-sm text-slate-400">פגישות, ניתוחים, CT, סריקות חוזרות ותאריכי מעקב — במקום אחד</p>
+        </div>
+        <button className="btn-primary" onClick={() => setEntry({})}>
+          <Plus size={16} /> ניתוח (לא מאקו)
+        </button>
       </div>
 
       <div className="card space-y-3 p-3 sm:p-4">
@@ -197,8 +220,17 @@ export default function Schedule() {
             >
               <h2 className={classNames('mb-2 flex items-baseline justify-between rounded-lg px-2 py-1 text-base font-semibold', isToday ? 'bg-brand-500 text-white' : 'bg-brand-50 text-brand-800')}>
                 <span>יום {DAY_NAMES[d.getDay()]}</span>
-                <span className={classNames('text-xs font-normal', isToday ? 'text-white/80' : 'text-slate-500')}>
+                <span className={classNames('flex items-center gap-1 text-xs font-normal', isToday ? 'text-white/80' : 'text-slate-500')}>
                   {format(d, 'dd/MM')}
+                  <button
+                    type="button"
+                    className={classNames('rounded-full p-1', isToday ? 'hover:bg-white/20' : 'hover:bg-brand-100')}
+                    title="הוסף ניתוח (לא מאקו) ליום הזה"
+                    aria-label={`הוסף ניתוח לא מאקו ליום ${DAY_NAMES[d.getDay()]}`}
+                    onClick={() => setEntry({ date: iso(d) })}
+                  >
+                    <Plus size={14} />
+                  </button>
                 </span>
               </h2>
               {list.length === 0 ? (
@@ -207,21 +239,32 @@ export default function Schedule() {
                 <ul className="space-y-1.5">
                   {list.map((it) => (
                     <li key={it.id}>
-                      <Link
-                        to={it.to}
-                        className={classNames(
-                          'block rounded-xl border px-2.5 py-2 text-sm transition hover:shadow-sm lg:text-xs',
+                      {(() => {
+                        const cls = classNames(
+                          'block w-full rounded-xl border px-2.5 py-2 text-right text-sm transition hover:shadow-sm lg:text-xs',
                           KINDS[it.kind].chip,
                           it.muted && 'opacity-50',
-                        )}
-                      >
-                        <span className="flex items-center justify-between gap-1">
-                          <span className="font-semibold">{KINDS[it.kind].label}</span>
-                          {it.time && <span dir="ltr">{it.time}</span>}
-                        </span>
-                        <span className="block break-words font-medium text-slate-800">{it.title}</span>
-                        {it.sub && <span className="block break-words text-slate-500">{it.sub}</span>}
-                      </Link>
+                        )
+                        const body = (
+                          <>
+                            <span className="flex items-center justify-between gap-1">
+                              <span className="font-semibold">{KINDS[it.kind].label}</span>
+                              {it.time && <span dir="ltr">{it.time}</span>}
+                            </span>
+                            <span className="block break-words font-medium text-slate-800">{it.title}</span>
+                            {it.sub && <span className="block break-words text-slate-500">{it.sub}</span>}
+                          </>
+                        )
+                        return it.surgery ? (
+                          <button type="button" className={cls} onClick={() => setEntry({ surgery: it.surgery })}>
+                            {body}
+                          </button>
+                        ) : (
+                          <Link to={it.to} className={cls}>
+                            {body}
+                          </Link>
+                        )
+                      })()}
                     </li>
                   ))}
                 </ul>
@@ -230,6 +273,7 @@ export default function Schedule() {
           )
         })}
       </div>
+      {entry && <PlannedSurgeryModal surgery={entry.surgery} date={entry.date} onClose={() => setEntry(null)} />}
     </div>
   )
 }
