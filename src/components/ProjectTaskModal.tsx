@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { CoordinatorField } from './CoordinatorField'
 import { useAgents, useContacts } from '../lib/api'
 import { useDeleteProjectTask, useSaveProjectTask, type ProjectTaskInput } from '../lib/projectsApi'
 import { STATUS_ORDER, TASK_STATUS } from '../lib/projects'
@@ -34,6 +35,8 @@ export function ProjectTaskModal({
     assignee_id: task?.assignee_id ?? project.owner_id,
     external_owner: task?.external_owner ?? (areas.find((a) => a.id === (defaultAreaId ?? areas[0]?.id))?.contact_text ?? ''),
     contact_id: task?.contact_id ?? areas.find((a) => a.id === (defaultAreaId ?? areas[0]?.id))?.contact_id ?? null,
+    coordinator_contact_id: task?.coordinator_contact_id ?? null,
+    coordinator_text: task?.coordinator_text ?? '',
     waiting_for: task?.waiting_for ?? '',
     due_date: task?.due_date ?? null,
     priority: task?.priority ?? 'normal',
@@ -126,6 +129,8 @@ export function ProjectTaskModal({
             </select>
           </Field>
         </div>
+
+        <CoordinatorField contactId={d.coordinator_contact_id} text={d.coordinator_text} onChange={set} />
 
         <Field label="ממתין ל… (גורם או אדם שאנחנו תלויים בו)">
           <input className="input" dir="auto" value={d.waiting_for} onChange={(e) => set({ waiting_for: e.target.value })} placeholder="למשל: אישור ועדת רכש — נתעדכן ביום ראשון" />

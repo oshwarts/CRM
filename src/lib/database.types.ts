@@ -572,6 +572,8 @@ export type Database = {
           waiting_for: string
           external_owner: string
           contact_id: string | null
+          coordinator_contact_id: string | null
+          coordinator_text: string
           priority: string
           recurrence: string
           review_id: string | null
@@ -597,6 +599,8 @@ export type Database = {
           waiting_for?: string
           external_owner?: string
           contact_id?: string | null
+          coordinator_contact_id?: string | null
+          coordinator_text?: string
           priority?: string
           recurrence?: string
           review_id?: string | null
@@ -622,6 +626,8 @@ export type Database = {
           waiting_for?: string
           external_owner?: string
           contact_id?: string | null
+          coordinator_contact_id?: string | null
+          coordinator_text?: string
           priority?: string
           recurrence?: string
           review_id?: string | null

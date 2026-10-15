@@ -67,6 +67,16 @@ function TaskLine({ t, onOpen, showArea, onStatus, selected, onSelect, last }: {
               )}
             </span>
           )}
+          {(t.coordinator || t.coordinator_text) && (
+            <span className="inline-flex items-center gap-1 rounded bg-violet-50 px-1.5 py-0.5 text-violet-700">
+              <Users size={11} /> מתאם אמי: {[t.coordinator?.name, t.coordinator_text].filter(Boolean).join(" · ")}
+              {t.coordinator?.phone && (
+                <a href={`tel:${t.coordinator.phone}`} dir="ltr" className="mr-1 underline" onClick={(e) => e.stopPropagation()}>
+                  {t.coordinator.phone}
+                </a>
+              )}
+            </span>
+          )}
           {last && (
             <span dir="auto" className="inline-flex max-w-full items-center gap-1 truncate text-slate-500">
               <CalendarDays size={11} className="shrink-0" /> עדכון אחרון {formatDate(last.date)}: {last.body || 'קובץ'}
@@ -156,7 +166,7 @@ export default function ProjectView() {
     if (contactFilter.startsWith('c:') && t.contact_id !== contactFilter.slice(2)) return false
     if (contactFilter.startsWith('x:') && (t.contact_id || t.external_owner.trim() !== contactFilter.slice(2))) return false
     if (!words.length) return true
-    const hay = normalizeHe([t.description, t.notes, t.waiting_for, t.contact?.name, t.external_owner, t.area?.name, t.assignee?.full_name].filter(Boolean).join(' '))
+    const hay = normalizeHe([t.description, t.notes, t.waiting_for, t.contact?.name, t.coordinator?.name, t.coordinator_text, t.external_owner, t.area?.name, t.assignee?.full_name].filter(Boolean).join(' '))
     return words.every((w) => hay.includes(w))
   }
   const visibleTasks = tasks.filter(matches)

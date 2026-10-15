@@ -44,6 +44,7 @@ export type TaskRow = MeetingTask & {
   project: { id: string; name: string } | null
   area: { id: string; name: string } | null
   contact: { id: string; name: string; role: string; phone: string; office_phone: string; email: string } | null
+  coordinator: { id: string; name: string; role: string; phone: string; office_phone: string; email: string } | null
   subtasks: TaskSubtask[]
   doctor: Pick<Doctor, 'id' | 'name' | 'title'> | null
   hospital: Pick<Hospital, 'id' | 'name'> | null

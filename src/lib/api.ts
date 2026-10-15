@@ -1720,7 +1720,7 @@ export async function openInfoDocument(d: InfoDocument): Promise<string | null> 
 // meeting_tasks is the single tasks table: tasks from meeting summaries and stand-alone tasks
 
 const TASK_SELECT =
-  '*, subtasks:task_subtasks(*), doctor:doctors(id, name, title), hospital:hospitals(id, name), assignee:profiles!meeting_tasks_assignee_id_fkey(id, full_name), meeting:meetings(id, subject), project:projects(id, name), area:project_areas(id, name), contact:contacts(id, name, role, phone, office_phone, email)'
+  '*, subtasks:task_subtasks(*), doctor:doctors(id, name, title), hospital:hospitals(id, name), assignee:profiles!meeting_tasks_assignee_id_fkey(id, full_name), meeting:meetings(id, subject), project:projects(id, name), area:project_areas(id, name), contact:contacts!meeting_tasks_contact_id_fkey(id, name, role, phone, office_phone, email), coordinator:contacts!meeting_tasks_coordinator_contact_id_fkey(id, name, role, phone, office_phone, email)'
 
 /** every task the signed-in user may see (his own; admins see all) */
 export function useTasks() {
@@ -1749,6 +1749,9 @@ export type TaskFormData = {
   hospital_id: string | null
   recurrence: 'none' | 'weekly' | 'monthly'
   assignee_id: string | null
+  /** the AMI coordinator: a contact and/or free text */
+  coordinator_contact_id?: string | null
+  coordinator_text?: string
   subtasks: { id?: string; text: string; is_done: boolean }[]
 }
 
@@ -2002,7 +2005,7 @@ type TaskSavePayload = {
   baseSubIds: string[] | null
   userId: string
 }
-const TASK_FIELDS = ['description', 'notes', 'due_date', 'priority', 'doctor_id', 'hospital_id', 'recurrence']
+const TASK_FIELDS = ['description', 'notes', 'due_date', 'priority', 'doctor_id', 'hospital_id', 'recurrence', 'coordinator_contact_id', 'coordinator_text']
 
 const taskFields = (d: TaskSaveData) => ({
   description: d.description.trim(),
@@ -2012,6 +2015,8 @@ const taskFields = (d: TaskSaveData) => ({
   doctor_id: d.doctor_id || null,
   hospital_id: d.hospital_id || null,
   recurrence: d.recurrence,
+  coordinator_contact_id: d.coordinator_contact_id ?? null,
+  coordinator_text: (d.coordinator_text ?? '').trim(),
 })
 
 async function execTaskSave(p: TaskSavePayload): Promise<ExecResult> {

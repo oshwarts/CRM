@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthProvider'
 import type { TaskRow } from '../lib/types'
 import { ConfirmButton, Field, Modal } from './ui'
 import { TaskSuggestions, useTaskGuess } from './TaskSuggestions'
+import { CoordinatorField } from './CoordinatorField'
 
 const emptyForm = (assignee: string | null): TaskFormData => ({
   description: '',
@@ -47,6 +48,8 @@ export function TaskFormModal({
           hospital_id: task.hospital_id,
           recurrence: (task.recurrence as TaskFormData['recurrence']) ?? 'none',
           assignee_id: task.assignee_id,
+          coordinator_contact_id: task.coordinator_contact_id,
+          coordinator_text: task.coordinator_text,
           subtasks: task.subtasks.map((s) => ({ id: s.id, text: s.text, is_done: s.is_done })),
         }
       : { ...emptyForm(user?.id ?? null), ...defaults },
@@ -156,6 +159,8 @@ export function TaskFormModal({
             </select>
           </Field>
         )}
+
+        <CoordinatorField contactId={d.coordinator_contact_id ?? null} text={d.coordinator_text ?? ''} onChange={set} />
 
         <Field label="פרטים והערות (אופציונלי)">
           <textarea className="input min-h-16" dir="auto" value={d.notes} onChange={(e) => set({ notes: e.target.value })} />

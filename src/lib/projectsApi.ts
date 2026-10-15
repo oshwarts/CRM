@@ -128,6 +128,8 @@ export type ProjectTaskInput = {
   assignee_id: string | null
   external_owner: string
   contact_id: string | null
+  coordinator_contact_id: string | null
+  coordinator_text: string
   waiting_for: string
   due_date: string | null
   priority: string
@@ -148,6 +150,8 @@ export function useSaveProjectTask() {
         assignee_id: t.assignee_id,
         external_owner: t.external_owner.trim(),
         contact_id: t.contact_id,
+        coordinator_contact_id: t.coordinator_contact_id,
+        coordinator_text: t.coordinator_text.trim(),
         waiting_for: t.waiting_for.trim(),
         due_date: t.due_date,
         priority: t.priority,

@@ -78,7 +78,7 @@ export default function Tasks() {
       if (urgentOnly && t.priority !== 'urgent') return false
       if (words.length) {
         const hay = normalizeHe(
-          [t.description, t.notes, t.doctor?.name, t.hospital?.name, t.meeting?.subject, t.assignee?.full_name, ...t.subtasks.map((s) => s.text)]
+          [t.description, t.notes, t.doctor?.name, t.hospital?.name, t.coordinator?.name, t.coordinator_text, t.meeting?.subject, t.assignee?.full_name, ...t.subtasks.map((s) => s.text)]
             .filter(Boolean)
             .join(' '),
         )
@@ -170,6 +170,11 @@ export default function Tasks() {
               {t.recurrence !== 'none' && (
                 <span className="chip border-slate-200 bg-slate-50 !px-2 !py-0 text-slate-600">
                   <Repeat size={12} /> {t.recurrence === 'weekly' ? 'שבועית' : 'חודשית'}
+                </span>
+              )}
+              {(t.coordinator || t.coordinator_text) && (
+                <span className="chip border-violet-200 bg-violet-50 !px-2 !py-0 text-violet-700">
+                  מתאם אמי: {[t.coordinator?.name, t.coordinator_text].filter(Boolean).join(" · ")}
                 </span>
               )}
               {t.doctor && (
