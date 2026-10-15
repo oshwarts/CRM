@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { FileUp } from 'lucide-react'
-import { useCompanies, useEquipmentItems, useSaveEquipmentItem } from '../lib/api'
+import { findDefaultCompany, useCompanies, useEquipmentItems, useSaveEquipmentItem } from '../lib/api'
 import { readTrayPdf, type TrayDraft } from '../lib/trayPdf'
 import { Modal } from './ui'
 
@@ -29,8 +29,8 @@ export function EquipmentPdfImport({ onClose }: { onClose: () => void }) {
       const drafts = await readTrayPdf(file, setBusy)
       if (!drafts.length) setError('לא נמצאו בקובץ רשימות מק״טים (שורות בצורה "1 110730 תיאור").')
       setRows(drafts.map((d) => ({ ...d, include: !names.has(d.name.toLowerCase()) })))
-      const stryker = (companies.data ?? []).find((c) => /stryker/i.test(c.name))
-      if (stryker && !companyId) setCompanyId(stryker.id)
+      const own = findDefaultCompany(companies.data)
+      if (own && !companyId) setCompanyId(own.id)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'קריאת הקובץ נכשלה')
     } finally {

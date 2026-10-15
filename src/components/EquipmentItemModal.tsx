@@ -1,6 +1,6 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Camera, Plus, Trash2 } from 'lucide-react'
-import { shrinkImage, useCompanies, useEquipmentImageUrl, useSaveEquipmentItem, type EquipmentPartInput } from '../lib/api'
+import { findDefaultCompany, shrinkImage, useCompanies, useEquipmentImageUrl, useSaveEquipmentItem, type EquipmentPartInput } from '../lib/api'
 import type { EquipmentItemWithCompany } from '../lib/types'
 import { Field, Modal } from './ui'
 
@@ -31,6 +31,12 @@ export function EquipmentItemModal({ item, onClose }: { item?: EquipmentItemWith
   const [name, setName] = useState(item?.name ?? '')
   const [catalog, setCatalog] = useState(item?.catalog_number ?? '')
   const [companyId, setCompanyId] = useState(item?.company_id ?? '')
+  // a new item belongs to A.M.I. Technologies unless another company is chosen
+  const defaultCompany = findDefaultCompany(companies.data)
+  useEffect(() => {
+    if (!item && !companyId && defaultCompany) setCompanyId(defaultCompany.id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultCompany?.id])
   const [parts, setParts] = useState<EquipmentPartInput[]>(
     [...(item?.parts ?? [])].sort((a, b) => a.sort - b.sort).map((p) => ({ position: p.position, catalog_no: p.catalog_no, description: p.description, qty: p.qty })),
   )

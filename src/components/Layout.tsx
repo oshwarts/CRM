@@ -54,7 +54,7 @@ const NAV = [
 // the five destinations reachable with one thumb tap on a phone
 const TABS = ['/', '/doctors', '/schedule', '/tasks', '/scans']
 
-const VERSION = 'v95 · דילוג וחזרה בין שאלות בלומדה'
+const VERSION = 'v96 · ציוד: ברירת מחדל אמי טכנולוגיות'
 
 export function Layout() {
   const { profile, signOut, impersonating } = useAuth()

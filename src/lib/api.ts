@@ -107,6 +107,9 @@ export function useUpdateUser() {
   })
 }
 
+/** the company equipment belongs to by default: A.M.I. Technologies (the company itself) */
+export const findDefaultCompany = <T extends { id: string; name: string }>(list: T[] | undefined) => (list ?? []).find((c) => /ami/i.test(c.name))
+
 export function useCompanies() {
   return useQuery({
     queryKey: ['companies'],
