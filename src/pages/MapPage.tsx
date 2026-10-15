@@ -25,7 +25,7 @@ import { ErrorState, Spinner } from '../components/ui'
 import { DOCTOR_STATUS_LABELS, SECTOR_LABELS } from '../lib/types'
 
 function pinIcon(active: boolean, count: number) {
-  const color = active ? '#2f4bb8' : count > 0 ? '#4f7cf7' : '#94a3b8'
+  const color = active ? '#00326d' : count > 0 ? '#1863dc' : '#94a3b8'
   return L.divIcon({
     className: '',
     html: `<div style="
@@ -227,7 +227,7 @@ export default function MapPage() {
             />
             <MapFocus target={focusTarget} bounds={focusBounds} />
             {pos && (
-              <CircleMarker center={pos} radius={8} pathOptions={{ color: '#fff', weight: 3, fillColor: '#2563eb', fillOpacity: 1 }}>
+              <CircleMarker center={pos} radius={8} pathOptions={{ color: '#fff', weight: 3, fillColor: '#1863dc', fillOpacity: 1 }}>
                 <Tooltip direction="top">המיקום שלך</Tooltip>
               </CircleMarker>
             )}
