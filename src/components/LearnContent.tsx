@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Check, ChevronDown, ChevronUp, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, FileText, Pencil, Plus, Trash2, Upload, X } from 'lucide-react'
 import { useAuth } from '../context/AuthProvider'
+import { openInfoDocument, useInfoCategories, useInfoDocuments, useSaveInfoDoc } from '../lib/api'
 import { useApprove, useCanEditLearning, useCases, useDeleteCase, useDeleteLesson, useLessons, useSaveCase, useSaveLesson } from '../lib/learnApi'
 import type { LearnCase, LearnLesson } from '../lib/types'
 import { LearnImage, VideoLink } from './LearnMedia'
@@ -28,6 +29,13 @@ export function ApprovalTag({ approved, table, id, topicId, label }: { approved:
 
 function LessonModal({ topicId, lesson, nextSort, onClose }: { topicId: string; lesson: LearnLesson | null; nextSort: number; onClose: () => void }) {
   const save = useSaveLesson()
+  const infoDocs = useInfoDocuments()
+  const categories = useInfoCategories()
+  const saveDoc = useSaveInfoDoc()
+  const [docIds, setDocIds] = useState<string[]>(lesson?.doc_ids ?? [])
+  const [find, setFind] = useState('')
+  const [uploads, setUploads] = useState<{ file: File; title: string; categoryId: string }[]>([])
+  const [busy, setBusy] = useState(false)
   const [title, setTitle] = useState(lesson?.title ?? '')
   const [body, setBody] = useState(lesson?.body ?? '')
   const [video, setVideo] = useState(lesson?.video_url ?? '')
@@ -38,12 +46,24 @@ function LessonModal({ topicId, lesson, nextSort, onClose }: { topicId: string; 
     <Modal open onClose={onClose} title={lesson ? 'עריכת שיעור' : 'שיעור חדש'} size="xl">
       <form
         className="space-y-3"
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault()
-          save.mutate(
-            { id: lesson?.id, topic_id: topicId, title, body, video_url: video, sort: lesson?.sort ?? nextSort, image, removeImage, existingImage: lesson?.image_path },
-            { onSuccess: onClose, onError: (er) => setError(er instanceof Error ? er.message : 'השמירה נכשלה') },
-          )
+          setError('')
+          setBusy(true)
+          try {
+            // a file uploaded here goes into the clinical-information library, so it exists once and is found in both places
+            const newIds: string[] = []
+            for (const u of uploads) {
+              newIds.push(await saveDoc.mutateAsync({ title: u.title.trim() || u.file.name, description: '', categoryId: u.categoryId || null, procedureIds: [], tags: [], kind: 'file', url: '', file: u.file }))
+            }
+            save.mutate(
+              { id: lesson?.id, topic_id: topicId, title, body, video_url: video, doc_ids: [...docIds, ...newIds], sort: lesson?.sort ?? nextSort, image, removeImage, existingImage: lesson?.image_path },
+              { onSuccess: onClose, onError: (er) => setError(er instanceof Error ? er.message : 'השמירה נכשלה'), onSettled: () => setBusy(false) },
+            )
+          } catch (er) {
+            setError(er instanceof Error ? er.message : 'העלאת הקובץ נכשלה')
+            setBusy(false)
+          }
         }}
       >
         <Field label="כותרת">
@@ -66,14 +86,79 @@ function LessonModal({ topicId, lesson, nextSort, onClose }: { topicId: string; 
         <Field label="קישור לוידאו (YouTube או כל קישור)">
           <input className="input" dir="ltr" placeholder="https://…" value={video} onChange={(e) => setVideo(e.target.value)} />
         </Field>
+        <Field label="מסמכים מהמידע הקליני (PDF, מצגות…)">
+          <div className="space-y-2">
+            {(docIds.length > 0 || uploads.length > 0) && (
+              <ul className="space-y-1">
+                {docIds.map((id) => {
+                  const d = (infoDocs.data ?? []).find((x) => x.id === id)
+                  return (
+                    <li key={id} className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-2 py-1 text-sm">
+                      <span className="flex items-center gap-1.5 text-slate-700">
+                        <FileText size={14} className="text-red-500" /> {d?.title ?? 'מסמך שנמחק'}
+                      </span>
+                      <button type="button" className="text-xs text-red-500 hover:underline" onClick={() => setDocIds((x) => x.filter((v) => v !== id))}>
+                        הסר
+                      </button>
+                    </li>
+                  )
+                })}
+                {uploads.map((u, i) => (
+                  <li key={i} className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-brand-300 bg-brand-50/40 px-2 py-1 text-sm">
+                    <Upload size={14} className="text-brand-600" />
+                    <input className="input !w-44 !py-0.5 text-xs" dir="auto" value={u.title} onChange={(e) => setUploads((x) => x.map((v, k) => (k === i ? { ...v, title: e.target.value } : v)))} aria-label="שם המסמך" />
+                    <select className="input !w-auto !py-0.5 text-xs" value={u.categoryId} onChange={(e) => setUploads((x) => x.map((v, k) => (k === i ? { ...v, categoryId: e.target.value } : v)))} aria-label="קטגוריה במידע הקליני">
+                      <option value="">קטגוריה במידע קליני…</option>
+                      {(categories.data ?? []).map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button type="button" className="text-xs text-red-500 hover:underline" onClick={() => setUploads((x) => x.filter((_, k) => k !== i))}>
+                      הסר
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <input className="input" type="search" dir="auto" placeholder="חיפוש מסמך קיים במידע הקליני…" value={find} onChange={(e) => setFind(e.target.value)} />
+            {find.trim() && (
+              <ul className="max-h-40 space-y-1 overflow-y-auto">
+                {(infoDocs.data ?? [])
+                  .filter((d) => !docIds.includes(d.id) && (d.title + ' ' + d.file_name).toLowerCase().includes(find.trim().toLowerCase()))
+                  .slice(0, 8)
+                  .map((d) => (
+                    <li key={d.id}>
+                      <button type="button" className="flex w-full items-center gap-1.5 rounded-lg px-2 py-1 text-right text-sm hover:bg-slate-100" onClick={() => { setDocIds((x) => [...x, d.id]); setFind('') }}>
+                        <Plus size={13} className="text-brand-600" /> {d.title}
+                      </button>
+                    </li>
+                  ))}
+              </ul>
+            )}
+            <label className="btn-secondary inline-flex cursor-pointer text-xs">
+              <Upload size={13} /> העלאת קובץ חדש (יישמר גם במידע הקליני)
+              <input
+                type="file"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0]
+                  if (f) setUploads((x) => [...x, { file: f, title: f.name.replace(/\.[^.]+$/, ''), categoryId: '' }])
+                  e.target.value = ''
+                }}
+              />
+            </label>
+          </div>
+        </Field>
         {error && <p className="text-sm text-red-600">{error}</p>}
         <p className="text-xs text-slate-400">שיעור שנכתב על ידי עורך תוכן מתפרסם רק אחרי שמנהל מאשר אותו.</p>
         <div className="flex justify-end gap-2">
           <button type="button" className="btn-secondary" onClick={onClose}>
             ביטול
           </button>
-          <button className="btn-primary" disabled={!title.trim() || save.isPending}>
-            {save.isPending ? 'שומר…' : 'שמור'}
+          <button className="btn-primary" disabled={!title.trim() || save.isPending || busy}>
+            {save.isPending || busy ? 'שומר…' : 'שמור'}
           </button>
         </div>
       </form>
@@ -86,6 +171,8 @@ export function LessonsPanel({ topicId }: { topicId: string }) {
   const lessons = useLessons(topicId)
   const canEdit = useCanEditLearning()
   const del = useDeleteLesson()
+  const infoDocs = useInfoDocuments()
+  const [docError, setDocError] = useState('')
   const [open, setOpen] = useState<string | null>(null)
   const [modal, setModal] = useState<{ lesson: LearnLesson | null } | null>(null)
   if (lessons.isLoading) return <Spinner />
@@ -122,6 +209,26 @@ export function LessonsPanel({ topicId }: { topicId: string }) {
                     )}
                     <LearnImage path={l.image_path} />
                     <VideoLink url={l.video_url} />
+                    {l.doc_ids.length > 0 && (
+                      <div className="space-y-1">
+                        <p className="text-xs font-semibold text-slate-400">מסמכים</p>
+                        <div className="flex flex-wrap gap-2">
+                          {l.doc_ids.map((id) => {
+                            const d = (infoDocs.data ?? []).find((x) => x.id === id)
+                            return d ? (
+                              <button
+                                key={id}
+                                className="btn-secondary !py-1 text-sm"
+                                onClick={async () => setDocError((await openInfoDocument(d)) ?? '')}
+                              >
+                                <FileText size={14} className="text-red-500" /> {d.title}
+                              </button>
+                            ) : null
+                          })}
+                        </div>
+                        {docError && <p className="text-xs text-red-600">{docError}</p>}
+                      </div>
+                    )}
                     {canEdit && (
                       <div className="flex gap-1">
                         <button className="btn-ghost !px-2" aria-label="עריכה" onClick={() => setModal({ lesson: l })}>

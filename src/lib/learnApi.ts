@@ -270,10 +270,10 @@ export function useLessons(topicId: string | undefined) {
 export function useSaveLesson() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (l: { id?: string; topic_id: string; title: string; body: string; video_url: string; sort: number; image?: File | null; removeImage?: boolean; existingImage?: string | null }) => {
+    mutationFn: async (l: { id?: string; topic_id: string; title: string; body: string; video_url: string; doc_ids: string[]; sort: number; image?: File | null; removeImage?: boolean; existingImage?: string | null }) => {
       let image_path = l.removeImage ? null : (l.existingImage ?? null)
       if (l.image) image_path = await uploadLearnImage(l.image)
-      const row = { topic_id: l.topic_id, title: l.title.trim(), body: l.body.trim(), video_url: l.video_url.trim(), image_path }
+      const row = { topic_id: l.topic_id, title: l.title.trim(), body: l.body.trim(), video_url: l.video_url.trim(), doc_ids: l.doc_ids, image_path }
       if (l.id) unwrap(await supabase.from('learn_lessons').update(row).eq('id', l.id))
       else unwrap(await supabase.from('learn_lessons').insert({ ...row, sort: l.sort }))
     },

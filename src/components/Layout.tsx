@@ -53,7 +53,7 @@ const NAV = [
 // the five destinations reachable with one thumb tap on a phone
 const TABS = ['/', '/doctors', '/schedule', '/tasks', '/scans']
 
-const VERSION = 'v87 · לומדה: מסלולים, חזרה מרווחת, שיעורים ומקרים'
+const VERSION = 'v88 · לומדה: מסמכים מהמידע הקליני'
 
 export function Layout() {
   const { profile, signOut, impersonating } = useAuth()

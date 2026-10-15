@@ -1053,9 +1053,9 @@ export type Database = {
         Relationships: []
       }
       learn_lessons: {
-        Row: { approved: boolean; body: string; created_at: string; id: string; image_path: string | null; sort: number; title: string; topic_id: string; video_url: string }
-        Insert: { approved?: boolean; body?: string; created_at?: string; id?: string; image_path?: string | null; sort?: number; title: string; topic_id: string; video_url?: string }
-        Update: { approved?: boolean; body?: string; created_at?: string; id?: string; image_path?: string | null; sort?: number; title?: string; topic_id?: string; video_url?: string }
+        Row: { approved: boolean; body: string; created_at: string; doc_ids: string[]; id: string; image_path: string | null; sort: number; title: string; topic_id: string; video_url: string }
+        Insert: { approved?: boolean; body?: string; created_at?: string; doc_ids?: string[]; id?: string; image_path?: string | null; sort?: number; title: string; topic_id: string; video_url?: string }
+        Update: { approved?: boolean; body?: string; created_at?: string; doc_ids?: string[]; id?: string; image_path?: string | null; sort?: number; title?: string; topic_id?: string; video_url?: string }
         Relationships: []
       }
       learn_cases: {

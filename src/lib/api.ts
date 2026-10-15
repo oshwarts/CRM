@@ -1628,7 +1628,7 @@ export type InfoDocInput = {
 export function useSaveInfoDoc() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (d: InfoDocInput) => {
+    mutationFn: async (d: InfoDocInput): Promise<string> => {
       const actingId = await actingUserId()
       const meta: Record<string, unknown> = {
         title: d.title.trim(),
@@ -1672,6 +1672,7 @@ export function useSaveInfoDoc() {
             .from('info_document_procedures')
             .insert(d.procedureIds.map((procedure_id) => ({ document_id: id!, procedure_id }))),
         )
+      return id
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['info-documents'] }),
   })
