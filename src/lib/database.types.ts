@@ -1041,15 +1041,39 @@ export type Database = {
         Relationships: []
       }
       learn_cards: {
-        Row: { answer: string; created_at: string; id: string; question: string; sort: number; topic_id: string }
-        Insert: { answer: string; created_at?: string; id?: string; question: string; sort?: number; topic_id: string }
-        Update: { answer?: string; created_at?: string; id?: string; question?: string; sort?: number; topic_id?: string }
+        Row: { answer: string; approved: boolean; created_at: string; id: string; image_path: string | null; question: string; sort: number; topic_id: string }
+        Insert: { answer: string; approved?: boolean; created_at?: string; id?: string; image_path?: string | null; question: string; sort?: number; topic_id: string }
+        Update: { answer?: string; approved?: boolean; created_at?: string; id?: string; image_path?: string | null; question?: string; sort?: number; topic_id?: string }
         Relationships: []
       }
       learn_progress: {
-        Row: { card_id: string; correct_count: number; id: string; known: boolean; last_seen: string; topic_id: string; user_id: string; wrong_count: number }
-        Insert: { card_id: string; correct_count?: number; id?: string; known?: boolean; last_seen?: string; topic_id: string; user_id?: string; wrong_count?: number }
-        Update: { card_id?: string; correct_count?: number; id?: string; known?: boolean; last_seen?: string; topic_id?: string; user_id?: string; wrong_count?: number }
+        Row: { box: number; card_id: string; correct_count: number; due_on: string; id: string; known: boolean; last_seen: string; topic_id: string; user_id: string; wrong_count: number }
+        Insert: { box?: number; card_id: string; correct_count?: number; due_on?: string; id?: string; known?: boolean; last_seen?: string; topic_id: string; user_id?: string; wrong_count?: number }
+        Update: { box?: number; card_id?: string; correct_count?: number; due_on?: string; id?: string; known?: boolean; last_seen?: string; topic_id?: string; user_id?: string; wrong_count?: number }
+        Relationships: []
+      }
+      learn_lessons: {
+        Row: { approved: boolean; body: string; created_at: string; id: string; image_path: string | null; sort: number; title: string; topic_id: string; video_url: string }
+        Insert: { approved?: boolean; body?: string; created_at?: string; id?: string; image_path?: string | null; sort?: number; title: string; topic_id: string; video_url?: string }
+        Update: { approved?: boolean; body?: string; created_at?: string; id?: string; image_path?: string | null; sort?: number; title?: string; topic_id?: string; video_url?: string }
+        Relationships: []
+      }
+      learn_cases: {
+        Row: { approved: boolean; correct_index: number; created_at: string; explanation: string; id: string; image_path: string | null; options: unknown; question: string; scenario: string; sort: number; title: string; topic_id: string }
+        Insert: { approved?: boolean; correct_index?: number; created_at?: string; explanation?: string; id?: string; image_path?: string | null; options?: unknown; question?: string; scenario?: string; sort?: number; title: string; topic_id: string }
+        Update: { approved?: boolean; correct_index?: number; created_at?: string; explanation?: string; id?: string; image_path?: string | null; options?: unknown; question?: string; scenario?: string; sort?: number; title?: string; topic_id?: string }
+        Relationships: []
+      }
+      learn_tracks: {
+        Row: { audience: string; created_at: string; description: string; id: string; sort: number; title: string }
+        Insert: { audience?: string; created_at?: string; description?: string; id?: string; sort?: number; title: string }
+        Update: { audience?: string; created_at?: string; description?: string; id?: string; sort?: number; title?: string }
+        Relationships: []
+      }
+      learn_track_items: {
+        Row: { id: string; pass_pct: number; sort: number; stage_id: string | null; topic_id: string; track_id: string }
+        Insert: { id?: string; pass_pct?: number; sort?: number; stage_id?: string | null; topic_id: string; track_id: string }
+        Update: { id?: string; pass_pct?: number; sort?: number; stage_id?: string | null; topic_id?: string; track_id?: string }
         Relationships: []
       }
       learn_attempts: {
@@ -1183,6 +1207,7 @@ export type Database = {
           full_name: string
           id: string
           impersonating_id: string | null
+          is_content_editor: boolean
           is_developer: boolean
           is_test: boolean
           role: string
@@ -1196,6 +1221,7 @@ export type Database = {
           full_name?: string
           id: string
           impersonating_id?: string | null
+          is_content_editor?: boolean
           is_developer?: boolean
           is_test?: boolean
           role?: string
@@ -1209,6 +1235,7 @@ export type Database = {
           full_name?: string
           id?: string
           impersonating_id?: string | null
+          is_content_editor?: boolean
           is_developer?: boolean
           is_test?: boolean
           role?: string
@@ -1222,6 +1249,8 @@ export type Database = {
     Functions: {
       is_admin: { Args: Record<string, never>; Returns: boolean }
       is_active: { Args: Record<string, never>; Returns: boolean }
+      sync_learning_stages: { Args: Record<string, never>; Returns: number }
+      can_edit_learning: { Args: Record<string, never>; Returns: boolean }
       merge_records: { Args: { p_table: string; p_keep: string; p_drop: string }; Returns: undefined }
       replace_equipment_parts: { Args: { p_item: string; p_parts: unknown }; Returns: undefined }
       reset_test_user: { Args: { p_target: string }; Returns: undefined }

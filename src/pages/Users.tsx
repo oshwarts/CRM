@@ -76,7 +76,7 @@ function UsersTab() {
   const admins = all.filter((u) => u.active && u.role === 'admin').length
   const waiting = all.filter((u) => !u.active && !u.status_changed_at).length
 
-  function change(u: Profile, patch: { role?: string; active?: boolean }) {
+  function change(u: Profile, patch: { role?: string; active?: boolean; is_content_editor?: boolean }) {
     setError('')
     update.mutate(
       { id: u.id, ...patch },
@@ -143,6 +143,12 @@ function UsersTab() {
                 <li key={u.id} className="card flex flex-wrap items-center justify-between gap-3 p-3">
                   <Who u={u} me={me} sub={`נרשם ${formatDate(u.created_at.slice(0, 10))} · כניסה אחרונה ${lastSeen(u.id)}`} />
                   <div className="flex items-center gap-2">
+                    {u.role === "agent" && (
+                      <label className="flex items-center gap-1.5 text-xs text-slate-600" title="עורך תוכן יכול להוסיף ולערוך שיעורים, שאלות ומקרים בלומדה. מה שהוא כותב מתפרסם אחרי אישור מנהל.">
+                        <input type="checkbox" checked={u.is_content_editor} disabled={update.isPending} onChange={(e) => change(u, { is_content_editor: e.target.checked })} />
+                        עורך תוכן
+                      </label>
+                    )}
                     {!me && !u.is_developer && <ResetLinkButton user={u} />}
                     <select
                       className="input !w-auto"

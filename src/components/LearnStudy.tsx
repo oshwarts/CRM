@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Check, RotateCcw, Shuffle, X } from 'lucide-react'
 import { useRecordAnswer, useSaveAttempt } from '../lib/learnApi'
 import type { LearnCard, LearnProgress } from '../lib/types'
+import { LearnImage } from './LearnMedia'
 import { classNames } from '../lib/utils'
 
 function shuffle<T>(list: T[]): T[] {
@@ -18,12 +19,14 @@ const text = 'whitespace-pre-wrap text-left'
 
 /* ---------------------------------------------------------------- flashcards */
 
-export function FlashStudy({ cards, progress }: { cards: LearnCard[]; progress: LearnProgress[] }) {
+export function FlashStudy({ cards, progress, auto, onExit }: { cards: LearnCard[]; progress: LearnProgress[]; auto?: boolean; onExit?: () => void }) {
   const record = useRecordAnswer()
   const byCard = useMemo(() => new Map(progress.map((p) => [p.card_id, p])), [progress])
   const [onlyUnknown, setOnlyUnknown] = useState(true)
   const [mix, setMix] = useState(true)
-  const [session, setSession] = useState<{ queue: string[]; total: number; known: number; missed: number } | null>(null)
+  const [session, setSession] = useState<{ queue: string[]; total: number; known: number; missed: number } | null>(() =>
+    auto ? { queue: shuffle(cards).map((c) => c.id), total: cards.length, known: 0, missed: 0 } : null,
+  )
   const [flipped, setFlipped] = useState(false)
   const cardMap = useMemo(() => new Map(cards.map((c) => [c.id, c])), [cards])
 
@@ -66,7 +69,7 @@ export function FlashStudy({ cards, progress }: { cards: LearnCard[]; progress: 
         <p className="text-sm text-slate-500">
           {session.total} שאלות · {session.missed} פעמים שלא ידעת לפני שידעת
         </p>
-        <button className="btn-primary" onClick={() => setSession(null)}>
+        <button className="btn-primary" onClick={() => (auto && onExit ? onExit() : setSession(null))}>
           חזרה
         </button>
       </div>
@@ -92,7 +95,7 @@ export function FlashStudy({ cards, progress }: { cards: LearnCard[]; progress: 
         <span>
           נשארו {new Set(session.queue).size} · נלמדו {done} מתוך {session.total}
         </span>
-        <button className="inline-flex items-center gap-1 text-slate-400 hover:text-slate-600" onClick={() => setSession(null)}>
+        <button className="inline-flex items-center gap-1 text-slate-400 hover:text-slate-600" onClick={() => (auto && onExit ? onExit() : setSession(null))}>
           <X size={13} /> סיום
         </button>
       </div>
@@ -110,6 +113,7 @@ export function FlashStudy({ cards, progress }: { cards: LearnCard[]; progress: 
       >
         <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{flipped ? 'Answer' : 'Question'}</span>
         <span className={classNames(text, 'text-lg leading-relaxed text-slate-800')}>{flipped ? current.answer : current.question}</span>
+        {!flipped && current.image_path && <LearnImage path={current.image_path} />}
         {!flipped && <span className="mt-2 text-xs text-slate-400">לחץ כדי להפוך</span>}
       </button>
       {flipped ? (
@@ -143,7 +147,7 @@ function buildQuiz(cards: LearnCard[], known: Set<string>, count: number): Q[] {
   })
 }
 
-export function QuizStudy({ topicId, cards, progress }: { topicId: string; cards: LearnCard[]; progress: LearnProgress[] }) {
+export function QuizStudy({ topicId, cards, progress, passPct }: { topicId: string; cards: LearnCard[]; progress: LearnProgress[]; passPct?: number }) {
   const record = useRecordAnswer()
   const saveAttempt = useSaveAttempt()
   const byCard = useMemo(() => new Map(progress.map((p) => [p.card_id, p])), [progress])
@@ -197,6 +201,11 @@ export function QuizStudy({ topicId, cards, progress }: { topicId: string; cards
             {score}/{quiz.length}
           </p>
           <p className="text-sm text-slate-500">{Math.round((score / quiz.length) * 100)}% נכון</p>
+          {passPct !== undefined && (
+            <p className={classNames('text-sm font-semibold', Math.round((score / quiz.length) * 100) >= passPct ? 'text-emerald-600' : 'text-red-600')}>
+              {Math.round((score / quiz.length) * 100) >= passPct ? `עברת! (ציון עובר ${passPct}%)` : `עוד לא עברת — נדרש ${passPct}%. אפשר לנסות שוב.`}
+            </p>
+          )}
         </div>
         {wrong.length > 0 && (
           <div className="card space-y-3 p-4">
@@ -252,6 +261,7 @@ export function QuizStudy({ topicId, cards, progress }: { topicId: string; cards
       </div>
       <div className="card p-5" dir="ltr">
         <p className={classNames(text, 'text-lg leading-relaxed text-slate-800')}>{q.card.question}</p>
+        {q.card.image_path && <LearnImage path={q.card.image_path} className="mt-3" />}
       </div>
       <div className="space-y-2" dir="ltr">
         {q.options.map((o) => {
