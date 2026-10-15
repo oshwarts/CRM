@@ -70,8 +70,14 @@ function Kpi({ href, icon, value, label, tone }: { href: string; icon: React.Rea
     amber: value > 0 ? 'bg-amber-50 text-amber-700' : 'bg-slate-50 text-slate-500',
     green: 'bg-emerald-50 text-emerald-700',
   }
+  const edge = {
+    blue: 'border-t-[#1863dc]',
+    red: value > 0 ? 'border-t-[#cc3366]' : 'border-t-slate-200',
+    amber: value > 0 ? 'border-t-[#d98e0a]' : 'border-t-slate-200',
+    green: 'border-t-[#1d9a6c]',
+  }
   return (
-    <a href={href} className="card flex items-center gap-3 p-3.5 transition hover:border-brand-300 hover:shadow-pop">
+    <a href={href} className={classNames('card flex items-center gap-3 border-t-[3px] p-3.5 transition hover:shadow-pop', edge[tone])}>
       <span className={classNames('grid h-11 w-11 shrink-0 place-items-center rounded-xl', tones[tone])}>{icon}</span>
       <span className="min-w-0">
         <span className="block text-2xl font-semibold leading-none text-brand-800">{value}</span>
@@ -86,7 +92,7 @@ function SectionTitle({ icon, title, to, linkLabel }: { icon: React.ReactNode; t
   return (
     <div className="mb-3 flex items-center justify-between gap-2">
       <h2 className="flex min-w-0 items-center gap-2.5 whitespace-nowrap text-base font-semibold text-brand-800 sm:text-lg">
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-600">{icon}</span>
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#00326d] text-white">{icon}</span>
         {title}
       </h2>
       {to && (
@@ -346,23 +352,34 @@ export default function Home() {
   return (
     <div className="space-y-6">
       <div className="space-y-4">
-        <div>
-          <p className="text-sm font-medium text-brand-600">{dateLabel}</p>
-          <h1 className="text-3xl font-semibold">שלום{profile?.full_name ? `, ${profile.full_name}` : ''}</h1>
-        </div>
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-          <button className="btn-primary" onClick={() => setNewMeeting(true)}>
-            <Plus size={16} /> פגישה חדשה
-          </button>
-          <button className="btn-secondary" onClick={() => setNewTask(true)}>
-            <CheckSquare size={16} /> משימה חדשה
-          </button>
-          <button className="btn-secondary" onClick={() => setAddScan(true)}>
-            <ScanLine size={16} /> סריקה חדשה
-          </button>
-          <button className="btn-secondary" onClick={() => setImportReferral(true)}>
-            <FileInput size={16} /> ייבוא הפנייה
-          </button>
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-l from-[#00326d] via-[#0d4090] to-[#1863dc] p-5 text-white shadow-pop sm:p-7">
+          <span aria-hidden className="pointer-events-none absolute -left-12 -top-14 h-48 w-48 rounded-full bg-white/10" />
+          <span aria-hidden className="pointer-events-none absolute -bottom-16 left-24 h-40 w-40 rounded-full bg-[#cc3366]/30" />
+          <div className="relative space-y-4">
+            <div>
+              <p className="text-sm font-medium text-white/80">{dateLabel}</p>
+              <h1 className="text-3xl font-semibold !text-white">שלום{profile?.full_name ? `, ${profile.full_name}` : ''}</h1>
+              <p className="mt-1 text-sm text-white/85">
+                {meetingsToday === 0 && overdueTasks === 0
+                  ? 'אין היום פגישות ואין משימות באיחור'
+                  : [meetingsToday > 0 ? `${meetingsToday} פגישות היום` : '', overdueTasks > 0 ? `${overdueTasks} משימות באיחור` : ''].filter(Boolean).join(' · ')}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+              <button className="btn bg-white !text-[#00326d] hover:bg-white/90" onClick={() => setNewMeeting(true)}>
+                <Plus size={16} /> פגישה חדשה
+              </button>
+              <button className="btn border border-white/40 bg-white/10 text-white hover:bg-white/20" onClick={() => setNewTask(true)}>
+                <CheckSquare size={16} /> משימה חדשה
+              </button>
+              <button className="btn border border-white/40 bg-white/10 text-white hover:bg-white/20" onClick={() => setAddScan(true)}>
+                <ScanLine size={16} /> סריקה חדשה
+              </button>
+              <button className="btn border border-white/40 bg-white/10 text-white hover:bg-white/20" onClick={() => setImportReferral(true)}>
+                <FileInput size={16} /> ייבוא הפנייה
+              </button>
+            </div>
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Kpi href="#home-meetings" icon={<CalendarDays size={20} />} value={meetingsToday} label="פגישות היום" tone="blue" />

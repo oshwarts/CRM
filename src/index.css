@@ -11,7 +11,10 @@
 }
 
 /* white surfaces turn dark in the dark theme (text-white stays white) */
-.dark .bg-white {
+.dark .bg-white,
+.dark .card,
+.dark .input,
+.dark .btn-secondary:not(:hover) {
   background-color: var(--surface);
 }
 .dark .bg-white\/95,
