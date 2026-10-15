@@ -15,6 +15,12 @@ supabase.auth.onAuthStateChange((event) => {
   if (event === 'SIGNED_OUT') {
     queryClient.clear()
     void idbPersister.removeClient()
+    // unsaved form drafts belong to the person who wrote them, not to the next one using this device
+    try {
+      for (const k of Object.keys(localStorage)) if (k.startsWith('ami.draft.')) localStorage.removeItem(k)
+    } catch {
+      // no storage
+    }
   }
 })
 registerServiceWorker()

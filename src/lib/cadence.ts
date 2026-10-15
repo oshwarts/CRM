@@ -29,8 +29,10 @@ export function contactState(
   const mine = meetings.filter(
     (m) => m.meeting_date && m.status !== 'cancelled' && m.meeting_doctors.some((x) => x.doctor?.id === doctor.id),
   )
-  const past = mine.map((m) => m.meeting_date as string).filter((d) => d <= today).sort()
-  const future = mine.map((m) => m.meeting_date as string).filter((d) => d >= today).sort()
+  // a meeting that took place is one marked done / needs follow-up; a "scheduled" one whose date passed was never closed,
+  // so it is no proof of contact (the "now" page asks the agent to update it)
+  const past = mine.filter((m) => m.status !== 'scheduled' && (m.meeting_date as string) <= today).map((m) => m.meeting_date as string).sort()
+  const future = mine.filter((m) => m.status === 'scheduled' && (m.meeting_date as string) >= today).map((m) => m.meeting_date as string).sort()
   const lastDate = past.length ? past[past.length - 1] : null
   const nextMeeting = future[0] ?? null
 

@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate, useNavigationType } from 're
 import {
   ArrowRight,
   LogOut,
+  SlidersHorizontal,
   ChevronDown,
   Pencil,
   Plus,
@@ -33,10 +34,10 @@ const TABS = ['/', '/doctors', '/tasks', '/schedule']
 // scroll position of each visited page, so that going back returns to the same place
 const scrollOf = new Map<string, number>()
 
-const VERSION = 'v112 · פגישות בטלפון: מלל לא עולה אחד על השני'
+const VERSION = 'v113 · תפריט: אזור המשתמש קטן ולמטה'
 
 export function Layout() {
-  const { profile, signOut, impersonating } = useAuth()
+  const { profile, signOut, impersonating, isDeveloper } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [showProfile, setShowProfile] = useState(false)
@@ -44,6 +45,7 @@ export function Layout() {
   const [searching, setSearching] = useState(false)
   const [creating, setCreating] = useState(false)
   const { navItems, groups, favorites } = useMenu()
+  const [accountOpen, setAccountOpen] = useLocalSetting<boolean>('menu.account', false)
   const [openGroups, setOpenGroups] = useLocalSetting<string[]>('menu.open', [])
   const navType = useNavigationType()
   const tasks = useTasks()
@@ -100,26 +102,46 @@ export function Layout() {
     )
 
   const account = (
-    <div className="border-t border-slate-200 p-3">
-      <button
-        className="mb-1 w-full rounded-lg px-2 py-1.5 text-right text-xs text-slate-500 hover:bg-slate-100"
-        onClick={() => {
-          setDrawer(false)
-          setShowProfile(true)
-        }}
-      >
-        {profile?.full_name || profile?.email || 'הפרופיל שלי'}
-        {profile?.role === 'admin' && ' · מנהל'}
-        <span className="block text-[11px] text-brand-500">עריכת פרופיל</span>
-      </button>
-      <DeveloperSwitcher />
-      <ThemeToggle />
-      <RefreshButton label />
-      <button className="btn-ghost w-full justify-start" onClick={handleSignOut}>
-        <LogOut size={16} />
-        התנתקות
-      </button>
-      <p className="mt-1 px-2 text-center text-[10px] text-slate-300">{VERSION}</p>
+    <div className="border-t border-slate-200 px-2 py-2">
+      {accountOpen && (
+        <div className="mb-2 space-y-1.5 rounded-xl bg-slate-50 p-2">
+          <DeveloperSwitcher />
+          <ThemeToggle />
+          <p className="text-center text-[10px] text-slate-400">{VERSION}</p>
+        </div>
+      )}
+      <div className="flex items-center gap-1">
+        <button
+          className="flex min-w-0 flex-1 items-center gap-2 rounded-xl px-1.5 py-1 text-right hover:bg-slate-100"
+          title="עריכת פרופיל"
+          onClick={() => {
+            setDrawer(false)
+            setShowProfile(true)
+          }}
+        >
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#00326d] text-sm font-semibold text-white">
+            {((profile?.full_name || profile?.email || '?').trim()[0] ?? '?').toUpperCase()}
+          </span>
+          <span className="min-w-0 leading-tight">
+            <span className="block truncate text-xs font-medium text-slate-700">{profile?.full_name || profile?.email || 'הפרופיל שלי'}</span>
+            <span className="block truncate text-[11px] text-slate-400">{profile?.role === 'admin' ? 'מנהל' : 'סוכן'}</span>
+          </span>
+        </button>
+        <RefreshButton />
+        <button
+          className={classNames('btn-ghost relative !px-2', accountOpen && 'bg-slate-100')}
+          aria-label="מראה, גודל תצוגה ומצב מפתח"
+          aria-expanded={accountOpen}
+          title="מראה ותצוגה"
+          onClick={() => setAccountOpen((v) => !v)}
+        >
+          <SlidersHorizontal size={18} />
+          {isDeveloper && <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-amber-500" />}
+        </button>
+        <button className="btn-ghost !px-2" aria-label="התנתקות" title="התנתקות" onClick={handleSignOut}>
+          <LogOut size={18} />
+        </button>
+      </div>
     </div>
   )
 

@@ -217,47 +217,42 @@ export type DoctorFormData = {
   hospitals: { hospital_id: string; role_at_hospital: string; sector: string }[]
 }
 
+/**
+ * Makes the rows of a join table (all rows of one parent) equal to `wanted` WITHOUT emptying it first: new / changed rows
+ * are upserted, then only the rows that are no longer wanted are deleted. A save that fails half way (a dropped
+ * connection) therefore leaves the old rows in place instead of a doctor / meeting with nothing attached.
+ */
+async function syncJoin(
+  table: 'doctor_companies' | 'doctor_procedures' | 'doctor_robotic_systems' | 'doctor_hospitals' | 'meeting_doctors' | 'meeting_agents' | 'meeting_contacts',
+  parentCol: 'doctor_id' | 'meeting_id',
+  parentId: string,
+  otherCol: string,
+  wanted: Record<string, unknown>[],
+) {
+  const byOther = new Map<string, Record<string, unknown>>()
+  for (const w of wanted) byOther.set(String(w[otherCol]), w) // one row per target (a duplicate would break the upsert)
+  const existing = unwrap<Record<string, string>[]>(await supabase.from(table).select(otherCol).eq(parentCol, parentId))
+  const drop = existing.map((r) => r[otherCol]).filter((id) => !byOther.has(id))
+  if (byOther.size)
+    unwrap(
+      await supabase
+        .from(table)
+        .upsert([...byOther.values()].map((w) => ({ [parentCol]: parentId, ...w })) as never, { onConflict: `${parentCol},${otherCol}` }),
+    )
+  if (drop.length) unwrap(await supabase.from(table).delete().eq(parentCol, parentId).in(otherCol, drop))
+}
+
 async function saveDoctorRelations(doctorId: string, d: DoctorFormData) {
-  await supabase.from('doctor_companies').delete().eq('doctor_id', doctorId)
-  if (d.companyIds.length)
-    unwrap(
-      await supabase
-        .from('doctor_companies')
-        .insert(d.companyIds.map((company_id) => ({ doctor_id: doctorId, company_id }))),
-    )
-
-  await supabase.from('doctor_procedures').delete().eq('doctor_id', doctorId)
-  if (d.procedureIds.length)
-    unwrap(
-      await supabase
-        .from('doctor_procedures')
-        .insert(
-          d.procedureIds.map((procedure_id) => ({ doctor_id: doctorId, procedure_id })),
-        ),
-    )
-
-  await supabase.from('doctor_robotic_systems').delete().eq('doctor_id', doctorId)
-  if (d.roboticSystemIds.length)
-    unwrap(
-      await supabase
-        .from('doctor_robotic_systems')
-        .insert(
-          d.roboticSystemIds.map((system_id) => ({ doctor_id: doctorId, system_id })),
-        ),
-    )
-
-  await supabase.from('doctor_hospitals').delete().eq('doctor_id', doctorId)
-  if (d.hospitals.length)
-    unwrap(
-      await supabase.from('doctor_hospitals').insert(
-        d.hospitals.map((h) => ({
-          doctor_id: doctorId,
-          hospital_id: h.hospital_id,
-          role_at_hospital: h.role_at_hospital,
-          sector: h.sector,
-        })),
-      ),
-    )
+  await syncJoin('doctor_companies', 'doctor_id', doctorId, 'company_id', d.companyIds.map((company_id) => ({ company_id })))
+  await syncJoin('doctor_procedures', 'doctor_id', doctorId, 'procedure_id', d.procedureIds.map((procedure_id) => ({ procedure_id })))
+  await syncJoin('doctor_robotic_systems', 'doctor_id', doctorId, 'system_id', d.roboticSystemIds.map((system_id) => ({ system_id })))
+  await syncJoin(
+    'doctor_hospitals',
+    'doctor_id',
+    doctorId,
+    'hospital_id',
+    d.hospitals.map((h) => ({ hospital_id: h.hospital_id, role_at_hospital: h.role_at_hospital, sector: h.sector })),
+  )
 }
 
 export function useCreateDoctor() {
@@ -510,29 +505,9 @@ export type MeetingFormData = {
 }
 
 async function saveMeetingChildren(meetingId: string, d: MeetingFormData, baseTaskIds: string[] | null = null) {
-  await supabase.from('meeting_doctors').delete().eq('meeting_id', meetingId)
-  if (d.doctorIds.length)
-    unwrap(
-      await supabase
-        .from('meeting_doctors')
-        .insert(d.doctorIds.map((doctor_id) => ({ meeting_id: meetingId, doctor_id }))),
-    )
-
-  await supabase.from('meeting_agents').delete().eq('meeting_id', meetingId)
-  if (d.agentIds.length)
-    unwrap(
-      await supabase
-        .from('meeting_agents')
-        .insert(d.agentIds.map((agent_id) => ({ meeting_id: meetingId, agent_id }))),
-    )
-
-  await supabase.from('meeting_contacts').delete().eq('meeting_id', meetingId)
-  if (d.contactIds.length)
-    unwrap(
-      await supabase
-        .from('meeting_contacts')
-        .insert(d.contactIds.map((contact_id) => ({ meeting_id: meetingId, contact_id }))),
-    )
+  await syncJoin('meeting_doctors', 'meeting_id', meetingId, 'doctor_id', d.doctorIds.map((doctor_id) => ({ doctor_id })))
+  await syncJoin('meeting_agents', 'meeting_id', meetingId, 'agent_id', d.agentIds.map((agent_id) => ({ agent_id })))
+  await syncJoin('meeting_contacts', 'meeting_id', meetingId, 'contact_id', d.contactIds.map((contact_id) => ({ contact_id })))
 
   const tasks = d.tasks.filter((t) => t.description.trim())
   const keep = tasks.filter((t) => t.id).map((t) => t.id as string)
