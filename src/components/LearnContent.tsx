@@ -1,9 +1,15 @@
 import { useState } from 'react'
-import { Check, ChevronDown, ChevronUp, FileText, Pencil, Plus, Trash2, Upload, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { BookOpenText, Check, ChevronDown, ChevronUp, FileText, Pencil, Plus, Sparkles, Trash2, Upload, X } from 'lucide-react'
 import { useAuth } from '../context/AuthProvider'
 import { openInfoDocument, useInfoCategories, useInfoDocuments, useSaveInfoDoc } from '../lib/api'
-import { useApprove, useCanEditLearning, useCases, useDeleteCase, useDeleteLesson, useLessons, useSaveCase, useSaveLesson } from '../lib/learnApi'
-import type { LearnCase, LearnLesson } from '../lib/types'
+import { useApprove, useCanEditLearning, useCases, useDeleteCard, useDeleteCase, useDeleteLesson, useLearnCards, useLessons, useSaveCase, useSaveLesson } from '../lib/learnApi'
+import type { InfoDocument, LearnCard, LearnCase, LearnLesson } from '../lib/types'
+import { DocReader } from './DocReader'
+import { GenerateQuestions } from './GenerateQuestions'
+import { LearnCardModal } from './LearnCardModal'
+import { DuplicateWarning } from './DuplicateWarning'
+import { fileHash, findSimilarDocs, type DupMatch } from '../lib/docDuplicates'
 import { LearnImage, VideoLink } from './LearnMedia'
 import { ConfirmButton, EmptyState, Field, Modal, Spinner } from './ui'
 import { classNames } from '../lib/utils'
@@ -34,7 +40,7 @@ function LessonModal({ topicId, lesson, nextSort, onClose }: { topicId: string; 
   const saveDoc = useSaveInfoDoc()
   const [docIds, setDocIds] = useState<string[]>(lesson?.doc_ids ?? [])
   const [find, setFind] = useState('')
-  const [uploads, setUploads] = useState<{ file: File; title: string; categoryId: string }[]>([])
+  const [uploads, setUploads] = useState<{ file: File; title: string; categoryId: string; matches: DupMatch[]; allow: boolean }[]>([])
   const [busy, setBusy] = useState(false)
   const [title, setTitle] = useState(lesson?.title ?? '')
   const [body, setBody] = useState(lesson?.body ?? '')
@@ -52,6 +58,12 @@ function LessonModal({ topicId, lesson, nextSort, onClose }: { topicId: string; 
           setBusy(true)
           try {
             // a file uploaded here goes into the clinical-information library, so it exists once and is found in both places
+            const blocked = uploads.find((u) => u.matches.length > 0 && !u.allow)
+            if (blocked) {
+              setError(`"${blocked.file.name}" דומה למסמך שכבר קיים — בחר "השתמש בקיים" או אשר העלאה בכל זאת`)
+              setBusy(false)
+              return
+            }
             const newIds: string[] = []
             for (const u of uploads) {
               newIds.push(await saveDoc.mutateAsync({ title: u.title.trim() || u.file.name, description: '', categoryId: u.categoryId || null, procedureIds: [], tags: [], kind: 'file', url: '', file: u.file }))
@@ -118,6 +130,21 @@ function LessonModal({ topicId, lesson, nextSort, onClose }: { topicId: string; 
                     <button type="button" className="text-xs text-red-500 hover:underline" onClick={() => setUploads((x) => x.filter((_, k) => k !== i))}>
                       הסר
                     </button>
+                    {u.matches.length > 0 && (
+                      <div className="basis-full space-y-1">
+                        <DuplicateWarning
+                          matches={u.matches}
+                          onUse={(d) => {
+                            setDocIds((x) => (x.includes(d.id) ? x : [...x, d.id]))
+                            setUploads((x) => x.filter((_, k) => k !== i))
+                          }}
+                        />
+                        <label className="flex items-center gap-1.5 text-xs text-slate-600">
+                          <input type="checkbox" checked={u.allow} onChange={(e) => setUploads((x) => x.map((v, k) => (k === i ? { ...v, allow: e.target.checked } : v)))} />
+                          בדקתי — להעלות בכל זאת
+                        </label>
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -142,10 +169,13 @@ function LessonModal({ topicId, lesson, nextSort, onClose }: { topicId: string; 
               <input
                 type="file"
                 className="hidden"
-                onChange={(e) => {
+                onChange={async (e) => {
                   const f = e.target.files?.[0]
-                  if (f) setUploads((x) => [...x, { file: f, title: f.name.replace(/\.[^.]+$/, ''), categoryId: '' }])
                   e.target.value = ''
+                  if (!f) return
+                  // is the same / a similar file already in the library (the learning module shares it)?
+                  const matches = findSimilarDocs({ names: [f.name], size: f.size, hash: await fileHash(f) }, infoDocs.data ?? [])
+                  setUploads((x) => [...x, { file: f, title: f.name.replace(/\.[^.]+$/, ''), categoryId: '', matches, allow: false }])
                 }}
               />
             </label>
@@ -167,12 +197,17 @@ function LessonModal({ topicId, lesson, nextSort, onClose }: { topicId: string; 
 }
 
 /** short lessons with text, a picture and a video — read before the questions of the topic */
-export function LessonsPanel({ topicId }: { topicId: string }) {
+export function LessonsPanel({ topicId, topicTitle }: { topicId: string; topicTitle: string }) {
   const lessons = useLessons(topicId)
   const canEdit = useCanEditLearning()
   const del = useDeleteLesson()
   const infoDocs = useInfoDocuments()
+  const allCards = useLearnCards(topicId)
+  const delCard = useDeleteCard()
   const [docError, setDocError] = useState('')
+  const [reader, setReader] = useState<{ doc: InfoDocument; lessonId: string } | null>(null)
+  const [gen, setGen] = useState<{ doc: InfoDocument; lessonId: string; text: string } | null>(null)
+  const [cardModal, setCardModal] = useState<{ card: LearnCard | null; lessonId: string } | null>(null)
   const [open, setOpen] = useState<string | null>(null)
   const [modal, setModal] = useState<{ lesson: LearnLesson | null } | null>(null)
   if (lessons.isLoading) return <Spinner />
@@ -216,19 +251,80 @@ export function LessonsPanel({ topicId }: { topicId: string }) {
                           {l.doc_ids.map((id) => {
                             const d = (infoDocs.data ?? []).find((x) => x.id === id)
                             return d ? (
-                              <button
-                                key={id}
-                                className="btn-secondary !py-1 text-sm"
-                                onClick={async () => setDocError((await openInfoDocument(d)) ?? '')}
-                              >
-                                <FileText size={14} className="text-red-500" /> {d.title}
-                              </button>
+                              <span key={id} className="inline-flex overflow-hidden rounded-lg border border-slate-200">
+                                <button className="flex items-center gap-1.5 bg-white px-2.5 py-1 text-sm hover:bg-slate-50" onClick={() => setReader({ doc: d, lessonId: l.id })}>
+                                  <BookOpenText size={14} className="text-brand-600" /> קרא: {d.title}
+                                </button>
+                                <button
+                                  className="border-r border-slate-200 bg-slate-50 px-2 text-xs text-slate-500 hover:bg-slate-100"
+                                  title="פתח את הקובץ המקורי"
+                                  onClick={async () => setDocError((await openInfoDocument(d)) ?? '')}
+                                >
+                                  <FileText size={13} />
+                                </button>
+                              </span>
                             ) : null
                           })}
                         </div>
                         {docError && <p className="text-xs text-red-600">{docError}</p>}
                       </div>
                     )}
+                    {(() => {
+                      const mine = (allCards.data ?? []).filter((c) => c.lesson_id === l.id)
+                      const docsOfLesson = l.doc_ids.map((id) => (infoDocs.data ?? []).find((x) => x.id === id)).filter((x): x is InfoDocument => !!x)
+                      return (
+                        <div className="space-y-2 rounded-xl bg-slate-50 p-3">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-sm font-semibold text-slate-700">שאלות על השיעור ({mine.filter((c) => c.approved).length})</p>
+                            <span className="flex flex-wrap gap-2">
+                              {mine.some((c) => c.approved) && (
+                                <Link to={`/learn/${topicId}?lesson=${l.id}&tab=quiz`} className="btn-primary !py-1 text-xs">
+                                  תרגל את שאלות השיעור
+                                </Link>
+                              )}
+                              {canEdit && (
+                                <>
+                                  <button className="btn-secondary !py-1 text-xs" onClick={() => setCardModal({ card: null, lessonId: l.id })}>
+                                    <Plus size={13} /> שאלה
+                                  </button>
+                                  {docsOfLesson.length > 0 && (
+                                    <button className="btn-secondary !py-1 text-xs" onClick={() => setReader({ doc: docsOfLesson[0], lessonId: l.id })} title="פותח את המסמך וממנו אפשר ליצור שאלות">
+                                      <Sparkles size={13} /> צור שאלות מהמסמך
+                                    </button>
+                                  )}
+                                </>
+                              )}
+                            </span>
+                          </div>
+                          {mine.length === 0 ? (
+                            <p className="text-xs text-slate-400">עדיין אין שאלות על השיעור הזה.</p>
+                          ) : (
+                            <ul className="space-y-1">
+                              {mine.map((c) => (
+                                <li key={c.id} className="flex items-start justify-between gap-2 rounded-lg bg-white px-2 py-1.5 text-sm">
+                                  <span dir="auto" className="min-w-0 flex-1 text-slate-700">
+                                    {c.question}
+                                  </span>
+                                  <span className="flex shrink-0 items-center gap-1">
+                                    <ApprovalTag approved={c.approved} table="learn_cards" id={c.id} topicId={topicId} label={c.question} />
+                                    {canEdit && (
+                                      <>
+                                        <button className="btn-ghost !px-1" aria-label="עריכה" onClick={() => setCardModal({ card: c, lessonId: l.id })}>
+                                          <Pencil size={12} />
+                                        </button>
+                                        <ConfirmButton className="btn-ghost !px-1 text-red-500" message="למחוק את השאלה?" onConfirm={() => delCard.mutate(c.id)}>
+                                          <Trash2 size={12} />
+                                        </ConfirmButton>
+                                      </>
+                                    )}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      )
+                    })()}
                     {canEdit && (
                       <div className="flex gap-1">
                         <button className="btn-ghost !px-2" aria-label="עריכה" onClick={() => setModal({ lesson: l })}>
@@ -247,6 +343,15 @@ export function LessonsPanel({ topicId }: { topicId: string }) {
         </ul>
       )}
       {modal && <LessonModal topicId={topicId} lesson={modal.lesson} nextSort={list.length} onClose={() => setModal(null)} />}
+      {reader && (
+        <DocReader
+          doc={reader.doc}
+          onClose={() => setReader(null)}
+          onGenerate={canEdit ? (text) => { setGen({ doc: reader.doc, lessonId: reader.lessonId, text }); setReader(null) } : undefined}
+        />
+      )}
+      {gen && <GenerateQuestions topicId={topicId} topicTitle={topicTitle} lessonId={gen.lessonId} docTitle={gen.doc.title} text={gen.text} onClose={() => setGen(null)} />}
+      {cardModal && <LearnCardModal topicId={topicId} card={cardModal.card} lessons={list} defaultLessonId={cardModal.lessonId} onClose={() => setCardModal(null)} />}
     </div>
   )
 }

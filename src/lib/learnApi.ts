@@ -222,10 +222,30 @@ export function useDeleteTopic() {
 export function useSaveCard() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (c: { id?: string; topic_id: string; question: string; answer: string; sort?: number; image?: File | null; removeImage?: boolean; existingImage?: string | null }) => {
+    mutationFn: async (c: {
+      id?: string
+      topic_id: string
+      question: string
+      answer: string
+      wrong_options?: string[]
+      explanation?: string
+      lesson_id?: string | null
+      sort?: number
+      image?: File | null
+      removeImage?: boolean
+      existingImage?: string | null
+    }) => {
       let image_path = c.removeImage ? null : (c.existingImage ?? null)
       if (c.image) image_path = await uploadLearnImage(c.image)
-      const row = { topic_id: c.topic_id, question: c.question.trim(), answer: c.answer.trim(), image_path }
+      const row = {
+        topic_id: c.topic_id,
+        question: c.question.trim(),
+        answer: c.answer.trim(),
+        wrong_options: (c.wrong_options ?? []).map((w) => w.trim()).filter(Boolean),
+        explanation: (c.explanation ?? '').trim(),
+        lesson_id: c.lesson_id ?? null,
+        image_path,
+      }
       if (c.id) unwrap(await supabase.from('learn_cards').update(row).eq('id', c.id))
       else unwrap(await supabase.from('learn_cards').insert({ ...row, sort: c.sort ?? 0 }))
     },
@@ -449,5 +469,32 @@ export function useSwapTrackItems() {
       unwrap(await supabase.from('learn_track_items').update({ sort: a.sort }).eq('id', b.id))
     },
     onSuccess: () => invalidateTracks(qc),
+  })
+}
+
+/** questions written by the AI from a document: saved as DRAFTS (not approved) until a manager approves them */
+export function useAddGeneratedCards() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (a: { topicId: string; lessonId: string | null; items: { question: string; correct: string; wrong: string[]; explanation: string }[] }) => {
+      const existing = unwrap<{ question: string; sort: number }[]>(await supabase.from('learn_cards').select('question, sort').eq('topic_id', a.topicId).limit(5000))
+      const have = new Set(existing.map((e) => e.question.trim().toLowerCase()))
+      let sort = existing.reduce((m, e) => Math.max(m, e.sort), -1) + 1
+      const rows = a.items
+        .filter((i) => i.question.trim() && i.correct.trim() && !have.has(i.question.trim().toLowerCase()))
+        .map((i) => ({
+          topic_id: a.topicId,
+          lesson_id: a.lessonId,
+          question: i.question.trim(),
+          answer: i.correct.trim(),
+          wrong_options: i.wrong.map((w) => w.trim()).filter(Boolean),
+          explanation: i.explanation.trim(),
+          approved: false,
+          sort: sort++,
+        }))
+      if (rows.length) unwrap(await supabase.from('learn_cards').insert(rows))
+      return { added: rows.length, skipped: a.items.length - rows.length }
+    },
+    onSuccess: () => invalidateContent(qc),
   })
 }

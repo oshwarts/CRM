@@ -512,17 +512,17 @@ export type Database = {
       }
       info_documents: {
         Row: {
-          category_id: string | null; created_at: string; description: string; file_name: string; file_size: number
+          category_id: string | null; content_hash: string; created_at: string; description: string; file_name: string; file_size: number
           id: string; kind: string; mime: string; storage_path: string; tags: string[]; title: string
           updated_at: string; uploaded_by: string | null; url: string
         }
         Insert: {
-          category_id?: string | null; created_at?: string; description?: string; file_name?: string; file_size?: number
+          category_id?: string | null; content_hash?: string; created_at?: string; description?: string; file_name?: string; file_size?: number
           id?: string; kind?: string; mime?: string; storage_path?: string; tags?: string[]; title: string
           updated_at?: string; uploaded_by?: string | null; url?: string
         }
         Update: {
-          category_id?: string | null; created_at?: string; description?: string; file_name?: string; file_size?: number
+          category_id?: string | null; content_hash?: string; created_at?: string; description?: string; file_name?: string; file_size?: number
           id?: string; kind?: string; mime?: string; storage_path?: string; tags?: string[]; title?: string
           updated_at?: string; uploaded_by?: string | null; url?: string
         }
@@ -1041,9 +1041,9 @@ export type Database = {
         Relationships: []
       }
       learn_cards: {
-        Row: { answer: string; approved: boolean; created_at: string; id: string; image_path: string | null; question: string; sort: number; topic_id: string }
-        Insert: { answer: string; approved?: boolean; created_at?: string; id?: string; image_path?: string | null; question: string; sort?: number; topic_id: string }
-        Update: { answer?: string; approved?: boolean; created_at?: string; id?: string; image_path?: string | null; question?: string; sort?: number; topic_id?: string }
+        Row: { answer: string; approved: boolean; created_at: string; explanation: string; id: string; image_path: string | null; lesson_id: string | null; question: string; sort: number; topic_id: string; wrong_options: string[] }
+        Insert: { answer: string; approved?: boolean; created_at?: string; explanation?: string; id?: string; image_path?: string | null; lesson_id?: string | null; question: string; sort?: number; topic_id: string; wrong_options?: string[] }
+        Update: { answer?: string; approved?: boolean; created_at?: string; explanation?: string; id?: string; image_path?: string | null; lesson_id?: string | null; question?: string; sort?: number; topic_id?: string; wrong_options?: string[] }
         Relationships: []
       }
       learn_progress: {

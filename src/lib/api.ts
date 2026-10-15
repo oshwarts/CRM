@@ -5,6 +5,7 @@ import {
 } from '@tanstack/react-query'
 import { addMonths } from 'date-fns'
 import { supabase } from './supabase'
+import { fileHash } from './docDuplicates'
 import { useAuth } from '../context/AuthProvider'
 import { actingUserId } from './actingAs'
 import type {
@@ -1648,6 +1649,7 @@ export function useSaveInfoDoc() {
         })
         if (up.error) throw up.error
         Object.assign(meta, {
+          content_hash: await fileHash(d.file),
           kind: 'file', storage_path: path, file_name: d.file.name, file_size: d.file.size, mime: d.file.type, url: '',
         })
       }

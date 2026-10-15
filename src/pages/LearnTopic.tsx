@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowRight, FileUp, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { useAuth } from '../context/AuthProvider'
 import {
@@ -11,7 +11,7 @@ import {
   useLearnProgress,
   useLearnTopics,
   useResetProgress,
-  useSaveCard,
+  useLessons,
   useSaveTopic,
   useTracks,
 } from '../lib/learnApi'
@@ -19,60 +19,10 @@ import type { LearnCard } from '../lib/types'
 import { FlashStudy, QuizStudy } from '../components/LearnStudy'
 import { LearnImport } from '../components/LearnImport'
 import { LearnImage } from '../components/LearnMedia'
+import { LearnCardModal } from '../components/LearnCardModal'
 import { ApprovalTag, CasesPanel, LessonsPanel } from '../components/LearnContent'
-import { ConfirmButton, EmptyState, Field, Modal, Spinner, Tab, TabList, TabPanel, Tabs } from '../components/ui'
+import { ConfirmButton, EmptyState, Spinner, Tab, TabList, TabPanel, Tabs } from '../components/ui'
 import { classNames, formatDate } from '../lib/utils'
-
-function CardModal({ topicId, card, onClose }: { topicId: string; card: LearnCard | null; onClose: () => void }) {
-  const save = useSaveCard()
-  const [q, setQ] = useState(card?.question ?? '')
-  const [a, setA] = useState(card?.answer ?? '')
-  const [image, setImage] = useState<File | null>(null)
-  const [removeImage, setRemoveImage] = useState(false)
-  const [error, setError] = useState('')
-  return (
-    <Modal open onClose={onClose} title={card ? 'עריכת שאלה' : 'שאלה חדשה'} size="lg">
-      <form
-        className="space-y-3"
-        onSubmit={(e) => {
-          e.preventDefault()
-          save.mutate(
-            { id: card?.id, topic_id: topicId, question: q, answer: a, sort: 999999, image, removeImage, existingImage: card?.image_path },
-            { onSuccess: onClose, onError: (er) => setError(er instanceof Error ? er.message : 'השמירה נכשלה') },
-          )
-        }}
-      >
-        <Field label="שאלה">
-          <textarea className="input min-h-20" dir="ltr" required value={q} onChange={(e) => setQ(e.target.value)} />
-        </Field>
-        <Field label="תמונה לשאלה (אופציונלי, למשל צילום רנטגן)">
-          {card?.image_path && !removeImage && (
-            <div className="mb-1 space-y-1">
-              <LearnImage path={card.image_path} className="max-h-32" />
-              <button type="button" className="text-xs text-red-500 hover:underline" onClick={() => setRemoveImage(true)}>
-                הסר תמונה
-              </button>
-            </div>
-          )}
-          <input type="file" accept="image/*" className="input" onChange={(e) => setImage(e.target.files?.[0] ?? null)} />
-        </Field>
-        <Field label="תשובה">
-          <textarea className="input min-h-20" dir="ltr" required value={a} onChange={(e) => setA(e.target.value)} />
-        </Field>
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <p className="text-xs text-slate-400">שאלה שנכתבת או נערכת על ידי עורך תוכן מתפרסמת רק אחרי שמנהל מאשר אותה.</p>
-        <div className="flex justify-end gap-2">
-          <button type="button" className="btn-secondary" onClick={onClose}>
-            ביטול
-          </button>
-          <button className="btn-primary" disabled={!q.trim() || !a.trim() || save.isPending}>
-            שמור
-          </button>
-        </div>
-      </form>
-    </Modal>
-  )
-}
 
 export default function LearnTopic() {
   const { id } = useParams<{ id: string }>()
@@ -88,7 +38,10 @@ export default function LearnTopic() {
   const delTopic = useDeleteTopic()
   const delCard = useDeleteCard()
   const reset = useResetProgress()
-  const [tab, setTab] = useState('lessons')
+  const [params, setParams] = useSearchParams()
+  const lessons = useLessons(id)
+  const lessonFilter = params.get('lesson')
+  const [tab, setTab] = useState(params.get('tab') ?? 'lessons')
   const [importing, setImporting] = useState(false)
   const [cardModal, setCardModal] = useState<{ card: LearnCard | null } | null>(null)
   const [search, setSearch] = useState('')
@@ -99,7 +52,8 @@ export default function LearnTopic() {
 
   // the cards agents study are the approved ones; editors also see (and mark) what waits for approval
   const all = cards.data ?? []
-  const studied = all.filter((c) => c.approved)
+  const studied = all.filter((c) => c.approved && (!lessonFilter || c.lesson_id === lessonFilter))
+  const filterLesson = (lessons.data ?? []).find((l) => l.id === lessonFilter)
   const mine = (progress.data ?? []).filter((p) => p.topic_id === id)
   const known = new Set(mine.filter((p) => p.known).map((p) => p.card_id))
   const myAttempts = (attempts.data ?? []).filter((a) => a.topic_id === id)
@@ -164,13 +118,21 @@ export default function LearnTopic() {
           <Tab id="list">כל השאלות ({all.length})</Tab>
         </TabList>
         <TabPanel id="lessons">
-          <LessonsPanel topicId={id} />
+          <LessonsPanel topicId={id} topicTitle={topic.title} />
         </TabPanel>
+        {lessonFilter && tab !== 'lessons' && tab !== 'cases' && tab !== 'list' && (
+          <p className="mb-3 flex flex-wrap items-center gap-2 rounded-lg bg-brand-50 px-3 py-2 text-sm text-brand-700">
+            מתרגל רק את שאלות השיעור: {filterLesson?.title ?? ''}
+            <button className="text-xs underline" onClick={() => setParams({}, { replace: true })}>
+              חזרה לכל שאלות הנושא
+            </button>
+          </p>
+        )}
         <TabPanel id="flash">
-          <FlashStudy cards={studied} progress={mine} />
+          <FlashStudy key={lessonFilter ?? 'all'} cards={studied} progress={mine} />
         </TabPanel>
         <TabPanel id="quiz">
-          <QuizStudy topicId={id} cards={studied} progress={mine} passPct={passPct} />
+          <QuizStudy key={lessonFilter ?? 'all'} topicId={id} cards={studied} progress={mine} passPct={lessonFilter ? undefined : passPct} />
         </TabPanel>
         <TabPanel id="cases">
           <CasesPanel topicId={id} />
@@ -217,7 +179,7 @@ export default function LearnTopic() {
       </Tabs>
 
       {importing && <LearnImport topicId={id} topicTitle={topic.title} onClose={() => setImporting(false)} />}
-      {cardModal && <CardModal topicId={id} card={cardModal.card} onClose={() => setCardModal(null)} />}
+      {cardModal && <LearnCardModal topicId={id} card={cardModal.card} lessons={lessons.data} onClose={() => setCardModal(null)} />}
     </div>
   )
 }

@@ -113,6 +113,7 @@ export function FlashStudy({ cards, progress, auto, onExit }: { cards: LearnCard
       >
         <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{flipped ? 'Answer' : 'Question'}</span>
         <span className={classNames(text, 'text-lg leading-relaxed text-slate-800')}>{flipped ? current.answer : current.question}</span>
+        {flipped && current.explanation && <span className={classNames(text, 'text-sm text-slate-500')}>{current.explanation}</span>}
         {!flipped && current.image_path && <LearnImage path={current.image_path} />}
         {!flipped && <span className="mt-2 text-xs text-slate-400">לחץ כדי להפוך</span>}
       </button>
@@ -142,7 +143,11 @@ function buildQuiz(cards: LearnCard[], known: Set<string>, count: number): Q[] {
   // unknown cards first, so the quiz practises what is still missing
   const ordered = [...shuffle(cards.filter((c) => !known.has(c.id))), ...shuffle(cards.filter((c) => known.has(c.id)))].slice(0, count)
   return shuffle(ordered).map((card) => {
-    const others = shuffle([...new Set(cards.filter((c) => c.id !== card.id && c.answer.trim() !== card.answer.trim()).map((c) => c.answer))]).slice(0, 3)
+    // the wrong answers written with the question; otherwise answers of other questions of the topic
+    const own = (card.wrong_options ?? []).filter((w) => w.trim() && w.trim() !== card.answer.trim())
+    const others = own.length >= 3
+      ? own.slice(0, 3)
+      : [...own, ...shuffle([...new Set(cards.filter((c) => c.id !== card.id && c.answer.trim() !== card.answer.trim() && !own.includes(c.answer)).map((c) => c.answer))])].slice(0, 3)
     return { card, options: shuffle([card.answer, ...others]) }
   })
 }
@@ -286,6 +291,11 @@ export function QuizStudy({ topicId, cards, progress, passPct }: { topicId: stri
           )
         })}
       </div>
+      {answered && q.card.explanation && (
+        <p dir="ltr" className={classNames(text, 'rounded-xl bg-slate-50 p-3 text-sm text-slate-600')}>
+          {q.card.explanation}
+        </p>
+      )}
       {answered && (
         <button className="btn-primary w-full" onClick={next}>
           {i + 1 >= quiz.length ? 'סיום וצפייה בציון' : 'הבאה'}

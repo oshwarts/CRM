@@ -53,7 +53,7 @@ if (configError) {
           buster: CACHE_BUSTER,
           dehydrateOptions: {
             // admin audit log is not worth keeping on a device
-            shouldDehydrateQuery: (q) => q.state.status === 'success' && q.queryKey[0] !== 'audit-log',
+            shouldDehydrateQuery: (q) => q.state.status === 'success' && q.queryKey[0] !== 'audit-log' && q.queryKey[0] !== 'doc-text',
           },
         }}
       >

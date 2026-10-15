@@ -1,12 +1,15 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { FileUp, Link2 } from 'lucide-react'
 import {
   INFO_MAX_BYTES,
   useInfoCategories,
+  useInfoDocuments,
   useProcedures,
   useSaveInfoDoc,
 } from '../lib/api'
 import type { InfoDocument } from '../lib/types'
+import { fileHash, findSimilarDocs, type DupMatch } from '../lib/docDuplicates'
+import { DuplicateWarning } from './DuplicateWarning'
 import { classNames } from '../lib/utils'
 import { Field, Modal, MultiSelectChips } from './ui'
 
@@ -26,6 +29,7 @@ export function InfoDocModal({
   const categories = useInfoCategories()
   const procedures = useProcedures()
   const save = useSaveInfoDoc()
+  const library = useInfoDocuments()
   const fileRef = useRef<HTMLInputElement>(null)
 
   const [mode, setMode] = useState<'file' | 'link'>(doc?.kind === 'link' ? 'link' : 'file')
@@ -40,6 +44,27 @@ export function InfoDocModal({
   const [tags, setTags] = useState((doc?.tags ?? []).join(', '))
   const [progress, setProgress] = useState('')
   const [error, setError] = useState('')
+  // similar documents already in the library: per picked file (content, name, size), and for the typed title / link
+  const [fileDups, setFileDups] = useState<Record<string, DupMatch[]>>({})
+  const [allowDup, setAllowDup] = useState(false)
+  const others = (library.data ?? []).filter((d) => d.id !== doc?.id)
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      const next: Record<string, DupMatch[]> = {}
+      for (const f of files) next[f.name] = findSimilarDocs({ names: [f.name], size: f.size, hash: await fileHash(f) }, others)
+      if (!cancelled) setFileDups(next)
+    })()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [files, library.data])
+
+  const titleDups = title.trim().length >= 4 && files.length <= 1 ? findSimilarDocs({ names: [title], url: mode === 'link' ? url : undefined }, others) : mode === 'link' && url.trim() ? findSimilarDocs({ names: [], url }, others) : []
+  const dupCount = Object.values(fileDups).reduce((n, m) => n + m.length, 0) + titleDups.filter((t) => !Object.values(fileDups).some((m) => m.some((x) => x.doc.id === t.doc.id))).length
+  const hasDup = !doc && dupCount > 0
 
   function pick(list: FileList | null) {
     const arr = [...(list ?? [])]
@@ -52,6 +77,7 @@ export function InfoDocModal({
 
   async function submit() {
     setError('')
+    if (hasDup && !allowDup) return setError('נמצאו מסמכים דומים במערכת — בדוק אותם למעלה ואשר שברצונך להעלות בכל זאת')
     const common = {
       description,
       categoryId: categoryId || null,
@@ -144,6 +170,11 @@ export function InfoDocModal({
               {files.length > 1 && (
                 <p className="mt-1 text-xs text-slate-400">כל קובץ יישמר בשמו, עם אותה קטגוריה ופרוצדורות.</p>
               )}
+              {files.map((f) => (
+                <div key={f.name} className="mt-2">
+                  <DuplicateWarning title={files.length > 1 ? `"${f.name}" — כבר קיים או דומה` : undefined} matches={fileDups[f.name] ?? []} />
+                </div>
+              ))}
             </div>
           )
         ) : (
@@ -156,6 +187,13 @@ export function InfoDocModal({
           <Field label="שם המסמך">
             <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} />
           </Field>
+        )}
+        {!doc && files.length === 0 && <DuplicateWarning matches={titleDups} />}
+        {hasDup && (
+          <label className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
+            <input type="checkbox" checked={allowDup} onChange={(e) => setAllowDup(e.target.checked)} />
+            בדקתי — אני רוצה להעלות בכל זאת
+          </label>
         )}
 
         <Field label="קטגוריה">
