@@ -1,8 +1,11 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
+  AlertTriangle,
   Building2,
   CalendarDays,
+  CheckSquare,
+  ChevronDown,
   Clock,
   FileInput,
   Heart,
@@ -22,6 +25,8 @@ import {
 import { useAuth } from '../context/AuthProvider'
 import { EmptyState, Spinner } from '../components/ui'
 import { MeetingFormModal } from '../components/MeetingFormModal'
+import { TaskFormModal } from '../components/TaskFormModal'
+import { useTasks } from '../lib/api'
 import { TodayBlock } from '../components/TodayBlock'
 import { ReferralImportModal } from '../components/ReferralImportModal'
 import { ScanFormModal, type ScanDraft } from '../components/ScanFormModal'
@@ -57,6 +62,64 @@ const RESCAN_LABEL: Record<RescanKind, string> = {
   nodate: 'ללא תאריך',
 }
 
+/** one number of the top strip: tinted by what it means, links to the section below */
+function Kpi({ href, icon, value, label, tone }: { href: string; icon: React.ReactNode; value: number; label: string; tone: 'blue' | 'red' | 'amber' | 'green' }) {
+  const tones = {
+    blue: 'bg-brand-50 text-brand-700',
+    red: value > 0 ? 'bg-red-50 text-red-600' : 'bg-slate-50 text-slate-500',
+    amber: value > 0 ? 'bg-amber-50 text-amber-700' : 'bg-slate-50 text-slate-500',
+    green: 'bg-emerald-50 text-emerald-700',
+  }
+  return (
+    <a href={href} className="card flex items-center gap-3 p-3.5 transition hover:border-brand-300 hover:shadow-pop">
+      <span className={classNames('grid h-11 w-11 shrink-0 place-items-center rounded-xl', tones[tone])}>{icon}</span>
+      <span className="min-w-0">
+        <span className="block text-2xl font-semibold leading-none text-brand-800">{value}</span>
+        <span className="mt-1 block text-xs leading-tight text-slate-600">{label}</span>
+      </span>
+    </a>
+  )
+}
+
+/** a titled section of the home page: icon in a tinted square, title, optional link */
+function SectionTitle({ icon, title, to, linkLabel }: { icon: React.ReactNode; title: string; to?: string; linkLabel?: string }) {
+  return (
+    <div className="mb-3 flex items-center justify-between gap-2">
+      <h2 className="flex min-w-0 items-center gap-2.5 whitespace-nowrap text-base font-semibold text-brand-800 sm:text-lg">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-600">{icon}</span>
+        {title}
+      </h2>
+      {to && (
+        <Link to={to} className="shrink-0 whitespace-nowrap text-sm font-medium text-brand-600 hover:underline">
+          {linkLabel ?? 'הכול'} ←
+        </Link>
+      )}
+    </div>
+  )
+}
+
+/** a list folded away until it is needed (keeps the home page short, especially on the phone) */
+function Fold({ title, count, tone, children }: { title: string; count: number; tone: 'amber' | 'fuchsia' | 'orange' | 'sky' | 'rose'; children: React.ReactNode }) {
+  const tones = {
+    amber: 'border-amber-200 bg-amber-50/50 text-amber-800',
+    fuchsia: 'border-fuchsia-200 bg-fuchsia-50/50 text-fuchsia-800',
+    orange: 'border-orange-200 bg-orange-50/50 text-orange-800',
+    sky: 'border-sky-200 bg-sky-50/50 text-sky-800',
+    rose: 'border-rose-200 bg-rose-50/50 text-rose-800',
+  }
+  return (
+    <details className={classNames('group mt-3 rounded-xl border px-3 py-2', tones[tone])}>
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-sm font-medium">
+        <span>
+          {title} <span className="font-semibold">({count})</span>
+        </span>
+        <ChevronDown size={16} className="transition group-open:rotate-180" />
+      </summary>
+      <div className="mt-2 text-slate-700">{children}</div>
+    </details>
+  )
+}
+
 export default function Home() {
   const { user, profile } = useAuth()
   const doctors = useDoctors()
@@ -64,6 +127,9 @@ export default function Home() {
   const meetings = useMeetings()
   const scans = usePatientScans()
   const toggleFav = useToggleFavorite()
+  const tasks = useTasks()
+  const [newMeeting, setNewMeeting] = useState(false)
+  const [newTask, setNewTask] = useState(false)
   const [toAdd, setToAdd] = useState('')
   const [surgeryRange, setSurgeryRange] = useState(loadRange)
   const [scheduleFor, setScheduleFor] = useState<string | null>(null)
@@ -266,30 +332,51 @@ export default function Home() {
     </li>
   )
 
+  const todayStr = todayISO()
+  const meetingsToday = (meetings.data ?? []).filter(
+    (m) =>
+      m.meeting_date === todayStr &&
+      m.status !== 'cancelled' &&
+      (!m.responsible_agent_id || m.responsible_agent_id === user?.id || m.meeting_agents.some((a) => a.agent?.id === user?.id)),
+  ).length
+  const overdueTasks = (tasks.data ?? []).filter((t) => !t.is_done && t.status !== 'done' && t.assignee_id === user?.id && !!t.due_date && t.due_date < todayStr).length
+  const toFollow = favFollow.filter((f) => f.status === 'none' || f.status === 'overdue').length
+  const dateLabel = new Intl.DateTimeFormat('he-IL', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800">
-          שלום{profile?.full_name ? `, ${profile.full_name}` : ''}
-        </h1>
-        <p className="text-sm text-slate-400">
-          הרופאים המועדפים שלך ומעקב הפגישות במקום אחד
-        </p>
+      <div className="space-y-4">
+        <div>
+          <p className="text-sm font-medium text-brand-600">{dateLabel}</p>
+          <h1 className="text-3xl font-semibold">שלום{profile?.full_name ? `, ${profile.full_name}` : ''}</h1>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+          <button className="btn-primary" onClick={() => setNewMeeting(true)}>
+            <Plus size={16} /> פגישה חדשה
+          </button>
+          <button className="btn-secondary" onClick={() => setNewTask(true)}>
+            <CheckSquare size={16} /> משימה חדשה
+          </button>
+          <button className="btn-secondary" onClick={() => setAddScan(true)}>
+            <ScanLine size={16} /> סריקה חדשה
+          </button>
+          <button className="btn-secondary" onClick={() => setImportReferral(true)}>
+            <FileInput size={16} /> ייבוא הפנייה
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Kpi href="#home-meetings" icon={<CalendarDays size={20} />} value={meetingsToday} label="פגישות היום" tone="blue" />
+          <Kpi href="/tasks" icon={<AlertTriangle size={20} />} value={overdueTasks} label="משימות באיחור" tone="red" />
+          <Kpi href="#home-scans" icon={<ScanLine size={20} />} value={scanAlerts.upcoming.length} label="CT בשבוע הקרוב" tone="amber" />
+          <Kpi href="#home-favorites" icon={<Stethoscope size={20} />} value={toFollow} label="רופאים לחזרה" tone="amber" />
+        </div>
       </div>
 
       <TodayBlock />
 
       {/* MAKO scans */}
-      <section className="card p-5">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 font-semibold text-slate-800">
-            <ScanLine size={18} className="text-brand-500" />
-            סריקות MAKO
-          </h2>
-          <Link to="/scans" className="text-sm font-medium text-brand-600 hover:underline">
-            לכל הסריקות →
-          </Link>
-        </div>
+      <section id="home-scans" className="card scroll-mt-20 p-5">
+        <SectionTitle icon={<ScanLine size={18} />} title="סריקות MAKO" to="/scans" linkLabel="לכל הסריקות" />
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <select
             className="input !w-auto"
@@ -304,43 +391,35 @@ export default function Home() {
               </option>
             ))}
           </select>
-          <button className="btn-primary" onClick={() => setAddScan(true)}>
-            <Plus size={16} />
-            הוסף סריקה
-          </button>
-          <button className="btn-secondary" onClick={() => setImportReferral(true)}>
-            <FileInput size={16} />
-            ייבוא הפנייה
-          </button>
         </div>
         {scans.isLoading ? (
           <Spinner />
         ) : (
           <>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <Link to="/scans" className="rounded-lg bg-slate-50 p-3 text-center hover:bg-slate-100">
-                <p className="text-2xl font-bold text-slate-800">{homeScans.length}</p>
-                <p className="text-xs text-slate-400">סה״כ מטופלים</p>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <Link to="/scans" className="rounded-2xl bg-slate-50 p-4 text-center transition hover:bg-brand-50">
+                <p className="text-3xl font-semibold text-brand-800">{homeScans.length}</p>
+                <p className="mt-0.5 text-xs text-slate-500">סה״כ מטופלים</p>
               </Link>
               <Link
                 to="/scans"
                 className={classNames(
-                  'rounded-lg p-3 text-center',
+                  'rounded-2xl p-4 text-center transition',
                   scanAlerts.upcoming.length ? 'bg-amber-50 hover:bg-amber-100' : 'bg-slate-50',
                 )}
               >
-                <p className="text-2xl font-bold text-amber-600">{scanAlerts.upcoming.length}</p>
-                <p className="text-xs text-slate-400">CT בשבוע הקרוב</p>
+                <p className="text-3xl font-semibold text-amber-600">{scanAlerts.upcoming.length}</p>
+                <p className="mt-0.5 text-xs text-slate-600">CT בשבוע הקרוב</p>
               </Link>
               <Link
                 to="/scans"
                 className={classNames(
-                  'rounded-lg p-3 text-center',
+                  'rounded-2xl p-4 text-center transition',
                   scanAlerts.overdue.length ? 'bg-red-50 hover:bg-red-100' : 'bg-slate-50',
                 )}
               >
-                <p className="text-2xl font-bold text-red-600">{scanAlerts.overdue.length}</p>
-                <p className="text-xs text-slate-400">CT עבר — טרם נסרק</p>
+                <p className="text-3xl font-semibold text-red-600">{scanAlerts.overdue.length}</p>
+                <p className="mt-0.5 text-xs text-slate-600">CT עבר — טרם נסרק</p>
               </Link>
             </div>
 
@@ -374,32 +453,32 @@ export default function Home() {
               )}
               <span className="text-xs text-slate-400">(עד {formatDate(surgeryUntil)})</span>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-2 gap-3">
               <Link
                 to="/scans"
                 className={classNames(
-                  'rounded-lg p-3 text-center',
+                  'rounded-2xl p-4 text-center transition',
                   scanAlerts.noCtSoon.length ? 'bg-fuchsia-50 hover:bg-fuchsia-100' : 'bg-slate-50',
                 )}
               >
-                <p className="text-2xl font-bold text-fuchsia-600">{scanAlerts.noCtSoon.length}</p>
-                <p className="text-xs text-slate-400">ניתוח עד התאריך — אין תאריך CT מתואם</p>
+                <p className="text-3xl font-semibold text-fuchsia-600">{scanAlerts.noCtSoon.length}</p>
+                <p className="mt-0.5 text-xs text-slate-600">ניתוח עד התאריך — אין תאריך CT מתואם</p>
               </Link>
               <Link
                 to="/scans"
                 className={classNames(
-                  'rounded-lg p-3 text-center',
+                  'rounded-2xl p-4 text-center transition',
                   scanAlerts.noDiskSoon.length ? 'bg-orange-50 hover:bg-orange-100' : 'bg-slate-50',
                 )}
               >
-                <p className="text-2xl font-bold text-orange-600">{scanAlerts.noDiskSoon.length}</p>
-                <p className="text-xs text-slate-400">ניתוח עד התאריך — הדיסק לא הועלה</p>
+                <p className="text-3xl font-semibold text-orange-600">{scanAlerts.noDiskSoon.length}</p>
+                <p className="mt-0.5 text-xs text-slate-600">ניתוח עד התאריך — הדיסק לא הועלה</p>
               </Link>
             </div>
           </>
         )}
         {scanAlerts.upcoming.length > 0 && (
-          <ul className="mt-3 divide-y divide-slate-100 text-sm">
+          <Fold title="מטופלים עם CT בשבוע הקרוב" count={scanAlerts.upcoming.length} tone="amber"><ul className="divide-y divide-slate-100 text-sm">
             {scanAlerts.upcoming.slice(0, 5).map((s) => (
               <li key={s.id} className="flex items-center justify-between py-1.5">
                 <span className="text-slate-700">
@@ -413,10 +492,10 @@ export default function Home() {
                 </span>
               </li>
             ))}
-          </ul>
+          </ul></Fold>
         )}
         {scanAlerts.noCtSoon.length > 0 && (
-          <ul className="mt-2 divide-y divide-slate-100 text-sm">
+          <Fold title="ניתוחים בלי תאריך CT" count={scanAlerts.noCtSoon.length} tone="fuchsia"><ul className="divide-y divide-slate-100 text-sm">
             {scanAlerts.noCtSoon.slice(0, 10).map((s) => (
               <li key={s.id} className="flex items-center justify-between py-1.5">
                 <span className="text-slate-700">
@@ -428,10 +507,10 @@ export default function Home() {
                 </span>
               </li>
             ))}
-          </ul>
+          </ul></Fold>
         )}
         {scanAlerts.noDiskSoon.length > 0 && (
-          <ul className="mt-2 divide-y divide-slate-100 text-sm">
+          <Fold title="ניתוחים שהדיסק שלהם לא הועלה" count={scanAlerts.noDiskSoon.length} tone="orange"><ul className="divide-y divide-slate-100 text-sm">
             {scanAlerts.noDiskSoon.slice(0, 10).map((s) => (
               <li key={s.id} className="flex items-center justify-between py-1.5">
                 <span className="text-slate-700">
@@ -443,7 +522,7 @@ export default function Home() {
                 </span>
               </li>
             ))}
-          </ul>
+          </ul></Fold>
         )}
         {scanAlerts.weekOpen.length > 0 && (
           <>
@@ -502,11 +581,8 @@ export default function Home() {
       </section>
 
       {/* follow-ups */}
-      <section className="card p-5">
-        <h2 className="mb-3 flex items-center gap-2 font-semibold text-slate-800">
-          <Clock size={18} className="text-brand-500" />
-          מעקב פגישות
-        </h2>
+      <section id="home-meetings" className="card scroll-mt-20 p-5">
+        <SectionTitle icon={<Clock size={18} />} title="מעקב פגישות" to="/meetings" linkLabel="כל הפגישות" />
         {meetings.isLoading ? (
           <Spinner />
         ) : followups.length === 0 && reminders.soon.length === 0 && reminders.missed.length === 0 && favFollow.length === 0 ? (
@@ -624,6 +700,8 @@ export default function Home() {
         )}
       </section>
 
+      {newMeeting && <MeetingFormModal open onClose={() => setNewMeeting(false)} />}
+      {newTask && <TaskFormModal onClose={() => setNewTask(false)} />}
       {scheduleFor && (
         <MeetingFormModal open onClose={() => setScheduleFor(null)} defaultDoctorId={scheduleFor} />
       )}
@@ -678,12 +756,17 @@ export default function Home() {
       )}
 
       {/* favorites picker */}
-      <section className="card p-5">
-        <h2 className="mb-3 flex items-center gap-2 font-semibold text-slate-800">
-          <Heart size={18} className="text-red-500" />
-          רופאים מועדפים
-        </h2>
-        <div className="flex flex-wrap gap-2">
+      <details className="card p-5">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-lg font-semibold text-brand-800">
+          <span className="flex items-center gap-2.5">
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-red-50 text-red-500">
+              <Heart size={18} />
+            </span>
+            ניהול רשימת המועדפים
+          </span>
+          <ChevronDown size={18} className="text-slate-400" />
+        </summary>
+        <div className="mt-3 flex flex-wrap gap-2">
           <select
             className="input max-w-xs"
             value={toAdd}
@@ -725,14 +808,11 @@ export default function Home() {
             ))}
           </div>
         )}
-      </section>
+      </details>
 
       {/* favorite doctor cards */}
-      <section>
-        <h2 className="mb-3 flex items-center gap-2 font-semibold text-slate-800">
-          <Stethoscope size={18} className="text-brand-500" />
-          הרופאים המועדפים שלי
-        </h2>
+      <section id="home-favorites" className="scroll-mt-20">
+        <SectionTitle icon={<Stethoscope size={18} />} title="הרופאים המועדפים שלי" to="/doctors" linkLabel="כל הרופאים" />
 
         {favorites.isLoading || doctors.isLoading ? (
           <Spinner />

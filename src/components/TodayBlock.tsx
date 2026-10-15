@@ -71,18 +71,16 @@ export function TodayBlock() {
     [projects.data, allTasks.data],
   )
 
-  const sub = 'mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400'
-  const dateLabel = new Intl.DateTimeFormat('he-IL', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())
+  const sub = 'mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-brand-700'
 
   return (
     <section className="card space-y-4 p-5">
-      <div className="flex items-center justify-between">
-        <h2 className="flex items-center gap-2 font-semibold text-slate-800">
-          <Sun size={18} className="text-amber-500" />
-          היום שלי
-        </h2>
-        <span className="text-sm text-slate-400">{dateLabel}</span>
-      </div>
+      <h2 className="flex items-center gap-2.5 text-lg font-semibold text-brand-800">
+        <span className="grid h-8 w-8 place-items-center rounded-lg bg-amber-50 text-amber-500">
+          <Sun size={18} />
+        </span>
+        היום שלי
+      </h2>
 
       {surgeries.length > 0 && (
         <div>
@@ -92,7 +90,7 @@ export function TodayBlock() {
           <ul className="divide-y divide-slate-100">
             {surgeries.map((s) => (
               <li key={s.id}>
-                <Link to="/scans" className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm hover:bg-slate-50">
+                <Link to="/scans" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg px-1.5 py-2 text-sm transition hover:bg-brand-50/60">
                   <span className={classNames('chip !px-2 !py-0 text-xs', s.surgery_date === today ? 'border-red-200 bg-red-50 text-red-600' : 'border-slate-200 bg-slate-50 text-slate-600')}>
                     {dayWord(s.surgery_date as string)}
                   </span>
@@ -119,7 +117,7 @@ export function TodayBlock() {
           <ul className="divide-y divide-slate-100">
             {todaysMeetings.map((m) => (
               <li key={m.id}>
-                <Link to={`/meetings/${m.id}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm hover:bg-slate-50">
+                <Link to={`/meetings/${m.id}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg px-1.5 py-2 text-sm transition hover:bg-brand-50/60">
                   <span className={classNames('chip !px-2 !py-0 text-xs', m.meeting_date === today ? 'border-red-200 bg-red-50 text-red-600' : 'border-slate-200 bg-slate-50 text-slate-600')}>
                     {dayWord(m.meeting_date as string)}
                     {m.meeting_time ? ` ${formatTime(m.meeting_time)}` : ''}
@@ -143,7 +141,7 @@ export function TodayBlock() {
           <ul className="divide-y divide-slate-100">
             {projectAlerts.slice(0, 4).map(({ p, stats }) => (
               <li key={p.id}>
-                <Link to={`/projects/${p.id}`} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm hover:bg-slate-50">
+                <Link to={`/projects/${p.id}`} className="flex flex-wrap items-center justify-between gap-2 rounded-lg px-1.5 py-2 text-sm transition hover:bg-brand-50/60">
                   <span dir="auto" className="font-medium text-slate-800">
                     {p.name}
                   </span>
