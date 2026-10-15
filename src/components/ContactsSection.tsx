@@ -149,7 +149,7 @@ function ContactCard({
         {c.notes && <p className="mt-1 text-xs text-slate-400">{c.notes}</p>}
       </div>
       <div className="flex gap-1">
-        <button className="btn-ghost !px-2" onClick={onEdit}>
+        <button className="btn-ghost !px-2" aria-label="עריכה" onClick={onEdit}>
           <Pencil size={14} />
         </button>
         <ConfirmButton

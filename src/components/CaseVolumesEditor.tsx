@@ -187,7 +187,7 @@ export function CaseVolumesEditor(props: Props) {
             setDraft({ ...draft, count: Math.max(0, Number(e.target.value) || 0) })
           }
         />
-        <button className="btn-primary !px-3" onClick={add} disabled={upsert.isPending}>
+        <button className="btn-primary !px-3" aria-label="הוסף" onClick={add} disabled={upsert.isPending}>
           <Plus size={16} />
         </button>
       </div>

@@ -529,7 +529,7 @@ function PlanCard({
           {plan.procedure?.name ?? 'הליך כללי'}
         </p>
         <div className="flex gap-1">
-          <button className="btn-ghost !px-2" onClick={onEdit}>
+          <button className="btn-ghost !px-2" aria-label="עריכה" onClick={onEdit}>
             <Pencil size={15} />
           </button>
           <ConfirmButton
