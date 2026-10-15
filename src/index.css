@@ -5,6 +5,13 @@
 
 :root {
   color-scheme: light;
+  --navy: #00326d;
+  --blue: #1863dc;
+}
+
+/* a slightly larger base size: every rem-based size in the app grows with it */
+html {
+  font-size: 17px;
 }
 
 html,
@@ -15,9 +22,11 @@ body,
 
 body {
   margin: 0;
-  background: #f4f6fb;
-  color: #1f2937;
-  font-family: 'Rubik', 'Assistant', system-ui, sans-serif;
+  background: #f5f8fd;
+  color: #1a2b44;
+  font-family: 'Noto Sans Hebrew', 'Rubik', 'Assistant', system-ui, sans-serif;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
 }
 
 body {
@@ -25,15 +34,24 @@ body {
   overscroll-behavior-y: none;
 }
 
-/* 16px inputs stop iOS from zooming the page on focus */
+/* a clear keyboard focus everywhere */
+:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+/* 16px inputs stop iOS from zooming the page on focus; bigger tap targets on the phone */
 @media (max-width: 767px) {
+  html {
+    font-size: 16.5px;
+  }
   input,
   select,
   textarea {
     font-size: 16px !important;
   }
   .btn {
-    min-height: 40px;
+    min-height: 44px;
   }
 }
 
@@ -45,32 +63,42 @@ body {
   font-family: inherit;
 }
 
+@layer base {
+  h1 {
+    @apply font-semibold tracking-tight text-brand-800;
+  }
+  h2,
+  h3 {
+    @apply text-brand-800;
+  }
+}
+
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2 text-sm font-medium transition
       disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-primary {
-    @apply btn bg-brand-500 text-white hover:bg-brand-600;
+    @apply btn bg-brand-500 text-white shadow-sm hover:bg-brand-600 active:bg-brand-700;
   }
   .btn-secondary {
-    @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-50;
+    @apply btn border border-brand-200 bg-white text-brand-700 hover:border-brand-300 hover:bg-brand-50;
   }
   .btn-danger {
-    @apply btn bg-red-500 text-white hover:bg-red-600;
+    @apply btn bg-red-600 text-white hover:bg-red-700;
   }
   .btn-ghost {
-    @apply btn text-slate-600 hover:bg-slate-100;
+    @apply btn !px-3 text-slate-600 hover:bg-brand-50 hover:text-brand-700;
   }
   .input {
-    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm
-      outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100;
+    @apply w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-800
+      outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100;
   }
   .label {
     @apply mb-1 block text-sm font-medium text-slate-600;
   }
   .card {
-    @apply rounded-2xl border border-slate-200 bg-white shadow-sm;
+    @apply rounded-2xl border border-brand-100/70 bg-white shadow-card;
   }
   .chip {
     @apply inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium;

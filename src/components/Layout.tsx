@@ -28,6 +28,7 @@ import { ProfileModal } from './ProfileModal'
 import { RefreshButton } from './RefreshButton'
 import { OfflineBanner } from './OfflineBanner'
 import { DeveloperBar, DeveloperSwitcher } from './DeveloperSwitch'
+import { BrandLogo } from './BrandLogo'
 import { clearOutbox, drain, outboxSize } from '../lib/outbox'
 import { classNames } from '../lib/utils'
 
@@ -54,7 +55,7 @@ const NAV = [
 // the five destinations reachable with one thumb tap on a phone
 const TABS = ['/', '/doctors', '/schedule', '/tasks', '/scans']
 
-const VERSION = 'v96 · ציוד: ברירת מחדל אמי טכנולוגיות'
+const VERSION = 'v97 · עיצוב חדש בהשראת אמי טכנולוגיות'
 
 export function Layout() {
   const { profile, signOut, impersonating } = useAuth()
@@ -81,8 +82,8 @@ export function Layout() {
 
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     classNames(
-      'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition md:py-2',
-      isActive ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-100',
+      'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition md:py-2',
+      isActive ? 'bg-brand-50 text-brand-700 shadow-[inset_-3px_0_0_var(--blue)]' : 'text-slate-600 hover:bg-brand-50/60 hover:text-brand-700',
     )
 
   const account = (
@@ -108,23 +109,13 @@ export function Layout() {
     </div>
   )
 
-  const brand = (
-    <div className="flex items-center gap-2">
-      <div className="grid h-9 w-9 place-items-center rounded-xl bg-brand-500 text-white">
-        <Stethoscope size={18} />
-      </div>
-      <div>
-        <p className="text-sm font-bold leading-tight text-slate-800">AMI JR CRM</p>
-        <p className="text-xs text-slate-400">ניהול לקוחות רופאים</p>
-      </div>
-    </div>
-  )
+  const brand = <BrandLogo size="md" />
 
   return (
     <div className="flex min-h-full" style={impersonating ? ({ '--banner': '2rem' } as React.CSSProperties) : undefined}>
       <DeveloperBar />
       {/* desktop sidebar */}
-      <aside className="sticky top-[var(--banner,0px)] hidden h-[calc(100dvh-var(--banner,0px))] w-60 flex-col border-l border-slate-200 bg-white md:flex">
+      <aside className="sticky top-[var(--banner,0px)] hidden h-[calc(100dvh-var(--banner,0px))] w-64 flex-col border-l border-brand-100 bg-white md:flex">
         <div className="px-5 py-5">{brand}</div>
         <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 pb-2">
           {navItems.map(({ to, label, icon: Icon, end }) => (
@@ -199,7 +190,7 @@ export function Layout() {
             end={end}
             className={({ isActive }) =>
               classNames(
-                'flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium',
+                'flex flex-col items-center gap-0.5 py-2 text-xs font-medium',
                 isActive ? 'text-brand-600' : 'text-slate-400',
               )
             }

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Stethoscope } from 'lucide-react'
+import { BrandLogo } from '../components/BrandLogo'
 import { useAuth } from '../context/AuthProvider'
 
 export default function Login() {
@@ -35,16 +35,15 @@ export default function Login() {
   }
 
   return (
-    <div className="grid min-h-full place-items-center bg-slate-50 p-4">
-      <div className="card w-full max-w-sm p-7">
-        <div className="mb-6 flex flex-col items-center gap-2 text-center">
-          <div className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-500 text-white">
-            <Stethoscope size={22} />
-          </div>
-          <h1 className="text-xl font-bold text-slate-800">AMI JR CRM</h1>
-          <p className="text-sm text-slate-400">
-            {mode === 'signin' ? 'התחברות למערכת' : 'יצירת משתמש חדש'}
-          </p>
+    <div className="grid min-h-full place-items-center bg-gradient-to-b from-brand-800 via-brand-700 to-brand-500 p-4">
+      <div className="w-full max-w-sm">
+        <div className="mb-6 flex justify-center">
+          <BrandLogo size="lg" light />
+        </div>
+      <div className="card w-full p-7 shadow-pop">
+        <div className="mb-6 flex flex-col items-center gap-1 text-center">
+          <h1 className="text-2xl font-semibold">{mode === 'signin' ? 'ברוכים הבאים' : 'יצירת משתמש חדש'}</h1>
+          <p className="text-sm text-slate-500">{mode === 'signin' ? 'התחברות למערכת ניהול הלקוחות' : 'הגישה נפתחת אחרי אישור מנהל'}</p>
         </div>
 
         <form onSubmit={submit} className="space-y-3">
@@ -115,6 +114,7 @@ export default function Login() {
             ? 'אין לך משתמש? הרשמה'
             : 'כבר יש לך משתמש? התחברות'}
         </button>
+      </div>
       </div>
     </div>
   )
