@@ -193,9 +193,15 @@ export type Database = {
         Relationships: []
       }
       implant_options: {
-        Row: { category: string; created_at: string; id: string; sort: number; value: string }
-        Insert: { category: string; created_at?: string; id?: string; sort?: number; value: string }
-        Update: { category?: string; created_at?: string; id?: string; sort?: number; value?: string }
+        Row: { category: string; created_at: string; id: string; parent_id: string | null; sort: number; value: string }
+        Insert: { category: string; created_at?: string; id?: string; parent_id?: string | null; sort?: number; value: string }
+        Update: { category?: string; created_at?: string; id?: string; parent_id?: string | null; sort?: number; value?: string }
+        Relationships: []
+      }
+      implant_fields: {
+        Row: { category: string; created_at: string; depends_on: string | null; id: string; key: string; label: string; procedure_type: string; sort: number }
+        Insert: { category: string; created_at?: string; depends_on?: string | null; id?: string; key: string; label: string; procedure_type: string; sort?: number }
+        Update: { category?: string; created_at?: string; depends_on?: string | null; id?: string; key?: string; label?: string; procedure_type?: string; sort?: number }
         Relationships: []
       }
       patient_scans: {
@@ -331,6 +337,7 @@ export type Database = {
           created_at: string
           id: string
           image_path: string
+          images: Json
           name: string
         }
         Insert: {
@@ -339,6 +346,7 @@ export type Database = {
           created_at?: string
           id?: string
           image_path?: string
+          images?: Json
           name: string
         }
         Update: {
@@ -347,6 +355,7 @@ export type Database = {
           created_at?: string
           id?: string
           image_path?: string
+          images?: Json
           name?: string
         }
         Relationships: []
@@ -666,45 +675,129 @@ export type Database = {
       competitor_intel: {
         Row: {
           competitor: string
+          competitor_id: string | null
+          contract_end: string | null
           created_at: string
           created_by: string | null
           doctor_id: string | null
           hospital_id: string | null
           id: string
+          image_paths: string[]
+          implant_price: number | null
           intel_date: string
+          loss_reason: string
+          loyalty: string
           meeting_id: string | null
           notes: string
           offer: string
+          outcome: string
+          payment_terms: string
+          price_per_case: number | null
           product: string
+          tender_due: string | null
+          tender_name: string
           updated_at: string
         }
         Insert: {
           competitor?: string
+          competitor_id?: string | null
+          contract_end?: string | null
           created_at?: string
           created_by?: string | null
           doctor_id?: string | null
           hospital_id?: string | null
           id?: string
+          image_paths?: string[]
+          implant_price?: number | null
           intel_date?: string
+          loss_reason?: string
+          loyalty?: string
           meeting_id?: string | null
           notes?: string
           offer?: string
+          outcome?: string
+          payment_terms?: string
+          price_per_case?: number | null
           product?: string
+          tender_due?: string | null
+          tender_name?: string
           updated_at?: string
         }
         Update: {
           competitor?: string
+          competitor_id?: string | null
+          contract_end?: string | null
           created_at?: string
           created_by?: string | null
           doctor_id?: string | null
           hospital_id?: string | null
           id?: string
+          image_paths?: string[]
+          implant_price?: number | null
           intel_date?: string
+          loss_reason?: string
+          loyalty?: string
           meeting_id?: string | null
           notes?: string
           offer?: string
+          outcome?: string
+          payment_terms?: string
+          price_per_case?: number | null
           product?: string
+          tender_due?: string | null
+          tender_name?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      competitors: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string
+          id: string
+          learn_topic_id: string | null
+          name: string
+          our_answer: string
+          products: string
+          reps: string
+          sort: number
+          strengths: string
+          updated_at: string
+          weaknesses: string
+          website: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description?: string
+          id?: string
+          learn_topic_id?: string | null
+          name: string
+          our_answer?: string
+          products?: string
+          reps?: string
+          sort?: number
+          strengths?: string
+          updated_at?: string
+          weaknesses?: string
+          website?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string
+          id?: string
+          learn_topic_id?: string | null
+          name?: string
+          our_answer?: string
+          products?: string
+          reps?: string
+          sort?: number
+          strengths?: string
+          updated_at?: string
+          weaknesses?: string
+          website?: string
         }
         Relationships: []
       }

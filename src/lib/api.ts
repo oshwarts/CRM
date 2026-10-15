@@ -27,6 +27,7 @@ import type {
   Hospital,
   HospitalListItem,
   ImplantOption,
+  ImplantField,
   MeetingTask,
   MeetingWithRelations,
   Organization,
@@ -38,6 +39,7 @@ import type {
   TaskRow,
   AuditEntry,
   CompetitorIntelRow,
+  Competitor,
 } from './types'
 import { SCAN_PROCEDURE_TO_NAME } from './types'
 import { currentUserId, mergePatch, registerExecutor, runOrQueue, type ExecResult } from './outbox'
@@ -1145,25 +1147,48 @@ export function useImplantOptions() {
   return useQuery({
     queryKey: ['implant-options'],
     queryFn: async () =>
-      unwrap<ImplantOption[]>(
-        await supabase
-          .from('implant_options')
-          .select('*')
-          .order('category')
-          .order('sort'),
-      ),
+      fetchAll<ImplantOption>((a, b) => supabase.from('implant_options').select('*').order('category').order('sort').order('value').order('id').range(a, b)),
   })
+}
+
+/** the fields of the implant form of every procedure type (editable in Settings) */
+export function useImplantFields() {
+  return useQuery({
+    queryKey: ['implant-fields'],
+    queryFn: async () => {
+      const rows = unwrap<ImplantField[]>(await supabase.from('implant_fields').select('*').order('procedure_type').order('sort').order('created_at'))
+      // before the table was filled (or offline with an old cache) the built-in list is used
+      return rows.length ? rows : null
+    },
+  })
+}
+
+const invalidateImplants = (qc: ReturnType<typeof useQueryClient>) => {
+  qc.invalidateQueries({ queryKey: ['implant-options'] })
+  qc.invalidateQueries({ queryKey: ['implant-fields'] })
 }
 
 export function useUpsertImplantOption() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (o: { id?: string; category: string; value: string }) => {
-      if (o.id)
-        unwrap(await supabase.from('implant_options').update({ value: o.value }).eq('id', o.id))
-      else unwrap(await supabase.from('implant_options').insert({ category: o.category, value: o.value }))
+    mutationFn: async (o: { id?: string; category: string; value: string; parent_id?: string | null; sort?: number }) => {
+      const value = o.value.trim()
+      if (!value) throw new Error('כתוב ערך')
+      if (o.id) unwrap(await supabase.from('implant_options').update({ value }).eq('id', o.id))
+      else unwrap(await supabase.from('implant_options').insert({ category: o.category, value, parent_id: o.parent_id ?? null, sort: o.sort ?? 0 }))
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['implant-options'] }),
+    onSuccess: () => invalidateImplants(qc),
+  })
+}
+
+/** the options of one list in the order given (the position becomes the sort number) */
+export function useReorderImplantOptions() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      for (const [i, id] of ids.entries()) unwrap(await supabase.from('implant_options').update({ sort: i + 1 }).eq('id', id))
+    },
+    onSuccess: () => invalidateImplants(qc),
   })
 }
 
@@ -1172,7 +1197,47 @@ export function useDeleteImplantOption() {
   return useMutation({
     mutationFn: async (id: string) =>
       unwrap(await supabase.from('implant_options').delete().eq('id', id)),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['implant-options'] }),
+    onSuccess: () => invalidateImplants(qc),
+  })
+}
+
+export function useSaveImplantField() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (f: { id?: string; procedure_type: string; key?: string; label: string; category?: string; depends_on?: string | null; sort?: number }) => {
+      const label = f.label.trim()
+      if (!label) throw new Error('כתוב שם לשדה')
+      if (f.id) {
+        unwrap(await supabase.from('implant_fields').update({ label, depends_on: f.depends_on ?? null }).eq('id', f.id))
+      } else {
+        const id = crypto.randomUUID().slice(0, 8)
+        unwrap(await supabase.from('implant_fields').insert({ procedure_type: f.procedure_type, key: `f_${id}`, label, category: `c_${id}`, depends_on: f.depends_on ?? null, sort: f.sort ?? 99 }))
+      }
+    },
+    onSuccess: () => invalidateImplants(qc),
+  })
+}
+
+export function useReorderImplantFields() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      for (const [i, id] of ids.entries()) unwrap(await supabase.from('implant_fields').update({ sort: i + 1 }).eq('id', id))
+    },
+    onSuccess: () => invalidateImplants(qc),
+  })
+}
+
+export function useDeleteImplantField() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (f: { id: string; category: string }) => {
+      // the sizes of a removed field go with it (sizes already written in scans stay as they were typed)
+      unwrap(await supabase.from('implant_options').delete().eq('category', f.category))
+      unwrap(await supabase.from('implant_fields').update({ depends_on: null }).eq('depends_on', f.category))
+      unwrap(await supabase.from('implant_fields').delete().eq('id', f.id))
+    },
+    onSuccess: () => invalidateImplants(qc),
   })
 }
 
@@ -1790,6 +1855,8 @@ export function useCompetitorIntel() {
 
 export type IntelFormData = {
   id?: string
+  /** a competitor of the managed list (null = a name typed by hand, for a manager to add to the list later) */
+  competitor_id: string | null
   competitor: string
   product: string
   offer: string
@@ -1797,13 +1864,29 @@ export type IntelFormData = {
   intel_date: string
   doctor_id: string | null
   hospital_id: string | null
+  outcome: 'open' | 'won' | 'lost'
+  loss_reason: string
+  contract_end: string | null
+  tender_name: string
+  tender_due: string | null
+  loyalty: '' | 'loyal' | 'open' | 'leaning'
+  price_per_case: number | null
+  implant_price: number | null
+  payment_terms: string
+  /** pictures already stored (paths) */
+  image_paths: string[]
+  /** new pictures to upload (already shrunk) */
+  newImages?: Blob[]
 }
 
 export function useSaveIntel() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (d: IntelFormData) => {
+      const uploaded: string[] = []
+      for (const b of d.newImages ?? []) uploaded.push(await uploadImageTo('competitor/', b))
       const row = {
+        competitor_id: d.competitor_id,
         competitor: d.competitor.trim(),
         product: d.product.trim(),
         offer: d.offer.trim(),
@@ -1811,6 +1894,16 @@ export function useSaveIntel() {
         intel_date: d.intel_date,
         doctor_id: d.doctor_id || null,
         hospital_id: d.hospital_id || null,
+        outcome: d.outcome,
+        loss_reason: d.outcome === 'lost' ? d.loss_reason : '',
+        contract_end: d.contract_end || null,
+        tender_name: d.tender_name.trim(),
+        tender_due: d.tender_due || null,
+        loyalty: d.doctor_id ? d.loyalty : '',
+        price_per_case: d.price_per_case,
+        implant_price: d.implant_price,
+        payment_terms: d.payment_terms.trim(),
+        image_paths: [...d.image_paths, ...uploaded],
       }
       if (d.id) unwrap(await supabase.from('competitor_intel').update(row).eq('id', d.id))
       else unwrap(await supabase.from('competitor_intel').insert(row))
@@ -1825,6 +1918,56 @@ export function useDeleteIntel() {
     mutationFn: async (id: string) => unwrap(await supabase.from('competitor_intel').delete().eq('id', id)),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['competitor-intel'] }),
   })
+}
+
+/* ---------- the managed list of competitors (with the battlecard) ---------- */
+
+export function useCompetitors() {
+  return useQuery({
+    queryKey: ['competitors'],
+    queryFn: async () => unwrap<Competitor[]>(await supabase.from('competitors').select('*').order('sort').order('name')),
+  })
+}
+
+export type CompetitorInput = Omit<Competitor, 'id' | 'created_at' | 'updated_at'> & { id?: string }
+
+export function useSaveCompetitor() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (c: CompetitorInput) => {
+      const { id, ...rest } = c
+      const row = { ...rest, name: rest.name.trim() }
+      const saved = id
+        ? unwrap<Competitor>(await supabase.from('competitors').update(row).eq('id', id).select().single())
+        : unwrap<Competitor>(await supabase.from('competitors').insert(row).select().single())
+      // records written with this name by hand are tied to the competitor now
+      await supabase.from('competitor_intel').update({ competitor_id: saved.id, competitor: saved.name }).is('competitor_id', null).ilike('competitor', saved.name)
+      return saved
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['competitors'] })
+      qc.invalidateQueries({ queryKey: ['competitor-intel'] })
+    },
+  })
+}
+
+export function useDeleteCompetitor() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => unwrap(await supabase.from('competitors').delete().eq('id', id)),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['competitors'] })
+      qc.invalidateQueries({ queryKey: ['competitor-intel'] })
+    },
+  })
+}
+
+/** the hospitals the signed-in user is responsible for (null while loading) */
+export function useMyHospitalIds(): string[] | null {
+  const { user } = useAuth()
+  const rows = useHospitalAgents()
+  if (!rows.data) return null
+  return rows.data.filter((r) => r.agent_id === user?.id).map((r) => r.hospital_id)
 }
 
 /* ============================ Audit log (admin) ============================ */
@@ -2390,7 +2533,12 @@ export async function shrinkImage(file: File, maxSide = 1800): Promise<Blob> {
 }
 
 async function uploadEquipmentImage(blob: Blob): Promise<string> {
-  const path = `${EQUIP_PREFIX}${crypto.randomUUID()}.jpg`
+  return uploadImageTo(EQUIP_PREFIX, blob)
+}
+
+/** stores a (shrunk) picture in the private bucket and returns its path */
+export async function uploadImageTo(prefix: string, blob: Blob): Promise<string> {
+  const path = `${prefix}${crypto.randomUUID()}.jpg`
   const up = await supabase.storage.from(INFO_BUCKET).upload(path, blob, { contentType: 'image/jpeg' })
   if (up.error) throw up.error
   return path
@@ -2416,9 +2564,8 @@ export type EquipmentItemInput = {
   name: string
   catalog_number: string
   company_id: string | null
-  /** a new picture to upload (null = leave as is) */
-  image?: Blob | null
-  removeImage?: boolean
+  /** all the pictures in their order: a stored one (path) or a new one to upload (blob), each with a label */
+  images: { path?: string; blob?: Blob; label: string }[]
   parts: EquipmentPartInput[]
 }
 
@@ -2426,14 +2573,13 @@ export function useSaveEquipmentItem() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (e: EquipmentItemInput) => {
-      const existing = e.id
-        ? unwrap<{ image_path: string } | null>(await supabase.from('equipment_items').select('image_path').eq('id', e.id).maybeSingle())
-        : null
-      let image_path = existing?.image_path ?? ''
-      if (e.removeImage) image_path = ''
-      if (e.image) image_path = await uploadEquipmentImage(e.image)
-
-      const row = { name: e.name.trim(), catalog_number: e.catalog_number.trim(), company_id: e.company_id, image_path }
+      const images: { path: string; label: string }[] = []
+      for (const im of e.images) {
+        const path = im.path ?? (im.blob ? await uploadEquipmentImage(im.blob) : '')
+        if (path) images.push({ path, label: im.label.trim() })
+      }
+      // image_path keeps the first picture for older versions of the app
+      const row = { name: e.name.trim(), catalog_number: e.catalog_number.trim(), company_id: e.company_id, image_path: images[0]?.path ?? '', images }
       let id = e.id
       if (id) unwrap(await supabase.from('equipment_items').update(row).eq('id', id))
       else id = unwrap<{ id: string }>(await supabase.from('equipment_items').insert(row).select('id').single()).id

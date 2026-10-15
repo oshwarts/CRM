@@ -1,12 +1,16 @@
 import { useState } from 'react'
 import { Check, Copy, ImageOff, Search, X } from 'lucide-react'
 import { useEquipmentImageUrl } from '../lib/api'
-import type { EquipmentItemWithCompany } from '../lib/types'
+import { itemImages, type EquipmentItemWithCompany } from '../lib/types'
+import { classNames } from '../lib/utils'
 import { Modal, Spinner } from './ui'
 
 /** a tray in a comfortable view: the picture (tap to enlarge) and the parts inside it, searchable and copyable */
 export function EquipmentViewModal({ item, onClose }: { item: EquipmentItemWithCompany; onClose: () => void }) {
-  const img = useEquipmentImageUrl(item.image_path)
+  const images = itemImages(item)
+  const [idx, setIdx] = useState(0)
+  const current = images[Math.min(idx, images.length - 1)]
+  const img = useEquipmentImageUrl(current?.path)
   const [q, setQ] = useState('')
   const [zoom, setZoom] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -36,7 +40,7 @@ export function EquipmentViewModal({ item, onClose }: { item: EquipmentItemWithC
 
           <div className="grid gap-4 lg:grid-cols-2">
             <div>
-              {!item.image_path ? (
+              {images.length === 0 ? (
                 <div className="grid h-48 place-items-center rounded-xl border border-dashed border-slate-300 text-slate-400">
                   <span className="flex items-center gap-2 text-sm">
                     <ImageOff size={18} /> לא הועלתה תמונה
@@ -46,11 +50,25 @@ export function EquipmentViewModal({ item, onClose }: { item: EquipmentItemWithC
                 <Spinner />
               ) : img.data ? (
                 <button type="button" className="block w-full overflow-hidden rounded-xl border border-slate-200 bg-white" onClick={() => setZoom(true)} aria-label="הגדל תמונה">
-                  <img src={img.data} alt={item.name} className="mx-auto max-h-[70vh] w-full object-contain" />
-                  <span className="block bg-slate-50 py-1 text-center text-xs text-slate-400">לחץ להגדלה</span>
+                  <img src={img.data} alt={current?.label || item.name} className="mx-auto max-h-[70vh] w-full object-contain" />
+                  <span className="block bg-slate-50 py-1 text-center text-xs text-slate-400">{current?.label ? `${current.label} · ` : ''}לחץ להגדלה</span>
                 </button>
               ) : (
                 <p className="text-sm text-red-500">טעינת התמונה נכשלה (נדרש חיבור לרשת)</p>
+              )}
+              {images.length > 1 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {images.map((im, i) => (
+                    <button
+                      key={im.path}
+                      type="button"
+                      onClick={() => setIdx(i)}
+                      className={classNames('rounded-full border px-3 py-1 text-xs font-medium transition', i === idx ? 'border-brand-500 bg-brand-500 text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50')}
+                    >
+                      {im.label || `תמונה ${i + 1}`}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
 

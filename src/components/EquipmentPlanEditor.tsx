@@ -9,7 +9,7 @@ import {
 } from '../lib/api'
 import { ConfirmButton, EmptyState, Spinner } from './ui'
 import { EquipmentViewModal } from './EquipmentViewModal'
-import type { EquipmentItemWithCompany } from '../lib/types'
+import { itemImages, type EquipmentItemWithCompany } from '../lib/types'
 
 export function EquipmentPlanEditor({
   doctorId,
@@ -139,7 +139,7 @@ function ProcedureEquipment({
                     {r.item ? (
                       <button className="text-right font-medium hover:text-brand-600 hover:underline" onClick={() => onView(r.item as EquipmentItemWithCompany)}>
                         {r.item.name}
-                        {(r.item.image_path || r.item.parts?.length > 0) && (
+                        {(itemImages(r.item).length > 0 || r.item.parts?.length > 0) && (
                           <span className="mr-1.5 text-xs font-normal text-brand-500">
                             {r.item.parts?.length > 0 ? `${r.item.parts.length} מק״טים` : 'תמונה'}
                           </span>

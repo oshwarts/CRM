@@ -1,18 +1,19 @@
 import { useMemo, useState } from 'react'
 import {
   useDoctors,
+  useImplantFields,
   useImplantOptions,
   useMakoHospitals,
   useUpsertPatientScan,
 } from '../lib/api'
 import {
   HEALTH_FUNDS,
-  IMPLANT_FIELDS,
   SCAN_PROCEDURE_LABELS,
   SCAN_STATUS_LABELS,
   type PatientScanRow,
 } from '../lib/types'
 import { Field, Modal } from './ui'
+import { implantFieldsOf, optionsForField } from '../lib/implants'
 import { ImportContactButton } from './ImportContactButton'
 
 export type ScanDraft = {
@@ -89,18 +90,14 @@ export function ScanFormModal({
   const hospitals = useMakoHospitals()
   const doctors = useDoctors()
   const options = useImplantOptions()
+  const fieldRows = useImplantFields()
   const save = useUpsertPatientScan()
 
   const [d, setD] = useState<Draft>(() => ({ ...toDraft(scan), ...initial }))
   const [error, setError] = useState<string | null>(null)
   const set = (p: Partial<Draft>) => setD((x) => ({ ...x, ...p }))
 
-  const implantFields = IMPLANT_FIELDS[d.procedure_type] ?? []
-  const optsByCat = useMemo(() => {
-    const m: Record<string, string[]> = {}
-    for (const o of options.data ?? []) (m[o.category] ??= []).push(o.value)
-    return m
-  }, [options.data])
+  const implantFields = useMemo(() => implantFieldsOf(d.procedure_type, fieldRows.data), [d.procedure_type, fieldRows.data])
 
   async function submit() {
     setError(null)
@@ -290,23 +287,28 @@ export function ScanFormModal({
         <div>
           <p className="label">מידות שתל ({SCAN_PROCEDURE_LABELS[d.procedure_type]})</p>
           <div className="grid gap-3 sm:grid-cols-4">
-            {implantFields.map((f) => (
-              <Field key={f.key} label={f.label}>
-                <input
-                  className="input"
-                  list={`impl-${f.category}`}
-                  value={d.implant_data[f.key] ?? ''}
-                  onChange={(e) =>
-                    set({ implant_data: { ...d.implant_data, [f.key]: e.target.value } })
-                  }
-                />
-                <datalist id={`impl-${f.category}`}>
-                  {(optsByCat[f.category] ?? []).map((v) => (
-                    <option key={v} value={v} />
-                  ))}
-                </datalist>
-              </Field>
-            ))}
+            {implantFields.map((f) => {
+              // a field that depends on another (neck on head) offers the sizes that fit the chosen value
+              const { values, narrowedBy } = optionsForField(f, d.implant_data, implantFields, options.data ?? [])
+              return (
+                <Field key={f.key} label={f.label}>
+                  <input
+                    className="input"
+                    list={`impl-${f.key}`}
+                    value={d.implant_data[f.key] ?? ''}
+                    onChange={(e) =>
+                      set({ implant_data: { ...d.implant_data, [f.key]: e.target.value } })
+                    }
+                  />
+                  <datalist id={`impl-${f.key}`}>
+                    {values.map((v) => (
+                      <option key={v} value={v} />
+                    ))}
+                  </datalist>
+                  {narrowedBy && <p className="mt-0.5 text-[11px] text-brand-600">מידות עבור {narrowedBy}</p>}
+                </Field>
+              )
+            })}
           </div>
         </div>
 

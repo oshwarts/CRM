@@ -42,16 +42,11 @@ import {
   TabPanel,
   Tabs,
 } from '../components/ui'
-import {
-  useDeleteImplantOption,
-  useImplantOptions,
-  useUpsertImplantOption,
-} from '../lib/api'
+import { ImplantSettings } from '../components/ImplantSettings'
 import {
   CONTACT_ROLES,
-  IMPLANT_FIELDS,
+  itemImages,
   PROCEDURE_CATEGORY_LABELS,
-  SCAN_PROCEDURE_LABELS,
   SECTOR_LABELS,
   type EquipmentItemWithCompany,
   type HospitalListItem,
@@ -117,7 +112,7 @@ export default function Settings() {
           <EquipmentSettings />
         </TabPanel>
         <TabPanel id="implants">
-          <ImplantOptionsSettings />
+          <ImplantSettings />
         </TabPanel>
         <TabPanel id="info">
           <InfoCategoriesSettings />
@@ -282,94 +277,6 @@ function ProceduresSettings() {
   )
 }
 
-/* ---------------- Implant size options ---------------- */
-
-function ImplantOptionsSettings() {
-  const options = useImplantOptions()
-  const upsert = useUpsertImplantOption()
-  const del = useDeleteImplantOption()
-  const [adding, setAdding] = useState<Record<string, string>>({})
-
-  // one column of categories per procedure type
-  const groups = Object.entries(IMPLANT_FIELDS) as [
-    string,
-    { key: string; label: string; category: string }[],
-  ][]
-
-  return (
-    <div className="space-y-4">
-      <p className="text-sm text-slate-500">
-        מידות השתל שמופיעות ברשימת הבחירה בסריקות MAKO, לפי סוג ניתוח.
-      </p>
-      {options.isLoading ? (
-        <Spinner />
-      ) : (
-        <div className="grid gap-4 md:grid-cols-3">
-          {groups.map(([proc, fields]) => (
-            <div key={proc} className="card p-4">
-              <h3 className="mb-2 font-semibold text-slate-800">
-                {SCAN_PROCEDURE_LABELS[proc]}
-              </h3>
-              {fields.map((f) => {
-                const vals = (options.data ?? []).filter(
-                  (o) => o.category === f.category,
-                )
-                return (
-                  <div key={f.category} className="mb-3">
-                    <p className="mb-1 text-xs font-medium text-slate-500">
-                      {f.label}
-                    </p>
-                    <div className="flex flex-wrap gap-1">
-                      {vals.map((o) => (
-                        <span
-                          key={o.id}
-                          className="chip border-slate-200 bg-slate-50 text-slate-600"
-                        >
-                          {o.value}
-                          <button
-                            className="text-red-400"
-                            onClick={() => del.mutate(o.id)}
-                            aria-label="מחק"
-                          >
-                            <Trash2 size={11} />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                    <div className="mt-1 flex gap-1">
-                      <input
-                        className="input py-1 text-sm"
-                        placeholder="הוסף מידה"
-                        value={adding[f.category] ?? ''}
-                        onChange={(e) =>
-                          setAdding({ ...adding, [f.category]: e.target.value })
-                        }
-                      />
-                      <button
-                        className="btn-secondary shrink-0 !py-1"
-                        disabled={!adding[f.category]?.trim()}
-                        onClick={() => {
-                          upsert.mutate({
-                            category: f.category,
-                            value: adding[f.category].trim(),
-                          })
-                          setAdding({ ...adding, [f.category]: '' })
-                        }}
-                      >
-                        <Plus size={14} />
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
 /* ---------------- Equipment catalog ---------------- */
 
 function EquipmentSettings() {
@@ -410,9 +317,9 @@ function EquipmentSettings() {
                   {[it.catalog_number, it.company?.name].filter(Boolean).join(' · ')}
                 </span>
                 <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
-                  {it.image_path && (
+                  {itemImages(it).length > 0 && (
                     <span className="inline-flex items-center gap-0.5">
-                      <ImageIcon size={12} /> תמונה
+                      <ImageIcon size={12} /> {itemImages(it).length > 1 ? `${itemImages(it).length} תמונות` : 'תמונה'}
                     </span>
                   )}
                   {it.parts.length > 0 && <span>{it.parts.length} מק״טים</span>}

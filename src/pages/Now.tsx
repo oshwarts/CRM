@@ -1,8 +1,9 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, CalendarDays, CheckCircle2, CheckSquare, Clock, ScanLine, Stethoscope } from 'lucide-react'
+import { AlertTriangle, CalendarDays, CheckCircle2, CheckSquare, Clock, ScanLine, Stethoscope, Swords } from 'lucide-react'
 import { useAuth } from '../context/AuthProvider'
-import { useDoctors, useFavorites, useMeetings, usePatientScans, useTasks } from '../lib/api'
+import { useCompetitorIntel, useDoctors, useFavorites, useMeetings, useMyHospitalIds, usePatientScans, useTasks } from '../lib/api'
+import { competitorAlerts, newActivity } from '../lib/competitors'
 import { contactState } from '../lib/cadence'
 import { rescanAlert, weekMissing } from '../lib/scanAlerts'
 import { SCAN_PROCEDURE_LABELS } from '../lib/types'
@@ -26,6 +27,9 @@ export default function Now() {
   const scans = usePatientScans()
   const doctors = useDoctors()
   const favorites = useFavorites()
+  const competitorIntel = useCompetitorIntel()
+  const myHospitals = useMyHospitalIds()
+  const { isAdmin } = useAuth()
   const loading = [tasks, meetings, scans, doctors].some((q) => q.isLoading)
 
   const groups = useMemo(() => {
@@ -98,14 +102,37 @@ export default function Now() {
         when: st.status === 'due' ? `באיחור ${Math.abs(daysUntil(st.dueDate) ?? 0)} ימים` : `בעוד ${st.daysToDue} ימים`,
       }))
 
+    // opportunities against competitors: a contract or tender ending soon, and what was recorded this week at my hospitals
+    const scope = isAdmin ? null : myHospitals
+    const intel = competitorIntel.data ?? []
+    const opportunities: Item[] = [
+      ...competitorAlerts(intel, scope, 60).map((a) => ({
+        key: `k${a.key}`,
+        to: '/competitors?tab=contracts',
+        icon: <Swords size={16} />,
+        title: `${a.kind === 'contract' ? 'סיום חוזה' : `מכרז ${a.intel.tender_name}`} · ${a.intel.competitor}`,
+        sub: [a.intel.hospital?.name, a.intel.doctor?.name].filter(Boolean).join(' · '),
+        when: a.days === 0 ? 'היום' : `בעוד ${a.days} ימים`,
+      })),
+      ...newActivity(intel, scope, user?.id).slice(0, 5).map((i) => ({
+        key: `n${i.id}`,
+        to: '/competitors',
+        icon: <Swords size={16} />,
+        title: `פעילות חדשה של ${i.competitor}${i.product ? ` (${i.product})` : ''}`,
+        sub: [i.hospital?.name, i.doctor?.name].filter(Boolean).join(' · '),
+        when: formatDate(i.intel_date),
+      })),
+    ]
+
     const out: Group[] = [
       { id: 'late', title: 'באיחור — לטפל קודם', tone: 'red', items: late },
       { id: 'today', title: 'היום', tone: 'amber', items: today },
       { id: 'soon', title: 'השבוע הקרוב', tone: 'blue', items: soon },
       { id: 'contact', title: 'רופאים לחזור אליהם', tone: 'blue', items: toContact },
+      { id: 'competitors', title: 'הזדמנויות מול מתחרים', tone: 'amber', items: opportunities },
     ]
     return out.filter((g) => g.items.length > 0)
-  }, [tasks.data, meetings.data, scans.data, doctors.data, favorites.data, user?.id])
+  }, [tasks.data, meetings.data, scans.data, doctors.data, favorites.data, competitorIntel.data, myHospitals, isAdmin, user?.id])
 
   const total = groups.reduce((n, g) => n + g.items.length, 0)
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { Camera, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Camera, Plus, Trash2, X } from 'lucide-react'
 import { findDefaultCompany, shrinkImage, useCompanies, useEquipmentImageUrl, useSaveEquipmentItem, type EquipmentPartInput } from '../lib/api'
-import type { EquipmentItemWithCompany } from '../lib/types'
+import { itemImages, type EquipmentItemWithCompany } from '../lib/types'
 import { Field, Modal } from './ui'
 
 /** lines such as "1 110730 End effector array" or "110730<TAB>End effector array" → parts */
@@ -21,12 +21,39 @@ function parsePasted(text: string): EquipmentPartInput[] {
   return out
 }
 
-/** create / edit a catalog item: name, picture and the parts inside it */
+type Pic = { id: string; path?: string; blob?: Blob; url?: string; label: string }
+const PIC_LABELS = ['מגש עליון', 'מגש תחתון']
+
+/** a picture of the item: a stored one (private link) or a new one still on this device */
+function PicTile({ pic, index, total, onLabel, onMove, onRemove }: { pic: Pic; index: number; total: number; onLabel: (v: string) => void; onMove: (by: number) => void; onRemove: () => void }) {
+  const stored = useEquipmentImageUrl(pic.path)
+  const src = pic.url ?? stored.data
+  return (
+    <div className="w-36 space-y-1 rounded-xl border border-slate-200 p-1.5">
+      <div className="relative">
+        {src ? <img src={src} alt="" className="h-28 w-full rounded-lg object-cover" /> : <div className="h-28 w-full animate-pulse rounded-lg bg-slate-100" />}
+        <button type="button" className="absolute -left-1.5 -top-1.5 grid h-6 w-6 place-items-center rounded-full bg-slate-700 text-white" onClick={onRemove} aria-label="הסר תמונה">
+          <X size={12} />
+        </button>
+      </div>
+      <input className="input !py-1 text-xs" dir="auto" list="eq-pic-labels" placeholder="שם (למשל מגש עליון)" value={pic.label} onChange={(e) => onLabel(e.target.value)} />
+      <div className="flex justify-between">
+        <button type="button" className="btn-ghost !px-1.5 !py-0.5 disabled:opacity-30" disabled={index === 0} onClick={() => onMove(-1)} aria-label="הקדם">
+          <ArrowRight size={14} />
+        </button>
+        <button type="button" className="btn-ghost !px-1.5 !py-0.5 disabled:opacity-30" disabled={index === total - 1} onClick={() => onMove(1)} aria-label="אחר">
+          <ArrowLeft size={14} />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/** create / edit a catalog item: name, pictures (a set can be two trays) and the parts inside it */
 export function EquipmentItemModal({ item, onClose }: { item?: EquipmentItemWithCompany | null; onClose: () => void }) {
   const companies = useCompanies()
   const save = useSaveEquipmentItem()
   const fileRef = useRef<HTMLInputElement>(null)
-  const current = useEquipmentImageUrl(item?.image_path)
 
   const [name, setName] = useState(item?.name ?? '')
   const [catalog, setCatalog] = useState(item?.catalog_number ?? '')
@@ -40,13 +67,10 @@ export function EquipmentItemModal({ item, onClose }: { item?: EquipmentItemWith
   const [parts, setParts] = useState<EquipmentPartInput[]>(
     [...(item?.parts ?? [])].sort((a, b) => a.sort - b.sort).map((p) => ({ position: p.position, catalog_no: p.catalog_no, description: p.description, qty: p.qty })),
   )
-  const [file, setFile] = useState<File | null>(null)
-  const [preview, setPreview] = useState('')
-  const [removeImage, setRemoveImage] = useState(false)
+  const [pics, setPics] = useState<Pic[]>(() => (item ? itemImages(item) : []).map((im) => ({ id: im.path, path: im.path, label: im.label })))
   const [paste, setPaste] = useState('')
   const [error, setError] = useState('')
 
-  const shownImage = preview || (!removeImage ? current.data : '')
   const setPart = (i: number, p: Partial<EquipmentPartInput>) => setParts((x) => x.map((r, k) => (k === i ? { ...r, ...p } : r)))
 
   async function submit() {
@@ -58,8 +82,7 @@ export function EquipmentItemModal({ item, onClose }: { item?: EquipmentItemWith
         name,
         catalog_number: catalog,
         company_id: companyId || null,
-        image: file ? await shrinkImage(file) : null,
-        removeImage,
+        images: pics.map((x) => ({ path: x.path, blob: x.blob, label: x.label })),
         parts,
       })
       onClose()
@@ -91,34 +114,57 @@ export function EquipmentItemModal({ item, onClose }: { item?: EquipmentItemWith
         </div>
 
         <div>
-          <span className="label">תמונה של הציוד</span>
-          <div className="flex flex-wrap items-start gap-3">
-            {shownImage && <img src={shownImage} alt="" className="max-h-48 rounded-lg border border-slate-200" />}
-            <div className="space-y-2">
-              <button type="button" className="btn-secondary" onClick={() => fileRef.current?.click()}>
-                <Camera size={16} />
-                {shownImage ? 'החלף תמונה' : 'צלם / בחר תמונה'}
-              </button>
-              {(shownImage || item?.image_path) && !preview && !removeImage && (
-                <button type="button" className="btn-ghost block text-red-500" onClick={() => setRemoveImage(true)}>
-                  הסר תמונה
-                </button>
-              )}
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0] ?? null
-                  setFile(f)
-                  setRemoveImage(false)
-                  setPreview(f ? URL.createObjectURL(f) : '')
-                  e.target.value = ''
-                }}
+          <span className="label">תמונות של הציוד ({pics.length})</span>
+          <p className="mb-2 text-xs text-slate-400">ציוד שמורכב משני מגשים (עליון ותחתון) — העלה תמונה לכל מגש ותן לכל אחת שם.</p>
+          <div className="flex flex-wrap items-start gap-2">
+            {pics.map((pic, i) => (
+              <PicTile
+                key={pic.id}
+                pic={pic}
+                index={i}
+                total={pics.length}
+                onLabel={(v) => setPics((x) => x.map((y) => (y.id === pic.id ? { ...y, label: v } : y)))}
+                onMove={(by) =>
+                  setPics((x) => {
+                    const j = i + by
+                    if (j < 0 || j >= x.length) return x
+                    const n = [...x]
+                    ;[n[i], n[j]] = [n[j], n[i]]
+                    return n
+                  })
+                }
+                onRemove={() => setPics((x) => x.filter((y) => y.id !== pic.id))}
               />
-            </div>
+            ))}
+            <button type="button" className="grid h-[9.5rem] w-36 place-items-center rounded-xl border border-dashed border-slate-300 text-slate-500 hover:bg-slate-50" onClick={() => fileRef.current?.click()}>
+              <span className="flex flex-col items-center gap-1 text-sm">
+                <Camera size={22} />
+                {pics.length ? 'הוסף תמונה' : 'צלם / בחר תמונה'}
+              </span>
+            </button>
           </div>
+          <datalist id="eq-pic-labels">
+            {PIC_LABELS.map((l) => (
+              <option key={l} value={l} />
+            ))}
+          </datalist>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={async (e) => {
+              const files = [...(e.target.files ?? [])]
+              e.target.value = ''
+              const added: Pic[] = []
+              for (const f of files) {
+                const blob = await shrinkImage(f)
+                added.push({ id: crypto.randomUUID(), blob, url: URL.createObjectURL(blob), label: '' })
+              }
+              setPics((x) => [...x, ...added])
+            }}
+          />
         </div>
 
         <div>

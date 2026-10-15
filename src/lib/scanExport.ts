@@ -1,8 +1,10 @@
-import { IMPLANT_FIELDS, SCAN_PROCEDURE_LABELS, type PatientScanRow } from './types'
+import { SCAN_PROCEDURE_LABELS, type ImplantField, type PatientScanRow } from './types'
+import { implantFieldsOf } from './implants'
 import { formatDate, formatTime } from './utils'
 
-export function implantSummary(s: PatientScanRow): string {
-  const fields = IMPLANT_FIELDS[s.procedure_type] ?? []
+/** `fieldRows` = the implant fields set in Settings (useImplantFields); without them the built-in list is used */
+export function implantSummary(s: PatientScanRow, fieldRows?: ImplantField[] | null): string {
+  const fields = implantFieldsOf(s.procedure_type, fieldRows)
   const data = (s.implant_data as Record<string, string>) ?? {}
   return fields
     .map((f) => (data[f.key] ? `${f.label} ${data[f.key]}` : null))

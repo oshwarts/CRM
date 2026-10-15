@@ -3,6 +3,7 @@ import { PendingMark } from './PendingMark'
 import { ConfirmButton } from './ui'
 import { rowFlags } from '../lib/scanAlerts'
 import { implantSummary } from '../lib/scanExport'
+import { useImplantFields } from '../lib/api'
 import {
   SCAN_PROCEDURE_LABELS,
   SCAN_STATUS_LABELS,
@@ -38,6 +39,7 @@ export function ScanCard({
   onPatch: (p: Patch) => void
 }) {
   const { overdueRow, soon, noCtSoon, noDiskSoon, missing, rescanKind, hasEvents } = rowFlags(s)
+  const implantRows = useImplantFields().data
   const tone = noCtSoon
     ? 'border-fuchsia-300 bg-fuchsia-50/60'
     : noDiskSoon
@@ -117,7 +119,7 @@ export function ScanCard({
         </div>
       )}
 
-      {implantSummary(s) && <p className="mt-2 text-xs text-slate-500">{implantSummary(s)}</p>}
+      {implantSummary(s, implantRows) && <p className="mt-2 text-xs text-slate-500">{implantSummary(s, implantRows)}</p>}
       {s.anaesthesia_note && <p className="mt-1 text-xs text-slate-500">מרדים: {s.anaesthesia_note}</p>}
 
       <div className="mt-3 grid grid-cols-4 gap-1 border-t border-slate-200/70 pt-2">

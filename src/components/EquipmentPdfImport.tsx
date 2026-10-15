@@ -44,7 +44,7 @@ export function EquipmentPdfImport({ onClose }: { onClose: () => void }) {
     try {
       for (const [i, r] of todo.entries()) {
         setBusy(`שומר ${i + 1} מתוך ${todo.length}: ${r.name}`)
-        await save.mutateAsync({ name: r.name, catalog_number: '', company_id: companyId || null, parts: r.parts })
+        await save.mutateAsync({ name: r.name, catalog_number: '', company_id: companyId || null, images: [], parts: r.parts })
       }
       onClose()
     } catch (e) {

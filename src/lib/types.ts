@@ -14,6 +14,7 @@ export type CompetitorIntelRow = CompetitorIntel & {
   doctor: Pick<Doctor, 'id' | 'name' | 'title'> | null
   hospital: Pick<Hospital, 'id' | 'name'> | null
 }
+export type Competitor = Tables<'competitors'>
 export type AuditEntry = Tables<'audit_log'>
 /** a task with everything the tasks page shows */
 export type AgentGoal = Tables<'agent_goals'>
@@ -56,6 +57,7 @@ export type CaseVolume = Tables<'case_volumes'>
 export type Organization = Tables<'organizations'>
 export type RoboticSystem = Tables<'robotic_systems'>
 export type ImplantOption = Tables<'implant_options'>
+export type ImplantField = Tables<'implant_fields'>
 export type PatientScan = Tables<'patient_scans'>
 
 export type ConsumableItem = Tables<'consumable_items'>
@@ -122,6 +124,17 @@ export const IMPLANT_FIELDS: Record<
   ],
 }
 export type EquipmentItem = Tables<'equipment_items'>
+/** one picture of an equipment item: where it is stored and what it shows ("upper tray") */
+export type EquipmentImage = { path: string; label: string }
+/** the pictures of an item (older rows only have image_path) */
+export function itemImages(item: Pick<EquipmentItem, 'images' | 'image_path'>): EquipmentImage[] {
+  const raw = Array.isArray(item.images) ? (item.images as unknown[]) : []
+  const list = raw
+    .map((x) => (x && typeof x === 'object' ? (x as Partial<EquipmentImage>) : null))
+    .filter((x): x is EquipmentImage => !!x && typeof x.path === 'string' && x.path !== '')
+    .map((x) => ({ path: x.path, label: typeof x.label === 'string' ? x.label : '' }))
+  return list.length ? list : item.image_path ? [{ path: item.image_path, label: '' }] : []
+}
 
 export type EquipmentItemPart = Tables<'equipment_item_parts'>
 export type EquipmentItemWithCompany = EquipmentItem & {

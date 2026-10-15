@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { CalendarPlus, Copy, Download, FileInput, Pencil, Plus, Trash2 } from 'lucide-react'
 import {
   useDeletePatientScan,
+  useImplantFields,
   useMakoHospitals,
   usePatchPatientScan,
   usePatientScans,
@@ -46,6 +47,7 @@ export default function Scans() {
   const makoHospitals = useMakoHospitals()
   const del = useDeletePatientScan()
   const patch = usePatchPatientScan()
+  const implantRows = useImplantFields().data
 
   const [params] = useSearchParams()
   const hospitalParam = params.get('hospital') ?? ''
@@ -161,7 +163,7 @@ export default function Scans() {
       formatDate(s.ct_date), formatTime(s.ct_time), s.anaesthesia_note,
       s.scanned ? 'כן' : 'לא', s.disk_collected ? 'כן' : 'לא', s.plan_ready ? 'כן' : 'לא',
       s.rescan ? (s.rescan_done ? 'בוצעה' : 'כן') : '', formatDate(s.rescan_date), s.rescan_reason,
-      implantSummary(s), SCAN_STATUS_LABELS[s.status] ?? s.status, s.notes,
+      implantSummary(s, implantRows), SCAN_STATUS_LABELS[s.status] ?? s.status, s.notes,
     ])
     const csv = [head, ...body]
       .map((r) => r.map(csvCell).join(','))
@@ -401,7 +403,7 @@ export default function Scans() {
                       <input type="checkbox" className="h-4 w-4" checked={s.plan_ready}
                         onChange={(e) => patch.mutate({ id: s.id, patch: { plan_ready: e.target.checked } })} />
                     </td>
-                    <td className="max-w-[180px] p-2 text-xs text-slate-500">{implantSummary(s) || '—'}</td>
+                    <td className="max-w-[180px] p-2 text-xs text-slate-500">{implantSummary(s, implantRows) || '—'}</td>
                     <td className="whitespace-nowrap p-2">
                       <span className="chip border-slate-200 bg-slate-50 text-slate-600">
                         {SCAN_STATUS_LABELS[s.status]}
