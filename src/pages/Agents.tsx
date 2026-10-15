@@ -46,7 +46,7 @@ export default function Agents() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-semibold text-brand-800 sm:text-3xl">
-            <Users size={24} className="text-brand-500" />
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#00326d] text-white"><Users size={20} /></span>
             ניהול סוכנים
           </h1>
           <p className="text-sm text-slate-400">השוואה בין הסוכנים. לחץ על סוכן כדי לראות לוז, משימות, יעדים ושיחות מעקב.</p>

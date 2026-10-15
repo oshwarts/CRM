@@ -100,11 +100,13 @@ export function MeetingFormModal({
     setData((d) => ({ ...d, ...p }))
   }
 
+  const [triedSave, setTriedSave] = useState(false)
+
   async function submit() {
     setError(null)
     if (!data.subject.trim()) {
       setTab('general')
-      setError('יש להזין נושא לפגישה')
+      setTriedSave(true)
       return
     }
     try {
@@ -132,7 +134,7 @@ export function MeetingFormModal({
 
         <TabPanel id="general">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="נושא הפגישה" className="sm:col-span-2">
+            <Field label="נושא הפגישה" className="sm:col-span-2" error={triedSave && !data.subject.trim() ? 'יש להזין נושא לפגישה' : undefined}>
               <input
                 className="input"
                 value={data.subject}

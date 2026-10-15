@@ -43,3 +43,34 @@ export function useThemeMode(): [ThemeMode, (m: ThemeMode) => void] {
     },
   ]
 }
+
+export type TextSize = 'compact' | 'regular' | 'large'
+const SIZE_KEY = 'ami.size'
+
+export function applyTextSize(size: TextSize) {
+  if (size === 'regular') document.documentElement.removeAttribute('data-size')
+  else document.documentElement.setAttribute('data-size', size)
+}
+
+export function useTextSize(): [TextSize, (v: TextSize) => void] {
+  const [size, setSize] = useState<TextSize>(() => {
+    try {
+      const v = localStorage.getItem(SIZE_KEY)
+      return v === 'compact' || v === 'large' ? v : 'regular'
+    } catch {
+      return 'regular'
+    }
+  })
+  return [
+    size,
+    (v) => {
+      try {
+        localStorage.setItem(SIZE_KEY, v)
+      } catch {
+        /* not kept */
+      }
+      applyTextSize(v)
+      setSize(v)
+    },
+  ]
+}

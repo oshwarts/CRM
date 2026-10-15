@@ -62,12 +62,13 @@ export function TaskFormModal({
   const setD = draft.setValue
   const [more, setMore] = useState(!!task || !!defaults)
   const [error, setError] = useState('')
+  const [triedSave, setTriedSave] = useState(false)
   const guess = useTaskGuess(task ? '' : d.description) // suggestions only for a new task
   const set = (p: Partial<TaskFormData>) => setD((x) => ({ ...x, ...p }))
 
   async function submit() {
     setError('')
-    if (!d.description.trim()) return setError('כתוב מה המשימה')
+    if (!d.description.trim()) return setTriedSave(true)
     try {
       await save.mutateAsync(d)
       draft.clear()
@@ -83,7 +84,7 @@ export function TaskFormModal({
   return (
     <Modal open onClose={onClose} title={task ? 'עריכת משימה' : 'משימה חדשה'} size="lg">
       <div className="space-y-4">
-        <Field label="המשימה">
+        <Field label="המשימה" error={triedSave && !d.description.trim() ? 'כתוב מה המשימה' : undefined}>
           <textarea
             className="input min-h-20"
             dir="auto"

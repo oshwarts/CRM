@@ -99,7 +99,7 @@ export default function DoctorProfile() {
             </span>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-3xl font-semibold text-brand-800">
+                <h1 className="no-accent text-3xl font-semibold text-brand-800">
                   {d.title} {d.name}
                 </h1>
                 <span

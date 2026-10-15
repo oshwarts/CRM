@@ -358,7 +358,7 @@ export default function Home() {
           <div className="relative space-y-4">
             <div>
               <p className="text-sm font-medium text-white/80">{dateLabel}</p>
-              <h1 className="text-3xl font-semibold !text-white">שלום{profile?.full_name ? `, ${profile.full_name}` : ''}</h1>
+              <h1 className="no-accent text-3xl font-semibold !text-white">שלום{profile?.full_name ? `, ${profile.full_name}` : ''}</h1>
               <p className="mt-1 text-sm text-white/85">
                 {meetingsToday === 0 && overdueTasks === 0
                   ? 'אין היום פגישות ואין משימות באיחור'

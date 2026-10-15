@@ -75,7 +75,7 @@ const DEFAULT_FAVORITES = ['/doctors', '/tasks', '/meetings', '/projects', '/map
 // scroll position of each visited page, so that going back returns to the same place
 const scrollOf = new Map<string, number>()
 
-const VERSION = 'v109 · כרטיס רופא: שיחה, וואטסאפ, ניווט; לוגו אמי'
+const VERSION = 'v110 · החלקה להשלמת משימה, גודל תצוגה, שגיאות ליד שדות'
 
 export function Layout() {
   const { profile, signOut, impersonating, isAdmin } = useAuth()

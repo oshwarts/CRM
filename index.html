@@ -7,6 +7,8 @@
     <meta name="theme-color" content="#00326d" />
     <script>
       try {
+        var z = localStorage.getItem('ami.size')
+        if (z === 'compact' || z === 'large') document.documentElement.setAttribute('data-size', z)
         var t = localStorage.getItem('ami.theme') || 'system'
         if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark')
       } catch (e) {}

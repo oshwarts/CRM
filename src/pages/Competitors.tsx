@@ -54,7 +54,7 @@ export default function Competitors() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-semibold text-brand-800 sm:text-3xl">
-            <Swords size={24} className="text-brand-500" />
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#00326d] text-white"><Swords size={20} /></span>
             פעילות מתחרים
           </h1>
           <p className="text-sm text-slate-400">מי פעיל אצל איזה רופא ובית חולים, ומה הוא מציע</p>

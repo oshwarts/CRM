@@ -1,3 +1,4 @@
+import { SwipeToComplete } from '../components/SwipeToComplete'
 import { useMemo, useState } from 'react'
 import { toast } from '../lib/toast'
 import { Link } from 'react-router-dom'
@@ -130,32 +131,37 @@ export default function Tasks() {
     )
   }
 
+  function markDone(t: TaskRow, done: boolean) {
+    setDone.mutate(
+      { task: t, done },
+      {
+        onError: fail,
+        // a repeating task opens the next one when completed, so only the others can be undone
+        onSuccess: () =>
+          toast(done ? 'המשימה סומנה כבוצעה' : 'המשימה נפתחה מחדש', t.recurrence === 'none' ? { action: { label: 'ביטול', run: () => setDone.mutate({ task: t, done: !done }) } } : {}),
+      },
+    )
+  }
+
   const card = (t: TaskRow) => {
     const total = t.subtasks.length
     const done = t.subtasks.filter((s) => s.is_done).length
     const expanded = open.has(t.id)
     const due = daysUntil(t.due_date)
     return (
-      <li key={t.id} className={classNames('card p-3', t.priority === 'urgent' && !t.is_done && 'border-r-4 border-r-red-400')}>
+      <li key={t.id}>
+        <SwipeToComplete disabled={t.is_done} onComplete={() => markDone(t, true)}>
+        <div className={classNames('card p-3', t.priority === 'urgent' && !t.is_done && 'border-r-4 border-r-red-400')}>
         <div className="flex items-start gap-3">
-          <input
-            type="checkbox"
-            className="mt-1 h-6 w-6 shrink-0 cursor-pointer accent-emerald-600"
-            checked={t.is_done}
-            onChange={(e) => {
-              const done = e.target.checked
-              setDone.mutate(
-                { task: t, done },
-                {
-                  onError: fail,
-                  // a repeating task opens the next one when completed, so only the others can be undone
-                  onSuccess: () =>
-                    toast(done ? 'המשימה סומנה כבוצעה' : 'המשימה נפתחה מחדש', t.recurrence === 'none' ? { action: { label: 'ביטול', run: () => setDone.mutate({ task: t, done: !done }) } } : {}),
-                },
-              )
-            }}
-            aria-label="סמן כבוצע"
-          />
+          <label className="-m-2 grid shrink-0 cursor-pointer place-items-center p-2">
+            <input
+              type="checkbox"
+              className="h-6 w-6 cursor-pointer accent-emerald-600"
+              checked={t.is_done}
+              onChange={(e) => markDone(t, e.target.checked)}
+              aria-label="סמן כבוצע"
+            />
+          </label>
           <div className="min-w-0 flex-1">
             <button className="block w-full text-right" onClick={() => setEditing(t)}>
               <span dir="auto" className={classNames('block whitespace-pre-line break-words text-sm font-medium', t.is_done ? 'text-slate-400 line-through' : 'text-slate-800')}>
@@ -289,6 +295,8 @@ export default function Tasks() {
             </form>
           </div>
         )}
+        </div>
+        </SwipeToComplete>
       </li>
     )
   }
@@ -314,7 +322,7 @@ export default function Tasks() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-semibold text-brand-800 sm:text-3xl">
-            <ListChecks size={24} className="text-brand-500" />
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#00326d] text-white"><ListChecks size={20} /></span>
             משימות
           </h1>
           <p className="text-sm text-slate-400">

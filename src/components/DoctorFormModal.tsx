@@ -102,11 +102,13 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
     }))
   }
 
+  const [triedSave, setTriedSave] = useState(false)
+
   async function submit() {
     setError(null)
     if (!data.name.trim()) {
       setTab('general')
-      setError('יש להזין שם רופא')
+      setTriedSave(true)
       return
     }
     try {
@@ -138,7 +140,7 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
 
         <TabPanel id="general">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="שם הרופא">
+            <Field label="שם הרופא" error={triedSave && !data.name.trim() ? 'יש להזין שם רופא' : undefined}>
               <input
                 className="input"
                 value={data.name}

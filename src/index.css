@@ -41,6 +41,12 @@
 html {
   font-size: 17px;
 }
+html[data-size='compact'] {
+  font-size: 15px;
+}
+html[data-size='large'] {
+  font-size: 19.5px;
+}
 
 html,
 body,
@@ -143,4 +149,20 @@ body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* every page title in the app wears the brand: a short navy-to-pink bar at its start */
+main h1:not(.no-accent) {
+  position: relative;
+  padding-inline-start: 0.9rem;
+}
+main h1:not(.no-accent)::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0.2em;
+  bottom: 0.2em;
+  width: 4px;
+  border-radius: 4px;
+  background: linear-gradient(to bottom, #1863dc, #cc3366);
 }

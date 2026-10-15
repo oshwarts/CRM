@@ -174,15 +174,23 @@ export function Field({
   label,
   children,
   className,
+  error,
 }: {
   label: string
   children: ReactNode
   className?: string
+  /** shown under the field, which also gets a red edge */
+  error?: string
 }) {
   return (
-    <div className={className}>
+    <div className={classNames(className, error && '[&_.input]:border-red-500 [&_.input]:ring-2 [&_.input]:ring-red-200')}>
       <span className="label">{label}</span>
       {children}
+      {error && (
+        <p role="alert" className="mt-1 text-xs font-medium text-red-600">
+          {error}
+        </p>
+      )}
     </div>
   )
 }
