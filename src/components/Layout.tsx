@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate, useNavigationType } from 'react-router-dom'
 import {
   AlertTriangle,
@@ -12,6 +12,7 @@ import {
   ArrowRight,
   LogOut,
   ChevronDown,
+  Pencil,
   Plus,
   Search,
   Star,
@@ -37,7 +38,9 @@ import { BrandLogo } from './BrandLogo'
 import { GlobalSearch } from './GlobalSearch'
 import { QuickCreate } from './QuickCreate'
 import { ThemeToggle } from './ThemeToggle'
-import { useTasks } from '../lib/api'
+import { MenuEditor } from './MenuEditor'
+import { useAppSetting, useTasks } from '../lib/api'
+import { MENU_SETTING_KEY, parseMenuGroups, resolveGroups } from '../lib/menuConfig'
 import { clearOutbox, drain, outboxSize } from '../lib/outbox'
 import { classNames } from '../lib/utils'
 import { useLocalSetting } from '../lib/useLocalSetting'
@@ -66,22 +69,16 @@ const NAV = [
 // the four destinations next to the "+" button on a phone
 const TABS = ['/', '/doctors', '/tasks', '/schedule']
 
-const GROUPS: { title: string; paths: string[] }[] = [
-  { title: 'יומיומי', paths: ['/', '/now', '/doctors', '/tasks', '/schedule', '/meetings', '/scans'] },
-  { title: 'עבודה וידע', paths: ['/projects', '/map', '/info', '/learn', '/consumables', '/pipeline', '/competitors', '/reports'] },
-  { title: 'ניהול', paths: ['/agents', '/users', '/settings'] },
-]
-
 // shown at the top of the menu until the person picks their own (the star next to an item)
 const DEFAULT_FAVORITES = ['/doctors', '/tasks', '/meetings', '/projects', '/map', '/info', '/learn']
 
 // scroll position of each visited page, so that going back returns to the same place
 const scrollOf = new Map<string, number>()
 
-const VERSION = 'v106 · תפריט: מועדפים וקבוצות; הגדרות למנהל בלבד'
+const VERSION = 'v107 · תפריט: קטגוריית רופאים, עריכת קטגוריות למנהל'
 
 export function Layout() {
-  const { profile, signOut, impersonating } = useAuth()
+  const { profile, signOut, impersonating, isAdmin } = useAuth()
   const navItems = NAV.filter((n) => !('adminOnly' in n) || profile?.role === 'admin')
   const navigate = useNavigate()
   const location = useLocation()
@@ -92,7 +89,10 @@ export function Layout() {
   const [favorites, setFavorites] = useLocalSetting<string[]>('menu.favorites', DEFAULT_FAVORITES)
   const [openGroups, setOpenGroups] = useLocalSetting<string[]>('menu.open', [])
   const [editingMenu, setEditingMenu] = useState(false)
+  const [editingGroups, setEditingGroups] = useState(false)
+  const menuSetting = useAppSetting(MENU_SETTING_KEY)
   const navType = useNavigationType()
+  const groups = useMemo(() => resolveGroups(parseMenuGroups(menuSetting.data), navItems.map((n) => n.to)), [menuSetting.data, navItems])
   const tasks = useTasks()
   const { user } = useAuth()
   const todayStr = new Date().toISOString().slice(0, 10)
@@ -225,18 +225,23 @@ export function Layout() {
             {favItems.length === 0 && <p className="px-3 py-2 text-xs text-slate-400">לחץ/י על "עריכה" וסמן/י כוכב ליד הדפים שחשובים לך</p>}
           </div>
         </div>
-        {GROUPS.map((g) => {
-          const items = navItems.filter((n) => n.to !== '/' && g.paths.includes(n.to) && (editingMenu || !favorites.includes(n.to)))
+        {editingMenu && isAdmin && (
+          <button type="button" className="btn-secondary mt-3 w-full !text-xs" onClick={() => setEditingGroups(true)}>
+            <Pencil size={13} /> עריכת קטגוריות התפריט (למנהל)
+          </button>
+        )}
+        {groups.map((g) => {
+          const items = g.paths.map((to) => navItems.find((n) => n.to === to)).filter((n): n is (typeof NAV)[number] => !!n && (editingMenu || !favorites.includes(n.to)))
           if (items.length === 0) return null
           const hasActive = items.some((n) => location.pathname === n.to || (n.to !== '/' && location.pathname.startsWith(n.to + '/')))
-          const open = editingMenu || hasActive || openGroups.includes(g.title)
+          const open = editingMenu || hasActive || openGroups.includes(g.id)
           return (
-            <div key={g.title} className="pt-3">
+            <div key={g.id} className="pt-3">
               <button
                 type="button"
                 className="flex w-full items-center justify-between rounded-lg px-3 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-100"
                 aria-expanded={open}
-                onClick={() => setOpenGroups((o) => (o.includes(g.title) ? o.filter((x) => x !== g.title) : [...o, g.title]))}
+                onClick={() => setOpenGroups((o) => (o.includes(g.id) ? o.filter((x) => x !== g.id) : [...o, g.id]))}
               >
                 <span>
                   {g.title} <span className="font-normal text-slate-400">({items.length})</span>
@@ -247,6 +252,14 @@ export function Layout() {
             </div>
           )
         })}
+        {editingGroups && (
+          <MenuEditor
+            open
+            onClose={() => setEditingGroups(false)}
+            groups={groups}
+            labels={Object.fromEntries(NAV.map((n) => [n.to, n.label]))}
+          />
+        )}
       </>
     )
   }
