@@ -15,7 +15,7 @@ export function ToastHost() {
             key={t.id}
             className={classNames(
               'pointer-events-auto flex max-w-md items-center gap-2.5 rounded-full px-4 py-2.5 text-sm font-medium text-white shadow-pop',
-              t.kind === 'error' ? 'bg-red-600' : t.kind === 'info' ? 'bg-brand-700' : 'bg-brand-800',
+              t.kind === 'error' ? 'bg-[#c7403a]' : t.kind === 'info' ? 'bg-[#0d4090]' : 'bg-[#00326d]',
             )}
           >
             <Icon size={17} className="shrink-0" />

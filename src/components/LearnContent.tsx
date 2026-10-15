@@ -25,7 +25,7 @@ export function ApprovalTag({ approved, table, id, topicId, label }: { approved:
     <span className="inline-flex items-center gap-1.5">
       <span className="chip border-amber-200 bg-amber-50 !px-2 !py-0 text-[11px] text-amber-700">ממתין לאישור</span>
       {isAdmin && (
-        <button className="inline-flex items-center gap-1 rounded bg-emerald-600 px-2 py-0.5 text-[11px] text-white hover:bg-emerald-700" onClick={() => approve.mutate([{ table, id, topic_id: topicId, label }])}>
+        <button className="inline-flex items-center gap-1 rounded bg-[#1d9a6c] px-2 py-0.5 text-[11px] text-white hover:bg-[#17805a]" onClick={() => approve.mutate([{ table, id, topic_id: topicId, label }])}>
           <Check size={11} /> אשר
         </button>
       )}

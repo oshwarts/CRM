@@ -30,7 +30,7 @@ export function OfflineBanner() {
   const waiting = ops.length
   if (online && !back && waiting === 0) return null
 
-  const tone = needsAction > 0 && online ? 'bg-red-600' : online && !back ? 'bg-amber-500' : online ? 'bg-green-600' : 'bg-amber-500'
+  const tone = needsAction > 0 && online ? 'bg-[#c7403a]' : online && !back ? 'bg-[#d98e0a]' : online ? 'bg-[#1d9a6c]' : 'bg-[#d98e0a]'
   const text = !online
     ? `אין חיבור לרשת. משימות, סריקות, ספירת מתכלים ופגישות יישמרו וישלחו כשהחיבור יחזור.${waiting ? ` ממתינים: ${waiting}.` : ''}`
     : needsAction > 0

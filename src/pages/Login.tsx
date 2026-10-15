@@ -35,7 +35,7 @@ export default function Login() {
   }
 
   return (
-    <div className="grid min-h-full place-items-center bg-gradient-to-b from-brand-800 via-brand-700 to-brand-500 p-4">
+    <div className="grid min-h-full place-items-center bg-gradient-to-b from-[#00326d] via-[#0d4090] to-[#1863dc] p-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex justify-center">
           <BrandLogo size="lg" light />

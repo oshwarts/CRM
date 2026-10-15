@@ -79,7 +79,7 @@ export default function Learn() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="font-semibold text-amber-800">{waiting.length} פריטים ממתינים לאישור מנהל</p>
             {isAdmin && (
-              <button className="btn-primary !bg-emerald-600 hover:!bg-emerald-700" disabled={approve.isPending} onClick={() => approve.mutate(waiting)}>
+              <button className="btn-primary !bg-[#1d9a6c] hover:!bg-[#17805a]" disabled={approve.isPending} onClick={() => approve.mutate(waiting)}>
                 <Check size={15} /> אשר הכול
               </button>
             )}

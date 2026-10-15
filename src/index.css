@@ -1,4 +1,5 @@
 @import 'leaflet/dist/leaflet.css';
+@import './theme.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -7,6 +8,30 @@
   color-scheme: light;
   --navy: #00326d;
   --blue: #1863dc;
+}
+
+/* white surfaces turn dark in the dark theme (text-white stays white) */
+.dark .bg-white {
+  background-color: var(--surface);
+}
+.dark .bg-white\/95,
+.dark .bg-white\/90,
+.dark .bg-white\/80 {
+  background-color: color-mix(in srgb, var(--surface) 92%, transparent);
+}
+.dark .bg-white\/70,
+.dark .bg-white\/60 {
+  background-color: color-mix(in srgb, var(--surface) 65%, transparent);
+}
+.dark * {
+  --tw-ring-offset-color: var(--surface);
+}
+.dark .btn-danger {
+  background-color: #c7403a;
+  color: #fff;
+}
+.dark .leaflet-container {
+  filter: brightness(0.85) contrast(1.05);
 }
 
 /* a slightly larger base size: every rem-based size in the app grows with it */
@@ -22,8 +47,8 @@ body,
 
 body {
   margin: 0;
-  background: #f5f8fd;
-  color: #1a2b44;
+  background: var(--body-bg);
+  color: var(--body-text);
   font-family: 'Noto Sans Hebrew', 'Rubik', 'Assistant', system-ui, sans-serif;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;

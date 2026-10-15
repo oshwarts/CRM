@@ -176,7 +176,7 @@ export function TrueFalseStudy({ cards, progress }: { cards: LearnCard[]; progre
                 <button className="btn-secondary !border-red-200 !py-3 !text-red-600" onClick={() => choose(false)}>
                   <X size={16} /> לא נכון
                 </button>
-                <button className="btn-primary !bg-emerald-600 !py-3 hover:!bg-emerald-700" onClick={() => choose(true)}>
+                <button className="btn-primary !bg-[#1d9a6c] !py-3 hover:!bg-[#17805a]" onClick={() => choose(true)}>
                   <Check size={16} /> נכון
                 </button>
               </div>

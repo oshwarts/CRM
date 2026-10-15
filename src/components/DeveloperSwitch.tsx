@@ -73,7 +73,7 @@ export function DeveloperBar() {
     <div
       className={`fixed inset-x-0 top-0 z-[60] flex h-8 items-center gap-2 px-3 text-xs font-medium text-white shadow ${
         // red while acting as a real colleague (the changes are real); amber for the fictitious test users
-        impersonating.is_test ? 'bg-amber-500' : 'bg-red-600'
+        impersonating.is_test ? 'bg-[#d98e0a]' : 'bg-[#c7403a]'
       }`}
     >
       <FlaskConical size={14} className="shrink-0" />

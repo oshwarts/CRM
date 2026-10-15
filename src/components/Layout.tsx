@@ -34,6 +34,7 @@ import { DeveloperBar, DeveloperSwitcher } from './DeveloperSwitch'
 import { BrandLogo } from './BrandLogo'
 import { GlobalSearch } from './GlobalSearch'
 import { QuickCreate } from './QuickCreate'
+import { ThemeToggle } from './ThemeToggle'
 import { useTasks } from '../lib/api'
 import { clearOutbox, drain, outboxSize } from '../lib/outbox'
 import { classNames } from '../lib/utils'
@@ -71,7 +72,7 @@ const GROUPS: { title: string; paths: string[] }[] = [
 // scroll position of each visited page, so that going back returns to the same place
 const scrollOf = new Map<string, number>()
 
-const VERSION = 'v103 · טפסים: תאריכים מהירים, חיפוש ברשימות, עוד פרטים, טיוטה'
+const VERSION = 'v104 · מצב כהה (בהיר / כהה / לפי המכשיר)'
 
 export function Layout() {
   const { profile, signOut, impersonating } = useAuth()
@@ -150,6 +151,7 @@ export function Layout() {
         <span className="block text-[11px] text-brand-500">עריכת פרופיל</span>
       </button>
       <DeveloperSwitcher />
+      <ThemeToggle />
       <RefreshButton label />
       <button className="btn-ghost w-full justify-start" onClick={handleSignOut}>
         <LogOut size={16} />

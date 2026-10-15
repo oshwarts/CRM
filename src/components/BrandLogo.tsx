@@ -15,7 +15,7 @@ export function BrandLogo({ size = 'md', light, className }: { size?: 'sm' | 'md
     return <img src={LOGO_SRC} alt="AMI Technologies" className={classNames(h, 'w-auto object-contain', light && 'brightness-0 invert', className)} onError={() => setMissing(true)} />
   return (
     <div className={classNames('flex items-center gap-2.5', className)}>
-      <div className={classNames('grid place-items-center rounded-xl', light ? 'bg-white/15 text-white' : 'bg-brand-800 text-white', size === 'lg' ? 'h-14 w-14' : size === 'md' ? 'h-10 w-10' : 'h-8 w-8')}>
+      <div className={classNames('grid place-items-center rounded-xl', light ? 'bg-white/15 text-white' : 'bg-[#00326d] text-white', size === 'lg' ? 'h-14 w-14' : size === 'md' ? 'h-10 w-10' : 'h-8 w-8')}>
         <Stethoscope size={size === 'lg' ? 26 : 18} />
       </div>
       <div className="leading-tight">

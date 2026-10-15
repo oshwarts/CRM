@@ -122,7 +122,7 @@ export function FlashStudy({ cards, progress, auto, onExit }: { cards: LearnCard
           <button className="btn-secondary !border-red-200 !text-red-600" onClick={() => answer(false)}>
             <X size={16} /> לא ידעתי
           </button>
-          <button className="btn-primary !bg-emerald-600 hover:!bg-emerald-700" onClick={() => answer(true)}>
+          <button className="btn-primary !bg-[#1d9a6c] hover:!bg-[#17805a]" onClick={() => answer(true)}>
             <Check size={16} /> ידעתי
           </button>
         </div>

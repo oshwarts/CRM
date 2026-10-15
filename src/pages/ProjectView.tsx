@@ -663,7 +663,7 @@ export default function ProjectView() {
       </Tabs>
 
       {picked.size > 0 && tab === 'areas' && (
-        <div className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] z-40 mx-auto flex max-w-md items-center justify-between gap-2 rounded-xl bg-slate-800 px-3 py-2 text-sm text-white shadow-lg md:bottom-4">
+        <div className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] z-40 mx-auto flex max-w-md items-center justify-between gap-2 rounded-xl bg-[#0f2a4d] px-3 py-2 text-sm text-white shadow-lg md:bottom-4">
           <span>{picked.size} משימות נבחרו</span>
           <span className="flex gap-2">
             <button className="rounded-lg bg-white/15 px-3 py-1.5 hover:bg-white/25" onClick={() => setBulkContact(true)}>
