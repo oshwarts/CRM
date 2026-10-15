@@ -8,6 +8,7 @@ import {
   CalendarDays,
   CalendarRange,
   Home,
+  ArrowRight,
   LogOut,
   Map as MapIcon,
   Menu,
@@ -53,7 +54,7 @@ const NAV = [
 // the five destinations reachable with one thumb tap on a phone
 const TABS = ['/', '/doctors', '/schedule', '/tasks', '/scans']
 
-const VERSION = 'v91 · רופא לחיץ בפגישות, ייבוא שאלות אמריקאיות'
+const VERSION = 'v92 · כפתור חזרה בכל העמודים, קטגוריה חדשה במידע קליני'
 
 export function Layout() {
   const { profile, signOut, impersonating } = useAuth()
@@ -174,6 +175,17 @@ export function Layout() {
 
       <main className="min-w-0 flex-1 overflow-x-clip">
         <div className="mx-auto max-w-6xl px-3 pb-[calc(env(safe-area-inset-bottom)+5rem)] pt-[calc(env(safe-area-inset-top)+4.5rem+var(--banner,0px))] md:px-6 md:pb-6 md:pt-[calc(1.5rem+var(--banner,0px))]">
+          {location.pathname !== '/' && (
+            <button
+              type="button"
+              className="mb-3 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+              // the page before this one; when the app was opened straight on this page there is none, so go home
+              onClick={() => ((window.history.state?.idx ?? 0) > 0 ? navigate(-1) : navigate('/'))}
+            >
+              <ArrowRight size={16} />
+              חזרה
+            </button>
+          )}
           <Outlet />
         </div>
       </main>

@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import { FileUp, Link2 } from 'lucide-react'
 import {
   INFO_MAX_BYTES,
-  useInfoCategories,
   useInfoDocuments,
   useProcedures,
   useSaveInfoDoc,
@@ -12,6 +11,7 @@ import { fileHash, findSimilarDocs, type DupMatch } from '../lib/docDuplicates'
 import { DuplicateWarning } from './DuplicateWarning'
 import { classNames } from '../lib/utils'
 import { Field, Modal, MultiSelectChips } from './ui'
+import { CategorySelect } from './CategorySelect'
 
 const stripExt = (n: string) => n.replace(/\.[^.]+$/, '')
 const fmtMb = (b: number) => `${(b / 1024 / 1024).toFixed(1)}MB`
@@ -26,7 +26,6 @@ export function InfoDocModal({
   defaultProcedureId?: string
   onClose: () => void
 }) {
-  const categories = useInfoCategories()
   const procedures = useProcedures()
   const save = useSaveInfoDoc()
   const library = useInfoDocuments()
@@ -197,14 +196,7 @@ export function InfoDocModal({
         )}
 
         <Field label="קטגוריה">
-          <select className="input" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-            <option value="">— ללא קטגוריה —</option>
-            {(categories.data ?? []).map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          <CategorySelect value={categoryId} onChange={setCategoryId} />
         </Field>
 
         <Field label="פרוצדורות (אפשר כמה; בלי בחירה = כללי)">

@@ -1579,9 +1579,12 @@ export function useInfoCategories() {
 export function useSaveInfoCategory() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (c: { id?: string; name: string; sort?: number }) => {
-      if (c.id) unwrap(await supabase.from('info_categories').update({ name: c.name, sort: c.sort }).eq('id', c.id))
-      else unwrap(await supabase.from('info_categories').insert({ name: c.name, sort: c.sort ?? 99 }))
+    mutationFn: async (c: { id?: string; name: string; sort?: number }): Promise<string> => {
+      if (c.id) {
+        unwrap(await supabase.from('info_categories').update({ name: c.name, sort: c.sort }).eq('id', c.id))
+        return c.id
+      }
+      return unwrap<{ id: string }>(await supabase.from('info_categories').insert({ name: c.name, sort: c.sort ?? 99 }).select('id').single()).id
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['info-categories'] })

@@ -2,16 +2,17 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { BookOpenText, Check, ChevronDown, ChevronUp, FileText, Pencil, Plus, Sparkles, Trash2, Upload, X } from 'lucide-react'
 import { useAuth } from '../context/AuthProvider'
-import { openInfoDocument, useInfoCategories, useInfoDocuments, useSaveInfoDoc } from '../lib/api'
+import { openInfoDocument, useInfoDocuments, useProcedures, useSaveInfoDoc } from '../lib/api'
 import { useApprove, useCanEditLearning, useCases, useDeleteCard, useDeleteCase, useDeleteLesson, useLearnCards, useLessons, useSaveCase, useSaveLesson } from '../lib/learnApi'
 import type { InfoDocument, LearnCard, LearnCase, LearnLesson } from '../lib/types'
 import { DocReader } from './DocReader'
 import { GenerateQuestions } from './GenerateQuestions'
 import { LearnCardModal } from './LearnCardModal'
 import { DuplicateWarning } from './DuplicateWarning'
+import { CategorySelect } from './CategorySelect'
 import { fileHash, findSimilarDocs, type DupMatch } from '../lib/docDuplicates'
 import { LearnImage, VideoLink } from './LearnMedia'
-import { ConfirmButton, EmptyState, Field, Modal, Spinner } from './ui'
+import { ConfirmButton, EmptyState, Field, Modal, MultiSelectChips, Spinner } from './ui'
 import { classNames } from '../lib/utils'
 
 /** the "waiting for approval" tag, with the manager's approve button */
@@ -36,11 +37,11 @@ export function ApprovalTag({ approved, table, id, topicId, label }: { approved:
 function LessonModal({ topicId, lesson, nextSort, onClose }: { topicId: string; lesson: LearnLesson | null; nextSort: number; onClose: () => void }) {
   const save = useSaveLesson()
   const infoDocs = useInfoDocuments()
-  const categories = useInfoCategories()
   const saveDoc = useSaveInfoDoc()
+  const procedures = useProcedures()
   const [docIds, setDocIds] = useState<string[]>(lesson?.doc_ids ?? [])
   const [find, setFind] = useState('')
-  const [uploads, setUploads] = useState<{ file: File; title: string; categoryId: string; matches: DupMatch[]; allow: boolean }[]>([])
+  const [uploads, setUploads] = useState<{ file: File; title: string; categoryId: string; procedureIds: string[]; matches: DupMatch[]; allow: boolean }[]>([])
   const [busy, setBusy] = useState(false)
   const [title, setTitle] = useState(lesson?.title ?? '')
   const [body, setBody] = useState(lesson?.body ?? '')
@@ -64,9 +65,15 @@ function LessonModal({ topicId, lesson, nextSort, onClose }: { topicId: string; 
               setBusy(false)
               return
             }
+            const noCategory = uploads.find((u) => !u.categoryId)
+            if (noCategory) {
+              setError(`בחר קטגוריה במידע הקליני עבור "${noCategory.file.name}"`)
+              setBusy(false)
+              return
+            }
             const newIds: string[] = []
             for (const u of uploads) {
-              newIds.push(await saveDoc.mutateAsync({ title: u.title.trim() || u.file.name, description: '', categoryId: u.categoryId || null, procedureIds: [], tags: [], kind: 'file', url: '', file: u.file }))
+              newIds.push(await saveDoc.mutateAsync({ title: u.title.trim() || u.file.name, description: '', categoryId: u.categoryId || null, procedureIds: u.procedureIds, tags: [], kind: 'file', url: '', file: u.file }))
             }
             save.mutate(
               { id: lesson?.id, topic_id: topicId, title, body, video_url: video, doc_ids: [...docIds, ...newIds], sort: lesson?.sort ?? nextSort, image, removeImage, existingImage: lesson?.image_path },
@@ -119,17 +126,33 @@ function LessonModal({ topicId, lesson, nextSort, onClose }: { topicId: string; 
                   <li key={i} className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-brand-300 bg-brand-50/40 px-2 py-1 text-sm">
                     <Upload size={14} className="text-brand-600" />
                     <input className="input !w-44 !py-0.5 text-xs" dir="auto" value={u.title} onChange={(e) => setUploads((x) => x.map((v, k) => (k === i ? { ...v, title: e.target.value } : v)))} aria-label="שם המסמך" />
-                    <select className="input !w-auto !py-0.5 text-xs" value={u.categoryId} onChange={(e) => setUploads((x) => x.map((v, k) => (k === i ? { ...v, categoryId: e.target.value } : v)))} aria-label="קטגוריה במידע הקליני">
-                      <option value="">קטגוריה במידע קליני…</option>
-                      {(categories.data ?? []).map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
                     <button type="button" className="text-xs text-red-500 hover:underline" onClick={() => setUploads((x) => x.filter((_, k) => k !== i))}>
                       הסר
                     </button>
+                    <div className="basis-full space-y-2 rounded-lg bg-white/70 p-2">
+                      <p className="text-xs font-semibold text-slate-600">הקובץ יישמר גם במידע הקליני — לאן לשייך אותו?</p>
+                      <label className="block text-xs text-slate-500">
+                        קטגוריה (חובה)
+                        <CategorySelect
+                          className="mt-0.5 !py-1 text-sm"
+                          emptyLabel="בחר קטגוריה…"
+                          invalid={!u.categoryId}
+                          value={u.categoryId}
+                          onChange={(id) => setUploads((x) => x.map((v, k) => (k === i ? { ...v, categoryId: id } : v)))}
+                        />
+                      </label>
+                      <div className="text-xs text-slate-500">
+                        <p className="mb-1">פרוצדורות (אפשר כמה; בלי בחירה = מסמך כללי)</p>
+                        <MultiSelectChips
+                          options={(procedures.data ?? []).map((pr) => ({ id: pr.id, label: pr.name }))}
+                          selected={u.procedureIds}
+                          onToggle={(pid) =>
+                            setUploads((x) => x.map((v, k) => (k === i ? { ...v, procedureIds: v.procedureIds.includes(pid) ? v.procedureIds.filter((y) => y !== pid) : [...v.procedureIds, pid] } : v)))
+                          }
+                          labelOf={(o) => o.label}
+                        />
+                      </div>
+                    </div>
                     {u.matches.length > 0 && (
                       <div className="basis-full space-y-1">
                         <DuplicateWarning
@@ -175,7 +198,7 @@ function LessonModal({ topicId, lesson, nextSort, onClose }: { topicId: string; 
                   if (!f) return
                   // is the same / a similar file already in the library (the learning module shares it)?
                   const matches = findSimilarDocs({ names: [f.name], size: f.size, hash: await fileHash(f) }, infoDocs.data ?? [])
-                  setUploads((x) => [...x, { file: f, title: f.name.replace(/\.[^.]+$/, ''), categoryId: '', matches, allow: false }])
+                  setUploads((x) => [...x, { file: f, title: f.name.replace(/\.[^.]+$/, ''), categoryId: '', procedureIds: [], matches, allow: false }])
                 }}
               />
             </label>
