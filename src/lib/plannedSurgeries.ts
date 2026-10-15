@@ -16,6 +16,8 @@ export type PlannedSurgery = {
   procedure: string
   company: string
   notes: string
+  /** how many surgeries of this kind the entry stands for */
+  cases: number
   agent_id: string | null
   status: 'planned' | 'done' | 'cancelled'
   created_by: string | null
@@ -33,6 +35,7 @@ export type PlannedSurgeryInput = {
   procedure: string
   company: string
   notes: string
+  cases: number
   /** only set when a manager enters it for somebody else; otherwise the database fills in the acting user */
   agent_id?: string | null
 }

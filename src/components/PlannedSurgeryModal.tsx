@@ -18,6 +18,7 @@ type Form = {
   procedure: string
   company: string
   notes: string
+  cases: number
   agent_id: string
 }
 
@@ -44,6 +45,7 @@ export function PlannedSurgeryModal({ surgery, date, onClose }: { surgery?: Plan
     procedure: surgery?.procedure ?? '',
     company: surgery?.company ?? '',
     notes: surgery?.notes ?? '',
+    cases: surgery?.cases ?? 1,
     agent_id: surgery?.agent_id ?? user?.id ?? '',
   })
   const [tried, setTried] = useState(false)
@@ -61,7 +63,7 @@ export function PlannedSurgeryModal({ surgery, date, onClose }: { surgery?: Plan
   )
   const hospitalOptions = useMemo(() => (hospitals.data ?? []).map((h) => ({ id: h.id, label: h.name, hint: h.city })), [hospitals.data])
   // the usual non-MAKO surgeries first
-  const procedureChips = useMemo(() => [...(procedures.data ?? [])].sort((a, b) => Number(a.is_mako) - Number(b.is_mako)).slice(0, 12), [procedures.data])
+  const procedureChips = useMemo(() => [...(procedures.data ?? [])].sort((a, b) => Number(a.is_mako) - Number(b.is_mako)).slice(0, 14), [procedures.data])
 
   function pickDoctor(id: string | null) {
     const d = (doctors.data ?? []).find((x) => x.id === id)
@@ -91,11 +93,12 @@ export function PlannedSurgeryModal({ surgery, date, onClose }: { surgery?: Plan
         procedure: f.procedure,
         company: f.company,
         notes: f.notes,
+        cases: f.cases,
         ...(isAdmin && f.agent_id ? { agent_id: f.agent_id } : {}),
       })
       if (another) {
         toast('הניתוח נוסף — אפשר להמשיך')
-        set({ surgery_time: '', procedure: '', company: '', notes: '' })
+        set({ surgery_time: '', procedure: '', company: '', notes: '', cases: 1 })
         setTried(false)
       } else onClose()
     } catch (e) {
@@ -106,9 +109,9 @@ export function PlannedSurgeryModal({ surgery, date, onClose }: { surgery?: Plan
   const dateMissing = tried && !f.surgery_date
 
   return (
-    <Modal open onClose={onClose} title={surgery ? 'עריכת ניתוח (לא מאקו)' : 'ניתוח מתוכנן — לא מאקו'} size="lg">
+    <Modal open onClose={onClose} title={surgery ? 'עריכת ניתוח' : 'ניתוח מתוכנן'} size="lg">
       <div className="space-y-4">
-        <p className="rounded-xl bg-brand-50 px-3 py-2 text-sm text-brand-800">ניתוח שאינו ניתוח MAKO — בלי סריקה ובלי פרטי מטופל. מופיע בלוז השבועי.</p>
+        <p className="rounded-xl bg-brand-50 px-3 py-2 text-sm text-brand-800">רישום מהיר של ניתוח או כמה ניתוחים מאותו סוג ביום אחד — בלי סריקה ובלי פרטי מטופל. מופיע בלוז השבועי.</p>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="תאריך הניתוח" error={dateMissing ? 'בחר תאריך' : undefined}>
@@ -130,7 +133,7 @@ export function PlannedSurgeryModal({ surgery, date, onClose }: { surgery?: Plan
         </div>
 
         <Field label="סוג הניתוח">
-          <input className="input" dir="auto" placeholder="למשל: החלפת ברך, החלפת ירך, שחזור…" value={f.procedure} onChange={(e) => set({ procedure: e.target.value })} />
+          <input className="input" dir="auto" placeholder="בחר מהרשימה או כתוב סוג ניתוח" value={f.procedure} onChange={(e) => set({ procedure: e.target.value })} />
           {procedureChips.length > 0 && (
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               {procedureChips.map((p) => (
@@ -148,6 +151,36 @@ export function PlannedSurgeryModal({ surgery, date, onClose }: { surgery?: Plan
               ))}
             </div>
           )}
+        </Field>
+
+        <Field label="כמה ניתוחים מהסוג הזה?">
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" className="btn-secondary !px-3" aria-label="פחות" disabled={f.cases <= 1} onClick={() => set({ cases: f.cases - 1 })}>
+              −
+            </button>
+            <input
+              type="number"
+              min={1}
+              max={99}
+              inputMode="numeric"
+              className="input !w-20 text-center"
+              value={f.cases}
+              onChange={(e) => set({ cases: Math.min(99, Math.max(1, Math.floor(Number(e.target.value)) || 1)) })}
+            />
+            <button type="button" className="btn-secondary !px-3" aria-label="יותר" disabled={f.cases >= 99} onClick={() => set({ cases: f.cases + 1 })}>
+              +
+            </button>
+            {[1, 2, 3, 4, 5, 6].map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => set({ cases: n })}
+                className={classNames('h-8 w-8 rounded-full border text-sm font-medium transition', f.cases === n ? 'border-brand-500 bg-brand-500 text-white' : 'border-brand-200 bg-white text-brand-700 hover:bg-brand-50')}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
         </Field>
 
         <Field label="חברה / מערכת (לא חובה)">

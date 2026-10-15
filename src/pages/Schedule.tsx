@@ -14,7 +14,7 @@ import { EmptyState, ErrorState, Spinner } from '../components/ui'
 import { PlannedSurgeryModal } from '../components/PlannedSurgeryModal'
 import { usePlannedSurgeries, type PlannedSurgery } from '../lib/plannedSurgeries'
 
-type Kind = 'meeting' | 'surgery' | 'other' | 'ct' | 'rescan' | 'followup'
+type Kind = 'meeting' | 'surgery' | 'ct' | 'rescan' | 'followup'
 
 type Item = {
   id: string
@@ -24,7 +24,7 @@ type Item = {
   title: string
   sub: string
   to: string
-  /** a planned (non-MAKO) surgery: opens the quick-entry form instead of a page */
+  /** an entered (not scanned) surgery: opens the quick-entry form instead of a page */
   surgery?: PlannedSurgery
   muted?: boolean
   agentIds: string[]
@@ -32,8 +32,7 @@ type Item = {
 
 const KINDS: Record<Kind, { label: string; chip: string }> = {
   meeting: { label: 'פגישה', chip: 'border-brand-200 bg-brand-50 text-brand-700' },
-  surgery: { label: 'ניתוח MAKO', chip: 'border-violet-200 bg-violet-50 text-violet-700' },
-  other: { label: 'ניתוח (לא מאקו)', chip: 'border-slate-300 bg-slate-100 text-slate-700' },
+  surgery: { label: 'ניתוח', chip: 'border-violet-200 bg-violet-50 text-violet-700' },
   ct: { label: 'CT', chip: 'border-sky-200 bg-sky-50 text-sky-700' },
   rescan: { label: 'סריקה חוזרת', chip: 'border-rose-200 bg-rose-50 text-rose-700' },
   followup: { label: 'מעקב', chip: 'border-amber-200 bg-amber-50 text-amber-700' },
@@ -56,7 +55,6 @@ export default function Schedule() {
   const [shown, setShown] = useState<Record<Kind, boolean>>({
     meeting: true,
     surgery: true,
-    other: true,
     ct: true,
     rescan: true,
     followup: true,
@@ -98,6 +96,7 @@ export default function Schedule() {
           title: `מעקב: ${m.subject || 'פגישה'}`, sub, to: `/meetings/${m.id}`, agentIds,
         })
     }
+    const surgeryGroups = new Map<string, { date: string; proc: string; base: string; link: string; ag: string[]; n: number; done: number; one: { side: string; patient: string } }>()
     for (const s of scans.data ?? []) {
       if (s.status === 'cancelled') continue
       const ag = agentsOfHospital.get(s.hospital_id) ?? []
@@ -105,12 +104,13 @@ export default function Schedule() {
       const surgeon = s.surgeon ? `${s.surgeon.title} ${s.surgeon.name}` : ''
       const base = [s.hospital?.name, surgeon].filter(Boolean).join(' · ')
       const link = `/scans?hospital=${s.hospital_id}`
-      if (s.surgery_date)
-        out.push({
-          id: `s-${s.id}`, date: s.surgery_date, time: '', kind: 'surgery',
-          title: `ניתוח ${proc}${s.side ? ` ${s.side}` : ''} – ${s.patient_name}`, sub: base, to: link,
-          muted: s.status === 'done', agentIds: ag,
-        })
+      if (s.surgery_date) {
+        const key = `${s.surgeon_id ?? ''}|${s.hospital_id}|${s.surgery_date}|${s.procedure_type}`
+        const g = surgeryGroups.get(key) ?? { date: s.surgery_date, proc, base, link, ag, n: 0, done: 0, one: { side: s.side, patient: s.patient_name } }
+        g.n++
+        if (s.status === 'done') g.done++
+        surgeryGroups.set(key, g)
+      }
       if (s.ct_date)
         out.push({
           id: `c-${s.id}`, date: s.ct_date, time: hhmm(s.ct_time), kind: 'ct',
@@ -122,14 +122,34 @@ export default function Schedule() {
           title: `סריקה חוזרת – ${s.patient_name}`, sub: [s.rescan_reason, base].filter(Boolean).join(' · '), to: link, agentIds: ag,
         })
     }
+    for (const [key, g] of surgeryGroups) {
+      out.push({
+        id: `s-${key}`, date: g.date, time: '', kind: 'surgery',
+        title: g.n > 1 ? `${g.n} × ${g.proc} MAKO` : `${g.proc} MAKO${g.one.side ? ` ${g.one.side}` : ''} – ${g.one.patient}`,
+        sub: g.base, to: g.link, muted: g.done === g.n, agentIds: g.ag,
+      })
+    }
+    // surgeries entered by hand: the same surgeon, hospital, day and type add up to one line as well
+    const entered = new Map<string, { first: PlannedSurgery; cases: number; time: string; done: boolean; notes: string[] }>()
     for (const x of planned.data ?? []) {
       if (x.status === 'cancelled') continue
+      const key = `${x.doctor_id ?? ''}|${x.hospital_id ?? ''}|${x.surgery_date}|${x.procedure.trim().toLowerCase()}`
+      const e = entered.get(key) ?? { first: x, cases: 0, time: '', done: true, notes: [] }
+      e.cases += x.cases ?? 1
+      const t = hhmm(x.surgery_time)
+      if (t && (!e.time || t < e.time)) e.time = t
+      if (x.status !== 'done') e.done = false
+      if (x.notes) e.notes.push(x.notes)
+      entered.set(key, e)
+    }
+    for (const e of entered.values()) {
+      const x = e.first
       const doctor = x.doctor ? `${x.doctor.title} ${x.doctor.name}` : ''
       out.push({
-        id: `p-${x.id}`, date: x.surgery_date, time: hhmm(x.surgery_time), kind: 'other',
-        title: [x.procedure || 'ניתוח', x.company].filter(Boolean).join(' · '),
-        sub: [x.hospital?.name, doctor, x.notes].filter(Boolean).join(' · '), to: '', surgery: x,
-        muted: x.status === 'done', agentIds: x.agent_id ? [x.agent_id] : [],
+        id: `p-${x.id}`, date: x.surgery_date, time: e.time, kind: 'surgery',
+        title: [e.cases > 1 ? `${e.cases} ×` : '', x.procedure || 'ניתוח', x.company ? `· ${x.company}` : ''].filter(Boolean).join(' '),
+        sub: [x.hospital?.name, doctor, ...e.notes].filter(Boolean).join(' · '), to: '', surgery: x,
+        muted: e.done, agentIds: x.agent_id ? [x.agent_id] : [],
       })
     }
     return out
@@ -157,7 +177,7 @@ export default function Schedule() {
           <p className="text-sm text-slate-400">פגישות, ניתוחים, CT, סריקות חוזרות ותאריכי מעקב — במקום אחד</p>
         </div>
         <button className="btn-primary" onClick={() => setEntry({})}>
-          <Plus size={16} /> ניתוח (לא מאקו)
+          <Plus size={16} /> ניתוח
         </button>
       </div>
 
@@ -225,8 +245,8 @@ export default function Schedule() {
                   <button
                     type="button"
                     className={classNames('rounded-full p-1', isToday ? 'hover:bg-white/20' : 'hover:bg-brand-100')}
-                    title="הוסף ניתוח (לא מאקו) ליום הזה"
-                    aria-label={`הוסף ניתוח לא מאקו ליום ${DAY_NAMES[d.getDay()]}`}
+                    title="הוסף ניתוח ליום הזה"
+                    aria-label={`הוסף ניתוח ליום ${DAY_NAMES[d.getDay()]}`}
                     onClick={() => setEntry({ date: iso(d) })}
                   >
                     <Plus size={14} />
