@@ -136,12 +136,9 @@ export default function AgentView() {
       <Tabs value={tab} onChange={setTab}>
         <TabList>
           <Tab id="overview">סקירה</Tab>
-          <Tab id="schedule">לוז</Tab>
-          <Tab id="tasks">משימות ופרויקטים</Tab>
-          <Tab id="goals">יעדים ({myGoals.length})</Tab>
-          <Tab id="training">הכשרות</Tab>
-          <Tab id="reviews">שיחות והערות</Tab>
-          <Tab id="evaluation">הערכה</Tab>
+          <Tab id="work">לוז ומשימות</Tab>
+          <Tab id="plan">יעדים והכשרה ({myGoals.length})</Tab>
+          <Tab id="talks">שיחות והערכה</Tab>
         </TabList>
 
         {/* ---------- overview ---------- */}
@@ -170,7 +167,8 @@ export default function AgentView() {
         </TabPanel>
 
         {/* ---------- weekly schedule ---------- */}
-        <TabPanel id="schedule">
+        <TabPanel id="work">
+          <h2 className="mb-3 text-lg font-semibold text-brand-800">לוז שבועי</h2>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -241,10 +239,7 @@ export default function AgentView() {
               </p>
             )}
           </div>
-        </TabPanel>
-
-        {/* ---------- tasks and projects ---------- */}
-        <TabPanel id="tasks">
+          <h2 className="mb-3 mt-10 border-t border-slate-200 pt-6 text-lg font-semibold text-brand-800">משימות ופרויקטים</h2>
           <div className="space-y-4">
             <div className="flex justify-end">
               <button className="btn-primary" onClick={() => setAssigning(true)}>
@@ -291,7 +286,8 @@ export default function AgentView() {
         </TabPanel>
 
         {/* ---------- goals ---------- */}
-        <TabPanel id="goals">
+        <TabPanel id="plan">
+          <h2 className="mb-3 text-lg font-semibold text-brand-800">יעדים</h2>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-sm text-slate-500">יעדים שחופפים ל-{period.label}. הסוכן רואה את היעדים וההתקדמות שלו בדף הבית.</p>
@@ -311,16 +307,13 @@ export default function AgentView() {
               </details>
             )}
           </div>
-        </TabPanel>
-
-        {/* ---------- training ---------- */}
-        <TabPanel id="training">
+          <h2 className="mb-3 mt-10 border-t border-slate-200 pt-6 text-lg font-semibold text-brand-800">הכשרות</h2>
           <TrainingPanel agentId={id} />
           <LearnSummary agentId={id} />
         </TabPanel>
 
         {/* ---------- 1:1 and notes ---------- */}
-        <TabPanel id="reviews">
+        <TabPanel id="talks">
           <div className="grid gap-4 lg:grid-cols-2">
             <section className="space-y-3">
               <div className="flex items-center justify-between">
@@ -411,10 +404,7 @@ export default function AgentView() {
               </ul>
             </section>
           </div>
-        </TabPanel>
-
-        {/* ---------- evaluation summary ---------- */}
-        <TabPanel id="evaluation">
+          <h2 className="mb-3 mt-10 border-t border-slate-200 pt-6 text-lg font-semibold text-brand-800">הערכה וסיכום ביצועים</h2>
           <div className="space-y-4" id="agent-evaluation">
             <div className="flex items-center justify-between print:hidden">
               <p className="text-sm text-slate-500">סיכום ביצועים ל-{period.label}, להדפסה או לשמירה כ-PDF.</p>

@@ -166,3 +166,32 @@ main h1:not(.no-accent)::before {
   border-radius: 4px;
   background: linear-gradient(to bottom, #1863dc, #cc3366);
 }
+
+/* printing the management report: only the report, in colour, on white */
+@page {
+  size: A4;
+  margin: 12mm;
+}
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  #management-report,
+  #management-report *,
+  #agent-evaluation,
+  #agent-evaluation * {
+    visibility: visible !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  #management-report,
+  #agent-evaluation {
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    width: 100%;
+    box-shadow: none !important;
+    border: 0 !important;
+    padding: 0 !important;
+  }
+}

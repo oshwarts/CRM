@@ -70,6 +70,9 @@ export type AgentMetrics = {
   surgeries_covered: number
 }
 
+/** a meeting that really took place (a 'scheduled' one whose date passed was never closed, so it does not count) */
+export const HELD_MEETING = new Set(['done', 'needs_followup'])
+
 const inPeriod = (d: string | null | undefined, p: Period) => !!d && d >= p.start && d <= p.end
 
 export function agentMeetings(agentId: string, meetings: MeetingWithRelations[]) {
@@ -78,7 +81,7 @@ export function agentMeetings(agentId: string, meetings: MeetingWithRelations[])
 
 export function computeAgentMetrics(agentId: string, p: Period, data: MetricData): AgentMetrics {
   const today = todayISO()
-  const held = agentMeetings(agentId, data.meetings).filter((m) => m.status !== 'cancelled' && inPeriod(m.meeting_date, p) && (m.meeting_date as string) <= today)
+  const held = agentMeetings(agentId, data.meetings).filter((m) => HELD_MEETING.has(m.status) && inPeriod(m.meeting_date, p) && (m.meeting_date as string) <= today)
 
   const favIds = new Set(data.favorites.filter((f) => f.user_id === agentId).map((f) => f.doctor_id))
   const tracked = data.doctors.filter((d) => favIds.has(d.id) && d.contact_cadence_days)

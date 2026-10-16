@@ -1,139 +1,105 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Users } from 'lucide-react'
-import { useAgents } from '../lib/api'
 import { useAgentGoals, useMetricData } from '../lib/agentsApi'
-import { computeAgentMetrics, goalProgress, monthPeriod, overlaps, quarterPeriod } from '../lib/agentMetrics'
+import { overlaps, monthPeriod, quarterPeriod } from '../lib/agentMetrics'
 import { useAuth } from '../context/AuthProvider'
 import { EmptyState, Spinner, Tab, TabList, TabPanel, Tabs } from '../components/ui'
+import { GoalBars } from '../components/GoalBars'
 import { TrainingMatrix } from '../components/TrainingMatrix'
-import { classNames } from '../lib/utils'
+import { ManagementReport } from '../components/team/ManagementReport'
+import { TeamOverview } from '../components/team/TeamOverview'
+import { useTeamModel, type PeriodKind } from '../components/team/useTeamModel'
 
-/** managers: all agents side by side for a month or a quarter */
+/** goals of every agent for the shown period, one block per agent */
+function TeamGoals({ model, period }: { model: NonNullable<ReturnType<typeof useTeamModel>['model']>; period: { start: string; end: string; label: string } }) {
+  const goals = useAgentGoals()
+  const { data } = useMetricData()
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-slate-500">יעדים של כל סוכן ל{period.label}. הוספה ועריכה של יעדים נעשות בכרטיס הסוכן.</p>
+      <div className="grid gap-3 lg:grid-cols-2">
+        {model.agents.map((r) => {
+          const mine = (goals.data ?? []).filter((g) => g.agent_id === r.agent.id && overlaps(g, period as never))
+          return (
+            <section key={r.agent.id} className="card p-4">
+              <h3 className="mb-2 flex items-center justify-between font-semibold text-brand-800">
+                <Link to={`/agents/${r.agent.id}`} className="hover:underline">
+                  {r.agent.full_name || r.agent.email}
+                </Link>
+                {r.goalsAvg != null && <span className="text-sm font-medium text-slate-500">ממוצע {r.goalsAvg}%</span>}
+              </h3>
+              <GoalBars goals={mine} data={data} empty="לא הוגדרו יעדים לתקופה זו." />
+            </section>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+/** managers: the team at a glance — numbers against the period before, who needs attention, goals and training, and the report for management */
 export default function Agents() {
   const { isAdmin } = useAuth()
-  const agents = useAgents()
-  const goals = useAgentGoals()
-  const { data, loading } = useMetricData()
-  const [kind, setKind] = useState<'month' | 'quarter'>('month')
+  const [kind, setKind] = useState<PeriodKind>('month')
   const [offset, setOffset] = useState(0)
-  const [view, setView] = useState('perf')
+  const [view, setView] = useState('overview')
+  const { model, loading } = useTeamModel(kind, offset)
   const period = kind === 'month' ? monthPeriod(offset) : quarterPeriod(offset)
 
-  const rows = useMemo(
-    () =>
-      (agents.data ?? [])
-        .filter((a) => a.role === 'agent')
-        .map((a) => {
-          const m = data ? computeAgentMetrics(a.id, period, data) : null
-          const mine = (goals.data ?? []).filter((g) => g.agent_id === a.id && overlaps(g, period))
-          const pcts = mine.map((g) => goalProgress(g, data).pct)
-          return { a, m, goals: mine.length, avg: pcts.length ? Math.round(pcts.reduce((x, y) => x + y, 0) / pcts.length) : null }
-        }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [agents.data, goals.data, data, kind, offset],
-  )
-
   if (!isAdmin) return <EmptyState title="אין הרשאה" hint="העמוד זמין למנהלים בלבד" />
-  if (agents.isLoading || loading) return <Spinner />
-
-  const cell = (v: number | string | null, bad = false) => (
-    <td className={classNames('p-2.5 text-center', bad && 'font-semibold text-red-600')}>{v ?? '—'}</td>
-  )
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-semibold text-brand-800 sm:text-3xl">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#00326d] text-white"><Users size={20} /></span>
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#00326d] text-white">
+              <Users size={20} />
+            </span>
             ניהול סוכנים
           </h1>
-          <p className="text-sm text-slate-400">השוואה בין הסוכנים. לחץ על סוכן כדי לראות לוז, משימות, יעדים ושיחות מעקב.</p>
+          <p className="text-sm text-slate-400">הצוות במבט אחד. לחץ על סוכן כדי לראות לוז, משימות, יעדים ושיחות.</p>
         </div>
-        <div className={classNames("flex items-center gap-2", view !== "perf" && "invisible")}>
-          <select className="input !w-auto" value={kind} onChange={(e) => { setKind(e.target.value as 'month' | 'quarter'); setOffset(0) }}>
-            <option value="month">חודשי</option>
-            <option value="quarter">רבעוני</option>
-          </select>
-          <button className="btn-ghost !px-2" onClick={() => setOffset((o) => o - 1)} aria-label="תקופה קודמת">
-            <ChevronRight size={18} />
-          </button>
-          <span className="min-w-28 text-center text-sm font-semibold text-slate-700">{period.label}</span>
-          <button className="btn-ghost !px-2" onClick={() => setOffset((o) => o + 1)} aria-label="תקופה הבאה">
-            <ChevronLeft size={18} />
-          </button>
-        </div>
+        {view !== 'training' && (
+          <div className="flex items-center gap-2">
+            <select
+              className="input !w-auto"
+              value={kind}
+              aria-label="סוג תקופה"
+              onChange={(e) => {
+                setKind(e.target.value as PeriodKind)
+                setOffset(0)
+              }}
+            >
+              <option value="month">חודשי</option>
+              <option value="quarter">רבעוני</option>
+            </select>
+            <button className="btn-ghost !px-2" onClick={() => setOffset((o) => o - 1)} aria-label="תקופה קודמת">
+              <ChevronRight size={18} />
+            </button>
+            <span className="min-w-28 text-center text-sm font-semibold text-slate-700">{period.label}</span>
+            <button className="btn-ghost !px-2" onClick={() => setOffset((o) => o + 1)} aria-label="תקופה הבאה" disabled={offset >= 0}>
+              <ChevronLeft size={18} />
+            </button>
+          </div>
+        )}
       </div>
 
       <Tabs value={view} onChange={setView}>
         <TabList>
-          <Tab id="perf">ביצועים</Tab>
+          <Tab id="overview">סקירה</Tab>
+          <Tab id="goals">יעדים</Tab>
           <Tab id="training">הכשרות</Tab>
+          <Tab id="report">דוח להנהלה</Tab>
         </TabList>
+
+        <TabPanel id="overview">{loading || !model ? <Spinner /> : model.agents.length === 0 ? <EmptyState title="אין סוכנים" hint="סוכנים נוספים נרשמים במסך הכניסה, והמנהל מאשר אותם בניהול מערכת." /> : <TeamOverview model={model} />}</TabPanel>
+        <TabPanel id="goals">{loading || !model ? <Spinner /> : <TeamGoals model={model} period={period} />}</TabPanel>
         <TabPanel id="training">
           <TrainingMatrix />
         </TabPanel>
-        <TabPanel id="perf">
-      {rows.length === 0 ? (
-        <EmptyState title="אין סוכנים" hint="סוכנים נוספים נרשמים במסך הכניסה, והמנהל מאשר אותם בניהול מערכת" />
-      ) : (
-        <div className="card overflow-x-auto">
-          <table className="w-full min-w-[820px] text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-right text-xs text-slate-500">
-                <th className="p-2.5 font-medium">סוכן</th>
-                <th className="p-2.5 text-center font-medium">פגישות שהתקיימו</th>
-                <th className="p-2.5 text-center font-medium">רופאים באיחור קשר</th>
-                <th className="p-2.5 text-center font-medium">משימות פתוחות</th>
-                <th className="p-2.5 text-center font-medium">באיחור</th>
-                <th className="p-2.5 text-center font-medium">תקועות</th>
-                <th className="p-2.5 text-center font-medium">משימות שהושלמו</th>
-                <th className="p-2.5 text-center font-medium">סריקות</th>
-                <th className="p-2.5 text-center font-medium">ספירות</th>
-                <th className="p-2.5 text-center font-medium">יעדים</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map(({ a, m, goals: n, avg }) => (
-                <tr key={a.id} className="border-b border-slate-100 hover:bg-slate-50">
-                  <td className="p-2.5">
-                    <Link to={`/agents/${a.id}`} className="font-medium text-brand-700 hover:underline">
-                      {a.full_name || a.email}
-                    </Link>
-                  </td>
-                  {cell(m?.meetings_held ?? null)}
-                  {cell(m ? m.cadence_due : null, !!m && m.cadence_due > 0)}
-                  {cell(m?.tasks_open ?? null)}
-                  {cell(m?.tasks_overdue ?? null, !!m && m.tasks_overdue > 0)}
-                  {cell(m?.tasks_blocked ?? null, !!m && m.tasks_blocked > 0)}
-                  {cell(m?.tasks_done ?? null)}
-                  {cell(m?.scans_created ?? null)}
-                  {cell(m?.consumable_counts ?? null)}
-                  <td className="p-2.5 text-center">
-                    {n === 0 ? (
-                      <span className="text-slate-300">—</span>
-                    ) : (
-                      <span className="inline-flex items-center gap-2">
-                        <span className="h-1.5 w-14 overflow-hidden rounded-full bg-slate-100">
-                          <span className={classNames('block h-full', (avg ?? 0) >= 80 ? 'bg-emerald-500' : (avg ?? 0) >= 40 ? 'bg-sky-500' : 'bg-red-400')} style={{ width: `${avg ?? 0}%` }} />
-                        </span>
-                        <span className="text-xs text-slate-600">
-                          {avg}% ({n})
-                        </span>
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      <p className="text-xs text-slate-400">
-        משימות פתוחות, באיחור ותקועות הן המצב כרגע; שאר המדדים לפי התקופה שנבחרה. "רופאים באיחור קשר" נספר מהרופאים המועדפים של הסוכן שהוגדר להם קצב קשר.
-      </p>
-        </TabPanel>
+        <TabPanel id="report">{loading || !model ? <Spinner /> : <ManagementReport model={model} />}</TabPanel>
       </Tabs>
     </div>
   )
