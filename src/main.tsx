@@ -24,6 +24,16 @@ supabase.auth.onAuthStateChange((event) => {
   }
 })
 registerServiceWorker()
+// a page file that no longer exists (a new version was published while this one was open): load the new version once
+window.addEventListener('vite:preloadError', () => {
+  try {
+    if (sessionStorage.getItem('ami.reloadedForChunk')) return
+    sessionStorage.setItem('ami.reloadedForChunk', '1')
+  } catch {
+    // no storage: reload anyway, once per page load
+  }
+  window.location.reload()
+})
 // asks the browser not to evict the saved data / unsent changes when the device runs low on space (Safari clears unused sites)
 void navigator.storage?.persist?.().catch(() => undefined)
 if (import.meta.env.DEV) (window as unknown as { __qc: typeof queryClient }).__qc = queryClient

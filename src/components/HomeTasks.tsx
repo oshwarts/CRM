@@ -24,17 +24,17 @@ export function HomeTasks({ embedded = false }: { embedded?: boolean }) {
 
   return (
     <section className={embedded ? '' : 'card p-5'}>
-      <div className="mb-1.5 flex items-center justify-between">
-        <h2 className={embedded ? 'flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400' : 'flex items-center gap-2 font-semibold text-slate-800'}>
+      <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <h2 className={embedded ? 'flex items-center gap-1.5 whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-slate-400' : 'flex items-center gap-2 whitespace-nowrap font-semibold text-slate-800'}>
           <ListChecks size={embedded ? 12 : 18} className={embedded ? '' : 'text-brand-500'} />
           המשימות שלי
-          {overdue > 0 && <span className="chip border-red-200 bg-red-50 !px-2 !py-0 text-xs text-red-600">{overdue} באיחור</span>}
+          {overdue > 0 && <span className="chip whitespace-nowrap border-red-200 bg-red-50 !px-2 !py-0 text-xs text-red-600">{overdue} באיחור</span>}
         </h2>
         <div className="flex items-center gap-3">
-          <button className="text-sm font-medium text-brand-600 hover:underline" onClick={() => setAdding(true)}>
+          <button className="whitespace-nowrap text-sm font-medium text-brand-600 hover:underline" onClick={() => setAdding(true)}>
             + משימה
           </button>
-          <Link to="/tasks" className="text-sm font-medium text-brand-600 hover:underline">
+          <Link to="/tasks" className="whitespace-nowrap text-sm font-medium text-brand-600 hover:underline">
             לכל המשימות ({mine.length}) →
           </Link>
         </div>

@@ -275,10 +275,10 @@ export default function Doctors() {
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={classNames('card flex flex-col items-start p-3 text-right transition hover:shadow-pop', active && 'border-brand-500 ring-2 ring-brand-200', warn && value > 0 && !active && 'border-amber-300 bg-amber-50')}
+      className={classNames('card flex flex-col items-start p-2 text-right transition hover:shadow-pop sm:p-3', active && 'border-brand-500 ring-2 ring-brand-200', warn && value > 0 && !active && 'border-amber-300 bg-amber-50')}
     >
-      <span className={classNames('text-2xl font-semibold leading-none', warn && value > 0 ? 'text-amber-700' : 'text-brand-800')}>{value}</span>
-      <span className="mt-1 text-xs text-slate-600">{label}</span>
+      <span className={classNames('text-xl font-semibold leading-none sm:text-2xl', warn && value > 0 ? 'text-amber-700' : 'text-brand-800')}>{value}</span>
+      <span className="mt-1 text-[11px] leading-tight text-slate-600 sm:text-xs">{label}</span>
     </button>
   )
   const pill = (label: string, value: StatusFilter, n: number) => (
@@ -290,7 +290,7 @@ export default function Doctors() {
         setStatus(value)
         if (value !== 'potential') setStage('')
       }}
-      className={classNames('rounded-full border px-4 py-1.5 text-sm font-medium transition', status === value ? 'border-brand-500 bg-brand-500 text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50')}
+      className={classNames('rounded-full border px-3 py-1.5 text-sm font-medium transition sm:px-4', status === value ? 'border-brand-500 bg-brand-500 text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50')}
     >
       {label} <span className={status === value ? 'text-white/80' : 'text-slate-400'}>{n}</span>
     </button>
@@ -300,27 +300,29 @@ export default function Doctors() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-semibold text-brand-800">רופאים</h1>
-          <p className="text-sm text-slate-500">מי צריך קשר עכשיו, קצב הקשר, ניתוחים, נאמנות והמשפך של הפוטנציאליים</p>
+          <h1 className="text-2xl font-semibold text-brand-800 sm:text-3xl">רופאים</h1>
+          <p className="hidden text-sm text-slate-500 sm:block">מי צריך קשר עכשיו, קצב הקשר, ניתוחים, נאמנות והמשפך של הפוטנציאליים</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button className="btn-secondary" onClick={() => setShowImport(true)}>
-            <BookUser size={16} /> ייבוא איש קשר
+          <button className="btn-secondary !px-3 sm:!px-4" onClick={() => setShowImport(true)}>
+            <BookUser size={16} /> <span className="hidden sm:inline">ייבוא איש קשר</span>
+            <span className="sm:hidden">ייבוא</span>
           </button>
-          <button className="btn-primary" onClick={() => setShowAdd(true)}>
-            <Plus size={16} /> הוספת רופא
+          <button className="btn-primary !px-3 sm:!px-4" onClick={() => setShowAdd(true)}>
+            <Plus size={16} /> <span className="hidden sm:inline">הוספת רופא</span>
+            <span className="sm:hidden">רופא חדש</span>
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
         {kpi('רופאים', counts.all, !anyFilter, clearAll)}
-        {kpi('צריכים קשר עכשיו', counts.need, only === 'need', () => setOnly(only === 'need' ? '' : 'need'), true)}
+        {kpi('צריכים קשר', counts.need, only === 'need', () => setOnly(only === 'need' ? '' : 'need'), true)}
         {kpi('פוטנציאליים', counts.potential, status === 'potential' && !only, () => setStatus(status === 'potential' ? '' : 'potential'))}
         {kpi('פרטים חסרים', counts.missing, only === 'missing', () => setOnly(only === 'missing' ? '' : 'missing'), true)}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="-mx-3 flex items-center gap-2 overflow-x-auto px-3 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0 [&>*]:shrink-0">
         {pill('כל הרופאים', '', counts.all)}
         {pill('לקוחות', 'client', counts.client)}
         {pill('פוטנציאליים (משפך)', 'potential', counts.potential)}
@@ -462,20 +464,20 @@ export default function Doctors() {
           {/* phone: cards */}
           <ul className="space-y-2.5 md:hidden">
             {shown.map((r) => (
-              <li key={r.d.id} className="card space-y-2.5 p-3.5">
+              <li key={r.d.id} className="card space-y-2 p-3">
                 <Name row={r} />
-                <StatusCell row={r} cases={casesNow.get(r.d.id)} since={stageSince.data?.get(r.d.id)?.since} />
-                <ContactCell row={r} />
-                <dl className="grid grid-cols-2 gap-2 text-center text-xs">
-                  <div className="rounded-xl bg-slate-50 p-2">
-                    <dt className="text-slate-500">ניתוחים ({windowLabel})</dt>
-                    <dd className="mt-0.5 text-base font-semibold text-brand-800">{r.surgeries}</dd>
-                  </div>
-                  <div className="rounded-xl bg-slate-50 p-2">
-                    <dt className="text-slate-500">נאמנות</dt>
-                    <dd className="mt-0.5">{r.loyalty ? <span className={classNames('chip !px-2 !py-0 text-[11px]', LOYALTY_CHIP[r.loyalty])}>{LOYALTY_SHORT[r.loyalty]}</span> : <span className="text-slate-300">לא ידוע</span>}</dd>
-                  </div>
-                </dl>
+                <div className="grid grid-cols-2 items-start gap-3">
+                  <StatusCell row={r} cases={casesNow.get(r.d.id)} since={stageSince.data?.get(r.d.id)?.since} />
+                  <ContactCell row={r} />
+                </div>
+                <p className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl bg-slate-50 px-3 py-1.5 text-xs text-slate-500">
+                  <span>
+                    ניתוחים ({windowLabel}): <b className="text-base text-brand-800">{r.surgeries}</b>
+                  </span>
+                  <span className="flex items-center gap-1">
+                    נאמנות: {r.loyalty ? <span className={classNames('chip !px-2 !py-0 text-[11px]', LOYALTY_CHIP[r.loyalty])}>{LOYALTY_SHORT[r.loyalty]}</span> : <span className="text-slate-400">לא ידוע</span>}
+                  </span>
+                </p>
                 {(r.robots.length > 0 || r.companies.length > 0) && <p className="text-xs text-slate-600">{[...r.robots, ...r.companies].join(' · ')}</p>}
                 <Actions row={r} fav={favSet.has(r.d.id)} onFav={() => toggleFav.mutate({ doctorId: r.d.id, isFavorite: favSet.has(r.d.id) })} onMeeting={() => setModal({ kind: 'meeting', doctorId: r.d.id })} onTask={() => setModal({ kind: 'task', doctorId: r.d.id })} />
               </li>
