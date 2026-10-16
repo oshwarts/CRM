@@ -456,6 +456,9 @@ export type Database = {
       hospitals: {
         Row: {
           address: string
+          commercial_status: string
+          next_step: string
+          next_step_date: string | null
           city: string
           created_at: string
           id: string
@@ -467,6 +470,9 @@ export type Database = {
         }
         Insert: {
           address?: string
+          commercial_status?: string
+          next_step?: string
+          next_step_date?: string | null
           city?: string
           created_at?: string
           id?: string
@@ -478,6 +484,9 @@ export type Database = {
         }
         Update: {
           address?: string
+          commercial_status?: string
+          next_step?: string
+          next_step_date?: string | null
           city?: string
           created_at?: string
           id?: string

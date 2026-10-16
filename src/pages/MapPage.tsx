@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { CircleMarker, MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import {
@@ -10,22 +10,22 @@ import {
   CalendarDays,
   Navigation,
   Phone,
-  Plus,
   Search,
   Stethoscope,
   User,
   X,
 } from 'lucide-react'
 import { useMapData, useMeetings, type MapHospital } from '../lib/api'
-import { formatDate } from '../lib/utils'
-import { HospitalContactModal } from '../components/HospitalContactModal'
+import { useAuth } from '../context/AuthProvider'
+import { classNames, formatDate } from '../lib/utils'
+import { HospitalActions } from '../components/HospitalActions'
 import { LinkedTasks } from '../components/LinkedTasks'
 import { CompetitorSection } from '../components/CompetitorSection'
 import { ErrorState, Spinner } from '../components/ui'
 import { DOCTOR_STATUS_LABELS, SECTOR_LABELS } from '../lib/types'
 
-function pinIcon(active: boolean, count: number) {
-  const color = active ? '#00326d' : count > 0 ? '#1863dc' : '#94a3b8'
+function pinIcon(active: boolean, count: number, base?: string) {
+  const color = active ? '#00326d' : (base ?? (count > 0 ? '#1863dc' : '#94a3b8'))
   return L.divIcon({
     className: '',
     html: `<div style="
@@ -75,10 +75,32 @@ function MapFocus({
   return null
 }
 
-export default function MapPage() {
+/** `embedded`: inside the hospitals page (no title of its own); `pinColor`: the colour of a hospital's pin, by its commercial status */
+export default function MapPage({ embedded, pinColor }: { embedded?: boolean; pinColor?: (hospitalId: string) => string } = {}) {
   const map = useMapData()
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const { user } = useAuth()
+  const [params] = useSearchParams()
+  const [selectedId, setSelectedId] = useState<string | null>(params.get('hospital'))
   const [orgFilter, setOrgFilter] = useState('')
+  const [robotFilter, setRobotFilter] = useState('')
+  // "my hospitals" — the ones the user is the handling agent of; remembered on this device
+  const [mine, setMine] = useState(() => {
+    try {
+      return localStorage.getItem('map.mine') === '1'
+    } catch {
+      return false
+    }
+  })
+  function toggleMine() {
+    setMine((v) => {
+      try {
+        localStorage.setItem('map.mine', v ? '0' : '1')
+      } catch {
+        /* storage blocked: the choice lasts for this visit only */
+      }
+      return !v
+    })
+  }
   const [query, setQuery] = useState('')
   const panelRef = useRef<HTMLDivElement>(null)
   // where the user is (asked once when the page opens); the map starts on the nearest hospital
@@ -110,6 +132,13 @@ export default function MapPage() {
     for (const h of map.data ?? []) if (h.organization) s.add(h.organization.name)
     return [...s].sort()
   }, [map.data])
+  const robotNames = useMemo(() => {
+    const s = new Set<string>()
+    for (const h of map.data ?? []) for (const r of h.hospital_robotic_systems) if (r.system) s.add(r.system.name)
+    return [...s].sort()
+  }, [map.data])
+  const isMine = (h: MapHospital) => !!user && h.hospital_agents.some((a) => a.agent?.id === user.id)
+  const hasMine = (map.data ?? []).some(isMine)
 
   // distance of every hospital from the user, and the nearest one
   const distances = useMemo(() => {
@@ -128,10 +157,13 @@ export default function MapPage() {
     const list = (map.data ?? []).filter(
       (h) =>
         (!orgFilter || h.organization?.name === orgFilter) &&
+        (!robotFilter || h.hospital_robotic_systems.some((r) => r.system?.name === robotFilter)) &&
+        (!mine || !hasMine || isMine(h)) &&
         (!q || normalize(`${h.name} ${h.city}`).includes(q)),
     )
     return pos ? [...list].sort((a, b) => (distances.get(a.id) ?? 1e9) - (distances.get(b.id) ?? 1e9)) : list
-  }, [map.data, orgFilter, query, pos, distances])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map.data, orgFilter, robotFilter, mine, hasMine, user?.id, query, pos, distances])
 
   const withCoords = useMemo(
     () => filtered.filter((h) => h.lat != null && h.lng != null),
@@ -144,7 +176,8 @@ export default function MapPage() {
     selected && selected.lat != null && selected.lng != null
       ? [selected.lat, selected.lng]
       : null
-  const focusBounds: [number, number][] = query
+  const filtering = !!(query || orgFilter || robotFilter || (mine && hasMine))
+  const focusBounds: [number, number][] = filtering && withCoords.length > 0
     ? withCoords.map((h) => [h.lat as number, h.lng as number])
     : pos && nearest && nearest.lat != null && nearest.lng != null
       ? [pos, [nearest.lat, nearest.lng]]
@@ -159,12 +192,12 @@ export default function MapPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-brand-800 sm:text-3xl">בתי חולים</h1>
-          <p className="text-sm text-slate-400">
-            לחיצה על בית חולים מציגה את הרופאים, הסוכן המטפל והרובוטיקה
-          </p>
-        </div>
+        {!embedded && (
+          <div>
+            <h1 className="text-2xl font-semibold text-brand-800 sm:text-3xl">בתי חולים</h1>
+            <p className="text-sm text-slate-400">לחיצה על בית חולים מציגה את הרופאים, הסוכן המטפל והרובוטיקה</p>
+          </div>
+        )}
         <label className="relative block w-full sm:w-64">
           <Search
             size={16}
@@ -193,9 +226,31 @@ export default function MapPage() {
             </option>
           ))}
         </select>
+        {robotNames.length > 0 && (
+          <select className="input max-w-48" value={robotFilter} onChange={(e) => setRobotFilter(e.target.value)}>
+            <option value="">כל הרובוטים</option>
+            {robotNames.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-2 text-sm">
+        {hasMine && (
+          <button
+            aria-pressed={mine}
+            onClick={toggleMine}
+            className={classNames(
+              'chip',
+              mine ? 'border-brand-500 bg-brand-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+            )}
+          >
+            <User size={13} /> בתי החולים שלי
+          </button>
+        )}
         {nearest ? (
           <button
             className="chip border-brand-200 bg-brand-50 text-brand-700 hover:underline"
@@ -235,7 +290,7 @@ export default function MapPage() {
               <Marker
                 key={h.id}
                 position={[h.lat as number, h.lng as number]}
-                icon={pinIcon(h.id === selectedId || (!selectedId && !query && h.id === nearest?.id), h.doctor_hospitals.length)}
+                icon={pinIcon(h.id === selectedId || (!selectedId && !query && h.id === nearest?.id), h.doctor_hospitals.length, pinColor?.(h.id))}
                 eventHandlers={{ click: () => setSelectedId(h.id) }}
               >
                 <Tooltip direction="top">{h.name}</Tooltip>
@@ -263,10 +318,15 @@ export default function MapPage() {
               </p>
               {filtered.length === 0 && (
                 <p className="py-4 text-center text-sm text-slate-400">
-                  לא נמצא בית חולים בשם "{query}"
+                  {query ? `לא נמצא בית חולים בשם "${query}"` : 'אין בתי חולים שמתאימים לסינון'}
                   <button
                     className="mr-2 inline-flex items-center gap-1 text-brand-600 underline"
-                    onClick={() => setQuery('')}
+                    onClick={() => {
+                      setQuery('')
+                      setOrgFilter('')
+                      setRobotFilter('')
+                      if (mine) toggleMine()
+                    }}
                   >
                     <X size={12} /> נקה
                   </button>
@@ -278,8 +338,18 @@ export default function MapPage() {
                   onClick={() => setSelectedId(h.id)}
                   className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-right text-sm hover:bg-slate-50"
                 >
-                  <span className="text-slate-700">{h.name}</span>
-                  <span className="text-xs text-slate-400">
+                  <span className="min-w-0">
+                    <span className="block text-slate-700">{h.name}</span>
+                    <span className="block truncate text-xs text-slate-400">
+                      {[
+                        h.hospital_agents.map((a) => a.agent?.full_name).filter(Boolean).join(', '),
+                        h.hospital_robotic_systems.map((r) => r.system?.name).filter(Boolean).join(', '),
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-xs text-slate-400">
                     {distances.has(h.id) ? `${(distances.get(h.id) as number).toFixed(1)} ק״מ · ` : ''}
                     {h.doctor_hospitals.length} רופאים
                   </span>
@@ -294,7 +364,6 @@ export default function MapPage() {
 }
 
 function HospitalPanel({ hospital }: { hospital: MapHospital }) {
-  const [addingContact, setAddingContact] = useState(false)
   const allMeetings = useMeetings()
   const hospitalMeetings = (allMeetings.data ?? [])
     .filter((m) => m.hospital_id === hospital.id)
@@ -334,7 +403,12 @@ function HospitalPanel({ hospital }: { hospital: MapHospital }) {
             ? ` · ${SECTOR_LABELS[hospital.sector] ?? hospital.sector}`
             : ''}
         </p>
+        <Link to={`/hospitals/${hospital.id}`} className="mt-1 inline-block text-sm font-medium text-brand-600 hover:underline">
+          לכרטיס בית החולים המלא →
+        </Link>
       </div>
+
+      <HospitalActions hospital={hospital} compact />
 
       {robotics.length > 0 && (
         <div>
@@ -391,18 +465,9 @@ function HospitalPanel({ hospital }: { hospital: MapHospital }) {
       </div>
 
       <div>
-        <div className="mb-1 flex items-center justify-between">
-          <p className="flex items-center gap-1 text-xs font-medium uppercase text-slate-400">
-            <Phone size={12} /> אנשי קשר
-          </p>
-          <button
-            className="inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline"
-            onClick={() => setAddingContact(true)}
-          >
-            <Plus size={14} />
-            הוסף איש קשר
-          </button>
-        </div>
+        <p className="mb-1 flex items-center gap-1 text-xs font-medium uppercase text-slate-400">
+          <Phone size={12} /> אנשי קשר
+        </p>
         {hospital.contacts.length === 0 ? (
           <p className="text-sm text-slate-400">אין אנשי קשר לבית החולים (רכש, מכון דימות, מזכירות…)</p>
         ) : (
@@ -429,13 +494,6 @@ function HospitalPanel({ hospital }: { hospital: MapHospital }) {
               </li>
             ))}
           </ul>
-        )}
-        {addingContact && (
-          <HospitalContactModal
-            hospitalId={hospital.id}
-            hospitalName={hospital.name}
-            onClose={() => setAddingContact(false)}
-          />
         )}
       </div>
 

@@ -254,7 +254,7 @@ export default function DoctorProfile() {
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
               {d.doctor_hospitals.map((h) => (
-                <div key={h.id} className="card p-4">
+                <Link key={h.id} to={`/hospitals/${h.hospital_id}`} className="card block p-4 hover:border-brand-200">
                   <p className="flex items-center gap-2 font-medium text-slate-800">
                     <Building2 size={16} className="text-brand-500" />
                     {h.hospital?.name ?? '—'}
@@ -264,7 +264,7 @@ export default function DoctorProfile() {
                     {h.role_at_hospital ? ` · ${h.role_at_hospital}` : ''}
                     {` · ${SECTOR_LABELS[h.sector] ?? h.sector}`}
                   </p>
-                </div>
+                </Link>
               ))}
             </div>
           )}

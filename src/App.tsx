@@ -8,7 +8,8 @@ import Doctors from './pages/Doctors'
 import DoctorProfile from './pages/DoctorProfile'
 import Meetings from './pages/Meetings'
 import MeetingView from './pages/MeetingView'
-import MapPage from './pages/MapPage'
+import Hospitals from './pages/Hospitals'
+import HospitalView from './pages/HospitalView'
 import Pipeline from './pages/Pipeline'
 import Reports from './pages/Reports'
 import Scans from './pages/Scans'
@@ -69,7 +70,8 @@ export default function App() {
         <Route path="/doctors/:id" element={<DoctorProfile />} />
         <Route path="/meetings" element={<Meetings />} />
         <Route path="/meetings/:id" element={<MeetingView />} />
-        <Route path="/map" element={<MapPage />} />
+        <Route path="/map" element={<Hospitals />} />
+        <Route path="/hospitals/:id" element={<HospitalView />} />
         <Route path="/pipeline" element={<Pipeline />} />
         <Route path="/scans" element={<Scans />} />
         <Route path="/schedule" element={<Schedule />} />

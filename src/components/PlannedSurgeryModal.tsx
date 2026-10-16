@@ -26,7 +26,7 @@ type Form = {
  * Quick entry of a planned surgery that is not a MAKO surgery (no CT scan, no patient file): date, surgeon, hospital,
  * type. "Save and add another" keeps the date, surgeon and hospital so that a whole operating list goes in quickly.
  */
-export function PlannedSurgeryModal({ surgery, date, onClose }: { surgery?: PlannedSurgery; date?: string; onClose: () => void }) {
+export function PlannedSurgeryModal({ surgery, date, hospitalId, onClose }: { surgery?: PlannedSurgery; date?: string; hospitalId?: string; onClose: () => void }) {
   const { isAdmin, user } = useAuth()
   const canDelete = useCanDelete()
   const doctors = useDoctors()
@@ -41,7 +41,7 @@ export function PlannedSurgeryModal({ surgery, date, onClose }: { surgery?: Plan
     surgery_date: surgery?.surgery_date ?? date ?? todayISO(),
     surgery_time: surgery?.surgery_time?.slice(0, 5) ?? '',
     doctor_id: surgery?.doctor_id ?? null,
-    hospital_id: surgery?.hospital_id ?? null,
+    hospital_id: surgery?.hospital_id ?? hospitalId ?? null,
     procedure: surgery?.procedure ?? '',
     company: surgery?.company ?? '',
     notes: surgery?.notes ?? '',

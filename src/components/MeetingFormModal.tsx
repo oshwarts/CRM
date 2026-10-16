@@ -32,12 +32,14 @@ type Props = {
   onClose: () => void
   meeting?: MeetingWithRelations
   defaultDoctorId?: string
+  defaultHospitalId?: string
 }
 
 function initial(
   meeting: MeetingWithRelations | undefined,
   agentId: string | undefined,
   defaultDoctorId: string | undefined,
+  defaultHospitalId?: string,
 ): MeetingFormData {
   return {
     subject: meeting?.subject ?? '',
@@ -54,7 +56,7 @@ function initial(
       : defaultDoctorId
         ? [defaultDoctorId]
         : [],
-    hospitalId: meeting?.hospital_id ?? null,
+    hospitalId: meeting ? meeting.hospital_id : (defaultHospitalId ?? null),
     agentIds: meeting
       ? meeting.meeting_agents.map((a) => a.agent?.id).filter((x): x is string => !!x)
       : [],
@@ -79,6 +81,7 @@ export function MeetingFormModal({
   onClose,
   meeting,
   defaultDoctorId,
+  defaultHospitalId,
 }: Props) {
   const isEdit = !!meeting
   const { user } = useAuth()
@@ -92,7 +95,7 @@ export function MeetingFormModal({
 
   const [tab, setTab] = useState('general')
   const [data, setData] = useState<MeetingFormData>(() =>
-    initial(meeting, user?.id, defaultDoctorId),
+    initial(meeting, user?.id, defaultDoctorId, defaultHospitalId),
   )
   const [error, setError] = useState<string | null>(null)
 
