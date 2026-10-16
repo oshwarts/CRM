@@ -14,7 +14,6 @@ import {
   Settings,
   Stethoscope,
   Swords,
-  Target,
   UserCheck,
   Users as UsersIcon,
 } from 'lucide-react'
@@ -33,7 +32,6 @@ export const NAV = [
   { to: '/info', label: 'מידע קליני', short: 'מידע קליני', icon: BookOpen, end: false },
   { to: '/learn', label: 'לומדה', short: 'לומדה', icon: GraduationCap, end: false },
   { to: '/consumables', label: 'מתכלים MAKO', short: 'מתכלים', icon: Boxes, end: false },
-  { to: '/pipeline', label: 'פוטנציאליים', short: 'פוטנציאליים', icon: Target, end: false },
   { to: '/competitors', label: 'פעילות מתחרים', short: 'מתחרים', icon: Swords, end: false },
   { to: '/reports', label: 'דוחות', short: 'דוחות', icon: BarChart3, end: false },
   { to: '/settings', label: 'הגדרות', short: 'הגדרות', icon: Settings, end: false, adminOnly: true },
