@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { addMonths, endOfMonth, format, startOfMonth } from 'date-fns'
 import { AlertTriangle, CalendarCheck, Download, ScanLine, Stethoscope, Users } from 'lucide-react'
 import { useDoctors, useMeetings, usePatientScans, useTasks } from '../lib/api'
-import { PIPELINE_STAGES } from '../lib/types'
+import { usePipelineStages } from '../lib/pipeline'
 import { classNames, csvCell, formatDate, todayISO } from '../lib/utils'
 import { EmptyState, Spinner } from './ui'
 
@@ -49,6 +49,7 @@ export function SalesReports() {
   const doctors = useDoctors()
   const tasks = useTasks()
   const [monthsBack, setMonthsBack] = useState<number>(6)
+  const { names: stageNames } = usePipelineStages()
 
   const model = useMemo(() => {
     const today = todayISO()
@@ -100,8 +101,8 @@ export function SalesReports() {
       .filter((x) => !x.last || x.last < sixty)
       .sort((a, b) => (a.last ?? '').localeCompare(b.last ?? ''))
 
-    const funnel = PIPELINE_STAGES.map((stage) => ({ stage, count: potential.filter((d) => d.pipeline_stage === stage).length }))
-    const noStage = potential.filter((d) => !PIPELINE_STAGES.includes(d.pipeline_stage as (typeof PIPELINE_STAGES)[number])).length
+    const funnel = stageNames.map((stage) => ({ stage, count: potential.filter((d) => d.pipeline_stage === stage).length }))
+    const noStage = potential.filter((d) => !stageNames.includes(d.pipeline_stage)).length
     const stuck = potential.filter((d) => d.next_step_date && d.next_step_date < today).length
 
     return {
@@ -120,7 +121,7 @@ export function SalesReports() {
         notMet: allDoctors.filter((d) => !metIds.has(d.id)).length,
       },
     }
-  }, [meetings.data, scans.data, doctors.data, tasks.data, monthsBack])
+  }, [meetings.data, scans.data, doctors.data, tasks.data, monthsBack, stageNames])
 
   if ([meetings, scans, doctors].some((q) => q.isLoading)) return <Spinner />
   if (!meetings.data && !doctors.data) return <EmptyState title="אין נתונים להצגה" />

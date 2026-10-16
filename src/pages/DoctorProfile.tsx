@@ -26,6 +26,7 @@ import { MeetingFormModal } from '../components/MeetingFormModal'
 import { TaskFormModal } from '../components/TaskFormModal'
 import { DoctorTimeline } from '../components/DoctorTimeline'
 import { QuickContact } from '../components/QuickContact'
+import { DoctorPipeline } from '../components/DoctorPipeline'
 import { SurgicalCourseSection } from '../components/SurgicalCourse'
 import { LinkedTasks, useLinkedTasks } from '../components/LinkedTasks'
 import { cadenceLabel, contactState } from '../lib/cadence'
@@ -165,12 +166,10 @@ export default function DoctorProfile() {
                     : ''}
               </span>
             )}
-            {d.status === 'potential' && d.pipeline_stage && (
+            {d.status === 'potential' && (
               <span className="inline-flex items-center gap-1 text-brand-600">
-                שלב: {d.pipeline_stage}
-                {d.next_step_date
-                  ? ` · צעד הבא ${formatDate(d.next_step_date)}`
-                  : ''}
+                שלב: {d.pipeline_stage || 'לא הוגדר'}
+                {d.next_step || d.next_step_date ? ` · צעד הבא: ${[d.next_step, d.next_step_date ? formatDate(d.next_step_date) : ''].filter(Boolean).join(' · ')}` : ''}
               </span>
             )}
           </div>
@@ -212,6 +211,8 @@ export default function DoctorProfile() {
           </div>
         </div>
       </div>
+
+      {d.status === 'potential' && <DoctorPipeline doctor={d} />}
 
       <Tabs value={tab} onChange={setTab}>
         <TabList>

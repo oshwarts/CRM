@@ -62,6 +62,8 @@ export function buildTeamModel(input: {
   stages: TrainingStage[]
   training: AgentTraining[]
   procedures: Procedure[]
+  /** the stages of the funnel, in order (the managers edit them) */
+  pipelineStages?: string[]
   months?: number
 }): TeamModel {
   const { period, prevPeriod, data, goals, stages, training, procedures } = input
@@ -154,7 +156,7 @@ export function buildTeamModel(input: {
   const trainingPct = trainTotal > 0 ? Math.round((trainDone / trainTotal) * 100) : null
 
   const potential = data.doctors.filter((d) => d.status === 'potential')
-  const funnel = PIPELINE_STAGES.map((stage) => ({ stage: stage as string, count: potential.filter((d) => d.pipeline_stage === stage).length }))
+  const funnel = (input.pipelineStages ?? [...PIPELINE_STAGES]).map((stage) => ({ stage: stage as string, count: potential.filter((d) => d.pipeline_stage === stage).length }))
   const closing = funnel.slice(-2).reduce((s, f) => s + f.count, 0)
 
   const attention = rows

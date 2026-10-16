@@ -11,7 +11,6 @@ import {
 } from '../lib/api'
 import {
   DOCTOR_STATUS_LABELS,
-  PIPELINE_STAGES,
   SECTOR_LABELS,
   TITLES,
   type DoctorWithRelations,
@@ -48,6 +47,7 @@ function initialData(doctor?: DoctorWithRelations): DoctorFormData {
     status: doctor?.status ?? 'client',
     tracking_notes: doctor?.tracking_notes ?? '',
     pipeline_stage: doctor?.pipeline_stage ?? '',
+    next_step: doctor?.next_step ?? '',
     next_step_date: doctor?.next_step_date ?? null,
     contact_cadence_days: doctor?.contact_cadence_days ?? null,
     companyIds: compact(doctor?.doctor_companies.map((c) => c.company?.id) ?? []),
@@ -66,12 +66,15 @@ function initialData(doctor?: DoctorWithRelations): DoctorFormData {
   }
 }
 
+import { usePipelineStages } from '../lib/pipeline'
+
 export function DoctorFormModal({ open, onClose, doctor }: Props) {
   const isEdit = !!doctor
   const [tab, setTab] = useState('general')
   const [data, setData] = useState<DoctorFormData>(() => initialData(doctor))
   const [error, setError] = useState<string | null>(null)
 
+  const { names: stageNames } = usePipelineStages()
   const companies = useCompanies()
   const procedures = useProcedures()
   const hospitals = useHospitals()
@@ -212,18 +215,17 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
             {data.status === 'potential' && (
               <>
                 <Field label="שלב בתהליך">
-                  <input
-                    className="input"
-                    list="pipeline-stages"
-                    value={data.pipeline_stage}
-                    onChange={(e) => patch({ pipeline_stage: e.target.value })}
-                    placeholder="לדוגמה: הדגמת מוצר"
-                  />
-                  <datalist id="pipeline-stages">
-                    {PIPELINE_STAGES.map((s) => (
-                      <option key={s} value={s} />
+                  <select className="input" value={data.pipeline_stage} onChange={(e) => patch({ pipeline_stage: e.target.value })}>
+                    <option value="">לא הוגדר</option>
+                    {(stageNames.includes(data.pipeline_stage) || !data.pipeline_stage ? stageNames : [data.pipeline_stage, ...stageNames]).map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
                     ))}
-                  </datalist>
+                  </select>
+                </Field>
+                <Field label="הצעד הבא">
+                  <input className="input" dir="auto" value={data.next_step} onChange={(e) => patch({ next_step: e.target.value })} placeholder="לדוגמה: להציג את המערכת בישיבת המחלקה" />
                 </Field>
                 <Field label="תאריך צעד הבא">
                   <input

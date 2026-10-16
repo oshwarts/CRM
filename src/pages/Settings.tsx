@@ -1,3 +1,4 @@
+import { PipelineStagesSettings } from '../components/PipelineStagesSettings'
 import { RobotLinks } from '../components/RobotLinks'
 import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthProvider'
@@ -98,6 +99,7 @@ export default function Settings() {
               useUpsert={useUpsertOrganization}
               useDelete={useDeleteOrganization}
             />
+            <PipelineStagesSettings />
             <SimpleListSettings
               title="מערכות רובוטיקה"
               placeholder="MAKO / VELYS / ROSA…"

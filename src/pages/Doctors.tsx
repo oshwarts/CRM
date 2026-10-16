@@ -12,7 +12,8 @@ import { TaskFormModal } from '../components/TaskFormModal'
 import { whatsappNumber } from '../components/QuickContact'
 import { SmartContactImport } from '../components/SmartContactImport'
 import { EmptyState, ErrorState, Spinner } from '../components/ui'
-import { CURRENT_YEAR, DOCTOR_STATUS_LABELS, PIPELINE_STAGES } from '../lib/types'
+import { CURRENT_YEAR, DOCTOR_STATUS_LABELS } from '../lib/types'
+import { usePipelineStages, useStageSince } from '../lib/pipeline'
 import { classNames, formatDate, isOverdue } from '../lib/utils'
 
 const norm = (s: string) => s.toLowerCase().replace(/["'`.׳״‘’“”]/g, '').replace(/[-־]/g, ' ').replace(/\s+/g, ' ').trim()
@@ -23,10 +24,11 @@ const SORTS: Record<string, { label: string; cmp: (a: DoctorRow, b: DoctorRow) =
   need: { label: 'צריכים קשר קודם', cmp: (a, b) => NEED_RANK[a.need] - NEED_RANK[b.need] || (b.daysSince ?? 9999) - (a.daysSince ?? 9999) },
   last: { label: 'פגישה אחרונה — הישן קודם', cmp: (a, b) => (b.daysSince ?? 9999) - (a.daysSince ?? 9999) },
   surgeries: { label: 'ניתוחים — הרבה קודם', cmp: (a, b) => b.surgeries - a.surgeries || a.d.name.localeCompare(b.d.name, 'he') },
-  stage: { label: 'שלב במשפך', cmp: (a, b) => PIPELINE_STAGES.indexOf(b.d.pipeline_stage as never) - PIPELINE_STAGES.indexOf(a.d.pipeline_stage as never) || a.d.name.localeCompare(b.d.name, 'he') },
 }
 
 type Only = '' | 'need' | 'missing' | 'fav'
+
+const daysFrom = (iso: string) => Math.round((Date.now() - new Date(`${iso}T12:00:00`).getTime()) / 86_400_000)
 
 function NeedChip({ row }: { row: DoctorRow }) {
   const { need, contact, daysSince } = row
@@ -65,7 +67,7 @@ function ContactCell({ row }: { row: DoctorRow }) {
   )
 }
 
-function StatusCell({ row, cases }: { row: DoctorRow; cases?: number }) {
+function StatusCell({ row, cases, since }: { row: DoctorRow; cases?: number; since?: string }) {
   const patch = usePatchDoctor()
   const potential = row.d.status === 'potential'
   return (
@@ -82,8 +84,15 @@ function StatusCell({ row, cases }: { row: DoctorRow; cases?: number }) {
           </option>
         ))}
       </select>
-      {potential && row.d.pipeline_stage && <p className="text-[11px] text-brand-700">שלב: {row.d.pipeline_stage}</p>}
+      {potential && (
+        <p className="text-[11px] text-brand-700">
+          {row.d.pipeline_stage ? `שלב: ${row.d.pipeline_stage}` : <span className="text-amber-700">לא נקבע שלב</span>}
+          {since && row.d.pipeline_stage ? ` · ${daysFrom(since)} ימים` : ''}
+        </p>
+      )}
       {potential && cases != null && cases > 0 && <p className="text-[11px] text-slate-600">מקרים {CURRENT_YEAR}: {cases}</p>}
+      {potential && row.d.next_step && <p className="text-[11px] text-slate-700">← {row.d.next_step}</p>}
+      {potential && !row.d.next_step && !row.d.next_step_date && <p className="text-[11px] text-amber-700">אין צעד הבא</p>}
       {potential && row.d.next_step_date && (
         <p className={classNames('text-[11px]', isOverdue(row.d.next_step_date) ? 'font-semibold text-red-600' : 'text-slate-500')}>צעד הבא: {formatDate(row.d.next_step_date)}</p>
       )}
@@ -145,6 +154,8 @@ export default function Doctors() {
   const planned = usePlannedSurgeries()
   const intel = useCompetitorIntel()
   const pipeline = usePipelineDoctors()
+  const { names: stageNames } = usePipelineStages()
+  const stageSince = useStageSince()
   const companies = useCompanies()
   const systems = useRoboticSystems()
   const procedures = useProcedures()
@@ -228,8 +239,10 @@ export default function Doctors() {
       if (words.length && !words.every((w) => norm(`${d.title} ${d.name} ${d.position} ${r.hospitals.join(' ')}`).includes(w))) return false
       return true
     })
-    return [...list].sort((SORTS[sort] ?? SORTS.name).cmp)
-  }, [rows, q, status, stage, companyId, procedureId, hospitalId, robotId, only, sort, favSet])
+    // by stage: the managers' order of the stages, the furthest first
+    const byStage = (a: DoctorRow, b: DoctorRow) => stageNames.indexOf(b.d.pipeline_stage) - stageNames.indexOf(a.d.pipeline_stage) || a.d.name.localeCompare(b.d.name, 'he')
+    return [...list].sort(sort === 'stage' ? byStage : (SORTS[sort] ?? SORTS.name).cmp)
+  }, [rows, q, status, stage, companyId, procedureId, hospitalId, robotId, only, sort, favSet, stageNames])
 
   const anyFilter = !!(q || status || stage || companyId || procedureId || hospitalId || robotId || only)
   const clearAll = () => {
@@ -351,7 +364,7 @@ export default function Doctors() {
           {status === 'potential' && (
             <select className="input !w-auto" value={stage} aria-label="שלב במשפך" onChange={(e) => setStage(e.target.value)}>
               <option value="">כל השלבים</option>
-              {PIPELINE_STAGES.map((s) => (
+              {stageNames.map((s) => (
                 <option key={s}>{s}</option>
               ))}
             </select>
@@ -364,7 +377,7 @@ export default function Doctors() {
             ))}
           </select>
           <select className="input !w-auto" value={sort} aria-label="מיון" onChange={(e) => setSort(e.target.value)}>
-            {Object.entries(SORTS).map(([k, s]) => (
+            {[...Object.entries(SORTS), ['stage', { label: 'שלב במשפך — המתקדם קודם' }] as [string, { label: string }]].map(([k, s]) => (
               <option key={k} value={k}>
                 מיון: {s.label}
               </option>
@@ -415,7 +428,7 @@ export default function Doctors() {
                       <Name row={r} />
                     </td>
                     <td className="p-2.5">
-                      <StatusCell row={r} cases={casesNow.get(r.d.id)} />
+                      <StatusCell row={r} cases={casesNow.get(r.d.id)} since={stageSince.data?.get(r.d.id)?.since} />
                     </td>
                     <td className="p-2.5 text-xs text-slate-600">
                       {r.robots.length > 0 && <p>רובוט: {r.robots.join(' · ')}</p>}
@@ -441,7 +454,7 @@ export default function Doctors() {
             {shown.map((r) => (
               <li key={r.d.id} className="card space-y-2.5 p-3.5">
                 <Name row={r} />
-                <StatusCell row={r} cases={casesNow.get(r.d.id)} />
+                <StatusCell row={r} cases={casesNow.get(r.d.id)} since={stageSince.data?.get(r.d.id)?.since} />
                 <ContactCell row={r} />
                 <dl className="grid grid-cols-2 gap-2 text-center text-xs">
                   <div className="rounded-xl bg-slate-50 p-2">

@@ -139,6 +139,7 @@ export type Database = {
           email: string
           id: string
           name: string
+          next_step: string
           next_step_date: string | null
           notes: string
           phone: string
@@ -156,6 +157,7 @@ export type Database = {
           email?: string
           id?: string
           name: string
+          next_step?: string
           next_step_date?: string | null
           notes?: string
           phone?: string
@@ -173,6 +175,7 @@ export type Database = {
           email?: string
           id?: string
           name?: string
+          next_step?: string
           next_step_date?: string | null
           notes?: string
           phone?: string

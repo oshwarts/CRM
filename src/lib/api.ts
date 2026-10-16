@@ -230,6 +230,7 @@ export type DoctorFormData = {
   status: string
   tracking_notes: string
   pipeline_stage: string
+  next_step: string
   next_step_date: string | null
   contact_cadence_days: number | null
   companyIds: string[]
@@ -292,6 +293,7 @@ export function useCreateDoctor() {
         status: d.status,
         tracking_notes: d.tracking_notes,
         pipeline_stage: d.pipeline_stage,
+        next_step: d.next_step,
         next_step_date: d.next_step_date,
         contact_cadence_days: d.contact_cadence_days,
         created_by: actingId,
@@ -322,6 +324,7 @@ export function useUpdateDoctor(id: string) {
         status: d.status,
         tracking_notes: d.tracking_notes,
         pipeline_stage: d.pipeline_stage,
+        next_step: d.next_step,
         next_step_date: d.next_step_date,
         contact_cadence_days: d.contact_cadence_days,
       }
