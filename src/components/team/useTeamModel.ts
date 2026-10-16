@@ -3,7 +3,7 @@ import { useAgents, useProcedures } from '../../lib/api'
 import { useAgentGoals, useMetricData, useTraining, useTrainingStages } from '../../lib/agentsApi'
 import { monthPeriod, quarterPeriod } from '../../lib/agentMetrics'
 import { buildTeamModel, type TeamModel } from '../../lib/teamStats'
-import { usePipelineStages, useStageHistoryAll } from '../../lib/pipeline'
+import { usePipelineStages, useStageHistoryAll, useStuckThresholds } from '../../lib/pipeline'
 
 export type PeriodKind = 'month' | 'quarter'
 
@@ -17,6 +17,7 @@ export function useTeamModel(kind: PeriodKind, offset: number): { model: TeamMod
   const { data, loading: dataLoading } = useMetricData()
   const { names: pipelineStages } = usePipelineStages()
   const stageHistory = useStageHistoryAll()
+  const stuckThresholds = useStuckThresholds()
   const loading = dataLoading || [agents, goals, procedures, stages, training].some((q) => q.isLoading)
 
   const model = useMemo(() => {
@@ -33,8 +34,9 @@ export function useTeamModel(kind: PeriodKind, offset: number): { model: TeamMod
       procedures: procedures.data ?? [],
       pipelineStages,
       stageHistory: stageHistory.data ?? [],
+      stuckThresholds,
     })
-  }, [loading, data, kind, offset, agents.data, goals.data, stages.data, training.data, procedures.data, pipelineStages, stageHistory.data])
+  }, [loading, data, kind, offset, agents.data, goals.data, stages.data, training.data, procedures.data, pipelineStages, stageHistory.data, stuckThresholds])
 
   return { model, loading }
 }

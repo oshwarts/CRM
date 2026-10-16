@@ -5,7 +5,7 @@ import { scopeState, stagesOf } from './training'
 import { PIPELINE_STAGES } from './types'
 import type { AgentGoal, AgentTraining, Procedure, Profile, TrainingStage } from './types'
 import { todayISO } from './utils'
-import { funnelStats, lostSummary, stageSinceMap, stuckPotentials, type HistoryRow, type StageStat } from './pipelineStats'
+import { funnelStats, lostSummary, stageSinceMap, stuckPotentials, type HistoryRow, type StageStat, type StuckThresholds } from './pipelineStats'
 
 export type Level = 'red' | 'amber'
 export type Attention = { level: Level; text: string }
@@ -69,6 +69,8 @@ export function buildTeamModel(input: {
   pipelineStages?: string[]
   /** every recorded change of stage of the potential doctors */
   stageHistory?: HistoryRow[]
+  /** after how many days in a stage a potential doctor counts as stuck */
+  stuckThresholds?: StuckThresholds
   months?: number
 }): TeamModel {
   const { period, prevPeriod, data, goals, stages, training, procedures } = input
@@ -167,7 +169,7 @@ export function buildTeamModel(input: {
   const history = input.stageHistory ?? []
   const pipeline = {
     stats: funnelStats(stageNames, history),
-    stuck: stuckPotentials(data.doctors, stageSinceMap(history)).length,
+    stuck: stuckPotentials(data.doctors, stageSinceMap(history), input.stuckThresholds).length,
     lost: lostSummary(data.doctors),
   }
 

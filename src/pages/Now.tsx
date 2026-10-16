@@ -9,7 +9,7 @@ import { rescanAlert, weekMissing } from '../lib/scanAlerts'
 import { SCAN_PROCEDURE_LABELS } from '../lib/types'
 import { classNames, daysUntil, formatDate, plusDaysISO, todayISO } from '../lib/utils'
 import { Spinner } from '../components/ui'
-import { useStageHistoryAll } from '../lib/pipeline'
+import { useStageHistoryAll, useStuckThresholds } from '../lib/pipeline'
 import { stageSinceMap, stuckPotentials } from '../lib/pipelineStats'
 
 type Item = { key: string; to: string; icon: React.ReactNode; title: string; sub: string; when: string }
@@ -32,6 +32,7 @@ export default function Now() {
   const competitorIntel = useCompetitorIntel()
   const myHospitals = useMyHospitalIds()
   const stageHistory = useStageHistoryAll()
+  const stuckThresholds = useStuckThresholds()
   const { isAdmin } = useAuth()
   const loading = [tasks, meetings, scans, doctors].some((q) => q.isLoading)
 
@@ -129,7 +130,7 @@ export default function Now() {
 
     // potential doctors that need a push: no stage or next step, a late next step, too long in one stage
     const myDoctors = (doctors.data ?? []).filter((d) => isAdmin || d.created_by === user?.id || d.doctor_hospitals.some((h) => (myHospitals ?? []).includes(h.hospital_id)))
-    const stuck: Item[] = stuckPotentials(myDoctors, stageSinceMap(stageHistory.data ?? [])).map(({ d, reasons }) => ({
+    const stuck: Item[] = stuckPotentials(myDoctors, stageSinceMap(stageHistory.data ?? []), stuckThresholds).map(({ d, reasons }) => ({
       key: `p${d.id}`,
       to: `/doctors/${d.id}`,
       icon: <Target size={16} />,
@@ -147,7 +148,7 @@ export default function Now() {
       { id: 'competitors', title: 'הזדמנויות מול מתחרים', tone: 'amber', items: opportunities },
     ]
     return out.filter((g) => g.items.length > 0)
-  }, [tasks.data, meetings.data, scans.data, doctors.data, favorites.data, competitorIntel.data, stageHistory.data, myHospitals, isAdmin, user?.id])
+  }, [tasks.data, meetings.data, scans.data, doctors.data, favorites.data, competitorIntel.data, stageHistory.data, stuckThresholds, myHospitals, isAdmin, user?.id])
 
   const total = groups.reduce((n, g) => n + g.items.length, 0)
 

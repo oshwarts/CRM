@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react'
 import { Check, ChevronDown, Flag, ListPlus, RotateCcw, XCircle } from 'lucide-react'
-import { useSetDoctorPipeline, useStageHistory, usePipelineStages } from '../lib/pipeline'
+import { useSetDoctorPipeline, useStageHistory, usePipelineStages, useStuckThresholds } from '../lib/pipeline'
 import { toast } from '../lib/toast'
-import { classNames, daysUntil, formatDate, isOverdue } from '../lib/utils'
+import { classNames, daysUntil, formatDate, isOverdue, todayISO } from '../lib/utils'
 import { QuickDates } from './QuickDates'
 import { TaskFormModal } from './TaskFormModal'
-import { LOST_REASONS } from '../lib/pipelineStats'
+import { LOST_REASONS, stuckDaysOf } from '../lib/pipelineStats'
 
 /** a potential doctor's place in the funnel: the stage (tap a stage to move him), the next step, how long he has been in the stage, the history */
 export function DoctorPipeline({ doctor }: { doctor: { id: string; pipeline_stage: string; next_step: string; next_step_date: string | null; status: string; lost_reason?: string; lost_at?: string | null } }) {
   const { stages, names, won } = usePipelineStages()
   const history = useStageHistory(doctor.id)
+  const thresholds = useStuckThresholds()
   const set = useSetDoctorPipeline()
   const [step, setStep] = useState(doctor.next_step ?? '')
   const [date, setDate] = useState(doctor.next_step_date ?? '')
@@ -47,7 +48,7 @@ export function DoctorPipeline({ doctor }: { doctor: { id: string; pipeline_stag
 
   function close() {
     const r = reason.trim()
-    set.mutate({ id: doctor.id, status: 'lost', lost_reason: r, lost_at: new Date().toISOString().slice(0, 10) }, { onSuccess: () => (setClosing(false), toast('הרופא נסגר כלא רלוונטי', { action: { label: 'ביטול', run: () => set.mutate({ id: doctor.id, status: 'potential', lost_reason: '', lost_at: null }) } })) })
+    set.mutate({ id: doctor.id, status: 'lost', lost_reason: r, lost_at: todayISO() }, { onSuccess: () => (setClosing(false), toast('הרופא נסגר כלא רלוונטי', { action: { label: 'ביטול', run: () => set.mutate({ id: doctor.id, status: 'potential', lost_reason: '', lost_at: null }) } })) })
   }
 
   if (doctor.status === 'lost')
@@ -72,7 +73,7 @@ export function DoctorPipeline({ doctor }: { doctor: { id: string; pipeline_stag
           <Flag size={16} /> משפך — באיזה שלב הרופא ומה הצעד הבא
         </h2>
         {current && (
-          <span className={classNames('text-xs', daysIn != null && daysIn > 30 ? 'font-semibold text-amber-700' : 'text-slate-500')}>
+          <span className={classNames('text-xs', daysIn != null && daysIn > stuckDaysOf(thresholds, current) ? 'font-semibold text-amber-700' : 'text-slate-500')}>
             {daysIn != null ? `${daysIn === 0 ? 'נכנס לשלב היום' : `${daysIn} ימים בשלב`}` : ''}
           </span>
         )}

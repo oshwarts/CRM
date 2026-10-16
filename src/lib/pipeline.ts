@@ -5,11 +5,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 import { PIPELINE_STAGES } from './types'
-import type { HistoryRow } from './pipelineStats'
+import { STUCK_STAGE_DAYS, type HistoryRow, type StuckThresholds } from './pipelineStats'
+import { useAppSetting } from './api'
 
 const db = supabase as unknown as SupabaseClient
 
-export type PipelineStage = { id: string; name: string; sort: number; is_won: boolean; suggested_step: string }
+export type PipelineStage = { id: string; name: string; sort: number; is_won: boolean; suggested_step: string; stuck_days: number | null }
 
 const STAGES_KEY = ['pipeline-stages']
 
@@ -31,7 +32,7 @@ export function usePipelineStages() {
 export function useSaveStage() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (s: { id?: string; name: string; sort?: number; is_won?: boolean; suggested_step?: string }) => {
+    mutationFn: async (s: { id?: string; name: string; sort?: number; is_won?: boolean; suggested_step?: string; stuck_days?: number | null }) => {
       const { id, ...rest } = s
       const name = rest.name.trim()
       if (!name) throw new Error('כתוב שם לשלב')
@@ -46,6 +47,7 @@ export function useSaveStage() {
         if (rest.sort !== undefined) patch.sort = rest.sort
         if (rest.is_won !== undefined) patch.is_won = rest.is_won
         if (rest.suggested_step !== undefined) patch.suggested_step = rest.suggested_step.trim()
+        if (rest.stuck_days !== undefined) patch.stuck_days = rest.stuck_days
         if (Object.keys(patch).length > 0) {
           const { error } = await db.from('pipeline_stages').update(patch).eq('id', id)
           if (error) throw error
@@ -167,4 +169,18 @@ export function useStageHistoryAll() {
       return (data ?? []) as HistoryRow[]
     },
   })
+}
+
+export const STUCK_SETTING_KEY = 'pipeline.stuck_days'
+
+/** after how many days in one stage a potential doctor counts as stuck: the managers' default and the value of each stage */
+export function useStuckThresholds(): StuckThresholds {
+  const { stages } = usePipelineStages()
+  const setting = useAppSetting(STUCK_SETTING_KEY)
+  return useMemo(() => {
+    const n = Number(setting.data)
+    const byStage = new Map<string, number>()
+    for (const st of stages) if (st.stuck_days) byStage.set(st.name, st.stuck_days)
+    return { defaultDays: Number.isFinite(n) && n >= 1 ? n : STUCK_STAGE_DAYS, byStage } satisfies StuckThresholds
+  }, [setting.data, stages])
 }

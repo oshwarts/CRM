@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ArrowDown, ArrowUp, Check, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useDoctors } from '../lib/api'
-import { useDeleteStage, useMoveStage, useSaveStage, useSetWonStage, usePipelineStages, type PipelineStage } from '../lib/pipeline'
+import { useDeleteStage, useMoveStage, useSaveStage, useSetWonStage, usePipelineStages, useStuckThresholds, STUCK_SETTING_KEY, type PipelineStage } from '../lib/pipeline'
+import { useSaveAppSetting } from '../lib/api'
 import { toast } from '../lib/toast'
 import { classNames } from '../lib/utils'
 import { Spinner } from './ui'
@@ -13,6 +14,7 @@ function StageRow({ stage, index, last, count, others, onMove }: { stage: Pipeli
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(stage.name)
   const [hint, setHint] = useState(stage.suggested_step ?? '')
+  const [stuck, setStuck] = useState(stage.stuck_days ? String(stage.stuck_days) : '')
 
   async function remove() {
     let moveTo = ''
@@ -32,12 +34,14 @@ function StageRow({ stage, index, last, count, others, onMove }: { stage: Pipeli
       {editing ? (
         <div className="flex min-w-0 flex-1 flex-wrap gap-2">
           <input className="input !w-auto max-w-xs flex-1" value={name} autoFocus aria-label="שם השלב" onChange={(e) => setName(e.target.value)} />
+          <input className="input !w-24" type="number" min={1} max={365} inputMode="numeric" value={stuck} aria-label="תקוע אחרי כמה ימים (ריק = ברירת המחדל)" placeholder="ימים" title="תקוע אחרי כמה ימים בשלב הזה (ריק = ברירת המחדל)" onChange={(e) => setStuck(e.target.value)} />
           <input className="input !w-auto min-w-48 flex-1" value={hint} aria-label="צעד הבא מוצע בשלב" placeholder="צעד הבא מוצע בשלב הזה" onChange={(e) => setHint(e.target.value)} />
         </div>
       ) : (
         <span className="min-w-0 flex-1 font-medium text-slate-800">
           {stage.name} <span className="mr-1 text-xs font-normal text-slate-400">{count} רופאים</span>
           {stage.suggested_step && <span className="block text-xs font-normal text-slate-500">צעד מוצע: {stage.suggested_step}</span>}
+          {stage.stuck_days ? <span className="block text-xs font-normal text-slate-500">תקוע אחרי {stage.stuck_days} ימים בשלב</span> : null}
           {stage.is_won && <span className="chip mr-1 border-emerald-200 bg-emerald-50 !py-0 text-emerald-700">הפך ללקוח</span>}
         </span>
       )}
@@ -47,11 +51,11 @@ function StageRow({ stage, index, last, count, others, onMove }: { stage: Pipeli
             type="button"
             className="btn-ghost !px-2 text-brand-600"
             disabled={!name.trim() || save.isPending}
-            onClick={() => save.mutate({ id: stage.id, name, suggested_step: hint }, { onSuccess: () => setEditing(false), onError: (e) => toast(e instanceof Error ? e.message : 'השמירה נכשלה', { kind: 'error' }) })}
+            onClick={() => save.mutate({ id: stage.id, name, suggested_step: hint, stuck_days: stuck.trim() ? Math.min(365, Math.max(1, Math.floor(Number(stuck)) || 1)) : null }, { onSuccess: () => setEditing(false), onError: (e) => toast(e instanceof Error ? e.message : 'השמירה נכשלה', { kind: 'error' }) })}
           >
             <Check size={15} /> שמור
           </button>
-          <button type="button" className="btn-ghost !px-2 text-slate-500" onClick={() => (setName(stage.name), setHint(stage.suggested_step ?? ''), setEditing(false))}>
+          <button type="button" className="btn-ghost !px-2 text-slate-500" onClick={() => (setName(stage.name), setHint(stage.suggested_step ?? ''), setStuck(stage.stuck_days ? String(stage.stuck_days) : ''), setEditing(false))}>
             ביטול
           </button>
         </>
@@ -85,6 +89,11 @@ export function PipelineStagesSettings() {
   const save = useSaveStage()
   const move = useMoveStage()
   const [name, setName] = useState('')
+  const thresholds = useStuckThresholds()
+  const saveSetting = useSaveAppSetting()
+  const [days, setDays] = useState(String(thresholds.defaultDays))
+  useEffect(() => setDays(String(thresholds.defaultDays)), [thresholds.defaultDays])
+  const daysDirty = Number(days) !== thresholds.defaultDays
 
   const counts = new Map<string, number>()
   for (const d of doctors.data ?? []) if (d.status === 'potential' && d.pipeline_stage) counts.set(d.pipeline_stage, (counts.get(d.pipeline_stage) ?? 0) + 1)
@@ -93,6 +102,17 @@ export function PipelineStagesSettings() {
     <div className="card p-5">
       <h3 className="mb-1 font-semibold text-slate-800">שלבי המשפך של רופאים פוטנציאליים</h3>
       <p className="mb-3 text-xs text-slate-500">הסדר כאן הוא הסדר במשפך. שינוי שם של שלב מעדכן את כל הרופאים שנמצאים בו. מחיקת שלב מעבירה את הרופאים לשלב אחר.</p>
+      <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl bg-slate-50 p-3 text-sm">
+        <span className="text-slate-700">רופא פוטנציאלי נחשב תקוע אחרי</span>
+        <input type="number" min={1} max={365} inputMode="numeric" className="input !w-20 text-center" aria-label="ימים לתקוע — ברירת מחדל" value={days} onChange={(e) => setDays(e.target.value)} />
+        <span className="text-slate-700">ימים באותו שלב.</span>
+        {daysDirty && (
+          <button type="button" className="btn-primary !py-1" disabled={saveSetting.isPending || !(Number(days) >= 1)} onClick={() => saveSetting.mutate({ key: STUCK_SETTING_KEY, value: String(Math.min(365, Math.max(1, Math.floor(Number(days))))) }, { onSuccess: () => toast('הסף עודכן') })}>
+            שמירה
+          </button>
+        )}
+        <span className="w-full text-xs text-slate-500">אפשר להגדיר סף אחר לשלב מסוים בעריכת השלב (העיפרון).</span>
+      </div>
       <form
         className="mb-3 flex gap-2"
         onSubmit={(e) => {

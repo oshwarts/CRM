@@ -3,6 +3,11 @@ import { todayISO } from './utils'
 
 export const STUCK_STAGE_DAYS = 30
 
+/** how long in a stage counts as stuck: a default and a value of its own for some stages */
+export type StuckThresholds = { defaultDays: number; byStage: Map<string, number> }
+export const DEFAULT_THRESHOLDS: StuckThresholds = { defaultDays: STUCK_STAGE_DAYS, byStage: new Map() }
+export const stuckDaysOf = (t: StuckThresholds, stage: string) => t.byStage.get(stage) ?? t.defaultDays
+
 /** the usual reasons for closing a potential doctor (a free text can be added) */
 export const LOST_REASONS = ['בחר מתחרה', 'אין תקציב', 'לא מעוניין ברובוט', 'עבר מקום עבודה', 'לא פעיל בניתוחים']
 
@@ -35,7 +40,7 @@ export function stageSinceMap(history: HistoryRow[]): Map<string, { stage: strin
 }
 
 /** potential doctors that need a push: no stage, no next step, a next step whose date passed, or too long in one stage */
-export function stuckPotentials(doctors: DoctorLike[], since: Map<string, { stage: string; since: string }>, maxDays = STUCK_STAGE_DAYS): StuckDoctor[] {
+export function stuckPotentials(doctors: DoctorLike[], since: Map<string, { stage: string; since: string }>, thresholds: StuckThresholds = DEFAULT_THRESHOLDS): StuckDoctor[] {
   const today = todayISO()
   const out: StuckDoctor[] = []
   for (const d of doctors) {
@@ -46,7 +51,7 @@ export function stuckPotentials(doctors: DoctorLike[], since: Map<string, { stag
     if (!d.pipeline_stage) reasons.push({ key: 'no-stage', label: 'לא נקבע שלב' })
     if (!d.next_step && !d.next_step_date) reasons.push({ key: 'no-step', label: 'אין צעד הבא' })
     if (d.next_step_date && d.next_step_date < today) reasons.push({ key: 'overdue', label: `הצעד הבא באיחור ${days(d.next_step_date, today)} ימים` })
-    if (inStage !== null && inStage > maxDays) reasons.push({ key: 'long', label: `${inStage} ימים באותו שלב` })
+    if (inStage !== null && inStage > stuckDaysOf(thresholds, d.pipeline_stage)) reasons.push({ key: 'long', label: `${inStage} ימים באותו שלב` })
     if (reasons.length > 0) out.push({ d, reasons, daysInStage: inStage })
   }
   // the most reasons first, then the longest in the stage
