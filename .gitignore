@@ -31,3 +31,6 @@ Data/
 
 # generated documents for sending (may hold internal security details)
 exports/
+
+# TypeScript incremental build cache
+*.tsbuildinfo

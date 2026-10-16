@@ -14,7 +14,7 @@ import { SmartContactImport } from '../components/SmartContactImport'
 import { EmptyState, ErrorState, Spinner } from '../components/ui'
 import { CURRENT_YEAR, DOCTOR_STATUS_LABELS } from '../lib/types'
 import { usePipelineStages, useStageSince } from '../lib/pipeline'
-import { classNames, formatDate, isOverdue } from '../lib/utils'
+import { classNames, formatDate, isOverdue, todayISO } from '../lib/utils'
 
 const norm = (s: string) => s.toLowerCase().replace(/["'`.׳״‘’“”]/g, '').replace(/[-־]/g, ' ').replace(/\s+/g, ' ').trim()
 
@@ -82,7 +82,7 @@ function StatusCell({ row, cases, since }: { row: DoctorRow; cases?: number; sin
           if (v === 'lost') {
             const reason = window.prompt('למה הרופא לא רלוונטי? (למשל: בחר מתחרה, אין תקציב)', '')
             if (reason === null) return
-            patch.mutate({ id: row.d.id, status: v, lost_reason: reason.trim(), lost_at: new Date().toISOString().slice(0, 10) })
+            patch.mutate({ id: row.d.id, status: v, lost_reason: reason.trim(), lost_at: todayISO() })
           } else patch.mutate({ id: row.d.id, status: v, ...(row.d.status === 'lost' ? { lost_reason: '', lost_at: null } : {}) })
         }}
       >

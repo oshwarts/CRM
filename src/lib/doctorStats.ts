@@ -17,11 +17,13 @@ export const WINDOWS: { days: number; label: string }[] = [
   { days: 365, label: 'שנה' },
 ]
 
-export const LOYALTY_SHORT: Record<string, string> = { loyal: 'נאמן למתחרה', leaning: 'נוטה למתחרה', open: 'פתוח' }
+// the same meaning as in the competitor record (lib/competitors.ts): loyal = loyal to the competitor, open = open to a switch,
+// leaning = leaning towards US (green)
+export const LOYALTY_SHORT: Record<string, string> = { loyal: 'נאמן למתחרה', open: 'פתוח למעבר', leaning: 'נוטה אלינו' }
 export const LOYALTY_CHIP: Record<string, string> = {
   loyal: 'border-red-200 bg-red-50 text-red-700',
-  leaning: 'border-amber-200 bg-amber-50 text-amber-700',
-  open: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  open: 'border-amber-200 bg-amber-50 text-amber-700',
+  leaning: 'border-emerald-200 bg-emerald-50 text-emerald-700',
 }
 
 export type Need = 'due' | 'stale' | 'soon' | ''
