@@ -10,7 +10,7 @@ import { todayISO } from './utils'
 export type CommercialStatus = 'client' | 'onboarding' | 'potential' | 'competitor' | 'irrelevant'
 
 export const STATUS_LABELS: Record<CommercialStatus, string> = {
-  client: 'לקוח MAKO',
+  client: 'לקוח',
   onboarding: 'בהקמה / בתהליך',
   potential: 'פוטנציאלי',
   competitor: 'מתחרה בלבד',

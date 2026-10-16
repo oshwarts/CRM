@@ -178,7 +178,7 @@ export default function Hospitals() {
 
       <div className="grid grid-cols-3 gap-2 lg:grid-cols-6">
         {kpi('בתי חולים', counts.all, !filtered, () => setF(NO_FILTERS))}
-        {kpi('לקוחות MAKO', counts.client, f.status === 'client', () => set({ status: f.status === 'client' ? '' : 'client' }))}
+        {kpi('לקוחות', counts.client, f.status === 'client', () => set({ status: f.status === 'client' ? '' : 'client' }))}
         {kpi('פוטנציאליים', counts.potential, f.status === 'potential', () => set({ status: f.status === 'potential' ? '' : 'potential' }))}
         {kpi(`ללא ביקור ${NO_VISIT_DAYS} יום`, counts.noVisit, f.warn === 'no-visit', () => set({ warn: f.warn === 'no-visit' ? '' : 'no-visit' }), true)}
         {kpi('ללא סוכן מטפל', counts.noAgent, f.warn === 'no-agent', () => set({ warn: f.warn === 'no-agent' ? '' : 'no-agent' }), true)}
@@ -349,7 +349,7 @@ export default function Hospitals() {
             )}
             {counts.attention > 0 && (
               <p className="flex items-center gap-1.5 text-xs text-slate-400">
-                <AlertTriangle size={12} /> "דורש תשומת לב": ללא ביקור יותר מ-{NO_VISIT_DAYS} יום, ללא סוכן מטפל או איש קשר, או לקוח MAKO בלי ניתוחים ב-30 הימים האחרונים.
+                <AlertTriangle size={12} /> "דורש תשומת לב": ללא ביקור יותר מ-{NO_VISIT_DAYS} יום, ללא סוכן מטפל או איש קשר, או לקוח בלי ניתוחים ב-30 הימים האחרונים.
               </p>
             )}
           </div>
