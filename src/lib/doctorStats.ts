@@ -96,7 +96,7 @@ export function buildDoctorRows(input: {
 export function usePatchDoctor() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, ...patch }: { id: string; status?: string; contact_cadence_days?: number | null }) => {
+    mutationFn: async ({ id, ...patch }: { id: string; status?: string; contact_cadence_days?: number | null; lost_reason?: string; lost_at?: string | null }) => {
       const { error } = await supabase.from('doctors').update(patch).eq('id', id)
       if (error) throw error
     },

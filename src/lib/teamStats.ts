@@ -5,6 +5,7 @@ import { scopeState, stagesOf } from './training'
 import { PIPELINE_STAGES } from './types'
 import type { AgentGoal, AgentTraining, Procedure, Profile, TrainingStage } from './types'
 import { todayISO } from './utils'
+import { funnelStats, lostSummary, stageSinceMap, stuckPotentials, type HistoryRow, type StageStat } from './pipelineStats'
 
 export type Level = 'red' | 'amber'
 export type Attention = { level: Level; text: string }
@@ -35,6 +36,8 @@ export type TeamModel = {
   series: MonthPoint[]
   funnel: { stage: string; count: number }[]
   potentialTotal: number
+  /** the funnel in numbers: how many reach each stage, the share that moves on, the time in a stage, the doctors that need a push, the ones closed as not relevant */
+  pipeline: { stats: StageStat[]; stuck: number; lost: { count: number; reasons: [string, number][] } }
   /** potential doctors in the last two stages (negotiation, closing) */
   closing: number
   attention: { agent: Profile; level: Level; text: string }[]
@@ -64,6 +67,8 @@ export function buildTeamModel(input: {
   procedures: Procedure[]
   /** the stages of the funnel, in order (the managers edit them) */
   pipelineStages?: string[]
+  /** every recorded change of stage of the potential doctors */
+  stageHistory?: HistoryRow[]
   months?: number
 }): TeamModel {
   const { period, prevPeriod, data, goals, stages, training, procedures } = input
@@ -158,6 +163,13 @@ export function buildTeamModel(input: {
   const potential = data.doctors.filter((d) => d.status === 'potential')
   const funnel = (input.pipelineStages ?? [...PIPELINE_STAGES]).map((stage) => ({ stage: stage as string, count: potential.filter((d) => d.pipeline_stage === stage).length }))
   const closing = funnel.slice(-2).reduce((s, f) => s + f.count, 0)
+  const stageNames = funnel.map((f) => f.stage)
+  const history = input.stageHistory ?? []
+  const pipeline = {
+    stats: funnelStats(stageNames, history),
+    stuck: stuckPotentials(data.doctors, stageSinceMap(history)).length,
+    lost: lostSummary(data.doctors),
+  }
 
   const attention = rows
     .flatMap((r) => r.attention.map((a) => ({ agent: r.agent, ...a })))
@@ -183,10 +195,11 @@ export function buildTeamModel(input: {
     const met = rows.filter((r) => (r.goalsAvg ?? 0) >= 80).length
     summary.push(`עמידה ממוצעת ביעדים: ${goalsNow}%${met > 0 ? `; ${met} מתוך ${rows.filter((r) => r.goalsCount > 0).length} סוכנים מעל 80%` : ''}.`)
   }
-  summary.push(`בפיפליין ${potential.length} רופאים פוטנציאליים, ${closing} מהם בשלבי משא ומתן וסגירה.`)
+  summary.push(`בפיפליין ${potential.length} רופאים פוטנציאליים, ${closing} מהם בשלבי משא ומתן וסגירה${pipeline.stuck > 0 ? `; ${pipeline.stuck} מהם דורשים דחיפה (תקועים, בלי צעד הבא או באיחור)` : ''}.`)
+  if (pipeline.lost.count > 0) summary.push(`${pipeline.lost.count} רופאים נסגרו כלא רלוונטיים${pipeline.lost.reasons[0] ? `, הסיבה השכיחה: ${pipeline.lost.reasons[0][0]}` : ''}.`)
   if (trainingPct != null) summary.push(`${trainingPct}% משלבי ההכשרה הושלמו${kpis.training.stuck > 0 ? `; ${stuckText(kpis.training.stuck)}` : ''}.`)
   const needing = [...new Set(attention.filter((a) => a.level === 'red').map((a) => a.agent.full_name || a.agent.email))]
   summary.push(needing.length > 0 ? `דורשים תשומת לב מיידית: ${needing.join(', ')}.` : 'אין חריגים דחופים בצוות.')
 
-  return { period, prevPeriod, agents: rows, kpis, series, funnel, potentialTotal: potential.length, closing, attention, summary }
+  return { period, prevPeriod, agents: rows, kpis, series, funnel, potentialTotal: potential.length, pipeline, closing, attention, summary }
 }

@@ -5,6 +5,7 @@ import { stuckText, type TeamModel } from '../../lib/teamStats'
 import { formatDate, todayISO } from '../../lib/utils'
 import { BigNumber, FunnelBars, Meter, TrendBars } from './TeamCharts'
 import { Presentation } from './Presentation'
+import { FunnelAnalysis } from './FunnelAnalysis'
 
 /** the report is always printed on white, whatever theme the screen is in */
 function useLightWhilePrinting() {
@@ -150,6 +151,11 @@ export function ManagementReport({ model }: { model: TeamModel }) {
               {reds.length === 0 && model.attention.length > 0 && <p className="mt-1 text-xs text-slate-400">אין חריגים דחופים.</p>}
             </div>
           )}
+        </section>
+
+        <section>
+          <h3 className="mb-1 font-semibold text-brand-800">המשפך במספרים</h3>
+          <FunnelAnalysis model={model} />
         </section>
 
         <footer className="border-t border-slate-200 pt-2 text-[11px] text-slate-400">

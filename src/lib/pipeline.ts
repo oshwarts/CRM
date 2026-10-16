@@ -5,10 +5,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 import { PIPELINE_STAGES } from './types'
+import type { HistoryRow } from './pipelineStats'
 
 const db = supabase as unknown as SupabaseClient
 
-export type PipelineStage = { id: string; name: string; sort: number; is_won: boolean }
+export type PipelineStage = { id: string; name: string; sort: number; is_won: boolean; suggested_step: string }
 
 const STAGES_KEY = ['pipeline-stages']
 
@@ -30,7 +31,7 @@ export function usePipelineStages() {
 export function useSaveStage() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (s: { id?: string; name: string; sort?: number; is_won?: boolean }) => {
+    mutationFn: async (s: { id?: string; name: string; sort?: number; is_won?: boolean; suggested_step?: string }) => {
       const { id, ...rest } = s
       const name = rest.name.trim()
       if (!name) throw new Error('כתוב שם לשלב')
@@ -44,12 +45,13 @@ export function useSaveStage() {
         const patch: Record<string, unknown> = {}
         if (rest.sort !== undefined) patch.sort = rest.sort
         if (rest.is_won !== undefined) patch.is_won = rest.is_won
+        if (rest.suggested_step !== undefined) patch.suggested_step = rest.suggested_step.trim()
         if (Object.keys(patch).length > 0) {
           const { error } = await db.from('pipeline_stages').update(patch).eq('id', id)
           if (error) throw error
         }
       } else {
-        const { error } = await db.from('pipeline_stages').insert({ name, sort: rest.sort ?? 0, is_won: rest.is_won ?? false })
+        const { error } = await db.from('pipeline_stages').insert({ name, sort: rest.sort ?? 0, is_won: rest.is_won ?? false, suggested_step: (rest.suggested_step ?? '').trim() })
         if (error) throw error
       }
     },
@@ -140,7 +142,7 @@ export function useStageSince() {
 export function useSetDoctorPipeline() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, ...patch }: { id: string; pipeline_stage?: string; next_step?: string; next_step_date?: string | null; status?: string }) => {
+    mutationFn: async ({ id, ...patch }: { id: string; pipeline_stage?: string; next_step?: string; next_step_date?: string | null; status?: string; lost_reason?: string; lost_at?: string | null }) => {
       const { error } = await supabase.from('doctors').update(patch).eq('id', id)
       if (error) throw error
     },
@@ -150,6 +152,19 @@ export function useSetDoctorPipeline() {
       qc.invalidateQueries({ queryKey: ['pipeline-doctors'] })
       qc.invalidateQueries({ queryKey: ['stage-history'] })
       qc.invalidateQueries({ queryKey: ['stage-since'] })
+      qc.invalidateQueries({ queryKey: ['stage-history-all'] })
+    },
+  })
+}
+
+/** every recorded change of stage (for the analysis of the funnel and the "stuck" lists) */
+export function useStageHistoryAll() {
+  return useQuery({
+    queryKey: ['stage-history-all'],
+    queryFn: async () => {
+      const { data, error } = await db.from('doctor_stage_history').select('doctor_id, stage, previous_stage, changed_at').order('changed_at').limit(10000)
+      if (error) throw error
+      return (data ?? []) as HistoryRow[]
     },
   })
 }

@@ -4,6 +4,7 @@ import type { AgentRow, TeamModel } from '../../lib/teamStats'
 import { change, stuckText } from '../../lib/teamStats'
 import { classNames } from '../../lib/utils'
 import { BigNumber, DeltaBadge, FunnelBars, Meter, Spark, TrendBars } from './TeamCharts'
+import { FunnelAnalysis } from './FunnelAnalysis'
 
 const nameOf = (r: AgentRow) => r.agent.full_name || r.agent.email
 
@@ -189,6 +190,11 @@ export function TeamOverview({ model }: { model: TeamModel }) {
           </p>
           <FunnelBars funnel={funnel} />
         </div>
+      </section>
+
+      <section className="card p-4">
+        <h2 className="mb-1 text-base font-semibold">המשפך במספרים — המרה וזמן בשלבים</h2>
+        <FunnelAnalysis model={model} />
       </section>
 
       <details className="group">

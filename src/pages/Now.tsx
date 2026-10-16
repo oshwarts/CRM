@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, CalendarDays, CheckCircle2, CheckSquare, Clock, ScanLine, Stethoscope, Swords } from 'lucide-react'
+import { AlertTriangle, CalendarDays, CheckCircle2, CheckSquare, Clock, ScanLine, Stethoscope, Swords, Target } from 'lucide-react'
 import { useAuth } from '../context/AuthProvider'
 import { useCompetitorIntel, useDoctors, useFavorites, useMeetings, useMyHospitalIds, usePatientScans, useTasks } from '../lib/api'
 import { competitorAlerts, newActivity } from '../lib/competitors'
@@ -9,6 +9,8 @@ import { rescanAlert, weekMissing } from '../lib/scanAlerts'
 import { SCAN_PROCEDURE_LABELS } from '../lib/types'
 import { classNames, daysUntil, formatDate, plusDaysISO, todayISO } from '../lib/utils'
 import { Spinner } from '../components/ui'
+import { useStageHistoryAll } from '../lib/pipeline'
+import { stageSinceMap, stuckPotentials } from '../lib/pipelineStats'
 
 type Item = { key: string; to: string; icon: React.ReactNode; title: string; sub: string; when: string }
 type Group = { id: string; title: string; tone: 'red' | 'amber' | 'blue'; items: Item[] }
@@ -29,6 +31,7 @@ export default function Now() {
   const favorites = useFavorites()
   const competitorIntel = useCompetitorIntel()
   const myHospitals = useMyHospitalIds()
+  const stageHistory = useStageHistoryAll()
   const { isAdmin } = useAuth()
   const loading = [tasks, meetings, scans, doctors].some((q) => q.isLoading)
 
@@ -124,15 +127,27 @@ export default function Now() {
       })),
     ]
 
+    // potential doctors that need a push: no stage or next step, a late next step, too long in one stage
+    const myDoctors = (doctors.data ?? []).filter((d) => isAdmin || d.created_by === user?.id || d.doctor_hospitals.some((h) => (myHospitals ?? []).includes(h.hospital_id)))
+    const stuck: Item[] = stuckPotentials(myDoctors, stageSinceMap(stageHistory.data ?? [])).map(({ d, reasons }) => ({
+      key: `p${d.id}`,
+      to: `/doctors/${d.id}`,
+      icon: <Target size={16} />,
+      title: `${d.title} ${d.name}`.trim(),
+      sub: [d.pipeline_stage || 'ללא שלב', ...reasons.map((r) => r.label)].join(' · '),
+      when: d.next_step_date ? formatDate(d.next_step_date) : '',
+    }))
+
     const out: Group[] = [
       { id: 'late', title: 'באיחור — לטפל קודם', tone: 'red', items: late },
       { id: 'today', title: 'היום', tone: 'amber', items: today },
       { id: 'soon', title: 'השבוע הקרוב', tone: 'blue', items: soon },
       { id: 'contact', title: 'רופאים לחזור אליהם', tone: 'blue', items: toContact },
+      { id: 'pipeline', title: 'רופאים פוטנציאליים שדורשים דחיפה', tone: 'amber', items: stuck },
       { id: 'competitors', title: 'הזדמנויות מול מתחרים', tone: 'amber', items: opportunities },
     ]
     return out.filter((g) => g.items.length > 0)
-  }, [tasks.data, meetings.data, scans.data, doctors.data, favorites.data, competitorIntel.data, myHospitals, isAdmin, user?.id])
+  }, [tasks.data, meetings.data, scans.data, doctors.data, favorites.data, competitorIntel.data, stageHistory.data, myHospitals, isAdmin, user?.id])
 
   const total = groups.reduce((n, g) => n + g.items.length, 0)
 

@@ -228,6 +228,7 @@ export const TITLES = ['דוקטור', 'פרופסור', 'מר', 'גברת'] as 
 export const DOCTOR_STATUS_LABELS: Record<string, string> = {
   client: 'לקוח',
   potential: 'פוטנציאלי',
+  lost: 'לא רלוונטי',
 }
 
 export const MEETING_STATUS_LABELS: Record<string, string> = {

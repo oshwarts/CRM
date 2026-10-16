@@ -139,6 +139,8 @@ export type Database = {
           email: string
           id: string
           name: string
+          lost_at: string | null
+          lost_reason: string
           next_step: string
           next_step_date: string | null
           notes: string
@@ -157,6 +159,8 @@ export type Database = {
           email?: string
           id?: string
           name: string
+          lost_at?: string | null
+          lost_reason?: string
           next_step?: string
           next_step_date?: string | null
           notes?: string
@@ -175,6 +179,8 @@ export type Database = {
           email?: string
           id?: string
           name?: string
+          lost_at?: string | null
+          lost_reason?: string
           next_step?: string
           next_step_date?: string | null
           notes?: string

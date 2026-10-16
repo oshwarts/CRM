@@ -27,6 +27,7 @@ const SORTS: Record<string, { label: string; cmp: (a: DoctorRow, b: DoctorRow) =
 }
 
 type Only = '' | 'need' | 'missing' | 'fav'
+type StatusFilter = '' | 'client' | 'potential' | 'lost'
 
 const daysFrom = (iso: string) => Math.round((Date.now() - new Date(`${iso}T12:00:00`).getTime()) / 86_400_000)
 
@@ -73,10 +74,17 @@ function StatusCell({ row, cases, since }: { row: DoctorRow; cases?: number; sin
   return (
     <div className="space-y-1">
       <select
-        className={classNames('rounded-full border px-2.5 py-1 text-xs font-medium', potential ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700')}
+        className={classNames('rounded-full border px-2.5 py-1 text-xs font-medium', potential ? 'border-amber-200 bg-amber-50 text-amber-700' : row.d.status === 'lost' ? 'border-slate-300 bg-slate-100 text-slate-600' : 'border-emerald-200 bg-emerald-50 text-emerald-700')}
         value={row.d.status}
         aria-label={`סטטוס של ${row.d.name}`}
-        onChange={(e) => patch.mutate({ id: row.d.id, status: e.target.value })}
+        onChange={(e) => {
+          const v = e.target.value
+          if (v === 'lost') {
+            const reason = window.prompt('למה הרופא לא רלוונטי? (למשל: בחר מתחרה, אין תקציב)', '')
+            if (reason === null) return
+            patch.mutate({ id: row.d.id, status: v, lost_reason: reason.trim(), lost_at: new Date().toISOString().slice(0, 10) })
+          } else patch.mutate({ id: row.d.id, status: v, ...(row.d.status === 'lost' ? { lost_reason: '', lost_at: null } : {}) })
+        }}
       >
         {Object.entries(DOCTOR_STATUS_LABELS).map(([v, l]) => (
           <option key={v} value={v}>
@@ -168,7 +176,7 @@ export default function Doctors() {
   const [showImport, setShowImport] = useState(false)
   const [modal, setModal] = useState<{ kind: 'meeting' | 'task'; doctorId: string } | null>(null)
   const [q, setQ] = usePersisted('doctors.q', '')
-  const [status, setStatus] = usePersisted<'' | 'client' | 'potential'>('doctors.status', '')
+  const [status, setStatus] = usePersisted<StatusFilter>('doctors.status', '')
   const [stage, setStage] = usePersisted('doctors.stage', '')
   const [companyId, setCompanyId] = usePersisted('doctors.company', '')
   const [procedureId, setProcedureId] = usePersisted('doctors.procedure', '')
@@ -182,7 +190,7 @@ export default function Doctors() {
   // "potential doctors" used to be a page of its own: the old link opens this list on that segment
   useEffect(() => {
     const s = params.get('status')
-    if (s === 'potential' || s === 'client') {
+    if (s === 'potential' || s === 'client' || s === 'lost') {
       setStatus(s)
       if (s === 'potential') setSort('stage')
     }
@@ -214,7 +222,8 @@ export default function Doctors() {
 
   const counts = useMemo(
     () => ({
-      all: rows.length,
+      all: rows.filter((r) => r.d.status !== 'lost').length,
+      lost: rows.filter((r) => r.d.status === 'lost').length,
       client: rows.filter((r) => r.d.status === 'client').length,
       potential: rows.filter((r) => r.d.status === 'potential').length,
       need: rows.filter((r) => r.need === 'due' || r.need === 'stale').length,
@@ -227,7 +236,7 @@ export default function Doctors() {
     const words = norm(q).split(' ').filter(Boolean)
     const list = rows.filter((r) => {
       const d = r.d
-      if (status && d.status !== status) return false
+      if (status ? d.status !== status : d.status === 'lost') return false
       if (stage && d.pipeline_stage !== stage) return false
       if (companyId && !d.doctor_companies.some((c) => c.company_id === companyId)) return false
       if (procedureId && !d.doctor_procedures.some((p) => p.procedure_id === procedureId)) return false
@@ -272,7 +281,7 @@ export default function Doctors() {
       <span className="mt-1 text-xs text-slate-600">{label}</span>
     </button>
   )
-  const pill = (label: string, value: '' | 'client' | 'potential', n: number) => (
+  const pill = (label: string, value: StatusFilter, n: number) => (
     <button
       key={label}
       type="button"
@@ -315,6 +324,7 @@ export default function Doctors() {
         {pill('כל הרופאים', '', counts.all)}
         {pill('לקוחות', 'client', counts.client)}
         {pill('פוטנציאליים (משפך)', 'potential', counts.potential)}
+        {counts.lost > 0 && pill('לא רלוונטי', 'lost', counts.lost)}
         <button type="button" aria-pressed={only === 'fav'} onClick={() => setOnly(only === 'fav' ? '' : 'fav')} className={classNames('chip', only === 'fav' ? 'border-red-300 bg-red-50 text-red-600' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50')}>
           <Heart size={13} fill={only === 'fav' ? 'currentColor' : 'none'} /> המועדפים שלי
         </button>

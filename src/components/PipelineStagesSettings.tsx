@@ -12,6 +12,7 @@ function StageRow({ stage, index, last, count, others, onMove }: { stage: Pipeli
   const won = useSetWonStage()
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(stage.name)
+  const [hint, setHint] = useState(stage.suggested_step ?? '')
 
   async function remove() {
     let moveTo = ''
@@ -29,10 +30,14 @@ function StageRow({ stage, index, last, count, others, onMove }: { stage: Pipeli
     <li className="flex flex-wrap items-center gap-2 py-2 text-sm">
       <span className="w-6 shrink-0 text-center text-xs text-slate-400">{index + 1}</span>
       {editing ? (
-        <input className="input !w-auto max-w-xs flex-1" value={name} autoFocus onChange={(e) => setName(e.target.value)} />
+        <div className="flex min-w-0 flex-1 flex-wrap gap-2">
+          <input className="input !w-auto max-w-xs flex-1" value={name} autoFocus aria-label="שם השלב" onChange={(e) => setName(e.target.value)} />
+          <input className="input !w-auto min-w-48 flex-1" value={hint} aria-label="צעד הבא מוצע בשלב" placeholder="צעד הבא מוצע בשלב הזה" onChange={(e) => setHint(e.target.value)} />
+        </div>
       ) : (
         <span className="min-w-0 flex-1 font-medium text-slate-800">
           {stage.name} <span className="mr-1 text-xs font-normal text-slate-400">{count} רופאים</span>
+          {stage.suggested_step && <span className="block text-xs font-normal text-slate-500">צעד מוצע: {stage.suggested_step}</span>}
           {stage.is_won && <span className="chip mr-1 border-emerald-200 bg-emerald-50 !py-0 text-emerald-700">הפך ללקוח</span>}
         </span>
       )}
@@ -42,11 +47,11 @@ function StageRow({ stage, index, last, count, others, onMove }: { stage: Pipeli
             type="button"
             className="btn-ghost !px-2 text-brand-600"
             disabled={!name.trim() || save.isPending}
-            onClick={() => save.mutate({ id: stage.id, name }, { onSuccess: () => setEditing(false), onError: (e) => toast(e instanceof Error ? e.message : 'השמירה נכשלה', { kind: 'error' }) })}
+            onClick={() => save.mutate({ id: stage.id, name, suggested_step: hint }, { onSuccess: () => setEditing(false), onError: (e) => toast(e instanceof Error ? e.message : 'השמירה נכשלה', { kind: 'error' }) })}
           >
             <Check size={15} /> שמור
           </button>
-          <button type="button" className="btn-ghost !px-2 text-slate-500" onClick={() => (setName(stage.name), setEditing(false))}>
+          <button type="button" className="btn-ghost !px-2 text-slate-500" onClick={() => (setName(stage.name), setHint(stage.suggested_step ?? ''), setEditing(false))}>
             ביטול
           </button>
         </>

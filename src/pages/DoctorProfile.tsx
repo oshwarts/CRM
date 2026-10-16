@@ -106,7 +106,7 @@ export default function DoctorProfile() {
                 <span
                   className={classNames(
                     'chip',
-                    d.status === 'potential' ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-green-200 bg-green-50 text-green-700',
+                    d.status === 'potential' ? 'border-amber-200 bg-amber-50 text-amber-700' : d.status === 'lost' ? 'border-slate-300 bg-slate-100 text-slate-600' : 'border-green-200 bg-green-50 text-green-700',
                   )}
                 >
                   {DOCTOR_STATUS_LABELS[d.status] ?? d.status}
@@ -212,7 +212,7 @@ export default function DoctorProfile() {
         </div>
       </div>
 
-      {d.status === 'potential' && <DoctorPipeline doctor={d} />}
+      {(d.status === 'potential' || d.status === 'lost') && <DoctorPipeline doctor={d} />}
 
       <Tabs value={tab} onChange={setTab}>
         <TabList>
