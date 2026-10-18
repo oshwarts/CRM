@@ -857,7 +857,8 @@ export default function Home() {
                   onClick={() =>
                     toggleFav.mutate({ doctorId: d.id, isFavorite: true })
                   }
-                  aria-label="הסר"
+                  aria-label={`הסר את ${d.name} מהמועדפים`}
+                  className="-my-2 grid min-h-[36px] min-w-[32px] place-items-center"
                 >
                   <X size={13} />
                 </button>

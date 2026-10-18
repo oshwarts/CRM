@@ -25,7 +25,7 @@ export default function SetPassword() {
   }
 
   return (
-    <div className="grid min-h-full place-items-center bg-slate-50 p-4">
+    <main className="grid min-h-full place-items-center bg-slate-50 p-4">
       <div className="card w-full max-w-sm p-7">
         <div className="mb-6 flex flex-col items-center gap-2 text-center">
           <div className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-500 text-white">
@@ -36,19 +36,19 @@ export default function SetPassword() {
         </div>
         <form onSubmit={submit} className="space-y-3">
           <div>
-            <label className="label">סיסמה חדשה</label>
-            <input type="password" dir="ltr" className="input" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} required minLength={8} />
+            <label className="label" htmlFor="sp-new">סיסמה חדשה</label>
+            <input id="sp-new" type="password" dir="ltr" className="input" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} required minLength={8} />
           </div>
           <div>
-            <label className="label">הקלד שוב</label>
-            <input type="password" dir="ltr" className="input" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} required minLength={8} />
+            <label className="label" htmlFor="sp-again">הקלד שוב</label>
+            <input id="sp-again" type="password" dir="ltr" className="input" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} required minLength={8} />
           </div>
-          {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+          {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
           <button className="btn-primary w-full" disabled={busy}>
             {busy ? 'שומר…' : 'שמור סיסמה'}
           </button>
         </form>
       </div>
-    </div>
+    </main>
   )
 }

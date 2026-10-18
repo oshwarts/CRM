@@ -40,7 +40,7 @@ export default function Login() {
   }
 
   return (
-    <div className="grid min-h-full place-items-center bg-gradient-to-b from-[#00326d] via-[#0d4090] to-[#1863dc] p-4">
+    <main className="grid min-h-full place-items-center bg-gradient-to-b from-[#00326d] via-[#0d4090] to-[#1863dc] p-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex justify-center">
           <BrandLogo size="lg" light />
@@ -54,8 +54,9 @@ export default function Login() {
         <form onSubmit={submit} className="space-y-3">
           {mode === 'signup' && (
             <div>
-              <label className="label">שם מלא</label>
+              <label className="label" htmlFor="login-name">שם מלא</label>
               <input
+                id="login-name"
                 className="input"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
@@ -65,8 +66,9 @@ export default function Login() {
             </div>
           )}
           <div>
-            <label className="label">אימייל</label>
+            <label className="label" htmlFor="login-email">אימייל</label>
             <input
+              id="login-email"
               type="email"
               dir="ltr"
               className="input"
@@ -79,8 +81,9 @@ export default function Login() {
           </div>
           {mode !== 'forgot' && (
           <div>
-            <label className="label">סיסמה</label>
+            <label className="label" htmlFor="login-password">סיסמה</label>
             <input
+              id="login-password"
               type="password"
               dir="ltr"
               className="input"
@@ -94,12 +97,12 @@ export default function Login() {
           )}
 
           {error && (
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+            <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
               {error}
             </p>
           )}
           {info && (
-            <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">
+            <p role="status" className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">
               {info}
             </p>
           )}
@@ -112,7 +115,7 @@ export default function Login() {
         {mode === 'signin' && (
           <button
             type="button"
-            className="mt-3 w-full text-center text-sm text-slate-600 hover:underline"
+            className="mt-3 w-full min-h-[44px] text-center text-sm text-slate-600 hover:underline"
             onClick={() => {
               setMode('forgot')
               setError(null)
@@ -123,7 +126,8 @@ export default function Login() {
           </button>
         )}
         <button
-          className="mt-4 w-full text-center text-sm text-brand-600 hover:underline"
+          type="button"
+          className="mt-4 w-full min-h-[44px] text-center text-sm text-brand-600 hover:underline"
           onClick={() => {
             setMode(mode === 'signin' ? 'signup' : 'signin')
             setError(null)
@@ -138,7 +142,7 @@ export default function Login() {
         </button>
       </div>
       </div>
-    </div>
+    </main>
   )
 }
 

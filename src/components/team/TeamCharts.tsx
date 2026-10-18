@@ -4,7 +4,7 @@ import { classNames } from '../../lib/utils'
 
 /** ▲ 12% / ▼ 5% against the period before; points for percentages that are themselves a share */
 export function DeltaBadge({ d, points, className }: { d: Pick<Delta, 'pct'> & { prev?: number | null }; points?: boolean; className?: string }) {
-  if (d.pct === null) return <span className={classNames('text-xs text-slate-400', className)}>אין נתון להשוואה</span>
+  if (d.pct === null) return <span className={classNames('whitespace-nowrap text-xs text-slate-400', className)}>אין נתון להשוואה</span>
   const up = d.pct > 0
   const flat = d.pct === 0
   const Icon = flat ? Minus : up ? ArrowUp : ArrowDown

@@ -307,15 +307,15 @@ export default function Scans() {
       )}
 
       {rows.length > 0 && (
-        <div tabIndex={0} className="card hidden overflow-x-auto md:block">
+        <div tabIndex={0} className="card relative hidden overflow-x-auto md:block" role="region" aria-label="טבלת הסריקות">
           <table className="w-full min-w-[1250px] text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-right text-slate-500">
                 <th className="p-2">
-                  <input type="checkbox" className="h-4 w-4" checked={allSelected} onChange={toggleAll} title="בחר הכל" />
+                  <input type="checkbox" className="h-4 w-4" checked={allSelected} onChange={toggleAll} title="בחר הכל" aria-label="בחר הכל" />
                 </th>
-                {['ניתוח', 'בית חולים', 'שם מלא', 'ת״ז', 'טלפון', 'קופה', 'מנתח', 'סוג', 'רגל', 'CT', 'מרדים', 'נסרק', 'הועלה דיסק', 'תוכנית מוכנה', 'מידות שתל', 'סטטוס', ''].map((h) => (
-                  <th key={h} className="whitespace-nowrap p-2 font-medium">{h}</th>
+                {['ניתוח', 'בית חולים', 'שם מלא', 'ת״ז', 'טלפון', 'קופה', 'מנתח', 'סוג', 'רגל', 'CT', 'מרדים', 'נסרק', 'הועלה דיסק', 'תוכנית מוכנה', 'מידות שתל', 'סטטוס', 'פעולות'].map((h) => (
+                  <th key={h} className="whitespace-nowrap p-2 font-medium">{h === 'פעולות' ? <span className="sr-only">{h}</span> : h}</th>
                 ))}
               </tr>
             </thead>
@@ -337,7 +337,7 @@ export default function Scans() {
                     )}
                   >
                     <td className="p-2">
-                      <input type="checkbox" className="h-4 w-4" checked={selected.has(s.id)} onChange={() => toggleOne(s.id)} />
+                      <input type="checkbox" className="h-4 w-4" checked={selected.has(s.id)} onChange={() => toggleOne(s.id)} aria-label={`בחר את ${s.patient_name}`} />
                     </td>
                     <td className="whitespace-nowrap p-2 text-slate-500">
                       {formatDate(s.surgery_date)}
@@ -395,15 +395,15 @@ export default function Scans() {
                     </td>
                     <td className="max-w-[160px] p-2 text-xs text-slate-500">{s.anaesthesia_note || '—'}</td>
                     <td className="p-2 text-center">
-                      <input type="checkbox" className="h-4 w-4" checked={s.scanned}
+                      <input type="checkbox" className="h-4 w-4" aria-label={`${s.patient_name}: נסרק`} checked={s.scanned}
                         onChange={(e) => patch.mutate({ id: s.id, patch: { scanned: e.target.checked } })} />
                     </td>
                     <td className="p-2 text-center">
-                      <input type="checkbox" className="h-4 w-4" checked={s.disk_collected}
+                      <input type="checkbox" className="h-4 w-4" aria-label={`${s.patient_name}: הועלה דיסק`} checked={s.disk_collected}
                         onChange={(e) => patch.mutate({ id: s.id, patch: { disk_collected: e.target.checked } })} />
                     </td>
                     <td className="p-2 text-center">
-                      <input type="checkbox" className="h-4 w-4" checked={s.plan_ready}
+                      <input type="checkbox" className="h-4 w-4" aria-label={`${s.patient_name}: תוכנית מוכנה`} checked={s.plan_ready}
                         onChange={(e) => patch.mutate({ id: s.id, patch: { plan_ready: e.target.checked } })} />
                     </td>
                     <td className="max-w-[180px] p-2 text-xs text-slate-500">{implantSummary(s, implantRows) || '—'}</td>
@@ -422,7 +422,7 @@ export default function Scans() {
                         >
                           <CalendarPlus size={14} />
                         </button>
-                        <button className="btn-ghost !px-2" onClick={() => setEditing(s)}>
+                        <button className="btn-ghost !px-2" onClick={() => setEditing(s)} aria-label="עריכה" title="עריכה">
                           <Pencil size={14} />
                         </button>
                         <ConfirmButton className="btn-ghost !px-2 text-red-500" onConfirm={() => del.mutate(s.id)}>

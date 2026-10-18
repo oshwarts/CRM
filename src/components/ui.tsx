@@ -1,13 +1,19 @@
 import { X } from 'lucide-react'
 import {
+  Children,
   createContext,
   useContext,
   useEffect,
+  useId,
+  useRef,
   type ReactNode,
 } from 'react'
 import { classNames } from '../lib/utils'
 
 /* ---------------- Modal ---------------- */
+
+/** the dialogs that are open now, the last one is on top (only it answers Escape and Tab) */
+const openModals: object[] = []
 
 export function Modal({
   open,
@@ -22,12 +28,48 @@ export function Modal({
   children: ReactNode
   size?: 'md' | 'lg' | 'xl'
 }) {
+  const titleId = useId()
+  const box = useRef<HTMLDivElement>(null)
+  const closeRef = useRef(onClose)
+  closeRef.current = onClose
+
   useEffect(() => {
     if (!open) return
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    const token = {}
+    openModals.push(token)
+    const before = document.activeElement as HTMLElement | null
+    // the page behind does not scroll while a dialog is open; keyboard focus moves into the dialog and comes back when it closes
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    box.current?.focus({ preventScroll: true })
+    const onKey = (e: KeyboardEvent) => {
+      if (openModals[openModals.length - 1] !== token) return
+      if (e.key === 'Escape') {
+        closeRef.current()
+        return
+      }
+      if (e.key !== 'Tab' || !box.current) return
+      const items = [...box.current.querySelectorAll<HTMLElement>('a[href],button:not([disabled]),input:not([disabled]):not([type=hidden]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')].filter((el) => el.offsetParent !== null)
+      if (items.length === 0) return
+      const first = items[0]
+      const last = items[items.length - 1]
+      const active = document.activeElement
+      if (e.shiftKey && (active === first || active === box.current)) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      openModals.splice(openModals.indexOf(token), 1)
+      document.body.style.overflow = prevOverflow
+      if (before && document.contains(before)) before.focus({ preventScroll: true })
+    }
+  }, [open])
 
   if (!open) return null
   const maxW = { md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' }[size]
@@ -36,13 +78,18 @@ export function Modal({
     // starts below the developer-mode strip (--banner is set by the Layout while the developer acts as another user)
     <div className="fixed inset-x-0 bottom-0 top-[var(--banner,0px)] z-50 flex items-start justify-center overflow-y-auto bg-slate-900/40 sm:p-8">
       <div
+        ref={box}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
         className={classNames(
-          'card w-full animate-[fadeIn_.12s_ease-out] max-sm:min-h-full max-sm:rounded-none',
+          'card w-full animate-[fadeIn_.12s_ease-out] outline-none max-sm:min-h-full max-sm:rounded-none',
           maxW,
         )}
       >
         <div className="sticky top-0 z-10 flex items-center justify-between rounded-t-2xl border-b border-slate-200 bg-white px-5 py-4 max-sm:rounded-none">
-          <h2 className="text-lg font-semibold text-slate-800">{title}</h2>
+          <h2 id={titleId} className="text-lg font-semibold text-slate-800">{title}</h2>
           <button className="btn-ghost !px-2" onClick={onClose} aria-label="סגור">
             <X size={18} />
           </button>
@@ -182,9 +229,25 @@ export function Field({
   /** shown under the field, which also gets a red edge */
   error?: string
 }) {
+  const id = useId()
+  const ref = useRef<HTMLDivElement>(null)
+  // the visible label names its control: one control gets aria-labelledby, several make the block a labelled group
+  useEffect(() => {
+    const root = ref.current
+    if (!root) return
+    const controls = root.querySelectorAll<HTMLInputElement>('input:not([type=hidden]),select,textarea')
+    if (controls.length === 0) return
+    const c = controls[0]
+    if (controls.length === 1 && c.type !== 'checkbox' && c.type !== 'radio') {
+      if (!c.hasAttribute('aria-label') && !c.hasAttribute('aria-labelledby') && !(c.labels && c.labels.length)) c.setAttribute('aria-labelledby', id)
+    } else if (!root.hasAttribute('role')) {
+      root.setAttribute('role', 'group')
+      root.setAttribute('aria-labelledby', id)
+    }
+  })
   return (
-    <div className={classNames(className, error && '[&_.input]:border-red-500 [&_.input]:ring-2 [&_.input]:ring-red-200')}>
-      <span className="label">{label}</span>
+    <div ref={ref} className={classNames(className, error && '[&_.input]:border-red-500 [&_.input]:ring-2 [&_.input]:ring-red-200')}>
+      <span id={id} className="label">{label}</span>
       {children}
       {error && (
         <p role="alert" className="mt-1 text-xs font-medium text-red-600">
@@ -238,16 +301,22 @@ export function ConfirmButton({
   children,
   message = 'למחוק? הפעולה אינה הפיכה.',
   className = 'btn-danger',
+  label,
 }: {
   onConfirm: () => void
   children: ReactNode
   message?: string
   className?: string
+  /** the name for screen readers; by default "מחיקה" when the button holds only an icon */
+  label?: string
 }) {
+  const iconOnly = Children.toArray(children).every((c) => typeof c !== 'string' && typeof c !== 'number')
   return (
     <button
       type="button"
       className={className}
+      aria-label={label ?? (iconOnly ? 'מחיקה' : undefined)}
+      title={label ?? (iconOnly ? 'מחיקה' : undefined)}
       onClick={() => {
         if (window.confirm(message)) onConfirm()
       }}

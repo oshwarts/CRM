@@ -38,7 +38,7 @@ function StageRow({ stage, index, last, count, others, onMove }: { stage: Pipeli
           <input className="input !w-auto min-w-48 flex-1" value={hint} aria-label="צעד הבא מוצע בשלב" placeholder="צעד הבא מוצע בשלב הזה" onChange={(e) => setHint(e.target.value)} />
         </div>
       ) : (
-        <span className="min-w-0 flex-1 font-medium text-slate-800">
+        <span className="min-w-[9rem] flex-1 font-medium text-slate-800">
           {stage.name} <span className="mr-1 text-xs font-normal text-slate-400">{count} רופאים</span>
           {stage.suggested_step && <span className="block text-xs font-normal text-slate-500">צעד מוצע: {stage.suggested_step}</span>}
           {stage.stuck_days ? <span className="block text-xs font-normal text-slate-500">תקוע אחרי {stage.stuck_days} ימים בשלב</span> : null}

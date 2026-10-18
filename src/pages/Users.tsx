@@ -144,7 +144,7 @@ function UsersTab() {
               return (
                 <li key={u.id} className="card flex flex-wrap items-center justify-between gap-3 p-3">
                   <Who u={u} me={me} sub={`נרשם ${formatDate(u.created_at.slice(0, 10))} · כניסה אחרונה ${lastSeen(u.id)}`} />
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     {u.role === "agent" && (
                       <label className="flex items-center gap-1.5 text-xs text-slate-600" title="עורך תוכן יכול להוסיף ולערוך שיעורים, שאלות ומקרים בלומדה. מה שהוא כותב מתפרסם אחרי אישור מנהל.">
                         <input type="checkbox" checked={u.is_content_editor} disabled={update.isPending} onChange={(e) => change(u, { is_content_editor: e.target.checked })} />
@@ -154,6 +154,7 @@ function UsersTab() {
                     {!me && !u.is_developer && (u.role !== 'admin' || isDeveloper) && <ResetLinkButton user={u} />}
                     <select
                       className="input !w-auto"
+                      aria-label={`הרשאה של ${u.full_name || u.email}`}
                       value={u.role}
                       disabled={me || update.isPending}
                       title={me ? 'לא ניתן לשנות את ההרשאה של עצמך' : undefined}

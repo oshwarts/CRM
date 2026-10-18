@@ -224,7 +224,7 @@ export default function Schedule() {
 
       {weekItems.length === 0 && <EmptyState title="אין אירועים בשבוע הזה" hint="נסה שבוע אחר או שנה את הסינון" />}
 
-      <div className="grid gap-3 lg:grid-cols-7">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
         {days.map((d) => {
           const list = byDay(d)
           const isToday = iso(d) === today

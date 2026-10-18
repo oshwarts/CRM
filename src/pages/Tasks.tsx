@@ -163,7 +163,7 @@ export default function Tasks() {
             />
           </label>
           <div className="min-w-0 flex-1">
-            <button className="block w-full text-right" onClick={() => setEditing(t)}>
+            <button className="block min-h-[32px] w-full text-right" onClick={() => setEditing(t)}>
               <span dir="auto" className={classNames('block whitespace-pre-line break-words text-sm font-medium', t.is_done ? 'text-slate-400 line-through' : 'text-slate-800')}>
                 {t.description}
               </span>

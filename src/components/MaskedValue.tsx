@@ -9,7 +9,7 @@ export function MaskedValue({ value, visible = 3 }: { value: string; visible?: n
   return (
     <span className="inline-flex items-center gap-1.5">
       <span dir="ltr">{shown ? value : masked}</span>
-      <button type="button" className="rounded p-0.5 text-slate-400 hover:text-slate-700" aria-label={shown ? 'הסתר' : 'הצג'} title={shown ? 'הסתר' : 'הצג'} onClick={() => setShown((v) => !v)}>
+      <button type="button" className="grid min-h-[28px] min-w-[28px] place-items-center rounded p-0.5 text-slate-400 hover:text-slate-700" aria-label={shown ? 'הסתר' : 'הצג'} title={shown ? 'הסתר' : 'הצג'} onClick={() => setShown((v) => !v)}>
         {shown ? <EyeOff size={13} /> : <Eye size={13} />}
       </button>
     </span>

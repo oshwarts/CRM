@@ -38,7 +38,7 @@ const TABS = ['/', '/doctors', '/tasks', '/schedule']
 // scroll position of each visited page, so that going back returns to the same place
 const scrollOf = new Map<string, number>()
 
-const VERSION = 'v128 · איכות ואבטחה: בדיקות, נגישות, עזרה ומדריך, שכחתי סיסמה, ייצוא לאקסל'
+const VERSION = 'v129 · UX לכל המסכים: חלונות נגישים, שדות עם תוויות, יעדי לחיצה, ניגודיות, טאבלט, כותרת לכל דף'
 
 export function Layout() {
   const { profile, signOut, impersonating, isDeveloper } = useAuth()
@@ -89,6 +89,27 @@ export function Layout() {
   }, [])
 
   useEffect(() => setDrawer(false), [location.pathname])
+
+  // the tab and the screen reader say where we are: the title of the page, kept in step with its main heading
+  useEffect(() => {
+    const main = document.querySelector('main')
+    let queued = false
+    const set = () => {
+      queued = false
+      const h = main?.querySelector('h1')?.textContent?.trim()
+      document.title = h ? `${h} · AMI CRM` : 'AMI CRM'
+    }
+    set()
+    if (!main) return
+    const obs = new MutationObserver(() => {
+      if (!queued) {
+        queued = true
+        requestAnimationFrame(set)
+      }
+    })
+    obs.observe(main, { childList: true, subtree: true, characterData: true })
+    return () => obs.disconnect()
+  }, [location.pathname])
 
 
   async function handleSignOut() {
@@ -185,7 +206,7 @@ export function Layout() {
         <div className="pt-3">
           <div className="flex items-center justify-between px-3 pb-1">
             <p className="text-xs font-semibold text-slate-500">המועדפים שלי</p>
-            <NavLink to="/menu" className="flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium text-brand-600 hover:bg-brand-50" onClick={() => setDrawer(false)}>
+            <NavLink to="/menu" className="flex min-h-[28px] items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium text-brand-600 hover:bg-brand-50" onClick={() => setDrawer(false)}>
               <Pencil size={12} /> התאמת התפריט
             </NavLink>
           </div>
@@ -233,6 +254,9 @@ export function Layout() {
 
   return (
     <div className="flex min-h-full" style={impersonating ? ({ '--banner': '2rem' } as React.CSSProperties) : undefined}>
+      <a href="#main-content" className="sr-only z-[100] rounded-lg bg-white text-sm font-medium text-brand-700 shadow-pop focus:not-sr-only focus:fixed focus:right-3 focus:top-3 focus:px-4 focus:py-2">
+        דלג לתוכן הראשי
+      </a>
       <DeveloperBar />
       {/* desktop sidebar */}
       <aside className="sticky top-[var(--banner,0px)] hidden h-[calc(100dvh-var(--banner,0px))] w-64 flex-col border-l border-brand-100 bg-white md:flex">
@@ -281,12 +305,12 @@ export function Layout() {
         </div>
       )}
 
-      <main className="min-w-0 flex-1 overflow-x-clip">
+      <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 overflow-x-clip outline-none">
         <div className="mx-auto max-w-6xl px-3 pb-[calc(env(safe-area-inset-bottom)+5rem)] pt-[calc(env(safe-area-inset-top)+4.5rem+var(--banner,0px))] md:px-6 md:pb-6 md:pt-[calc(1.5rem+var(--banner,0px))]">
           {location.pathname !== '/' && (
             <button
               type="button"
-              className="mb-3 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+              className="mb-3 inline-flex min-h-[40px] items-center gap-1.5 rounded-lg px-2 py-1 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-700"
               // the page before this one; when the app was opened straight on this page there is none, so go home
               onClick={() => ((window.history.state?.idx ?? 0) > 0 ? navigate(-1) : navigate('/'))}
             >

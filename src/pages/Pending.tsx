@@ -7,7 +7,7 @@ export default function Pending() {
   const deactivated = !!profile?.status_changed_at
 
   return (
-    <div className="grid min-h-full place-items-center bg-slate-50 p-4">
+    <main className="grid min-h-full place-items-center bg-slate-50 p-4">
       <div className="card w-full max-w-sm space-y-4 p-7 text-center">
         <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-amber-100 text-amber-600">
           <Clock size={22} />
@@ -32,6 +32,6 @@ export default function Pending() {
           </button>
         </div>
       </div>
-    </div>
+    </main>
   )
 }

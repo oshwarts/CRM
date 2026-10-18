@@ -422,6 +422,7 @@ function HospitalsSettings() {
                   <button
                     className="btn-ghost !px-2"
                     onClick={() => setEditing(h)}
+                    aria-label="עריכה"
                   >
                     <Pencil size={15} />
                   </button>
@@ -903,6 +904,7 @@ function ContactsSettings() {
                       doctor_id: c.doctor_id ?? '',
                     })
                   }
+                  aria-label="עריכה"
                 >
                   <Pencil size={15} />
                 </button>
@@ -984,6 +986,7 @@ function Row({
             <button
               className="btn-ghost !px-2"
               onClick={() => setEditing(true)}
+              aria-label="עריכה"
             >
               <Pencil size={15} />
             </button>

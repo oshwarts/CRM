@@ -100,6 +100,67 @@ body {
   .btn {
     min-height: 44px;
   }
+  main a[href]:not(.btn):not(.card):not(.chip):not([class^='p']):not([class*=' p']),
+  main button:not(.btn):not(.chip):not([class^='p']):not([class*=' p']) {
+    padding-block: 8px;
+    margin-block: -8px;
+  }
+  main button.chip,
+  main a.chip,
+  main button[class~='rounded-full'][class~='border'] {
+    min-height: 34px;
+  }
+  main button[class~='p-1'],
+  main button[class~='p-1.5'],
+  main button[class~='p-2'] {
+    min-width: 36px;
+    min-height: 36px;
+  }
+  select,
+  .input {
+    min-height: 40px;
+  }
+}
+
+/* tap targets on every screen (WCAG 2.5.8 asks for 24px): small links and plain buttons grow in padding with a negative margin,
+   so the layout does not move; chips and small icon buttons get a minimum size (larger on the phone, above) */
+main a[href]:not(.btn):not(.card):not(.chip):not([class^='p']):not([class*=' p']),
+main button:not(.btn):not(.chip):not([class^='p']):not([class*=' p']) {
+  padding-block: 4px;
+  margin-block: -4px;
+}
+main button.chip,
+main a.chip,
+main button[class~='rounded-full'][class~='border'],
+main button[class~='p-1'],
+main button[class~='p-1.5'],
+main button[class~='p-2'],
+main button[class~='p-0.5'] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+}
+main button[class~='p-1'],
+main button[class~='p-1.5'],
+main button[class~='p-2'] {
+  min-width: 28px;
+}
+.btn[class*='!px-'] {
+  min-width: 40px;
+}
+@media (min-width: 768px) {
+  .btn {
+    min-height: 32px;
+  }
+  select {
+    min-height: 28px;
+  }
+}
+
+/* grey that was too faint to read as text (1.5:1): same grey as the secondary text */
+.text-slate-300 {
+  color: rgb(var(--slate-400));
 }
 
 /* keep leaflet controls on the correct side in RTL */

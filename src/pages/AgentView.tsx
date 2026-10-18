@@ -103,7 +103,7 @@ export default function AgentView() {
 
   const periodControls = (
     <div className="flex items-center gap-2">
-      <select className="input !w-auto" value={kind} onChange={(e) => { setKind(e.target.value as 'month' | 'quarter'); setOffset(0) }}>
+      <select className="input !w-auto" aria-label="סוג תקופה" value={kind} onChange={(e) => { setKind(e.target.value as 'month' | 'quarter'); setOffset(0) }}>
         <option value="month">חודשי</option>
         <option value="quarter">רבעוני</option>
       </select>

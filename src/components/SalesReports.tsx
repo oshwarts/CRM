@@ -159,12 +159,12 @@ export function SalesReports() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
         <Kpi icon={<CalendarCheck size={20} />} value={t.meetings} label="פגישות שהתקיימו" />
         <Kpi icon={<Stethoscope size={20} />} value={t.doctorsMet} label="רופאים שנפגשו" />
         <Kpi icon={<ScanLine size={20} />} value={t.surgeries} label="ניתוחי MAKO שבוצעו" />
         <Kpi icon={<Users size={20} />} value={t.potential} label="רופאים פוטנציאליים" />
-        <div className="col-span-2 lg:col-span-1"><Kpi icon={<AlertTriangle size={20} />} value={t.notMet} label="רופאים בלי פגישה בתקופה" warn /></div>
+        <div className="col-span-2 md:col-span-1"><Kpi icon={<AlertTriangle size={20} />} value={t.notMet} label="רופאים בלי פגישה בתקופה" warn /></div>
       </div>
 
       <section className="card p-4">

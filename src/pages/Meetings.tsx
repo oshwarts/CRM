@@ -207,7 +207,7 @@ export default function Meetings() {
           <SlidersHorizontal size={16} /> סינון מתקדם
         </button>
         <div className={classNames("gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-4", advanced ? "grid" : "hidden")}>
-          <select className="input" value={hospitalId} onChange={(e) => setHospitalId(e.target.value)}>
+          <select className="input" aria-label="בית חולים" value={hospitalId} onChange={(e) => setHospitalId(e.target.value)}>
             <option value="">כל בתי החולים</option>
             {hospitalOptions.map(([id, name]) => (
               <option key={id} value={id}>
@@ -215,7 +215,7 @@ export default function Meetings() {
               </option>
             ))}
           </select>
-          <select className="input" value={doctorId} onChange={(e) => setDoctorId(e.target.value)}>
+          <select className="input" aria-label="רופא" value={doctorId} onChange={(e) => setDoctorId(e.target.value)}>
             <option value="">כל הרופאים</option>
             {doctorOptions.map(([id, name]) => (
               <option key={id} value={id}>
@@ -273,7 +273,7 @@ export default function Meetings() {
       <div className="space-y-3">
         {filtered.map((m) => (
           <div key={m.id} className="card p-4 transition hover:border-brand-300">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div className="flex min-w-0 flex-1 items-start gap-3">
                 <DateTile date={m.meeting_date} status={m.status} />
                 <div className="min-w-0">
@@ -306,7 +306,7 @@ export default function Meetings() {
                 </div>
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end">
+              <div className="flex flex-wrap items-center gap-2 lg:shrink-0 lg:justify-end">
                 <span className="chip border-slate-200 bg-slate-50 text-slate-600">
                   {MEETING_STATUS_LABELS[m.status]}
                 </span>
