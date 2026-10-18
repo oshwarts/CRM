@@ -168,7 +168,7 @@ export function CaseVolumesManager() {
       ) : rows.length === 0 ? (
         <EmptyState title="עדיין לא הוזנו כמויות" hint="הוסף רשומה ראשונה למעלה" />
       ) : (
-        <div className="overflow-x-auto">
+        <div tabIndex={0} className="overflow-x-auto">
           <table className="w-full min-w-[680px] text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-slate-500">

@@ -169,7 +169,7 @@ export function SalesReports() {
 
       <section className="card p-4">
         <h2 className="mb-3 text-base font-semibold text-brand-800">לפי חודש</h2>
-        <div className="overflow-x-auto">
+        <div tabIndex={0} className="overflow-x-auto">
           <table className="w-full min-w-[400px] text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-slate-500">

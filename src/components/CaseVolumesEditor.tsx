@@ -201,7 +201,7 @@ export function CaseVolumesEditor(props: Props) {
       {rows.length === 0 ? (
         <EmptyState title="לא הוזנו כמויות" />
       ) : (
-        <div className="card overflow-x-auto">
+        <div tabIndex={0} className="card overflow-x-auto">
           <table className="w-full min-w-[560px] text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-slate-500">
@@ -278,7 +278,7 @@ export function CaseVolumesEditor(props: Props) {
             <ScanLine size={15} className="text-brand-500" />
             ניתוחי MAKO שבוצעו (מתוך עמוד הסריקות)
           </p>
-          <div className="overflow-x-auto">
+          <div tabIndex={0} className="overflow-x-auto">
             <table className="w-full min-w-[480px] text-sm">
               <tbody>
                 {scanCounts.map((s, i) => (

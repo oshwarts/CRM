@@ -50,7 +50,7 @@ export function TrainingMatrix() {
           </ul>
         </div>
       )}
-      <div className="card overflow-x-auto">
+      <div tabIndex={0} className="card overflow-x-auto">
         <table className="w-full min-w-[640px] text-sm">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50 text-right text-xs text-slate-500">

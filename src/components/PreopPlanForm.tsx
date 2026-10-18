@@ -169,7 +169,7 @@ export function PreopPlanSummary({ schema, values }: { schema: PreopSchema; valu
                 </div>
               ))}
               {g.planeRows.length > 0 && (
-                <div className="overflow-x-auto pt-1">
+                <div tabIndex={0} className="overflow-x-auto pt-1">
                   <table dir="ltr" className="w-full min-w-[420px] border-collapse text-sm">
                     <thead>
                       <tr className="text-xs text-slate-400">

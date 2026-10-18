@@ -58,7 +58,7 @@ export function LearnStats({ compact }: { compact?: boolean }) {
             <span
               key={b.id}
               title={b.earned ? b.hint : `עדיין לא: ${b.hint}`}
-              className={classNames('chip !px-2 !py-0.5 text-xs', b.earned ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-slate-100 bg-slate-50 text-slate-300 grayscale')}
+              className={classNames('chip !px-2 !py-0.5 text-xs', b.earned ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-slate-200 bg-slate-50 text-slate-500 grayscale')}
             >
               {b.icon} {b.title}
             </span>

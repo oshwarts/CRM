@@ -170,7 +170,7 @@ export function EquipmentItemModal({ item, onClose }: { item?: EquipmentItemWith
         <div>
           <span className="label">מק״טים שנמצאים בציוד ({parts.length})</span>
           {parts.length > 0 && (
-            <div className="overflow-x-auto">
+            <div tabIndex={0} className="overflow-x-auto">
               <table className="w-full min-w-[520px] text-sm">
                 <thead>
                   <tr className="text-xs text-slate-400">

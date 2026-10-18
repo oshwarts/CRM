@@ -102,7 +102,7 @@ export function StockForecast({ hospitalId, lastCount, minOf }: { hospitalId: st
               {needed.length} פריטים ידרשו הזמנה · {needed.reduce((s, r) => s + r.order, 0)} יחידות
             </p>
           )}
-          <div className="overflow-x-auto">
+          <div tabIndex={0} className="overflow-x-auto">
             <table className="w-full min-w-[520px] text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-right text-xs text-slate-500">

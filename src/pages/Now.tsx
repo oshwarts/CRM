@@ -195,7 +195,7 @@ export default function Now() {
         groups.map((g) => (
           <section key={g.id} className={classNames('rounded-2xl border p-4', TONE[g.tone].box)}>
             <h2 className={classNames('mb-2 flex items-center gap-2 text-lg font-semibold', TONE[g.tone].head)}>
-              <Clock size={17} /> {g.title} <span className="font-normal opacity-70">({g.items.length})</span>
+              <Clock size={17} /> {g.title} <span className="font-normal opacity-90">({g.items.length})</span>
             </h2>
             <ul className="divide-y divide-white/70">
               {g.items.map((it) => (

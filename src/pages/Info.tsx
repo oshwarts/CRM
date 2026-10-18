@@ -202,7 +202,7 @@ export default function Info() {
           {chip(GENERAL, 'כללי')}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <select className="input !w-auto" value={catFilter} onChange={(e) => setCatFilter(e.target.value)}>
+          <select className="input !w-auto" aria-label="קטגוריה" value={catFilter} onChange={(e) => setCatFilter(e.target.value)}>
             <option value="">כל הקטגוריות</option>
             {(categories.data ?? []).map((c) => (
               <option key={c.id} value={c.id}>

@@ -143,7 +143,7 @@ export function PickingListModal({
           </div>
 
           {totals.length > 0 && (
-            <div id="picking-print" className="card overflow-x-auto">
+            <div id="picking-print" tabIndex={0} className="card overflow-x-auto">
               <table className="w-full min-w-[420px] text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-500">

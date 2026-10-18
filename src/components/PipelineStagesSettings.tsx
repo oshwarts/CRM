@@ -100,7 +100,7 @@ export function PipelineStagesSettings() {
 
   return (
     <div className="card p-5">
-      <h3 className="mb-1 font-semibold text-slate-800">שלבי המשפך של רופאים פוטנציאליים</h3>
+      <h2 className="mb-1 font-semibold text-slate-800">שלבי המשפך של רופאים פוטנציאליים</h2>
       <p className="mb-3 text-xs text-slate-500">הסדר כאן הוא הסדר במשפך. שינוי שם של שלב מעדכן את כל הרופאים שנמצאים בו. מחיקת שלב מעבירה את הרופאים לשלב אחר.</p>
       <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl bg-slate-50 p-3 text-sm">
         <span className="text-slate-700">רופא פוטנציאלי נחשב תקוע אחרי</span>

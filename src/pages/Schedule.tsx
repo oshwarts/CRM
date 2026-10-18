@@ -197,7 +197,7 @@ export default function Schedule() {
           <p className="font-semibold text-slate-700">
             {formatDate(from)} – {formatDate(to)}
           </p>
-          <select className="input !w-auto" value={agentId} onChange={(e) => setAgentId(e.target.value)}>
+          <select className="input !w-auto" aria-label="סינון לפי סוכן" value={agentId} onChange={(e) => setAgentId(e.target.value)}>
             <option value="">כל הסוכנים</option>
             {(agents.data ?? []).map((a) => (
               <option key={a.id} value={a.id}>
@@ -240,7 +240,7 @@ export default function Schedule() {
             >
               <h2 className={classNames('mb-2 flex items-baseline justify-between rounded-lg px-2 py-1 text-base font-semibold', isToday ? 'bg-brand-500 text-white' : 'bg-brand-50 text-brand-800')}>
                 <span>יום {DAY_NAMES[d.getDay()]}</span>
-                <span className={classNames('flex items-center gap-1 text-xs font-normal', isToday ? 'text-white/80' : 'text-slate-500')}>
+                <span className={classNames('flex items-center gap-1 text-xs font-normal', isToday ? 'text-white' : 'text-slate-500')}>
                   {format(d, 'dd/MM')}
                   <button
                     type="button"

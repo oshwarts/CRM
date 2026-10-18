@@ -119,7 +119,7 @@ export function CompetitorAnalysis() {
                 ))}
               </ul>
             </div>
-            <div className="overflow-x-auto">
+            <div tabIndex={0} className="overflow-x-auto">
               <p className="mb-2 text-sm font-medium text-slate-700">לפי מתחרה</p>
               <table className="w-full text-sm">
                 <thead>
@@ -181,7 +181,7 @@ export function CompetitorAnalysis() {
               ))}
             </ul>
             {trendYears.length > 1 && (
-              <div className="mt-4 overflow-x-auto">
+              <div tabIndex={0} className="mt-4 overflow-x-auto">
                 <p className="mb-1 text-sm font-medium text-slate-700">מגמה שנתית (מקרים)</p>
                 <table className="w-full min-w-[320px] text-sm">
                   <thead>
@@ -219,7 +219,7 @@ export function CompetitorAnalysis() {
         {matrix.length === 0 ? (
           <p className="text-sm text-slate-400">אין עדיין נתונים.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div tabIndex={0} className="overflow-x-auto">
             <table className="w-full min-w-[480px] text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-slate-500">

@@ -23,7 +23,7 @@ export function ConsumableUsageEditor() {
       <p className="mb-3 text-sm text-slate-400">
         כמה יחידות מכל פריט נצרכות בניתוח אחד, לפי סוג הניתוח. עמוד המתכלים משתמש בזה יחד עם הניתוחים המתוכננים בסריקות כדי להתריע על מה שיחסר. פריט שלא הוגדרה לו צריכה לא נכנס לתחזית.
       </p>
-      <div className="overflow-x-auto">
+      <div tabIndex={0} className="overflow-x-auto">
         <table className="w-full min-w-[420px] text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-right text-xs text-slate-500">

@@ -197,7 +197,7 @@ export default function Competitors() {
 
         <TabPanel id="records">
           {summary.length > 0 && (
-            <div className="card overflow-x-auto">
+            <div tabIndex={0} className="card overflow-x-auto">
               <table className="w-full min-w-[620px] text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-right text-slate-500">

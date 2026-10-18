@@ -180,7 +180,7 @@ function SimpleListSettings({
 
   return (
     <div className="card p-5">
-      <h3 className="mb-3 font-semibold text-slate-800">{title}</h3>
+      <h2 className="mb-3 font-semibold text-slate-800">{title}</h2>
       <div className="mb-3 flex gap-2">
         <input
           className="input"

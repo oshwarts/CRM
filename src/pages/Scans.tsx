@@ -260,18 +260,18 @@ export default function Scans() {
 
       <div className="card grid gap-3 p-4 sm:grid-cols-4">
         <input className="input" placeholder="חיפוש שם / ת״ז / טלפון / מנתח" value={q} onChange={(e) => setQ(e.target.value)} />
-        <select className="input" value={hospital} onChange={(e) => setHospital(e.target.value)}>
+        <select className="input" aria-label="בית חולים" value={hospital} onChange={(e) => setHospital(e.target.value)}>
           <option value="">כל בתי החולים</option>
           {hospitals.map(([id, name]) => (
             <option key={id} value={id}>{name}</option>
           ))}
         </select>
-        <select className="input" value={window} onChange={(e) => setWindow(e.target.value)}>
+        <select className="input" aria-label="טווח זמן" value={window} onChange={(e) => setWindow(e.target.value)}>
           {Object.entries(WINDOW_LABELS).map(([v, l]) => (
             <option key={v} value={v}>{l}</option>
           ))}
         </select>
-        <select className="input" value={status} onChange={(e) => setStatus(e.target.value)}>
+        <select className="input" aria-label="סטטוס" value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">כל הסטטוסים</option>
           {Object.entries(SCAN_STATUS_LABELS).map(([v, l]) => (
             <option key={v} value={v}>{l}</option>
@@ -307,7 +307,7 @@ export default function Scans() {
       )}
 
       {rows.length > 0 && (
-        <div className="card hidden overflow-x-auto md:block">
+        <div tabIndex={0} className="card hidden overflow-x-auto md:block">
           <table className="w-full min-w-[1250px] text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-right text-slate-500">

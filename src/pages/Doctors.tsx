@@ -420,7 +420,7 @@ export default function Doctors() {
       ) : (
         <>
           {/* desktop: a table */}
-          <div className="card hidden overflow-x-auto md:block">
+          <div tabIndex={0} className="card hidden overflow-x-auto md:block">
             <table className="w-full min-w-[900px] text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-right text-xs text-slate-500">

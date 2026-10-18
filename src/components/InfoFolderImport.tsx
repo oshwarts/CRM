@@ -139,7 +139,7 @@ export function InfoFolderImport({ onClose }: { onClose: () => void }) {
         {skipped > 0 && <p className="text-xs text-slate-400">{skipped} קבצים שאינם מסמכים דולגו.</p>}
 
         {rows.length > 0 && (
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <div tabIndex={0} className="overflow-x-auto rounded-xl border border-slate-200">
             <table className="w-full min-w-[820px] text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-right text-slate-500">

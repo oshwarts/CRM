@@ -121,7 +121,7 @@ function ProcedureEquipment({
       {rows.length === 0 ? (
         <p className="mb-2 text-sm text-slate-400">לא הוגדר ציוד להליך זה</p>
       ) : (
-        <div className="overflow-x-auto">
+        <div tabIndex={0} className="overflow-x-auto">
           <table className="w-full min-w-[440px] text-sm">
             <thead>
               <tr className="text-slate-400">

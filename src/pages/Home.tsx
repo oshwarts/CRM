@@ -384,7 +384,7 @@ export default function Home() {
               </p>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-              <button className="btn bg-white !text-[#00326d] hover:bg-white/90" onClick={() => setNewMeeting(true)}>
+              <button className="btn bg-[#ffffff] !text-[#00326d] hover:bg-[#f1f5f9]" onClick={() => setNewMeeting(true)}>
                 <Plus size={16} /> פגישה חדשה
               </button>
               <button className="btn border border-white/40 bg-white/10 text-white hover:bg-white/20" onClick={() => setNewTask(true)}>
@@ -483,6 +483,7 @@ export default function Home() {
               </p>
               <select
                 className="input !w-auto !py-1 text-sm"
+                aria-label="טווח הניתוחים להצגה"
                 value={surgeryRange.range}
                 onChange={(e) =>
                   changeRange({
@@ -824,6 +825,7 @@ export default function Home() {
         <div className="mt-3 flex flex-wrap gap-2">
           <select
             className="input max-w-xs"
+            aria-label="הוסף רופא לרשימה"
             value={toAdd}
             onChange={(e) => {
               const id = e.target.value

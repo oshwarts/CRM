@@ -74,7 +74,7 @@ function AgentCard({ r }: { r: AgentRow }) {
 function AgentsTable({ model }: { model: TeamModel }) {
   const cell = (v: number | string | null, bad = false) => <td className={classNames('p-2.5 text-center', bad && 'font-semibold text-red-600')}>{v ?? '—'}</td>
   return (
-    <div className="card overflow-x-auto">
+    <div tabIndex={0} className="card overflow-x-auto">
       <table className="w-full min-w-[820px] text-sm">
         <thead>
           <tr className="border-b border-slate-200 bg-slate-50 text-right text-xs text-slate-500">
