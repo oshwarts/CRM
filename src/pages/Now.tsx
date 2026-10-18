@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, CalendarDays, CheckCircle2, CheckSquare, Clock, ScanLine, Stethoscope, Swords, Target } from 'lucide-react'
+import { AlertTriangle, CalendarDays, CheckCircle2, CheckSquare, Clock, FileUp, ScanLine, Stethoscope, Swords, Target } from 'lucide-react'
 import { useAuth } from '../context/AuthProvider'
 import { useCompetitorIntel, useDoctors, useFavorites, useMeetings, useMyHospitalIds, usePatientScans, useTasks } from '../lib/api'
 import { competitorAlerts, newActivity } from '../lib/competitors'
@@ -10,6 +10,7 @@ import { SCAN_PROCEDURE_LABELS } from '../lib/types'
 import { classNames, daysUntil, formatDate, plusDaysISO, todayISO } from '../lib/utils'
 import { Spinner } from '../components/ui'
 import { useStageHistoryAll, useStuckThresholds } from '../lib/pipeline'
+import { useUploadRequests } from '../lib/largeFiles'
 import { stageSinceMap, stuckPotentials } from '../lib/pipelineStats'
 
 type Item = { key: string; to: string; icon: React.ReactNode; title: string; sub: string; when: string }
@@ -33,6 +34,7 @@ export default function Now() {
   const myHospitals = useMyHospitalIds()
   const stageHistory = useStageHistoryAll()
   const stuckThresholds = useStuckThresholds()
+  const uploads = useUploadRequests()
   const { isAdmin } = useAuth()
   const loading = [tasks, meetings, scans, doctors].some((q) => q.isLoading)
 
@@ -139,16 +141,26 @@ export default function Now() {
       when: d.next_step_date ? formatDate(d.next_step_date) : '',
     }))
 
+    // large files: the managers' requests to decide, and the answers to my own
+    const reqs = uploads.data ?? []
+    const mb = (n: number) => `${(n / 1024 / 1024).toFixed(0)}MB`
+    const uploadItems: Item[] = [
+      ...(isAdmin ? reqs.filter((r) => r.status === 'pending').map((r) => ({ key: `u${r.id}`, to: '/settings?tab=uploads', icon: <FileUp size={16} />, title: `בקשה להעלאת קובץ גדול: ${r.file_name}`, sub: [mb(r.file_size), r.purpose, r.requester?.full_name].filter(Boolean).join(' · '), when: formatDate(r.created_at.slice(0, 10)) })) : []),
+      ...reqs.filter((r) => r.requested_by === user?.id && r.status === 'approved').map((r) => ({ key: `ua${r.id}`, to: '/now', icon: <FileUp size={16} />, title: `אושר — אפשר להעלות את ${r.file_name}`, sub: `${mb(r.file_size)} · בחר את הקובץ שוב באותו מקום והעלה`, when: '' })),
+      ...reqs.filter((r) => r.requested_by === user?.id && r.status === 'rejected' && (daysUntil(r.decided_at?.slice(0, 10) ?? null) ?? -99) >= -7).map((r) => ({ key: `ur${r.id}`, to: '/now', icon: <FileUp size={16} />, title: `נדחתה ההעלאה של ${r.file_name}`, sub: r.decision_note || 'אפשר לפנות למנהל או להקטין את הקובץ', when: '' })),
+    ]
+
     const out: Group[] = [
       { id: 'late', title: 'באיחור — לטפל קודם', tone: 'red', items: late },
       { id: 'today', title: 'היום', tone: 'amber', items: today },
       { id: 'soon', title: 'השבוע הקרוב', tone: 'blue', items: soon },
       { id: 'contact', title: 'רופאים לחזור אליהם', tone: 'blue', items: toContact },
+      { id: 'uploads', title: 'קבצים גדולים — אישורי העלאה', tone: 'amber', items: uploadItems },
       { id: 'pipeline', title: 'רופאים פוטנציאליים שדורשים דחיפה', tone: 'amber', items: stuck },
       { id: 'competitors', title: 'הזדמנויות מול מתחרים', tone: 'amber', items: opportunities },
     ]
     return out.filter((g) => g.items.length > 0)
-  }, [tasks.data, meetings.data, scans.data, doctors.data, favorites.data, competitorIntel.data, stageHistory.data, stuckThresholds, myHospitals, isAdmin, user?.id])
+  }, [tasks.data, meetings.data, scans.data, doctors.data, favorites.data, competitorIntel.data, stageHistory.data, stuckThresholds, uploads.data, myHospitals, isAdmin, user?.id])
 
   const total = groups.reduce((n, g) => n + g.items.length, 0)
 

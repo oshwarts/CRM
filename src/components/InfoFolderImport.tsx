@@ -4,6 +4,8 @@ import { INFO_MAX_BYTES, useInfoCategories, useInfoDocuments, useProcedures, use
 import { ALLOWED_EXT, guessCategory, guessProcedure, sha256, titleOf } from '../lib/infoImport'
 import { classNames } from '../lib/utils'
 import { Modal } from './ui'
+import { useAuth } from '../context/AuthProvider'
+import { LARGE_LIMIT } from '../lib/largeFiles'
 
 type Row = {
   file: File
@@ -19,6 +21,7 @@ const mb = (b: number) => `${(b / 1024 / 1024).toFixed(1)}MB`
 
 /** pick a whole folder (Data/Knee/Mako/…) — procedure and category are guessed, then reviewed */
 export function InfoFolderImport({ onClose }: { onClose: () => void }) {
+  const { isAdmin } = useAuth()
   const procedures = useProcedures()
   const categories = useInfoCategories()
   const existing = useInfoDocuments()
@@ -56,6 +59,9 @@ export function InfoFolderImport({ onClose }: { onClose: () => void }) {
       if (f.size > INFO_MAX_BYTES) {
         include = false
         note = 'גדול מ-50MB — העלה כקישור'
+      } else if (f.size > LARGE_LIMIT && !isAdmin) {
+        include = false
+        note = 'גדול מ-25MB — דורש אישור מנהל, העלה אותו בנפרד'
       } else if (known.has(`${f.name}|${f.size}`)) {
         include = false
         note = 'כבר קיים בספרייה'

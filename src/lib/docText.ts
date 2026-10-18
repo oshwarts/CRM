@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { INFO_BUCKET } from './api'
-import { supabase } from './supabase'
+import { infoStorage } from './largeFiles'
 import type { InfoDocument } from './types'
 
 export type DocText = { pages: string[] } | { unsupported: string }
@@ -12,7 +11,7 @@ const isText = (d: InfoDocument) => d.mime.startsWith('text/') || /\.(txt|md|csv
 export async function readDocumentText(d: InfoDocument): Promise<DocText> {
   if (d.kind !== 'file' || !d.storage_path) return { unsupported: 'זה קישור חיצוני — אפשר לפתוח אותו בלבד' }
   if (!isPdf(d) && !isText(d)) return { unsupported: 'תצוגת קריאה זמינה לקבצי PDF וטקסט. את שאר הסוגים (Word, מצגות) אפשר לפתוח בקובץ המקורי' }
-  const { data, error } = await supabase.storage.from(INFO_BUCKET).download(d.storage_path)
+  const { data, error } = await infoStorage().download(d.storage_path)
   if (error || !data) throw new Error('לא ניתן להוריד את הקובץ')
   if (isText(d)) return { pages: [await data.text()] }
   const { getDocumentProxy, extractText } = await import('unpdf')

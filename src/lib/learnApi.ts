@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { addDays, format } from 'date-fns'
 import { supabase } from './supabase'
 import { actingUserId } from './actingAs'
-import { INFO_BUCKET } from './api'
+import { infoStorage } from './largeFiles'
 import { useAuth } from '../context/AuthProvider'
 import type { LearnAttempt, LearnCard, LearnCase, LearnDaily, LearnLesson, LearnProgress, LearnSequence, LearnTopic, LearnTrack, LearnTrackItem } from './types'
 import { POINTS } from './learnGame'
@@ -24,7 +24,7 @@ export function useCanEditLearning() {
 export async function uploadLearnImage(file: File): Promise<string> {
   const ext = (file.name.match(/\.[A-Za-z0-9]{1,6}$/)?.[0] ?? '').toLowerCase()
   const path = `learn/${crypto.randomUUID()}${ext}`
-  const up = await supabase.storage.from(INFO_BUCKET).upload(path, file, { contentType: file.type || 'image/jpeg' })
+  const up = await infoStorage().upload(path, file, { contentType: file.type || 'image/jpeg' })
   if (up.error) throw up.error
   return path
 }
@@ -37,7 +37,7 @@ export function useImageUrl(path: string | null | undefined) {
     staleTime: 45 * 60_000,
     gcTime: 50 * 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase.storage.from(INFO_BUCKET).createSignedUrl(path!, 3600)
+      const { data, error } = await infoStorage().createSignedUrl(path!, 3600)
       if (error) throw error
       return data.signedUrl
     },

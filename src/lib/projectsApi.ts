@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from './supabase'
 import { actingUserId } from './actingAs'
-import { INFO_BUCKET } from './api'
+import { infoStorage } from './largeFiles'
 import { PROJECT_TEMPLATES } from './projects'
 import type { ProjectFile, ProjectUpdate, ProjectWithRelations } from './types'
 
@@ -223,7 +223,7 @@ export function useAddProjectUpdate() {
       for (const f of u.files) {
         const ext = (f.name.match(/\.[A-Za-z0-9]{1,6}$/)?.[0] ?? '').toLowerCase()
         const path = `projects/${u.projectId}/${crypto.randomUUID()}${ext}`
-        const up = await supabase.storage.from(INFO_BUCKET).upload(path, f, { contentType: f.type || 'application/octet-stream' })
+        const up = await infoStorage().upload(path, f, { contentType: f.type || 'application/octet-stream' })
         if (up.error) throw up.error
         unwrap(
           await supabase.from('project_files').insert({
@@ -253,7 +253,7 @@ export function useDeleteProjectUpdate() {
 /** opens a project file through a short-lived link */
 export async function openProjectFile(f: ProjectFile): Promise<string | null> {
   const tab = window.open('', '_blank')
-  const { data, error } = await supabase.storage.from(INFO_BUCKET).createSignedUrl(f.storage_path, 3600)
+  const { data, error } = await infoStorage().createSignedUrl(f.storage_path, 3600)
   if (error || !data) {
     tab?.close()
     return error?.message ?? 'פתיחת הקובץ נכשלה'
@@ -342,12 +342,12 @@ export function useEditProjectUpdate() {
       if (e.removeFiles.length) {
         unwrap(await supabase.from('project_files').delete().in('id', e.removeFiles.map((f) => f.id)))
         // the stored copy can only be deleted by a manager; for others the file just disappears from the update
-        await supabase.storage.from(INFO_BUCKET).remove(e.removeFiles.map((f) => f.storage_path))
+        await infoStorage().remove(e.removeFiles.map((f) => f.storage_path))
       }
       for (const f of e.newFiles) {
         const ext = (f.name.match(/\.[A-Za-z0-9]{1,6}$/)?.[0] ?? '').toLowerCase()
         const path = `projects/${e.projectId}/${crypto.randomUUID()}${ext}`
-        const up = await supabase.storage.from(INFO_BUCKET).upload(path, f, { contentType: f.type || 'application/octet-stream' })
+        const up = await infoStorage().upload(path, f, { contentType: f.type || 'application/octet-stream' })
         if (up.error) throw up.error
         unwrap(
           await supabase.from('project_files').insert({

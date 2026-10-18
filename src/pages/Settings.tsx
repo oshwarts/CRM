@@ -1,6 +1,8 @@
 import { PipelineStagesSettings } from '../components/PipelineStagesSettings'
 import { RobotLinks } from '../components/RobotLinks'
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { UploadRequests } from '../components/UploadRequests'
 import { useAuth } from '../context/AuthProvider'
 import { BookUser, FileUp, Image as ImageIcon, Pencil, Plus, Trash2 } from 'lucide-react'
 import { SmartContactImport } from '../components/SmartContactImport'
@@ -63,7 +65,8 @@ import { EquipmentViewModal } from '../components/EquipmentViewModal'
 import { EquipmentPdfImport } from '../components/EquipmentPdfImport'
 
 export default function Settings() {
-  const [tab, setTab] = useState('lists')
+  const [params] = useSearchParams()
+  const [tab, setTab] = useState(params.get('tab') ?? 'lists')
 
   return (
     <div className="space-y-5">
@@ -80,6 +83,7 @@ export default function Settings() {
           <Tab id="info">מידע קליני</Tab>
           <Tab id="hospitals">בתי חולים</Tab>
           <Tab id="contacts">אנשי קשר</Tab>
+          <Tab id="uploads">אישורי העלאה</Tab>
         </TabList>
 
         <TabPanel id="lists">
@@ -129,6 +133,9 @@ export default function Settings() {
         </TabPanel>
         <TabPanel id="hospitals">
           <HospitalsSettings />
+        </TabPanel>
+        <TabPanel id="uploads">
+          <UploadRequests />
         </TabPanel>
         <TabPanel id="contacts">
           <ContactsSettings />

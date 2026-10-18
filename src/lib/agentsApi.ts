@@ -179,7 +179,7 @@ export function useDeleteAgentNote() {
 }
 
 /* ---------------- training ---------------- */
-import { INFO_BUCKET } from './api'
+import { infoStorage } from './largeFiles'
 import type { AgentTraining, TrainingStage } from './types'
 
 /** the stages the manager defined (general ones and per procedure) */
@@ -234,7 +234,7 @@ export function useDeleteStage() {
       const files = unwrap<{ file_path: string | null }[]>(await supabase.from('agent_training').select('file_path').eq('stage_id', s.id))
       unwrap(await supabase.from('training_stages').delete().eq('id', s.id))
       const paths = files.flatMap((f) => (f.file_path ? [f.file_path] : []))
-      if (paths.length) await supabase.storage.from(INFO_BUCKET).remove(paths)
+      if (paths.length) await infoStorage().remove(paths)
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['training-stages'] })
@@ -268,7 +268,7 @@ export function useSaveCompletion() {
       if (t.file) {
         const ext = (t.file.name.match(/\.[A-Za-z0-9]{1,6}$/)?.[0] ?? '').toLowerCase()
         const path = `training/${t.agent_id}/${crypto.randomUUID()}${ext}`
-        const up = await supabase.storage.from(INFO_BUCKET).upload(path, t.file, { contentType: t.file.type || 'application/octet-stream' })
+        const up = await infoStorage().upload(path, t.file, { contentType: t.file.type || 'application/octet-stream' })
         if (up.error) throw up.error
         file_path = path
         file_name = t.file.name
@@ -276,7 +276,7 @@ export function useSaveCompletion() {
       const row = { agent_id: t.agent_id, stage_id: t.stage_id, completed_on: t.completed_on, notes: t.notes.trim(), file_path, file_name }
       if (t.existing) unwrap(await supabase.from('agent_training').update(row).eq('id', t.existing.id))
       else unwrap(await supabase.from('agent_training').insert(row))
-      if (oldPath && oldPath !== file_path) await supabase.storage.from(INFO_BUCKET).remove([oldPath])
+      if (oldPath && oldPath !== file_path) await infoStorage().remove([oldPath])
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['agent-training'] }),
   })
@@ -287,7 +287,7 @@ export function useRemoveCompletion() {
   return useMutation({
     mutationFn: async (t: AgentTraining) => {
       unwrap(await supabase.from('agent_training').delete().eq('id', t.id))
-      if (t.file_path) await supabase.storage.from(INFO_BUCKET).remove([t.file_path])
+      if (t.file_path) await infoStorage().remove([t.file_path])
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['agent-training'] }),
   })
@@ -296,7 +296,7 @@ export function useRemoveCompletion() {
 /** opens the attached certificate through a short-lived link */
 export async function openTrainingFile(path: string): Promise<string | null> {
   const tab = window.open('', '_blank')
-  const { data, error } = await supabase.storage.from(INFO_BUCKET).createSignedUrl(path, 3600)
+  const { data, error } = await infoStorage().createSignedUrl(path, 3600)
   if (error || !data) {
     tab?.close()
     return error?.message ?? 'פתיחת הקובץ נכשלה'

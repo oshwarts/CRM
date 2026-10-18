@@ -42,6 +42,7 @@ import type {
   Competitor,
 } from './types'
 import { SCAN_PROCEDURE_TO_NAME } from './types'
+import { infoStorage } from './largeFiles'
 import { currentUserId, mergePatch, registerExecutor, runOrQueue, type ExecResult } from './outbox'
 import { queryClient } from './queryClient'
 import type { TablesInsert, TablesUpdate } from './database.types'
@@ -1704,7 +1705,7 @@ export function useSaveInfoDoc() {
         // storage keys stay ASCII; the original file name is kept in the row
         const ext = (d.file.name.split('.').pop() ?? 'bin').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8) || 'bin'
         const path = `${crypto.randomUUID()}.${ext}`
-        const up = await supabase.storage.from(INFO_BUCKET).upload(path, d.file, {
+        const up = await infoStorage().upload(path, d.file, {
           contentType: d.file.type || 'application/octet-stream',
         })
         if (up.error) throw up.error
@@ -1745,7 +1746,7 @@ export function useDeleteInfoDoc() {
   return useMutation({
     mutationFn: async (d: InfoDocument) => {
       if (d.kind === 'file' && d.storage_path) {
-        const r = await supabase.storage.from(INFO_BUCKET).remove([d.storage_path])
+        const r = await infoStorage().remove([d.storage_path])
         if (r.error) throw r.error
       }
       unwrap(await supabase.from('info_documents').delete().eq('id', d.id))
@@ -1763,7 +1764,7 @@ export async function openInfoDocument(d: InfoDocument): Promise<string | null> 
     return null
   }
   const tab = window.open('', '_blank') // opened first so the browser does not block it
-  const { data, error } = await supabase.storage.from(INFO_BUCKET).createSignedUrl(d.storage_path, 3600)
+  const { data, error } = await infoStorage().createSignedUrl(d.storage_path, 3600)
   if (error || !data) {
     tab?.close()
     return 'לא ניתן לפתוח את הקובץ'
@@ -2542,7 +2543,7 @@ async function uploadEquipmentImage(blob: Blob): Promise<string> {
 /** stores a (shrunk) picture in the private bucket and returns its path */
 export async function uploadImageTo(prefix: string, blob: Blob): Promise<string> {
   const path = `${prefix}${crypto.randomUUID()}.jpg`
-  const up = await supabase.storage.from(INFO_BUCKET).upload(path, blob, { contentType: 'image/jpeg' })
+  const up = await infoStorage().upload(path, blob, { contentType: 'image/jpeg' })
   if (up.error) throw up.error
   return path
 }
@@ -2554,7 +2555,7 @@ export function useEquipmentImageUrl(path: string | null | undefined) {
     enabled: !!path,
     staleTime: 30 * 60 * 1000,
     queryFn: async () => {
-      const { data, error } = await supabase.storage.from(INFO_BUCKET).createSignedUrl(path!, 3600)
+      const { data, error } = await infoStorage().createSignedUrl(path!, 3600)
       if (error) throw error
       return data.signedUrl
     },
