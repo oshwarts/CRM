@@ -1,17 +1,19 @@
-import { useMemo, useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { AlertTriangle, Building2, CalendarDays, Navigation, Phone, Scissors, Search, User } from 'lucide-react'
+import { AlertTriangle, Building2, Download, CalendarDays, Navigation, Phone, Scissors, Search, User } from 'lucide-react'
 import { useMapData, useMeetings, usePatientScans } from '../lib/api'
 import { usePlannedSurgeries } from '../lib/plannedSurgeries'
 import { buildHospitalRows, NO_VISIT_DAYS, STATUS_CHIP, STATUS_LABELS, STATUS_ORDER, STATUS_PIN, useSetHospitalCommercial, type CommercialStatus, type HospitalRow, type Warning } from '../lib/hospitalStats'
 import { usePersisted } from '../lib/usePersisted'
+import { downloadCsv } from '../lib/csv'
 import { useAuth } from '../context/AuthProvider'
-import { classNames, formatDate } from '../lib/utils'
+import { classNames, formatDate, todayISO } from '../lib/utils'
 import { EmptyState, ErrorState, Spinner, Tab, TabList, TabPanel, Tabs } from '../components/ui'
 import { hospitalNavLinks } from '../components/HospitalActions'
 import { MeetingFormModal } from '../components/MeetingFormModal'
 import { PlannedSurgeryModal } from '../components/PlannedSurgeryModal'
-import MapPage from './MapPage'
+// the map (and its library) is loaded only when the map tab is opened
+const MapPage = lazy(() => import('./MapPage'))
 
 type Filters = { q: string; status: '' | CommercialStatus; org: string; robot: string; agent: string; warn: '' | 'any' | Warning['key']; mine: boolean; sort: string }
 const NO_FILTERS: Filters = { q: '', status: '', org: '', robot: '', agent: '', warn: '', mine: false, sort: 'name' }
@@ -152,6 +154,16 @@ export default function Hospitals() {
   if (map.isLoading) return <Spinner />
   if (map.error && !map.data) return <ErrorState error={map.error} />
 
+  /** the list as shown (filters and sort applied) as a file for Excel */
+  const exportCsv = () =>
+    downloadCsv(
+      `בתי-חולים-${todayISO()}.csv`,
+      ['בית חולים', 'עיר', 'ארגון', 'סטטוס מסחרי', 'רובוטים', 'סוכנים', 'רופאים', 'פגישה אחרונה', 'ימים מהפגישה', 'ניתוחים ב-30 יום', 'ניתוחים קרובים', 'צעד הבא', 'תאריך צעד הבא', 'דורש תשומת לב'],
+      shown.map((r) => [
+        r.h.name, r.h.city, r.h.organization?.name, STATUS_LABELS[r.status], r.robots.join(' · '), r.agents.map((a) => a.name).join(' · '), r.doctors,
+        r.lastMeeting, r.daysSince, r.surgeries30, r.upcoming30, r.h.next_step, r.h.next_step_date, r.warnings.map((w) => w.label).join(' · '),
+      ]),
+    )
   const filtered = JSON.stringify({ ...f, sort: '' }) !== JSON.stringify({ ...NO_FILTERS, sort: '' })
   const kpi = (label: string, value: number, active: boolean, onClick: () => void, warn?: boolean) => (
     <button
@@ -245,9 +257,14 @@ export default function Hospitals() {
               )}
             </div>
 
-            <p className="text-sm text-slate-500">
-              {shown.length} בתי חולים{filtered ? ` מתוך ${rows.length}` : ''}
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm text-slate-500">
+                {shown.length} בתי חולים{filtered ? ` מתוך ${rows.length}` : ''}
+              </p>
+              <button type="button" className="btn-ghost !text-xs" onClick={exportCsv}>
+                <Download size={14} /> ייצוא לאקסל
+              </button>
+            </div>
 
             {shown.length === 0 ? (
               <EmptyState title="אין בתי חולים שמתאימים לסינון" hint="נסה לנקות את הסינון" />
@@ -363,7 +380,9 @@ export default function Hospitals() {
               </span>
             ))}
           </div>
-          <MapPage embedded pinColor={(id) => STATUS_PIN[statusById.get(id) ?? 'potential']} />
+          <Suspense fallback={<Spinner />}>
+            <MapPage embedded pinColor={(id) => STATUS_PIN[statusById.get(id) ?? 'potential']} />
+          </Suspense>
         </TabPanel>
       </Tabs>
 

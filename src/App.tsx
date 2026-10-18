@@ -35,6 +35,7 @@ const load = {
   CompetitorView: () => import('./pages/CompetitorView'),
   Learn: () => import('./pages/Learn'),
   Now: () => import('./pages/Now'),
+  Help: () => import('./pages/Help'),
   LearnTopic: () => import('./pages/LearnTopic'),
   LearnReview: () => import('./pages/LearnReview'),
 }
@@ -61,6 +62,7 @@ const Competitors = lazy(load.Competitors)
 const CompetitorView = lazy(load.CompetitorView)
 const Learn = lazy(load.Learn)
 const Now = lazy(load.Now)
+const Help = lazy(load.Help)
 const LearnTopic = lazy(load.LearnTopic)
 const LearnReview = lazy(load.LearnReview)
 
@@ -111,6 +113,7 @@ export default function App() {
       <Route element={<Layout />}>
         <Route path="/" element={<Home />} />
         <Route path="/now" element={<Page><Now /></Page>} />
+        <Route path="/help" element={<Page><Help /></Page>} />
         <Route path="/doctors" element={<Page><Doctors /></Page>} />
         <Route path="/doctors/:id" element={<Page><DoctorProfile /></Page>} />
         <Route path="/meetings" element={<Page><Meetings /></Page>} />

@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { AlertTriangle, BookUser, CalendarDays, CheckSquare, Heart, MessageCircle, Phone, Plus, Search, SlidersHorizontal } from 'lucide-react'
+import { AlertTriangle, BookUser, Download, CalendarDays, CheckSquare, Heart, MessageCircle, Phone, Plus, Search, SlidersHorizontal } from 'lucide-react'
 import { useCompanies, useCompetitorIntel, useDoctors, useFavorites, useHospitals, useMeetings, usePatientScans, usePipelineDoctors, useProcedures, useRoboticSystems, useToggleFavorite } from '../lib/api'
 import { usePlannedSurgeries } from '../lib/plannedSurgeries'
 import { buildDoctorRows, LOYALTY_CHIP, LOYALTY_SHORT, STALE_DAYS, usePatchDoctor, WINDOWS, type DoctorRow, type Need } from '../lib/doctorStats'
 import { CADENCE_LABELS } from '../lib/cadence'
 import { usePersisted } from '../lib/usePersisted'
+import { downloadCsv } from '../lib/csv'
 import { DoctorFormModal } from '../components/DoctorFormModal'
 import { MeetingFormModal } from '../components/MeetingFormModal'
 import { TaskFormModal } from '../components/TaskFormModal'
@@ -253,6 +254,17 @@ export default function Doctors() {
     return [...list].sort(sort === 'stage' ? byStage : (SORTS[sort] ?? SORTS.name).cmp)
   }, [rows, q, status, stage, companyId, procedureId, hospitalId, robotId, only, sort, favSet, stageNames])
 
+  /** the list as shown (filters and sort applied) as a file for Excel */
+  const exportCsv = () =>
+    downloadCsv(
+      `רופאים-${todayISO()}.csv`,
+      ['שם', 'תואר', 'תפקיד', 'סטטוס', 'שלב במשפך', 'צעד הבא', 'תאריך צעד הבא', 'בית חולים', 'טלפון', 'מייל', 'רובוט', 'חברה', 'קצב קשר (ימים)', 'פגישה אחרונה', 'ימים מהפגישה האחרונה', `ניתוחים (${windowLabel})`, 'נאמנות'],
+      shown.map((r) => [
+        r.d.name, r.d.title, r.d.position, DOCTOR_STATUS_LABELS[r.d.status] ?? r.d.status, r.d.pipeline_stage, r.d.next_step, r.d.next_step_date,
+        r.hospitals.join(' · '), r.d.phone, r.d.email, r.robots.join(' · '), r.companies.join(' · '), r.d.contact_cadence_days, r.contact.lastDate, r.daysSince, r.surgeries, LOYALTY_SHORT[r.loyalty] ?? '',
+      ]),
+    )
+
   const anyFilter = !!(q || status || stage || companyId || procedureId || hospitalId || robotId || only)
   const clearAll = () => {
     setQ('')
@@ -403,9 +415,14 @@ export default function Doctors() {
         )}
       </div>
 
-      <p className="text-sm text-slate-500">
-        {shown.length} רופאים{anyFilter ? ` מתוך ${rows.length}` : ''}
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-slate-500">
+          {shown.length} רופאים{anyFilter ? ` מתוך ${rows.length}` : ''}
+        </p>
+        <button type="button" className="btn-ghost !text-xs" onClick={exportCsv}>
+          <Download size={14} /> ייצוא לאקסל
+        </button>
+      </div>
 
       {shown.length === 0 ? (
         <EmptyState

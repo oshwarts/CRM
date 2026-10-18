@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { BrandLogo } from '../components/BrandLogo'
 import { useAuth } from '../context/AuthProvider'
+import { supabase } from '../lib/supabase'
 
 export default function Login() {
   const { signIn, signUp } = useAuth()
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin')
+  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>('signin')
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -18,7 +19,11 @@ export default function Login() {
     setInfo(null)
     setBusy(true)
     try {
-      if (mode === 'signin') {
+      if (mode === 'forgot') {
+        // the same answer whether or not the address exists: nobody can use the form to find out who has an account
+        await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: window.location.origin })
+        setInfo('אם הכתובת רשומה במערכת, נשלח אליה קישור לבחירת סיסמה חדשה. הקישור תקף לזמן קצר.')
+      } else if (mode === 'signin') {
         await signIn(email.trim(), password)
       } else {
         await signUp(email.trim(), password, fullName.trim())
@@ -42,7 +47,7 @@ export default function Login() {
         </div>
       <div className="card w-full p-7 shadow-pop">
         <div className="mb-6 flex flex-col items-center gap-1 text-center">
-          <h1 className="text-2xl font-semibold">{mode === 'signin' ? 'ברוכים הבאים' : 'יצירת משתמש חדש'}</h1>
+          <h1 className="text-2xl font-semibold">{mode === 'signin' ? 'ברוכים הבאים' : mode === 'forgot' ? 'שכחתי סיסמה' : 'יצירת משתמש חדש'}</h1>
           <p className="text-sm text-slate-500">{mode === 'signin' ? 'התחברות למערכת ניהול הלקוחות' : 'הגישה נפתחת אחרי אישור מנהל'}</p>
         </div>
 
@@ -72,6 +77,7 @@ export default function Login() {
               required
             />
           </div>
+          {mode !== 'forgot' && (
           <div>
             <label className="label">סיסמה</label>
             <input
@@ -85,6 +91,7 @@ export default function Login() {
               required
             />
           </div>
+          )}
 
           {error && (
             <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
@@ -98,10 +105,23 @@ export default function Login() {
           )}
 
           <button className="btn-primary w-full" disabled={busy}>
-            {busy ? 'רגע…' : mode === 'signin' ? 'התחבר' : 'הרשמה'}
+            {busy ? 'רגע…' : mode === 'signin' ? 'התחבר' : mode === 'forgot' ? 'שלח קישור' : 'הרשמה'}
           </button>
         </form>
 
+        {mode === 'signin' && (
+          <button
+            type="button"
+            className="mt-3 w-full text-center text-sm text-slate-600 hover:underline"
+            onClick={() => {
+              setMode('forgot')
+              setError(null)
+              setInfo(null)
+            }}
+          >
+            שכחתי סיסמה
+          </button>
+        )}
         <button
           className="mt-4 w-full text-center text-sm text-brand-600 hover:underline"
           onClick={() => {
@@ -112,7 +132,9 @@ export default function Login() {
         >
           {mode === 'signin'
             ? 'אין לך משתמש? הרשמה'
-            : 'כבר יש לך משתמש? התחברות'}
+            : mode === 'forgot'
+              ? 'חזרה להתחברות'
+              : 'כבר יש לך משתמש? התחברות'}
         </button>
       </div>
       </div>
