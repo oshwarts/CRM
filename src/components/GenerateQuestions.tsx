@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Sparkles, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAddGeneratedCards } from '../lib/learnApi'
+import { useAppSetting } from '../lib/api'
 import { Modal } from './ui'
 
 type Draft = { question: string; correct: string; wrong: string[]; explanation: string; keep: boolean }
@@ -23,6 +24,7 @@ export function GenerateQuestions({
   onClose: () => void
 }) {
   const add = useAddGeneratedCards()
+  const enabled = useAppSetting('ai.enabled')
   const [count, setCount] = useState(10)
   const [busy, setBusy] = useState(false)
   const [drafts, setDrafts] = useState<Draft[] | null>(null)
@@ -30,6 +32,7 @@ export function GenerateQuestions({
   const [done, setDone] = useState<{ added: number; skipped: number } | null>(null)
 
   async function generate() {
+    if (enabled.data !== '1') return setError('יצירת שאלות בבינה מלאכותית כבויה כדי לחסוך בעלויות. מנהל יכול להפעיל אותה בהגדרות ← בריאות המערכת.')
     if (!window.confirm('טקסט המסמך יישלח לשירות הבינה המלאכותית (Anthropic) כדי לנסח שאלות. לא להשתמש במסמכים עם פרטי מטופלים או מידע חסוי. להמשיך?')) return
     setBusy(true)
     setError('')
@@ -42,7 +45,9 @@ export function GenerateQuestions({
       if (!info && ctx instanceof Response) info = await ctx.clone().json().catch(() => null)
       const code = info?.error
       setError(
-        code === 'not_configured'
+        code === 'disabled'
+          ? 'יצירת שאלות בבינה מלאכותית כבויה כדי לחסוך בעלויות. מנהל יכול להפעיל אותה בהגדרות ← בריאות המערכת.'
+          : code === 'not_configured'
           ? 'שירות הבינה המלאכותית עוד לא חובר: צריך להוסיף מפתח ANTHROPIC_API_KEY ב-Supabase (Edge Functions ← Secrets).'
           : code === 'text_too_short'
             ? 'לא נמצא מספיק טקסט במסמך (ייתכן שזה סריקה או תמונות).'

@@ -80,7 +80,9 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
   const hospitals = useHospitals()
   const roboticSystems = useRoboticSystems()
   const createDoctor = useCreateDoctor()
-  const updateDoctor = useUpdateDoctor(doctor?.id ?? '')
+  // what the form was opened with: the save writes only what is changed from it
+  const [base] = useState(() => initialData(doctor))
+  const updateDoctor = useUpdateDoctor(doctor?.id ?? '', doctor ? base : undefined)
   const saving = createDoctor.isPending || updateDoctor.isPending
 
   function patch(p: Partial<DoctorFormData>) {

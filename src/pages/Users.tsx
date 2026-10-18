@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Check, Search, ShieldCheck, UserX } from 'lucide-react'
 import { useAllUsers, useUpdateUser, useUserActivity } from '../lib/api'
 import { useAuth } from '../context/AuthProvider'
@@ -14,7 +15,8 @@ import type { Profile } from '../lib/types'
 /** admin-only: users, activity log and backup */
 export default function Users() {
   const { isAdmin } = useAuth()
-  const [tab, setTab] = useState('users')
+  const [params] = useSearchParams()
+  const [tab, setTab] = useState(params.get('tab') ?? 'users')
   if (!isAdmin) return <EmptyState title="אין הרשאה" hint="מסך הניהול זמין למנהלים בלבד" />
   return (
     <div className="space-y-4">

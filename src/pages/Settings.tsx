@@ -3,6 +3,7 @@ import { RobotLinks } from '../components/RobotLinks'
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { UploadRequests } from '../components/UploadRequests'
+import { SystemHealth } from '../components/SystemHealth'
 import { useAuth } from '../context/AuthProvider'
 import { BookUser, FileUp, Image as ImageIcon, Pencil, Plus, Trash2 } from 'lucide-react'
 import { SmartContactImport } from '../components/SmartContactImport'
@@ -84,6 +85,7 @@ export default function Settings() {
           <Tab id="hospitals">בתי חולים</Tab>
           <Tab id="contacts">אנשי קשר</Tab>
           <Tab id="uploads">אישורי העלאה</Tab>
+          <Tab id="health">בריאות המערכת</Tab>
         </TabList>
 
         <TabPanel id="lists">
@@ -133,6 +135,9 @@ export default function Settings() {
         </TabPanel>
         <TabPanel id="hospitals">
           <HospitalsSettings />
+        </TabPanel>
+        <TabPanel id="health">
+          <SystemHealth />
         </TabPanel>
         <TabPanel id="uploads">
           <UploadRequests />

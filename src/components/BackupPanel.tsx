@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { DatabaseBackup, Download } from 'lucide-react'
-import { exportBackup } from '../lib/api'
+import { exportBackup, useSaveAppSetting } from '../lib/api'
 
 /** admin: download every table of the system as one JSON file (a manual backup kept outside the system) */
 export function BackupPanel() {
   const [busy, setBusy] = useState('')
   const [done, setDone] = useState('')
   const [error, setError] = useState('')
+  const saveSetting = useSaveAppSetting()
 
   async function run() {
     setError('')
@@ -20,6 +21,8 @@ export function BackupPanel() {
       a.download = `ami-crm-backup-${new Date().toISOString().slice(0, 10)}.json`
       a.click()
       URL.revokeObjectURL(url)
+      // the date of the last backup is kept so that the managers are reminded when it gets old
+      saveSetting.mutate({ key: 'backup.last', value: new Date().toISOString() })
       const rows = Object.values(data.tables).reduce((n, t) => n + t.length, 0)
       setDone(`הגיבוי ירד למחשב (${rows} רשומות ב-${Object.keys(data.tables).length} טבלאות).`)
     } catch (e) {

@@ -44,6 +44,28 @@ const PURPOSES: [string, string][] = [
 ]
 const purposeOf = (path: string) => PURPOSES.find(([p]) => path.startsWith(p))?.[1] ?? 'מידע קליני'
 
+/**
+ * A picture taken with a phone is several MB: it is shrunk to a readable size (1800 px, JPEG) before it is stored — less storage,
+ * less to download, and a big photo no longer needs a manager's approval. Anything that is not a photo is left as it is.
+ */
+async function shrinkPhoto(file: File | Blob): Promise<File | Blob> {
+  const type = file.type
+  if (!type.startsWith('image/') || type === 'image/svg+xml' || type === 'image/gif' || file.size < 1_500_000) return file
+  try {
+    const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' })
+    const scale = Math.min(1, 1800 / Math.max(bmp.width, bmp.height))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.round(bmp.width * scale)
+    canvas.height = Math.round(bmp.height * scale)
+    canvas.getContext('2d')?.drawImage(bmp, 0, 0, canvas.width, canvas.height)
+    bmp.close?.()
+    const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/jpeg', 0.82))
+    return blob && blob.size < file.size ? blob : file
+  } catch {
+    return file
+  }
+}
+
 type Bucket = ReturnType<typeof supabase.storage.from>
 type UploadOptions = Parameters<Bucket['upload']>[2]
 
@@ -52,11 +74,14 @@ export function infoStorage() {
   const info = () => supabase.storage.from(INFO)
   const large = () => supabase.storage.from(LARGE_BUCKET)
   return {
-    async upload(path: string, file: File | Blob, opts?: UploadOptions) {
+    async upload(path: string, original: File | Blob, options?: UploadOptions) {
+      const file = await shrinkPhoto(original)
+      // a photo that was converted is a JPEG now
+      const opts = file !== original ? { ...options, contentType: 'image/jpeg' } : options
       if (file.size <= LARGE_LIMIT) return info().upload(path, file, opts)
       let ticket: string | null = null
       if (!(await isAdminNow())) {
-        const name = file instanceof File ? file.name : path
+        const name = original instanceof File ? original.name : path
         const { data, error } = await raw.rpc('request_large_upload', { p_name: name, p_size: file.size, p_purpose: purposeOf(path) })
         if (error) throw error
         const r = data as { state: string; id: string; note: string }

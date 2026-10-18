@@ -50,6 +50,10 @@ Deno.serve(async (req) => {
     const { data: allowed } = await caller.rpc('can_edit_learning')
     if (allowed !== true) return json({ error: 'forbidden' }, 403)
 
+    // off unless a manager turned it on (Settings → system health): every call costs money
+    const { data: sw } = await caller.from('app_settings').select('value').eq('key', 'ai.enabled').maybeSingle()
+    if (sw?.value !== '1') return json({ error: 'disabled' }, 403)
+
     const key = Deno.env.get('ANTHROPIC_API_KEY')
     if (!key) return json({ error: 'not_configured' }, 503)
 

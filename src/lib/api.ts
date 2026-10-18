@@ -43,6 +43,7 @@ import type {
 } from './types'
 import { SCAN_PROCEDURE_TO_NAME } from './types'
 import { infoStorage } from './largeFiles'
+import { saveChangedFields } from './safeSave'
 import { currentUserId, mergePatch, registerExecutor, runOrQueue, type ExecResult } from './outbox'
 import { queryClient } from './queryClient'
 import type { TablesInsert, TablesUpdate } from './database.types'
@@ -311,7 +312,8 @@ export function useCreateDoctor() {
   })
 }
 
-export function useUpdateDoctor(id: string) {
+/** `base` = the values the form was opened with: only what the person changed is written, and a change of somebody else is not overwritten silently */
+export function useUpdateDoctor(id: string, base?: DoctorFormData) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (d: DoctorFormData) => {
@@ -329,7 +331,15 @@ export function useUpdateDoctor(id: string) {
         next_step_date: d.next_step_date,
         contact_cadence_days: d.contact_cadence_days,
       }
-      unwrap(await supabase.from('doctors').update(row).eq('id', id))
+      if (base) {
+        await saveChangedFields({
+          table: 'doctors',
+          id,
+          base: { ...(base as unknown as Record<string, unknown>) },
+          next: row as Record<string, unknown>,
+          labels: { name: 'השם', title: 'התואר', position: 'התפקיד', phone: 'הטלפון', email: 'המייל', notes: 'ההערות', status: 'הסטטוס', tracking_notes: 'הערות המעקב', pipeline_stage: 'השלב במשפך', next_step: 'הצעד הבא', next_step_date: 'תאריך הצעד הבא', contact_cadence_days: 'קצב הקשר' },
+        })
+      } else unwrap(await supabase.from('doctors').update(row).eq('id', id))
       await saveDoctorRelations(id, d)
     },
     onSuccess: () => {
@@ -461,12 +471,19 @@ export function useToggleFavorite() {
 const MEETING_SELECT =
   '*, responsible_agent:profiles!meetings_responsible_agent_id_fkey(id, full_name), meeting_doctors(doctor:doctors(id, name, title)), meeting_contacts(contact:contacts(id, name, role, hospital_id)), meeting_agents(agent:profiles(id, full_name, role)), hospital:hospitals(id, name), meeting_tasks(*)'
 
+/** the lists that grow with use are read from this date on (24 months back by default): older records stay in the database and in the backup */
+function historyStart(months = 24): string {
+  const d = new Date()
+  d.setMonth(d.getMonth() - months)
+  return d.toISOString().slice(0, 10)
+}
+
 export function useMeetings() {
   return useQuery({
     queryKey: ['meetings'],
     queryFn: () =>
       fetchAll<MeetingWithRelations>((a, b) =>
-        supabase.from('meetings').select(MEETING_SELECT).order('meeting_date', { ascending: false, nullsFirst: false }).order('id').range(a, b),
+        supabase.from('meetings').select(MEETING_SELECT).or(`meeting_date.gte.${historyStart()},meeting_date.is.null`).order('meeting_date', { ascending: false, nullsFirst: false }).order('id').range(a, b),
       ),
   })
 }
@@ -1253,7 +1270,7 @@ export function usePatientScans() {
     queryKey: ['patient-scans'],
     queryFn: () =>
       fetchAll<PatientScanRow>((a, b) =>
-        supabase.from('patient_scans').select(SCAN_SELECT).order('ct_date', { ascending: false, nullsFirst: false }).order('id').range(a, b),
+        supabase.from('patient_scans').select(SCAN_SELECT).or(`surgery_date.gte.${historyStart()},ct_date.gte.${historyStart()},and(surgery_date.is.null,ct_date.is.null)`).order('ct_date', { ascending: false, nullsFirst: false }).order('id').range(a, b),
       ),
   })
 }
@@ -1789,6 +1806,8 @@ export function useTasks() {
         supabase
           .from('meeting_tasks')
           .select(TASK_SELECT)
+          // open tasks always; finished ones for the last year
+          .or(`is_done.eq.false,done_at.gte.${historyStart(12)}`)
           .order('due_date', { ascending: true, nullsFirst: false })
           .order('created_at', { ascending: false })
           .order('id')
@@ -2005,16 +2024,20 @@ export const BACKUP_TABLES = [
   'competitor_intel', 'audit_log',
   // added later than the first version of the backup: projects, agent management, equipment parts
   'projects', 'project_areas', 'project_updates', 'project_files', 'agent_goals', 'agent_reviews', 'agent_notes',
+  'company_robotic_systems', 'competitor_robotic_systems', 'competitors', 'doctor_stage_history', 'implant_fields', 'learn_attempts', 'learn_progress', 'pipeline_stages', 'planned_surgeries', 'upload_requests',
   'equipment_item_parts', 'training_stages', 'agent_training', 'learn_topics', 'learn_cards', 'learn_lessons', 'learn_cases', 'learn_sequences', 'learn_daily', 'learn_tracks', 'learn_track_items', 'consumable_usage',
 ] as const
 
 export async function exportBackup(onProgress?: (table: string) => void) {
   const out: Record<string, unknown[]> = {}
-  for (const t of BACKUP_TABLES) {
+  // the list comes from the database, so a table added later is never forgotten; the fixed list is the fallback
+  const listed = await (supabase as unknown as { rpc: (n: string) => Promise<{ data: unknown }> }).rpc('backup_tables')
+  const tables: string[] = Array.isArray(listed.data) && listed.data.length > 0 ? (listed.data as string[]) : [...BACKUP_TABLES]
+  for (const t of tables) {
     onProgress?.(t)
     const rows: unknown[] = []
     for (let from = 0; ; from += 1000) {
-      const { data, error } = await supabase.from(t).select('*').range(from, from + 999)
+      const { data, error } = await (supabase as unknown as { from: (n: string) => { select: (c: string) => { range: (a: number, b: number) => Promise<{ data: unknown[] | null; error: { message: string } | null }> } } }).from(t).select('*').range(from, from + 999)
       if (error) throw new Error(`${t}: ${error.message}`)
       rows.push(...(data ?? []))
       if (!data || data.length < 1000) break

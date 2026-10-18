@@ -26,6 +26,8 @@ import { useMenu } from '../lib/useMenu'
 import { clearOutbox, drain, outboxSize } from '../lib/outbox'
 import { classNames, todayISO } from '../lib/utils'
 import { useLocalSetting } from '../lib/useLocalSetting'
+import { useLiveUpdates } from '../lib/liveUpdates'
+import { useErrorLog } from '../lib/errorLog'
 
 
 // the four destinations next to the "+" button on a phone
@@ -34,7 +36,7 @@ const TABS = ['/', '/doctors', '/tasks', '/schedule']
 // scroll position of each visited page, so that going back returns to the same place
 const scrollOf = new Map<string, number>()
 
-const VERSION = 'v126 · קבצים גדולים (מעל 25MB) רק באישור מנהל'
+const VERSION = 'v127 · יעילות: עדכון חי, שמירה בלי דריסה, גיבוי מלא, בריאות המערכת'
 
 export function Layout() {
   const { profile, signOut, impersonating, isDeveloper } = useAuth()
@@ -50,6 +52,9 @@ export function Layout() {
   const navType = useNavigationType()
   const tasks = useTasks()
   const { user } = useAuth()
+  // other people's changes appear by themselves, and an error on this screen is recorded for the managers
+  useLiveUpdates(!!user)
+  useErrorLog(VERSION, !!user)
   const todayStr = todayISO() // local date (UTC is a day behind in Israel after midnight)
   // overdue tasks of mine: a small red-pink counter next to "tasks"
   const pendingSignups = usePendingSignups().data?.length ?? 0
