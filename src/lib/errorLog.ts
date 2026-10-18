@@ -20,6 +20,11 @@ async function report(message: string, stack: string, version: string) {
     .insert({ user_id: uid, message: message.slice(0, 500), stack: stack.slice(0, 2000), url: location.pathname, user_agent: navigator.userAgent.slice(0, 200), app_version: version } as never)
 }
 
+/** for the places that catch an error themselves (the error boundary of a screen) */
+export function reportClientError(message: string, stack: string, version: string) {
+  void report(message, stack, version).catch(() => undefined)
+}
+
 export function useErrorLog(version: string, enabled: boolean) {
   useEffect(() => {
     if (!enabled) return

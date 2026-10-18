@@ -39,7 +39,7 @@ export type ClozeItem = { card: LearnCard; text: string; correct: string; option
 type Token = { text: string; start: number; end: number; kind: 'num' | 'term' | 'word' }
 
 const NUM = /(?<![\p{L}\d])\d+(?:[.,]\d+)?(?:\s?(?:%|°|mm|MRad|MRads|years?|degrees?|kg|N))?/gu
-const TERM = /\b[A-Z][A-Za-z0-9\-]{2,}\b/g
+const TERM = /\b[A-Z][A-Za-z0-9-]{2,}\b/g
 const WORD = /[\p{L}]{8,}/gu
 
 function tokensOf(text: string): Token[] {

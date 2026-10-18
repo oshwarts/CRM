@@ -28,6 +28,8 @@ import { classNames, todayISO } from '../lib/utils'
 import { useLocalSetting } from '../lib/useLocalSetting'
 import { useLiveUpdates } from '../lib/liveUpdates'
 import { useErrorLog } from '../lib/errorLog'
+import { ErrorBoundary } from './ErrorBoundary'
+import { useIdleLogout } from '../lib/idleLogout'
 
 
 // the four destinations next to the "+" button on a phone
@@ -100,6 +102,9 @@ export function Layout() {
     await signOut()
     navigate('/login', { replace: true })
   }
+
+  // a device nobody touches for hours signs itself out (after a question a minute before)
+  const idle = useIdleLogout(!!user, () => void handleSignOut())
 
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     classNames(
@@ -289,9 +294,22 @@ export function Layout() {
               חזרה
             </button>
           )}
-          <Outlet />
+          <ErrorBoundary key={location.pathname} version={VERSION}>
+            <Outlet />
+          </ErrorBoundary>
         </div>
       </main>
+      {idle.warning > 0 && (
+        <div className="fixed inset-0 z-[95] grid place-items-center bg-slate-900/50 p-4" role="alertdialog" aria-modal="true" aria-label="עדיין כאן?">
+          <div className="w-full max-w-sm space-y-3 rounded-2xl bg-white p-5 text-center shadow-pop">
+            <h2 className="text-lg font-semibold text-brand-800">עדיין כאן?</h2>
+            <p className="text-sm text-slate-600">לא נגעת במסך זמן רב. להגנה על פרטי המטופלים תתבצע התנתקות אוטומטית בעוד {idle.warning} שניות.</p>
+            <button className="btn-primary w-full" onClick={idle.stay}>
+              כן, אני כאן
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* mobile bottom tab bar */}
       <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 items-end border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">

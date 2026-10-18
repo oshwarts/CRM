@@ -18,6 +18,7 @@ import {
 } from '../lib/types'
 import { rowFlags, weekMissing } from '../lib/scanAlerts'
 import { ScanCard } from '../components/ScanCard'
+import { MaskedValue } from '../components/MaskedValue'
 import {
   copyText,
   downloadIcs,
@@ -359,7 +360,9 @@ export default function Scans() {
                     </td>
                     <td className="whitespace-nowrap p-2 text-slate-700">{s.hospital?.name}</td>
                     <td className="whitespace-nowrap p-2 font-medium text-slate-800">{s.patient_name}</td>
-                    <td className="whitespace-nowrap p-2 text-slate-500" dir="ltr">{s.patient_id_number}</td>
+                    <td className="whitespace-nowrap p-2 text-slate-500">
+                      <MaskedValue value={s.patient_id_number} />
+                    </td>
                     <td className="whitespace-nowrap p-2 text-slate-500" dir="ltr">{s.patient_phone}</td>
                     <td className="whitespace-nowrap p-2 text-slate-500">{s.health_fund}</td>
                     <td className="whitespace-nowrap p-2 text-slate-600">{s.surgeon ? `${s.surgeon.title} ${s.surgeon.name}` : '—'}</td>

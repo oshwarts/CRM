@@ -122,7 +122,7 @@ export function guessTask(
   else if (take(/\s(?:עד\s+)?סוף\s+השבוע\s/)) due = nextWeekday(addDays(today, -1), 4) // the coming Thursday
   else {
     // "יום חמישי", "ביום ה׳", "בחמישי", optionally "בשבוע הבא"
-    const weekdayRe = new RegExp(`\\s(?:עד\\s+)?(?:(?:ב)?יום\\s+(${Object.keys(WEEKDAYS).join('|')}|[א-ו][׳'])|ב(ראשון|חמישי|שישי|רביעי|שלישי|שבת))(\\s+ב?שבוע\\s+הבא)?\\s`)
+    const weekdayRe = new RegExp(`\\s(?:עד\\s+)?(?:(?:[בל])?יום\\s+(${Object.keys(WEEKDAYS).join('|')}|[א-ו][׳'])|ב(ראשון|חמישי|שישי|רביעי|שלישי|שבת))(\\s+ב?שבוע\\s+הבא)?\\s`)
     if ((m = take(weekdayRe))) {
       const name = m[1] ?? m[2]
       const wd = /[׳']$/.test(name) ? LETTER_DAY[name[0]] : WEEKDAYS[name]
@@ -171,7 +171,7 @@ export function guessTask(
   }
 
   const description = rest
-    .replace(/\u0001/g, ':')
+    .replace(/\u0001/g, ':') // eslint-disable-line no-control-regex
     .replace(/\s+/g, ' ')
     .replace(/^[\s,.:;–-]+|[\s,.:;–-]+$/g, '')
     .replace(/\s+[,.]/g, (x) => x.trim())

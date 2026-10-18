@@ -48,7 +48,7 @@ function detect(text: string): Exclude<Separator, 'auto' | 'dash'> {
 }
 
 export function parseCards(text: string, sep: Separator = 'auto'): ParsedCard[] {
-  const clean = text.replace(/^﻿/, '').trim()
+  const clean = text.replace(/^﻿/, '').trim() // eslint-disable-line no-irregular-whitespace
   if (!clean) return []
   let rows: string[][]
   if (sep === 'dash') {
