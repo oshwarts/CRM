@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
-import { AlertTriangle, CalendarDays, CheckCircle2, CheckSquare, DatabaseBackup, FileUp, ScanLine, Stethoscope, Sun, Swords, Target } from 'lucide-react'
+import { AlertTriangle, Lightbulb, CalendarDays, CheckCircle2, CheckSquare, DatabaseBackup, FileUp, ScanLine, Stethoscope, Sun, Swords, Target } from 'lucide-react'
 import { useAuth } from '../context/AuthProvider'
 import { useCompetitorIntel, useDoctors, useFavorites, useMeetings, useMyHospitalIds, usePatientScans, useTasks } from '../lib/api'
 import { competitorAlerts, newActivity } from '../lib/competitors'
@@ -12,6 +12,8 @@ import { classNames, daysUntil, formatDate, plusDaysISO, todayISO } from '../lib
 import { Spinner } from '../components/ui'
 import { useStageHistoryAll, useStuckThresholds } from '../lib/pipeline'
 import { useUploadRequests } from '../lib/largeFiles'
+import { useProcedureRequests } from '../lib/procedures'
+import { SUGGESTION_KIND_LABELS, SUGGESTION_STATUS_LABELS, useSuggestions } from '../lib/suggestions'
 import { useAppSetting } from '../lib/api'
 import { stageSinceMap, stuckPotentials } from '../lib/pipelineStats'
 
@@ -19,7 +21,7 @@ type Item = { key: string; to: string; icon: React.ReactNode; title: string; sub
 type Group = { id: string; title: string; tone: 'red' | 'amber' | 'blue'; icon: LucideIcon; items: Item[] }
 const LIMIT = 8
 /** short names of the groups for the jump strip */
-const SHORT: Record<string, string> = { late: 'באיחור', today: 'היום', soon: 'השבוע', contact: 'לחזור לרופאים', backup: 'גיבוי', uploads: 'קבצים גדולים', pipeline: 'פוטנציאליים', competitors: 'מתחרים' }
+const SHORT: Record<string, string> = { late: 'באיחור', today: 'היום', soon: 'השבוע', contact: 'לחזור לרופאים', backup: 'גיבוי', uploads: 'קבצים גדולים', procedures: 'הליכים חדשים', suggestions: 'הצעות', pipeline: 'פוטנציאליים', competitors: 'מתחרים' }
 
 const TONE = {
   red: { box: 'border-red-200 bg-red-50/60', head: 'text-red-700', chip: 'border-red-200 bg-white text-red-600' },
@@ -40,8 +42,10 @@ export default function Now() {
   const stageHistory = useStageHistoryAll()
   const stuckThresholds = useStuckThresholds()
   const uploads = useUploadRequests()
+  const procRequests = useProcedureRequests()
+  const suggestions = useSuggestions()
   const backupSetting = useAppSetting('backup.last')
-  const { isAdmin } = useAuth()
+  const { isAdmin, isDeveloper } = useAuth()
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const loading = [tasks, meetings, scans, doctors].some((q) => q.isLoading)
 
@@ -157,6 +161,20 @@ export default function Now() {
       ...reqs.filter((r) => r.requested_by === user?.id && r.status === 'rejected' && (daysUntil(r.decided_at?.slice(0, 10) ?? null) ?? -99) >= -7).map((r) => ({ key: `ur${r.id}`, to: '/now', icon: <FileUp size={16} />, title: `נדחתה ההעלאה של ${r.file_name}`, sub: r.decision_note || 'אפשר לפנות למנהל או להקטין את הקובץ', when: '' })),
     ]
 
+    // new procedures: the managers' requests to decide, and the answers to my own (for a week)
+    const preqs = procRequests.data ?? []
+    const procItems: Item[] = [
+      ...(isAdmin ? preqs.filter((r) => r.status === 'pending').map((r) => ({ key: `p${r.id}`, to: '/settings?tab=procedures', icon: <Stethoscope size={16} />, title: `בקשה להליך חדש: ${r.name}`, sub: [r.parent ? `תת-הליך של ${r.parent.name}` : '', r.requester?.full_name, r.note].filter(Boolean).join(' · '), when: formatDate(r.created_at.slice(0, 10)) })) : []),
+      ...preqs.filter((r) => r.requested_by === user?.id && r.status !== 'pending' && (daysUntil(r.decided_at?.slice(0, 10) ?? null) ?? -99) >= -7).map((r) => ({ key: `pa${r.id}`, to: '/doctors', icon: <Stethoscope size={16} />, title: r.status === 'approved' ? `ההליך "${r.name}" אושר ונוסף לרשימה` : `הבקשה להליך "${r.name}" נדחתה`, sub: r.decision_note, when: '' })),
+    ]
+
+    // suggestions for the system: the developer's new ones, and the answers to my own (for two weeks)
+    const sugg = suggestions.data ?? []
+    const suggestionItems: Item[] = [
+      ...(isDeveloper ? sugg.filter((x) => x.status === 'new').map((x) => ({ key: `s${x.id}`, to: '/users?tab=suggestions', icon: <Lightbulb size={16} />, title: `${SUGGESTION_KIND_LABELS[x.kind]}: ${x.body.length > 80 ? `${x.body.slice(0, 80)}…` : x.body}`, sub: [x.author?.full_name, x.page].filter(Boolean).join(' · '), when: formatDate(x.created_at.slice(0, 10)) })) : []),
+      ...sugg.filter((x) => x.created_by === user?.id && (x.status === 'done' || x.status === 'declined') && (daysUntil(x.handled_at?.slice(0, 10) ?? null) ?? -99) >= -14).map((x) => ({ key: `sa${x.id}`, to: '/now', icon: <Lightbulb size={16} />, title: `ההצעה שלך ${SUGGESTION_STATUS_LABELS[x.status]}: ${x.body.length > 60 ? `${x.body.slice(0, 60)}…` : x.body}`, sub: x.dev_note, when: '' })),
+    ]
+
     // managers: a reminder when the manual backup is old (the free plan has no automatic one)
     const lastBackup = backupSetting.data ? backupSetting.data.slice(0, 10) : ''
     const backupDays = lastBackup ? -(daysUntil(lastBackup) ?? 0) : null
@@ -170,12 +188,14 @@ export default function Now() {
       { id: 'soon', title: 'השבוע הקרוב', tone: 'blue', icon: CalendarDays, items: soon },
       { id: 'contact', title: 'רופאים לחזור אליהם', tone: 'blue', icon: Stethoscope, items: toContact },
       { id: 'backup', title: 'גיבוי נתונים', tone: 'amber', icon: DatabaseBackup, items: backupItems },
+      { id: 'suggestions', title: 'הצעות לשיפור המערכת', tone: 'blue', icon: Lightbulb, items: suggestionItems },
+      { id: 'procedures', title: 'בקשות להליכים חדשים', tone: 'amber', icon: Stethoscope, items: procItems },
       { id: 'uploads', title: 'קבצים גדולים — אישורי העלאה', tone: 'amber', icon: FileUp, items: uploadItems },
       { id: 'pipeline', title: 'רופאים פוטנציאליים שדורשים דחיפה', tone: 'amber', icon: Target, items: stuck },
       { id: 'competitors', title: 'הזדמנויות מול מתחרים', tone: 'amber', icon: Swords, items: opportunities },
     ]
     return out.filter((g) => g.items.length > 0)
-  }, [tasks.data, meetings.data, scans.data, doctors.data, favorites.data, competitorIntel.data, stageHistory.data, stuckThresholds, uploads.data, backupSetting.data, backupSetting.isLoading, myHospitals, isAdmin, user?.id])
+  }, [tasks.data, meetings.data, scans.data, doctors.data, favorites.data, competitorIntel.data, stageHistory.data, stuckThresholds, uploads.data, procRequests.data, suggestions.data, isDeveloper, backupSetting.data, backupSetting.isLoading, myHospitals, isAdmin, user?.id])
 
   const total = groups.reduce((n, g) => n + g.items.length, 0)
 

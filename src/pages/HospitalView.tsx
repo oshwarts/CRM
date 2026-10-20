@@ -12,6 +12,7 @@ import { CaseVolumesEditor } from '../components/CaseVolumesEditor'
 import { EmptyState, ErrorState, Spinner, Tab, TabList, TabPanel, Tabs } from '../components/ui'
 import { DOCTOR_STATUS_LABELS, MEETING_STATUS_LABELS, SCAN_PROCEDURE_LABELS, SECTOR_LABELS } from '../lib/types'
 import { classNames, daysUntil, formatDate, todayISO } from '../lib/utils'
+import { DAY_NAMES, formatDays } from '../lib/clinics'
 
 const TABS = ['overview', 'doctors', 'contacts', 'meetings', 'surgeries', 'volumes', 'tasks', 'competitors']
 
@@ -245,6 +246,8 @@ export default function HospitalView() {
           {doctors.length === 0 ? (
             <EmptyState title="אין רופאים משויכים" hint="משייכים רופא לבית חולים בכרטיס הרופא" />
           ) : (
+            <>
+            <ClinicSchedule doctors={doctors} />
             <div className="grid gap-2 sm:grid-cols-2">
               {doctors.map((dh) => {
                 const d = dh.doctor!
@@ -259,6 +262,12 @@ export default function HospitalView() {
                       )}
                     </p>
                     <p className="text-sm text-slate-500">{dh.role_at_hospital || d.position || '—'}</p>
+                    {dh.clinic_days?.length > 0 && (
+                      <p className="mt-0.5 text-xs text-brand-700">
+                        מרפאה: {formatDays(dh.clinic_days)}
+                        {dh.clinic_hours ? ` · ${dh.clinic_hours}` : ''}
+                      </p>
+                    )}
                     <p className={classNames('mt-1 text-xs', ago == null || ago > 90 ? 'text-amber-600' : 'text-slate-400')}>
                       {last ? `פגישה אחרונה ${formatDate(last)} (לפני ${ago} ימים)` : 'עוד לא נפגשנו'}
                     </p>
@@ -266,6 +275,7 @@ export default function HospitalView() {
                 )
               })}
             </div>
+            </>
           )}
         </TabPanel>
 
@@ -367,5 +377,37 @@ function MeetingList({ meetings }: { meetings: NonNullable<ReturnType<typeof use
         )
       })}
     </div>
+  )
+}
+
+/** which doctors receive on which day of the week at this hospital */
+function ClinicSchedule({ doctors }: { doctors: { clinic_days: number[]; clinic_hours: string; clinic_note: string; doctor: { id: string; name: string; title: string } | null }[] }) {
+  const byDay = DAY_NAMES.map((name, day) => ({
+    name,
+    list: doctors.filter((dh) => dh.doctor && (dh.clinic_days ?? []).includes(day)),
+  })).filter((d) => d.list.length > 0)
+  if (byDay.length === 0) return null
+  return (
+    <section className="card mb-3 p-4" aria-label="מרפאות לפי יום">
+      <h2 className="mb-2 text-base font-semibold text-slate-800">מרפאות לפי יום</h2>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-sm">
+        {byDay.map(({ name, list }) => (
+          <div key={name} className="contents">
+            <dt className="font-medium text-slate-700">{name}</dt>
+            <dd className="min-w-0 text-slate-600">
+              {list.map((dh, i) => (
+                <span key={dh.doctor!.id}>
+                  {i > 0 && ', '}
+                  <Link to={`/doctors/${dh.doctor!.id}`} className="hover:underline">
+                    {dh.doctor!.title} {dh.doctor!.name}
+                  </Link>
+                  {dh.clinic_hours ? <span className="text-xs text-slate-500" dir="ltr"> {dh.clinic_hours}</span> : null}
+                </span>
+              ))}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </section>
   )
 }

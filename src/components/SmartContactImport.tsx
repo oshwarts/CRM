@@ -159,7 +159,7 @@ export function SmartContactImport({ onClose }: { onClose: () => void }) {
           companyIds: [],
           procedureIds: [],
           roboticSystemIds: [],
-          hospitals: hospitalId ? [{ hospital_id: hospitalId, role_at_hospital: '', sector: 'public' }] : [],
+          hospitals: hospitalId ? [{ hospital_id: hospitalId, role_at_hospital: '', sector: 'public', clinic_days: [], clinic_hours: '', clinic_note: '' }] : [],
         })
         setDone(`נוצר רופא חדש: ${n}`)
       } else {

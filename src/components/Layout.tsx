@@ -10,9 +10,11 @@ import {
   Search,
   Menu,
   X,
+  Lightbulb,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthProvider'
 import { ProfileModal } from './ProfileModal'
+import { SuggestionModal } from './SuggestionModal'
 import { RefreshButton } from './RefreshButton'
 import { OfflineBanner } from './OfflineBanner'
 import { DeveloperBar, DeveloperSwitcher } from './DeveloperSwitch'
@@ -38,13 +40,14 @@ const TABS = ['/', '/doctors', '/tasks', '/schedule']
 // scroll position of each visited page, so that going back returns to the same place
 const scrollOf = new Map<string, number>()
 
-const VERSION = 'v131 · עיצוב מחדש בטלפון לכל המסכים: רופאים, פגישות, בתי חולים, לוז ומשימות, סריקות, מתכלים, פרויקטים, מתחרים, סוכנים, הגדרות וכניסה'
+const VERSION = 'v132 · הליכים בתוך הליכים ובקשת הליך חדש, ימי מרפאה (ציבורי ופרטי עם כתובת), הצעות לשיפור המערכת'
 
 export function Layout() {
   const { profile, signOut, impersonating, isDeveloper } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [showProfile, setShowProfile] = useState(false)
+  const [showSuggest, setShowSuggest] = useState(false)
   const [drawer, setDrawer] = useState(false)
   const [searching, setSearching] = useState(false)
   const [creating, setCreating] = useState(false)
@@ -137,6 +140,16 @@ export function Layout() {
     <div className="border-t border-slate-200 px-2 py-2">
       {accountOpen && (
         <div className="mb-2 space-y-1.5 rounded-xl bg-slate-50 p-2">
+          <button
+            type="button"
+            className="flex min-h-[40px] w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-brand-700 hover:bg-brand-50"
+            onClick={() => {
+              setDrawer(false)
+              setShowSuggest(true)
+            }}
+          >
+            <Lightbulb size={14} aria-hidden /> הצעה לשיפור המערכת
+          </button>
           <DeveloperSwitcher />
           <ThemeToggle />
           <p className="text-center text-[10px] text-slate-400">{VERSION}</p>
@@ -367,6 +380,7 @@ export function Layout() {
       {searching && <GlobalSearch onClose={() => setSearching(false)} />}
       {creating && <QuickCreate onClose={() => setCreating(false)} />}
       {showProfile && <ProfileModal onClose={() => setShowProfile(false)} />}
+      {showSuggest && <SuggestionModal onClose={() => setShowSuggest(false)} />}
     </div>
   )
 }

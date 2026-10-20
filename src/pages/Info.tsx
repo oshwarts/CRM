@@ -12,6 +12,7 @@ import { InfoDocModal } from '../components/InfoDocModal'
 import { InfoFolderImport } from '../components/InfoFolderImport'
 import { ConfirmButton, EmptyState, ErrorState, Spinner } from '../components/ui'
 import { normalizeHe } from '../lib/contactMatch'
+import { expandProcedure } from '../lib/procedures'
 import type { InfoDocument } from '../lib/types'
 import { classNames, formatDate } from '../lib/utils'
 
@@ -54,7 +55,10 @@ export default function Info() {
   const matches = useMemo(() => {
     const list = (docs.data ?? []).filter((d) => {
       if (catFilter && d.category_id !== catFilter) return false
-      if (procFilter && !procIdsOf(d).includes(procFilter)) return false
+      if (procFilter) {
+        const ids = expandProcedure(procFilter, procedures.data ?? [])
+        if (!procIdsOf(d).some((x) => ids.has(x))) return false
+      }
       if (!words.length) return true
       const hay = normalizeHe(
         [
@@ -77,13 +81,13 @@ export default function Info() {
         a.title.localeCompare(b.title, 'he'),
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [docs.data, catFilter, procFilter, q, procName, catSort])
+  }, [docs.data, catFilter, procFilter, procedures.data, q, procName, catSort])
 
   // not searching → grouped by procedure (documents of several procedures appear in each)
   const sections = useMemo(() => {
     const order = [...(procedures.data ?? []).map((p) => ({ key: p.id, name: p.name })), { key: GENERAL, name: 'כללי — לכל הפרוצדורות' }]
     return order
-      .filter((s) => !procFilter || s.key === procFilter)
+      .filter((s) => !procFilter || expandProcedure(procFilter, procedures.data ?? []).has(s.key))
       .map((s) => ({ ...s, docs: matches.filter((d) => procIdsOf(d).includes(s.key)) }))
       .filter((s) => s.docs.length > 0)
     // eslint-disable-next-line react-hooks/exhaustive-deps

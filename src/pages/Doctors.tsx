@@ -6,6 +6,7 @@ import { usePlannedSurgeries } from '../lib/plannedSurgeries'
 import { buildDoctorRows, LOYALTY_CHIP, LOYALTY_SHORT, STALE_DAYS, usePatchDoctor, WINDOWS, type DoctorRow, type Need } from '../lib/doctorStats'
 import { CADENCE_LABELS } from '../lib/cadence'
 import { usePersisted } from '../lib/usePersisted'
+import { expandProcedure } from '../lib/procedures'
 import { downloadCsv } from '../lib/csv'
 import { DoctorFormModal } from '../components/DoctorFormModal'
 import { MeetingFormModal } from '../components/MeetingFormModal'
@@ -324,7 +325,11 @@ export default function Doctors() {
       if (status ? d.status !== status : d.status === 'lost') return false
       if (stage && d.pipeline_stage !== stage) return false
       if (companyId && !d.doctor_companies.some((c) => c.company_id === companyId)) return false
-      if (procedureId && !d.doctor_procedures.some((p) => p.procedure_id === procedureId)) return false
+      if (procedureId) {
+        // a parent procedure matches the doctors of all of its sub-procedures
+        const ids = expandProcedure(procedureId, procedures.data ?? [])
+        if (!d.doctor_procedures.some((p) => ids.has(p.procedure_id))) return false
+      }
       if (hospitalId && !d.doctor_hospitals.some((h) => h.hospital_id === hospitalId)) return false
       if (robotId && !d.doctor_robotic_systems.some((s) => s.system_id === robotId)) return false
       if (only === 'need' && !(r.need === 'due' || r.need === 'stale')) return false
@@ -336,7 +341,7 @@ export default function Doctors() {
     // by stage: the managers' order of the stages, the furthest first
     const byStage = (a: DoctorRow, b: DoctorRow) => stageNames.indexOf(b.d.pipeline_stage) - stageNames.indexOf(a.d.pipeline_stage) || a.d.name.localeCompare(b.d.name, 'he')
     return [...list].sort(sort === 'stage' ? byStage : (SORTS[sort] ?? SORTS.name).cmp)
-  }, [rows, q, status, stage, companyId, procedureId, hospitalId, robotId, only, sort, favSet, stageNames])
+  }, [rows, q, status, stage, companyId, procedureId, procedures.data, hospitalId, robotId, only, sort, favSet, stageNames])
 
   const windowLabel = WINDOWS.find((w) => w.days === windowDays)?.label ?? `${windowDays} ימים`
 

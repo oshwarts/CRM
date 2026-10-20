@@ -5,6 +5,8 @@ import { useAllUsers, useUpdateUser, useUserActivity } from '../lib/api'
 import { useAuth } from '../context/AuthProvider'
 import { EmptyState, ErrorState, Spinner, Tab, TabList, TabPanel, Tabs } from '../components/ui'
 import { AuditLog } from '../components/AuditLog'
+import { SuggestionsInbox } from '../components/SuggestionsInbox'
+import { useSuggestions } from '../lib/suggestions'
 import { BackupPanel } from '../components/BackupPanel'
 import { DataQuality } from '../components/DataQuality'
 import { ResetLinkButton } from '../components/ResetLinkButton'
@@ -14,7 +16,9 @@ import type { Profile } from '../lib/types'
 
 /** admin-only: users, activity log and backup */
 export default function Users() {
-  const { isAdmin } = useAuth()
+  const { isAdmin, isDeveloper } = useAuth()
+  const suggestions = useSuggestions()
+  const newSuggestions = isDeveloper ? (suggestions.data ?? []).filter((s) => s.status === 'new').length : 0
   const [params] = useSearchParams()
   const [tab, setTab] = useState(params.get('tab') ?? 'users')
   if (!isAdmin) return <EmptyState title="אין הרשאה" hint="מסך הניהול זמין למנהלים בלבד" />
@@ -27,6 +31,7 @@ export default function Users() {
           <Tab id="audit">יומן פעולות</Tab>
           <Tab id="quality">איכות נתונים</Tab>
           <Tab id="backup">גיבוי</Tab>
+          {isDeveloper && <Tab id="suggestions">הצעות לשיפור{newSuggestions > 0 ? ` (${newSuggestions})` : ''}</Tab>}
         </TabList>
         <TabPanel id="users">
           <UsersTab />
@@ -37,6 +42,11 @@ export default function Users() {
         <TabPanel id="quality">
           <DataQuality />
         </TabPanel>
+        {isDeveloper && (
+          <TabPanel id="suggestions">
+            <SuggestionsInbox />
+          </TabPanel>
+        )}
         <TabPanel id="backup">
           <BackupPanel />
         </TabPanel>

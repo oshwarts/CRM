@@ -68,6 +68,9 @@ export type Database = {
       }
       doctor_hospitals: {
         Row: {
+          clinic_days: number[]
+          clinic_hours: string
+          clinic_note: string
           doctor_id: string
           hospital_id: string
           id: string
@@ -75,6 +78,9 @@ export type Database = {
           sector: string
         }
         Insert: {
+          clinic_days?: number[]
+          clinic_hours?: string
+          clinic_note?: string
           doctor_id: string
           hospital_id: string
           id?: string
@@ -82,6 +88,9 @@ export type Database = {
           sector?: string
         }
         Update: {
+          clinic_days?: number[]
+          clinic_hours?: string
+          clinic_note?: string
           doctor_id?: string
           hospital_id?: string
           id?: string
@@ -1308,6 +1317,7 @@ export type Database = {
           id: string
           is_mako: boolean
           name: string
+          parent_id: string | null
           planning_template: string
         }
         Insert: {
@@ -1316,6 +1326,7 @@ export type Database = {
           id?: string
           is_mako?: boolean
           name: string
+          parent_id?: string | null
           planning_template?: string
         }
         Update: {
@@ -1324,6 +1335,7 @@ export type Database = {
           id?: string
           is_mako?: boolean
           name?: string
+          parent_id?: string | null
           planning_template?: string
         }
         Relationships: []

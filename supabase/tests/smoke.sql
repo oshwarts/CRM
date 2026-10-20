@@ -84,3 +84,10 @@ begin
   select count(*) into h3 from public.doctor_stage_history where doctor_id = d;
   raise exception 'RESULT hist_after_move=% doctor_follows_rename=% hist_after_rename=% hist_after_clear=%', h1, nm, h2, h3;
 end $$;
+
+-- 4. Procedure tree, requests, clinics and suggestions (migrations 072-074). Run as an agent, then a manager, then the developer. Expected:
+--    agent_add_proc:blocked agent_request:ok agent_decide:blocked agent_suggest:ok clinic:ok clinic_bad_day:rejected
+--    admin_sees_suggestions:0 admin_sees_request:1 admin_decide:ok linked_to_doctor:1 two_levels:rejected dev_sees_suggestion:1 dev_answer_rows:1
+-- (the block that produced this is in the commit message of migration 072; the checks: procedures are written by managers only,
+--  a request is decided by a manager only and adds the procedure to the doctor, one level of sub-procedures, a suggestion is read only
+--  by its writer and by the developer, clinic days are 0-6)

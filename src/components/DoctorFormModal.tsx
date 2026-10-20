@@ -4,7 +4,7 @@ import {
   useCompanies,
   useCreateDoctor,
   useHospitals,
-  useProcedures,
+  useProceduresRaw,
   useRoboticSystems,
   useUpdateDoctor,
   type DoctorFormData,
@@ -26,6 +26,9 @@ import {
 } from './ui'
 import { ImportContactButton } from './ImportContactButton'
 import { CADENCE_LABELS } from '../lib/cadence'
+import { DayPicker } from './DayPicker'
+import { ProcedureRequestModal } from './ProcedureRequestModal'
+import { procedureGroups } from '../lib/procedures'
 
 type Props = {
   open: boolean
@@ -63,6 +66,9 @@ function initialData(doctor?: DoctorWithRelations): DoctorFormData {
         hospital_id: h.hospital_id,
         role_at_hospital: h.role_at_hospital,
         sector: h.sector,
+        clinic_days: h.clinic_days ?? [],
+        clinic_hours: h.clinic_hours ?? '',
+        clinic_note: h.clinic_note ?? '',
       })) ?? [],
   }
 }
@@ -78,7 +84,8 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
 
   const { names: stageNames } = usePipelineStages()
   const companies = useCompanies()
-  const procedures = useProcedures()
+  const procedures = useProceduresRaw()
+  const [requesting, setRequesting] = useState(false)
   const hospitals = useHospitals()
   const roboticSystems = useRoboticSystems()
   const createDoctor = useCreateDoctor()
@@ -133,6 +140,7 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
   const usedHospitalIds = data.hospitals.map((h) => h.hospital_id)
 
   return (
+    <>
     <Modal
       open={open}
       onClose={onClose}
@@ -368,6 +376,45 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
                         patch({ hospitals: next })
                       }}
                     />
+                    <div className="space-y-1.5 rounded-lg bg-slate-50 p-2">
+                      <p className="text-xs font-medium text-slate-600">ימי מרפאה בבית החולים</p>
+                      <DayPicker
+                        label={`ימי מרפאה בבית חולים ${i + 1}`}
+                        value={h.clinic_days}
+                        onChange={(days) => {
+                          const next = [...data.hospitals]
+                          next[i] = { ...h, clinic_days: days }
+                          patch({ hospitals: next })
+                        }}
+                      />
+                      {h.clinic_days.length > 0 && (
+                        <div className="grid gap-1.5 sm:grid-cols-2">
+                          <input
+                            className="input"
+                            aria-label={`שעות המרפאה בבית חולים ${i + 1}`}
+                            placeholder="שעות (לדוגמה 8:00–13:00)"
+                            value={h.clinic_hours}
+                            onChange={(e) => {
+                              const next = [...data.hospitals]
+                              next[i] = { ...h, clinic_hours: e.target.value }
+                              patch({ hospitals: next })
+                            }}
+                          />
+                          <input
+                            className="input"
+                            dir="auto"
+                            aria-label={`הערה על המרפאה בבית חולים ${i + 1}`}
+                            placeholder="הערה (לדוגמה: מרפאת ברך)"
+                            value={h.clinic_note}
+                            onChange={(e) => {
+                              const next = [...data.hospitals]
+                              next[i] = { ...h, clinic_note: e.target.value }
+                              patch({ hospitals: next })
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
                     <div className="flex items-center justify-between gap-2">
                       {/* public / private belongs to the hospital — changed only in Settings */}
                       <span
@@ -408,7 +455,7 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
                   patch({
                     hospitals: [
                       ...data.hospitals,
-                      { hospital_id: '', role_at_hospital: '', sector: 'public' },
+                      { hospital_id: '', role_at_hospital: '', sector: 'public', clinic_days: [], clinic_hours: '', clinic_note: '' },
                     ],
                   })
                 }
@@ -423,30 +470,32 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
             <p className="text-sm text-slate-600">
               סמן את ההליכים שהרופא מבצע. כמויות מקרים שנתיות ותכנון טרום־ניתוחי (העדפות מנתח, גישה וציוד לכל הליך) נערכים בכרטיס הרופא לאחר השמירה.
             </p>
-            <div className="space-y-1">
-              {(procedures.data ?? []).map((p) => {
-                const on = data.procedureIds.includes(p.id)
-                return (
+            <div className="space-y-2">
+              {procedureGroups(procedures.data ?? []).map(({ parent, children }) => {
+                const row = (p: { id: string; name: string; is_mako?: boolean }, indent: boolean) => (
                   <label
                     key={p.id}
-                    className="flex min-h-[40px] items-center gap-3 rounded-lg px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+                    className={`flex min-h-[40px] items-center gap-3 rounded-lg px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50${indent ? ' mr-4' : ''}`}
                   >
-                    <input
-                      type="checkbox"
-                      className="h-5 w-5 shrink-0"
-                      checked={on}
-                      onChange={() => toggleProcedure(p.id)}
-                    />
+                    <input type="checkbox" className="h-5 w-5 shrink-0" checked={data.procedureIds.includes(p.id)} onChange={() => toggleProcedure(p.id)} />
                     {p.name}
-                    {p.is_mako && (
-                      <span className="chip border-brand-200 bg-brand-50 text-brand-600">
-                        MAKO
-                      </span>
-                    )}
+                    {p.is_mako && <span className="chip border-brand-200 bg-brand-50 text-brand-600">MAKO</span>}
                   </label>
+                )
+                // a procedure with sub-procedures is only a heading: the sub-procedure is what the doctor does
+                if (children.length === 0) return row(parent, false)
+                return (
+                  <div key={parent.id} className="rounded-xl border border-slate-200 p-1">
+                    <p className="px-2 pt-1 text-sm font-semibold text-slate-800">{parent.name}</p>
+                    {children.map((c) => row(c, true))}
+                  </div>
                 )
               })}
             </div>
+            <button type="button" className="btn-ghost mt-2 text-brand-700 max-sm:w-full" onClick={() => setRequesting(true)}>
+              <Plus size={16} />
+              ההליך לא ברשימה? בקש הליך חדש
+            </button>
           </TabPanel>
         </Tabs>
 
@@ -466,5 +515,8 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
         </div>
       </form>
     </Modal>
+    {/* outside the form: its own submit must not reach the doctor form */}
+    {requesting && <ProcedureRequestModal onClose={() => setRequesting(false)} doctorId={doctor?.id} doctorName={doctor ? `${doctor.title} ${doctor.name}` : undefined} />}
+    </>
   )
 }

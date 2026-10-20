@@ -21,6 +21,8 @@ import {
   useSavePreopPlan,
   useToggleFavorite,
 } from '../lib/api'
+import { formatDays } from '../lib/clinics'
+import { PrivateClinics } from '../components/PrivateClinics'
 import { DoctorFormModal } from '../components/DoctorFormModal'
 import { MeetingFormModal } from '../components/MeetingFormModal'
 import { TaskFormModal } from '../components/TaskFormModal'
@@ -77,6 +79,8 @@ export default function DoctorProfile() {
   const deleteDoctor = useDeleteDoctor()
   const canDelete = useCanDelete()
   const linkedTasks = useLinkedTasks({ doctorId: id })
+  const allProcedures = useProcedures()
+  const procedureName = (p: { id: string; name: string }) => allProcedures.data?.find((x) => x.id === p.id)?.name ?? p.name
 
   const [tab, setTab] = useState('timeline')
   const [editing, setEditing] = useState(false)
@@ -220,7 +224,7 @@ export default function DoctorProfile() {
           <Tab id="tasks">משימות ({linkedTasks.open.length})</Tab>
           <Tab id="details">פרטים</Tab>
           <Tab id="contacts">אנשי קשר</Tab>
-          <Tab id="hospitals">בתי חולים</Tab>
+          <Tab id="hospitals">בתי חולים ומרפאות</Tab>
           <Tab id="procedures">הליכים</Tab>
           <Tab id="volumes">כמויות</Tab>
           <Tab id="equipment">ציוד</Tab>
@@ -264,10 +268,19 @@ export default function DoctorProfile() {
                   <p className="mt-1 break-words text-sm text-slate-500">
                     {[h.hospital?.city, h.role_at_hospital, SECTOR_LABELS[h.sector] ?? h.sector].filter(Boolean).join(' · ')}
                   </p>
+                  {h.clinic_days.length > 0 && (
+                    <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-brand-700">
+                      <CalendarDays size={14} className="shrink-0" aria-hidden />
+                      <span>מרפאה: {formatDays(h.clinic_days)}</span>
+                      {h.clinic_hours && <span dir="ltr">{h.clinic_hours}</span>}
+                      {h.clinic_note && <span dir="auto" className="text-slate-500">{h.clinic_note}</span>}
+                    </p>
+                  )}
                 </Link>
               ))}
             </div>
           )}
+          <PrivateClinics doctorId={d.id} />
         </TabPanel>
 
         <TabPanel id="procedures">
@@ -280,7 +293,7 @@ export default function DoctorProfile() {
                   key={p.procedure?.id}
                   className="chip border-brand-200 bg-brand-50 text-brand-700"
                 >
-                  {p.procedure?.name}
+                  {p.procedure ? procedureName(p.procedure) : ''}
                 </span>
               ))}
             </div>

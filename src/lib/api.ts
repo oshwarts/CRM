@@ -5,6 +5,7 @@ import {
 } from '@tanstack/react-query'
 import { addMonths } from 'date-fns'
 import { supabase } from './supabase'
+import { withParentNames } from './procedures'
 import { fileHash } from './docDuplicates'
 import { useAuth } from '../context/AuthProvider'
 import { actingUserId } from './actingAs'
@@ -148,14 +149,16 @@ export function useCompanies() {
   })
 }
 
+const fetchProcedures = async () => unwrap<Procedure[]>(await supabase.from('procedures').select('*').order('name'))
+
+/** the procedures for choosing and showing: a sub-procedure is named "Parent › Child" and follows its parent */
 export function useProcedures() {
-  return useQuery({
-    queryKey: ['procedures'],
-    queryFn: async () =>
-      unwrap<Procedure[]>(
-        await supabase.from('procedures').select('*').order('name'),
-      ),
-  })
+  return useQuery({ queryKey: ['procedures'], queryFn: fetchProcedures, select: withParentNames })
+}
+
+/** the procedures as they are stored (the names without the parent), for the screen that edits them */
+export function useProceduresRaw() {
+  return useQuery({ queryKey: ['procedures'], queryFn: fetchProcedures })
 }
 
 export function useHospitals() {
@@ -238,7 +241,7 @@ export type DoctorFormData = {
   companyIds: string[]
   procedureIds: string[]
   roboticSystemIds: string[]
-  hospitals: { hospital_id: string; role_at_hospital: string; sector: string }[]
+  hospitals: { hospital_id: string; role_at_hospital: string; sector: string; clinic_days: number[]; clinic_hours: string; clinic_note: string }[]
 }
 
 /**
@@ -276,7 +279,7 @@ async function saveDoctorRelations(doctorId: string, d: DoctorFormData) {
     'doctor_id',
     doctorId,
     'hospital_id',
-    d.hospitals.map((h) => ({ hospital_id: h.hospital_id, role_at_hospital: h.role_at_hospital, sector: h.sector })),
+    d.hospitals.map((h) => ({ hospital_id: h.hospital_id, role_at_hospital: h.role_at_hospital, sector: h.sector, clinic_days: h.clinic_days, clinic_hours: h.clinic_hours, clinic_note: h.clinic_note })),
   )
 }
 
@@ -616,8 +619,9 @@ export function useUpsertProcedure() {
       name: string
       category: string
       is_mako: boolean
+      parent_id?: string | null
     }) => {
-      const payload = { name: p.name, category: p.category, is_mako: p.is_mako }
+      const payload = { name: p.name, category: p.category, is_mako: p.is_mako, parent_id: p.parent_id ?? null }
       if (p.id) unwrap(await supabase.from('procedures').update(payload).eq('id', p.id))
       else unwrap(await supabase.from('procedures').insert(payload))
     },
@@ -804,6 +808,9 @@ export type MapHospital = Hospital & {
   doctor_hospitals: {
     role_at_hospital: string
     sector: string
+    clinic_days: number[]
+    clinic_hours: string
+    clinic_note: string
     doctor: Pick<Doctor, 'id' | 'name' | 'title' | 'position' | 'status'> | null
   }[]
 }
@@ -816,7 +823,7 @@ export function useMapData() {
         await supabase
           .from('hospitals')
           .select(
-            '*, organization:organizations(*), hospital_agents(agent:profiles(id, full_name)), hospital_robotic_systems(system:robotic_systems(*)), case_volumes(procedure_id, year, count, procedure:procedures(name)), contacts(*), doctor_hospitals(role_at_hospital, sector, doctor:doctors(id, name, title, position, status))',
+            '*, organization:organizations(*), hospital_agents(agent:profiles(id, full_name)), hospital_robotic_systems(system:robotic_systems(*)), case_volumes(procedure_id, year, count, procedure:procedures(name)), contacts(*), doctor_hospitals(role_at_hospital, sector, clinic_days, clinic_hours, clinic_note, doctor:doctors(id, name, title, position, status))',
           )
           .order('name'),
       ),

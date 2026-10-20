@@ -16,14 +16,12 @@ import {
   useDeleteEquipmentItem,
   useDeleteHospital,
   useDeleteOrganization,
-  useDeleteProcedure,
   useDeleteRoboticSystem,
   useDoctors,
   useEquipmentItems,
   useHospitalAgents,
   useHospitals,
   useOrganizations,
-  useProcedures,
   useRoboticSystems,
   useSetHospitalAgents,
   useSetHospitalRoboticSystems,
@@ -31,7 +29,6 @@ import {
   useUpsertContact,
   useUpsertHospital,
   useUpsertOrganization,
-  useUpsertProcedure,
   useUpsertRoboticSystem,
 } from '../lib/api'
 import { ContactsSection } from '../components/ContactsSection'
@@ -51,12 +48,12 @@ import { ImplantSettings } from '../components/ImplantSettings'
 import {
   CONTACT_ROLES,
   itemImages,
-  PROCEDURE_CATEGORY_LABELS,
   SECTOR_LABELS,
   type EquipmentItemWithCompany,
   type HospitalListItem,
 } from '../lib/types'
 
+import { ProceduresSettings } from '../components/ProcedureSettings'
 import { ImportContactButton } from '../components/ImportContactButton'
 import { ConsumablesSettings } from '../components/ConsumablesSettings'
 import { CourseTemplatesSettings } from '../components/CourseTemplatesSettings'
@@ -241,73 +238,6 @@ function SimpleListSettings({
         </ul>
       )}
     </Section>
-  )
-}
-
-/* ---------------- Procedures ---------------- */
-
-function ProceduresSettings() {
-  const procedures = useProcedures()
-  const upsert = useUpsertProcedure()
-  const del = useDeleteProcedure()
-  const [form, setForm] = useState({ name: '', category: 'knee', is_mako: false })
-
-  return (
-    <div className="card space-y-4 p-4">
-      <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-base font-semibold text-slate-800">הליכים</h2>
-        <span className="text-sm text-slate-500">{procedures.data?.length ?? 0} הליכים</span>
-      </div>
-      <form
-        className="grid gap-2 rounded-xl bg-slate-50 p-3 sm:grid-cols-[1fr_auto_auto_auto] sm:items-center"
-        onSubmit={(e) => {
-          e.preventDefault()
-          if (!form.name.trim()) return
-          upsert.mutate({ ...form, name: form.name.trim() })
-          setForm({ name: '', category: 'knee', is_mako: false })
-        }}
-      >
-        <input className="input" aria-label="שם ההליך" enterKeyHint="done" placeholder="שם ההליך החדש" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-        <div className="grid grid-cols-[1fr_auto] items-center gap-2 sm:contents">
-          <select className="input" aria-label="קטגוריה" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
-            {Object.entries(PROCEDURE_CATEGORY_LABELS).map(([v, l]) => (
-              <option key={v} value={v}>
-                {l}
-              </option>
-            ))}
-          </select>
-          <label className="flex min-h-[40px] items-center gap-2 px-1 text-sm text-slate-700">
-            <input type="checkbox" className="h-5 w-5" checked={form.is_mako} onChange={(e) => setForm({ ...form, is_mako: e.target.checked })} />
-            MAKO
-          </label>
-        </div>
-        <button className="btn-primary" disabled={!form.name.trim()}>
-          <Plus size={16} aria-hidden />
-          הוסף הליך
-        </button>
-      </form>
-      {procedures.isLoading ? (
-        <Spinner />
-      ) : (
-        <ul className="divide-y divide-slate-100">
-          {(procedures.data ?? []).map((p) => (
-            <li key={p.id} className="flex items-center gap-2 py-1.5 text-sm">
-              <span className="min-w-0 flex-1 text-slate-800">
-                <span className="[overflow-wrap:anywhere]">{p.name}</span>
-                <span className="block text-xs text-slate-500">
-                  {PROCEDURE_CATEGORY_LABELS[p.category] ?? p.category}
-                  {p.is_mako ? ' · MAKO' : ''}
-                </span>
-              </span>
-              <ConfirmButton className="btn-ghost !px-2 text-red-600" label={`מחק את ${p.name}`} onConfirm={() => del.mutate(p.id)}>
-                <Trash2 size={16} />
-              </ConfirmButton>
-            </li>
-          ))}
-          {(procedures.data ?? []).length === 0 && <EmptyRow>עוד לא הוגדרו הליכים.</EmptyRow>}
-        </ul>
-      )}
-    </div>
   )
 }
 
