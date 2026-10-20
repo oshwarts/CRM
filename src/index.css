@@ -97,64 +97,90 @@ body {
   textarea {
     font-size: 16px !important;
   }
-  .btn {
+  .btn,
+  [class*='btn-'] {
     min-height: 44px;
-  }
-  main a[href]:not(.btn):not(.card):not(.chip):not([class^='p']):not([class*=' p']),
-  main button:not(.btn):not(.chip):not([class^='p']):not([class*=' p']) {
-    padding-block: 8px;
-    margin-block: -8px;
-  }
-  main button.chip,
-  main a.chip,
-  main button[class~='rounded-full'][class~='border'] {
-    min-height: 34px;
-  }
-  main button[class~='p-1'],
-  main button[class~='p-1.5'],
-  main button[class~='p-2'] {
-    min-width: 36px;
-    min-height: 36px;
   }
   select,
   .input {
     min-height: 40px;
   }
+  /* in a dialog the save / cancel row stays at the bottom of the screen while the form scrolls */
+  [role='dialog'] .justify-end.border-t {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    margin-inline: -1.25rem;
+    padding: 0.75rem 1.25rem calc(0.75rem + env(safe-area-inset-bottom));
+    background: var(--surface);
+    box-shadow: 0 -8px 12px -10px rgb(0 32 77 / 0.25);
+  }
 }
 
-/* tap targets on every screen (WCAG 2.5.8 asks for 24px): small links and plain buttons grow in padding with a negative margin,
-   so the layout does not move; chips and small icon buttons get a minimum size (larger on the phone, above) */
-main a[href]:not(.btn):not(.card):not(.chip):not([class^='p']):not([class*=' p']),
-main button:not(.btn):not(.chip):not([class^='p']):not([class*=' p']) {
-  padding-block: 4px;
-  margin-block: -4px;
-}
-main button.chip,
-main a.chip,
-main button[class~='rounded-full'][class~='border'],
-main button[class~='p-1'],
-main button[class~='p-1.5'],
-main button[class~='p-2'],
-main button[class~='p-0.5'] {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 28px;
-}
-main button[class~='p-1'],
-main button[class~='p-1.5'],
-main button[class~='p-2'] {
-  min-width: 28px;
-}
-.btn[class*='!px-'] {
-  min-width: 40px;
-}
-@media (min-width: 768px) {
-  .btn {
-    min-height: 32px;
+@layer components {
+  /* tap targets (WCAG 2.5.8 asks for 24px; more on the phone): links that stand alone (not inside running text) and plain buttons get a
+     minimum height, chips and small icon buttons a minimum size. In the components layer, so a utility class on the element still wins. */
+  main a[href]:not([class*='btn']):not(.card):not(.chip):not([class^='p']):not([class*=' p']):not([class~='flex']):not([class~='inline-flex']):not([class~='block']):not([class~='grid']):not([class~='inline-block']):not(p a) {
+    display: inline-block;
   }
-  select {
+  main button.chip,
+  main a.chip,
+  main button[class~='rounded-full'][class~='border'],
+  main button[class~='p-1'],
+  main button[class~='p-1.5'],
+  main button[class~='p-2'],
+  main button[class~='p-0.5'] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .btn[class*='!px-'],
+  [class*='btn-'][class*='!px-'] {
+    min-width: 40px;
+  }
+  main a[href]:not([class*='btn']):not(.card):not(.chip):not([class^='p']):not([class*=' p']):not(p a),
+  main button:not([class*='btn']):not(.chip):not([class^='p']):not([class*=' p']) {
+    min-height: 26px;
+  }
+  main button.chip,
+  main a.chip,
+  main button[class~='rounded-full'][class~='border'],
+  main button[class~='p-1'],
+  main button[class~='p-1.5'],
+  main button[class~='p-2'],
+  main button[class~='p-0.5'] {
     min-height: 28px;
+  }
+  main button[class~='p-1'],
+  main button[class~='p-1.5'],
+  main button[class~='p-2'] {
+    min-width: 28px;
+  }
+  @media (min-width: 768px) {
+    .btn,
+    [class*='btn-'] {
+      min-height: 32px;
+    }
+    select {
+      min-height: 28px;
+    }
+  }
+  @media (max-width: 767px) {
+    main a[href]:not([class*='btn']):not(.card):not(.chip):not([class^='p']):not([class*=' p']):not(p a),
+    main button:not([class*='btn']):not(.chip):not([class^='p']):not([class*=' p']) {
+      min-height: 32px;
+    }
+    main button.chip,
+    main a.chip,
+    main button[class~='rounded-full'][class~='border'] {
+      min-height: 34px;
+    }
+    main button[class~='p-1'],
+    main button[class~='p-1.5'],
+    main button[class~='p-2'] {
+      min-width: 36px;
+      min-height: 36px;
+    }
   }
 }
 

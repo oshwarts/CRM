@@ -69,11 +69,10 @@ function ContactCell({ row }: { row: DoctorRow }) {
   )
 }
 
-function StatusCell({ row, cases, since }: { row: DoctorRow; cases?: number; since?: string }) {
+function StatusSelect({ row }: { row: DoctorRow }) {
   const patch = usePatchDoctor()
   const potential = row.d.status === 'potential'
   return (
-    <div className="space-y-1">
       <select
         className={classNames('rounded-full border px-2.5 py-1 text-xs font-medium', potential ? 'border-amber-200 bg-amber-50 text-amber-700' : row.d.status === 'lost' ? 'border-slate-300 bg-slate-100 text-slate-600' : 'border-emerald-200 bg-emerald-50 text-emerald-700')}
         value={row.d.status}
@@ -93,6 +92,13 @@ function StatusCell({ row, cases, since }: { row: DoctorRow; cases?: number; sin
           </option>
         ))}
       </select>
+  )
+}
+
+function StatusInfo({ row, cases, since }: { row: DoctorRow; cases?: number; since?: string }) {
+  const potential = row.d.status === 'potential'
+  return (
+    <div className="space-y-1">
       {potential && (
         <p className="text-[11px] text-brand-700">
           {row.d.pipeline_stage ? `שלב: ${row.d.pipeline_stage}` : <span className="text-amber-700">לא נקבע שלב</span>}
@@ -109,11 +115,40 @@ function StatusCell({ row, cases, since }: { row: DoctorRow; cases?: number; sin
   )
 }
 
-function Actions({ row, fav, onFav, onMeeting, onTask }: { row: DoctorRow; fav: boolean; onFav: () => void; onMeeting: () => void; onTask: () => void }) {
+function StatusCell({ row, cases, since }: { row: DoctorRow; cases?: number; since?: string }) {
+  return (
+    <div className="space-y-1">
+      <StatusSelect row={row} />
+      <StatusInfo row={row} cases={cases} since={since} />
+    </div>
+  )
+}
+
+/** the contact rhythm, as a small select */
+function CadenceSelect({ row }: { row: DoctorRow }) {
+  const patch = usePatchDoctor()
+  return (
+    <select
+      className="min-w-0 shrink rounded-lg border border-slate-200 bg-white px-1 py-0.5 text-[11px] text-slate-600"
+      value={row.d.contact_cadence_days ?? ''}
+      aria-label={`קצב קשר של ${row.d.name}`}
+      onChange={(e) => patch.mutate({ id: row.d.id, contact_cadence_days: e.target.value ? Number(e.target.value) : null })}
+    >
+      <option value="">ללא קצב קשר</option>
+      {Object.entries(CADENCE_LABELS).map(([days, label]) => (
+        <option key={days} value={days}>
+          {label}
+        </option>
+      ))}
+    </select>
+  )
+}
+
+function Actions({ row, fav, onFav, onMeeting, onTask, compact }: { row: DoctorRow; fav: boolean; onFav: () => void; onMeeting: () => void; onTask: () => void; compact?: boolean }) {
   const btn = 'grid h-9 w-9 place-items-center rounded-full bg-brand-50 text-brand-700 transition hover:bg-brand-100'
   const phone = row.d.phone
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className={classNames('flex items-center', compact ? 'gap-1' : 'flex-wrap gap-1.5')}>
       {phone && (
         <>
           <a href={`tel:${phone}`} className={btn} aria-label={`התקשר ל${row.d.name}`} title={phone}>
@@ -143,7 +178,7 @@ function Name({ row }: { row: DoctorRow }) {
       <Link to={`/doctors/${row.d.id}`} className="font-semibold text-brand-700 hover:underline">
         {row.d.title} {row.d.name}
       </Link>
-      <p className="truncate text-xs text-slate-500">{row.d.position || '—'}</p>
+      {row.d.position && <p className="truncate text-xs text-slate-500">{row.d.position}</p>}
       {row.hospitals.length > 0 && (
         <p className="truncate text-xs text-slate-500">
           {row.hospitals[0]}
@@ -304,7 +339,7 @@ export default function Doctors() {
       }}
       className={classNames('rounded-full border px-3 py-1.5 text-sm font-medium transition sm:px-4', status === value ? 'border-brand-500 bg-brand-500 text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50')}
     >
-      {label} <span className={status === value ? 'text-white/80' : 'text-slate-400'}>{n}</span>
+      {label} <span className={classNames('mr-1', status === value ? 'text-white/80' : 'text-slate-500')}>{n}</span>
     </button>
   )
 
@@ -334,7 +369,7 @@ export default function Doctors() {
         {kpi('פרטים חסרים', counts.missing, only === 'missing', () => setOnly(only === 'missing' ? '' : 'missing'), true)}
       </div>
 
-      <div className="-mx-3 flex items-center gap-2 overflow-x-auto px-3 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0 [&>*]:shrink-0">
+      <div className="-mx-3 flex items-center gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0 [&>*]:shrink-0">
         {pill('כל הרופאים', '', counts.all)}
         {pill('לקוחות', 'client', counts.client)}
         {pill('פוטנציאליים (משפך)', 'potential', counts.potential)}
@@ -347,7 +382,7 @@ export default function Doctors() {
       <div className="card flex flex-wrap items-center gap-2 p-3">
         <div className="relative min-w-0 flex-1 sm:max-w-xs">
           <Search size={16} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input className="input !pr-10" placeholder="חיפוש: שם, תפקיד או בית חולים" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input className="input !pr-10" placeholder="חיפוש רופא או בית חולים" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
         <button type="button" className="btn-secondary shrink-0 sm:hidden" onClick={() => setFiltersOpen((o) => !o)} aria-expanded={filtersOpen}>
           <SlidersHorizontal size={16} /> סינון{extraFilters > 0 ? ` (${extraFilters})` : ''}
@@ -480,25 +515,36 @@ export default function Doctors() {
 
           {/* phone: cards */}
           <ul className="space-y-2.5 md:hidden">
-            {shown.map((r) => (
-              <li key={r.d.id} className="card space-y-2 p-3">
-                <Name row={r} />
-                <div className="grid grid-cols-2 items-start gap-3">
-                  <StatusCell row={r} cases={casesNow.get(r.d.id)} since={stageSince.data?.get(r.d.id)?.since} />
-                  <ContactCell row={r} />
-                </div>
-                <p className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl bg-slate-50 px-3 py-1.5 text-xs text-slate-500">
-                  <span>
-                    ניתוחים ({windowLabel}): <b className="text-base text-brand-800">{r.surgeries}</b>
-                  </span>
-                  <span className="flex items-center gap-1">
-                    נאמנות: {r.loyalty ? <span className={classNames('chip !px-2 !py-0 text-[11px]', LOYALTY_CHIP[r.loyalty])}>{LOYALTY_SHORT[r.loyalty]}</span> : <span className="text-slate-400">לא ידוע</span>}
-                  </span>
-                </p>
-                {(r.robots.length > 0 || r.companies.length > 0) && <p className="text-xs text-slate-600">{[...r.robots, ...r.companies].join(' · ')}</p>}
-                <Actions row={r} fav={favSet.has(r.d.id)} onFav={() => toggleFav.mutate({ doctorId: r.d.id, isFavorite: favSet.has(r.d.id) })} onMeeting={() => setModal({ kind: 'meeting', doctorId: r.d.id })} onTask={() => setModal({ kind: 'task', doctorId: r.d.id })} />
-              </li>
-            ))}
+            {shown.map((r) => {
+              const cases = casesNow.get(r.d.id)
+              return (
+                <li key={r.d.id} className="card space-y-2 p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <Name row={r} />
+                    <div className="shrink-0">
+                      <StatusSelect row={r} />
+                    </div>
+                  </div>
+                  <StatusInfo row={r} cases={cases} since={stageSince.data?.get(r.d.id)?.since} />
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">
+                    <span>{r.daysSince === null ? 'אין פגישות' : r.daysSince === 0 ? 'פגישה אחרונה: היום' : `פגישה אחרונה: לפני ${r.daysSince} ימים`}</span>
+                    {r.contact.nextMeeting && <span className="text-brand-700">הבאה: {formatDate(r.contact.nextMeeting)}</span>}
+                    <NeedChip row={r} />
+                  </div>
+                  <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+                    <span>
+                      ניתוחים ({windowLabel}): <b className="text-sm text-brand-800">{r.surgeries}</b>
+                    </span>
+                    {r.loyalty && <span className={classNames('chip !px-2 !py-0 text-[11px]', LOYALTY_CHIP[r.loyalty])}>{LOYALTY_SHORT[r.loyalty]}</span>}
+                    {(r.robots.length > 0 || r.companies.length > 0) && <span className="text-slate-600">{[...r.robots, ...r.companies].join(' · ')}</span>}
+                  </p>
+                  <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-2">
+                    <Actions compact row={r} fav={favSet.has(r.d.id)} onFav={() => toggleFav.mutate({ doctorId: r.d.id, isFavorite: favSet.has(r.d.id) })} onMeeting={() => setModal({ kind: 'meeting', doctorId: r.d.id })} onTask={() => setModal({ kind: 'task', doctorId: r.d.id })} />
+                    <CadenceSelect row={r} />
+                  </div>
+                </li>
+              )
+            })}
           </ul>
         </>
       )}

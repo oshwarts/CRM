@@ -205,12 +205,12 @@ export default function Hospitals() {
 
         <TabPanel id="list">
           <div className="space-y-3">
-            <div className="card flex flex-wrap items-center gap-2 p-3">
-              <label className="relative block w-full sm:w-60">
+            <div className="card grid grid-cols-2 items-center gap-2 p-3 sm:flex sm:flex-wrap">
+              <label className="relative col-span-2 block sm:w-60">
                 <Search size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input type="search" className="input !pr-9" placeholder="חיפוש בית חולים, עיר או ארגון" value={f.q} onChange={(e) => set({ q: e.target.value })} />
               </label>
-              <select className="input !w-auto" value={f.status} aria-label="סטטוס מסחרי" onChange={(e) => set({ status: e.target.value as Filters['status'] })}>
+              <select className="input !w-full sm:!w-auto" value={f.status} aria-label="סטטוס מסחרי" onChange={(e) => set({ status: e.target.value as Filters['status'] })}>
                 <option value="">כל הסטטוסים</option>
                 {STATUS_ORDER.map((s) => (
                   <option key={s} value={s}>
@@ -218,19 +218,19 @@ export default function Hospitals() {
                   </option>
                 ))}
               </select>
-              <select className="input !w-auto" value={f.org} aria-label="ארגון" onChange={(e) => set({ org: e.target.value })}>
+              <select className="input !w-full sm:!w-auto" value={f.org} aria-label="ארגון" onChange={(e) => set({ org: e.target.value })}>
                 <option value="">כל הארגונים</option>
                 {orgs.map((o) => (
                   <option key={o}>{o}</option>
                 ))}
               </select>
-              <select className="input !w-auto" value={f.robot} aria-label="רובוט" onChange={(e) => set({ robot: e.target.value })}>
+              <select className="input !w-full sm:!w-auto" value={f.robot} aria-label="רובוט" onChange={(e) => set({ robot: e.target.value })}>
                 <option value="">כל הרובוטים</option>
                 {robots.map((o) => (
                   <option key={o}>{o}</option>
                 ))}
               </select>
-              <select className="input !w-auto" value={f.agent} aria-label="סוכן" onChange={(e) => set({ agent: e.target.value })}>
+              <select className="input !w-full sm:!w-auto" value={f.agent} aria-label="סוכן" onChange={(e) => set({ agent: e.target.value })}>
                 <option value="">כל הסוכנים</option>
                 {agents.map(([id, name]) => (
                   <option key={id} value={id}>
@@ -243,7 +243,7 @@ export default function Hospitals() {
                   <User size={13} /> בתי החולים שלי
                 </button>
               )}
-              <select className="input !w-auto" value={f.sort} aria-label="מיון" onChange={(e) => set({ sort: e.target.value })}>
+              <select className="input col-span-2 !w-full sm:col-span-1 sm:!w-auto" value={f.sort} aria-label="מיון" onChange={(e) => set({ sort: e.target.value })}>
                 {Object.entries(SORTS).map(([k, s]) => (
                   <option key={k} value={k}>
                     מיון: {s.label}
@@ -251,7 +251,7 @@ export default function Hospitals() {
                 ))}
               </select>
               {filtered && (
-                <button type="button" className="text-sm font-medium text-brand-600 underline" onClick={() => setF({ ...NO_FILTERS, sort: f.sort })}>
+                <button type="button" className="col-span-2 text-sm font-medium text-brand-600 underline sm:col-span-1" onClick={() => setF({ ...NO_FILTERS, sort: f.sort })}>
                   נקה סינון
                 </button>
               )}

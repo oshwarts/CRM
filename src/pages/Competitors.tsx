@@ -232,10 +232,10 @@ export default function Competitors() {
           <div className="card space-y-2 p-3">
             <label className="relative block">
               <Search size={18} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input type="search" className="input !pr-10" placeholder="חיפוש לפי מתחרה, מוצר, מכרז, רופא, בית חולים…" value={q} onChange={(e) => setQ(e.target.value)} />
+              <input type="search" className="input !pr-10" placeholder="חיפוש: מתחרה, מוצר, רופא, בית חולים" value={q} onChange={(e) => setQ(e.target.value)} />
             </label>
-            <div className="flex flex-wrap items-center gap-2">
-              <select className="input !w-auto !py-1.5 text-sm" value={hospital} onChange={(e) => setHospital(e.target.value)} aria-label="בית חולים">
+            <div className="grid grid-cols-2 items-end gap-2 sm:flex sm:flex-wrap sm:items-center">
+              <select className="input col-span-2 !w-full !py-1.5 text-sm sm:!w-auto" value={hospital} onChange={(e) => setHospital(e.target.value)} aria-label="בית חולים">
                 <option value="">כל בתי החולים</option>
                 {(hospitals.data ?? []).filter((h) => all.some((i) => i.hospital_id === h.id)).map((h) => (
                   <option key={h.id} value={h.id}>
@@ -243,7 +243,7 @@ export default function Competitors() {
                   </option>
                 ))}
               </select>
-              <select className="input !w-auto !py-1.5 text-sm" value={outcome} onChange={(e) => setOutcome(e.target.value)} aria-label="תוצאה">
+              <select className="input col-span-2 !w-full !py-1.5 text-sm sm:!w-auto" value={outcome} onChange={(e) => setOutcome(e.target.value)} aria-label="תוצאה">
                 <option value="">כל התוצאות</option>
                 {Object.entries(OUTCOME_LABELS).map(([k, v]) => (
                   <option key={k} value={k}>
@@ -251,17 +251,17 @@ export default function Competitors() {
                   </option>
                 ))}
               </select>
-              <label className="flex items-center gap-1 text-xs text-slate-500">
-                מתאריך <input type="date" className="input !w-auto !py-1 text-sm" value={from} onChange={(e) => setFrom(e.target.value)} />
+              <label className="flex flex-col gap-1 text-xs text-slate-500 sm:flex-row sm:items-center">
+                מתאריך <input type="date" className="input !w-full !py-1 text-sm sm:!w-auto" value={from} onChange={(e) => setFrom(e.target.value)} />
               </label>
-              <label className="flex items-center gap-1 text-xs text-slate-500">
-                עד <input type="date" className="input !w-auto !py-1 text-sm" value={to} onChange={(e) => setTo(e.target.value)} />
+              <label className="flex flex-col gap-1 text-xs text-slate-500 sm:flex-row sm:items-center">
+                עד <input type="date" className="input !w-full !py-1 text-sm sm:!w-auto" value={to} onChange={(e) => setTo(e.target.value)} />
               </label>
-              <label className="flex items-center gap-1.5 text-sm text-slate-600">
+              <label className="col-span-2 flex items-center gap-1.5 text-sm text-slate-600 sm:col-span-1">
                 <input type="checkbox" className="h-4 w-4" checked={onlyStale} onChange={(e) => setOnlyStale(e.target.checked)} /> ישנים (מעל 90 יום)
               </label>
               {(competitor || hospital || outcome || onlyStale || from || to || q) && (
-                <button className="btn-ghost text-xs" onClick={() => { setCompetitor(''); setHospital(''); setOutcome(''); setOnlyStale(false); setFrom(''); setTo(''); setQ('') }}>
+                <button className="btn-ghost col-span-2 text-xs sm:col-span-1" onClick={() => { setCompetitor(''); setHospital(''); setOutcome(''); setOnlyStale(false); setFrom(''); setTo(''); setQ('') }}>
                   נקה סינון
                 </button>
               )}

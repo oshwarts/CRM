@@ -311,9 +311,9 @@ export default function Consumables() {
                   ? `חסרים ${missing.length} פריטים · ${units} יחידות`
                   : 'אין חוסרים'}
               </p>
-              <div className="flex flex-wrap gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
                 {!viewed && (
-                  <button className="btn-primary" onClick={saveCount} disabled={save.isPending}>
+                  <button className="btn-primary col-span-2 sm:col-span-1" onClick={saveCount} disabled={save.isPending}>
                     <Save size={16} />
                     שמור ספירה
                   </button>

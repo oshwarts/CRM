@@ -174,7 +174,8 @@ export default function DoctorProfile() {
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+          <div className="space-y-2 border-t border-slate-100 pt-4 sm:flex sm:flex-wrap sm:items-center sm:gap-2 sm:space-y-0">
+            <div className="grid grid-cols-2 gap-2 sm:flex">
             <button className="btn-primary" onClick={() => setAddMeeting(true)}>
               <CalendarDays size={16} />
               פגישה חדשה
@@ -183,7 +184,9 @@ export default function DoctorProfile() {
               <CheckSquare size={16} />
               משימה
             </button>
-            <span className="flex-1" />
+            </div>
+            <span className="hidden flex-1 sm:block" />
+            <div className="flex items-center justify-end gap-2">
             <button
               className={classNames('btn-secondary !px-3', isFav && 'border-red-200 text-red-500')}
               title={isFav ? 'הסר מהמועדפים' : 'הוסף למועדפים'}
@@ -208,6 +211,7 @@ export default function DoctorProfile() {
                 <Trash2 size={16} />
               </ConfirmButton>
             )}
+            </div>
           </div>
         </div>
       </div>

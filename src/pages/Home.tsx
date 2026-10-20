@@ -396,7 +396,7 @@ export default function Home() {
               <button className="btn border border-white/40 bg-white/10 text-white hover:bg-white/20" onClick={() => setAddScan(true)}>
                 <ScanLine size={16} /> סריקה חדשה
               </button>
-              <button className="btn border border-white/40 bg-white/10 text-white hover:bg-white/20" onClick={() => setImportReferral(true)}>
+              <button className="btn col-span-2 border border-white/40 bg-white/10 text-white hover:bg-white/20 sm:col-span-1" onClick={() => setImportReferral(true)}>
                 <FileInput size={16} /> ייבוא הפנייה
               </button>
             </div>
@@ -450,15 +450,15 @@ export default function Home() {
           <Spinner />
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <Link to="/scans" className="rounded-2xl bg-slate-50 p-4 text-center transition hover:bg-brand-50">
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
+              <Link to="/scans" className="rounded-2xl bg-slate-50 p-2.5 text-center transition hover:bg-brand-50 sm:p-4">
                 <p className="text-3xl font-semibold text-brand-800">{homeScans.length}</p>
                 <p className="mt-0.5 text-xs text-slate-500">סה״כ מטופלים</p>
               </Link>
               <Link
                 to="/scans"
                 className={classNames(
-                  'rounded-2xl p-4 text-center transition',
+                  'rounded-2xl p-2.5 text-center transition sm:p-4',
                   scanAlerts.upcoming.length ? 'bg-amber-50 hover:bg-amber-100' : 'bg-slate-50',
                 )}
               >
@@ -468,7 +468,7 @@ export default function Home() {
               <Link
                 to="/scans"
                 className={classNames(
-                  'rounded-2xl p-4 text-center transition',
+                  'rounded-2xl p-2.5 text-center transition sm:p-4',
                   scanAlerts.overdue.length ? 'bg-red-50 hover:bg-red-100' : 'bg-slate-50',
                 )}
               >
@@ -664,7 +664,7 @@ export default function Home() {
                     }[status]
                     return (
                       <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
-                        <Link to={`/doctors/${d.id}`} className="min-w-0 flex-1 hover:underline">
+                        <Link to={`/doctors/${d.id}`} className="min-w-0 flex-1 hover:underline max-sm:min-w-full">
                           <p className="truncate text-sm font-medium text-slate-700">
                             {d.title} {d.name}
                           </p>

@@ -95,7 +95,7 @@ function UsersTab() {
     <div className="space-y-4">
       {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <Stat label="משתמשים פעילים" value={all.filter((u) => u.active).length} />
         <Stat label="מנהלים" value={admins} />
         <Stat label="ממתינים לאישור" value={waiting} warn />
@@ -207,9 +207,9 @@ function Who({ u, sub, me }: { u: Profile; sub: string; me?: boolean }) {
 
 function Stat({ label, value, warn }: { label: string; value: number; warn?: boolean }) {
   return (
-    <div className={classNames('card p-3', warn && value > 0 && 'border-amber-300 bg-amber-50')}>
+    <div className={classNames('card p-2.5 sm:p-3', warn && value > 0 && 'border-amber-300 bg-amber-50')}>
       <p className="text-2xl font-bold text-slate-800">{value}</p>
-      <p className="text-xs text-slate-500">{label}</p>
+      <p className="text-[11px] leading-tight text-slate-500 sm:text-xs">{label}</p>
     </div>
   )
 }

@@ -187,7 +187,7 @@ export default function Scans() {
             מעקב סריקות CT למטופלי MAKO — כל בתי החולים יחד
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
           <button className="btn-secondary" onClick={exportCsv} disabled={rows.length === 0}>
             <Download size={16} />
             ייצוא CSV
@@ -196,7 +196,7 @@ export default function Scans() {
             <FileInput size={16} />
             ייבוא הפנייה
           </button>
-          <button className="btn-primary" onClick={() => setShowAdd(true)}>
+          <button className="btn-primary order-first col-span-2 sm:order-none sm:col-span-1" onClick={() => setShowAdd(true)}>
             <Plus size={16} />
             הוסף מטופל
           </button>
@@ -258,9 +258,9 @@ export default function Scans() {
         </div>
       )}
 
-      <div className="card grid gap-3 p-4 sm:grid-cols-4">
-        <input className="input" placeholder="חיפוש שם / ת״ז / טלפון / מנתח" value={q} onChange={(e) => setQ(e.target.value)} />
-        <select className="input" aria-label="בית חולים" value={hospital} onChange={(e) => setHospital(e.target.value)}>
+      <div className="card grid grid-cols-2 gap-3 p-4 sm:grid-cols-4">
+        <input className="input col-span-2 sm:col-span-1" aria-label="חיפוש" placeholder="חיפוש שם / ת״ז / טלפון / מנתח" value={q} onChange={(e) => setQ(e.target.value)} />
+        <select className="input col-span-2 sm:col-span-1" aria-label="בית חולים" value={hospital} onChange={(e) => setHospital(e.target.value)}>
           <option value="">כל בתי החולים</option>
           {hospitals.map(([id, name]) => (
             <option key={id} value={id}>{name}</option>

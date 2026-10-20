@@ -191,12 +191,12 @@ export default function Info() {
           <input
             type="search"
             className="input !py-2.5 !pr-10 text-base"
-            placeholder="חיפוש בכל המסמכים: שם, קטגוריה, פרוצדורה, תגית…"
+            placeholder="חיפוש במסמכים: שם, תגית, הליך"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
         </label>
-        <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+        <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {chip('', 'הכול')}
           {(procedures.data ?? []).map((p) => chip(p.id, p.name))}
           {chip(GENERAL, 'כללי')}

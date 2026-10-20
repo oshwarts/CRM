@@ -124,8 +124,16 @@ export function Tabs({
 }
 
 export function TabList({ children }: { children: ReactNode }) {
+  const ctx = useContext(TabsCtx)
+  const ref = useRef<HTMLDivElement>(null)
+  // on the phone the tabs are one row that scrolls sideways; the open tab is brought into view
+  useEffect(() => {
+    const box = ref.current
+    const el = box?.querySelector<HTMLElement>('[aria-selected="true"]')
+    if (box && el && box.scrollWidth > box.clientWidth) el.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
+  }, [ctx?.value])
   return (
-    <div className="mb-4 flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1">
+    <div ref={ref} role="tablist" className="mb-4 flex flex-nowrap gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1 [scrollbar-width:none] sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden">
       {children}
     </div>
   )
@@ -137,9 +145,11 @@ export function Tab({ id, children }: { id: string; children: ReactNode }) {
   return (
     <button
       type="button"
+      role="tab"
+      aria-selected={active}
       onClick={() => ctx.setValue(id)}
       className={classNames(
-        'flex-1 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition',
+        'min-h-[40px] flex-1 shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition',
         active
           ? 'bg-white text-brand-600 shadow-sm'
           : 'text-slate-500 hover:text-slate-700',

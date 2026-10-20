@@ -170,7 +170,7 @@ export function SalesReports() {
       <section className="card p-4">
         <h2 className="mb-3 text-base font-semibold text-brand-800">לפי חודש</h2>
         <div tabIndex={0} className="overflow-x-auto">
-          <table className="w-full min-w-[400px] text-sm">
+          <table className="w-full min-w-[420px] text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-slate-500">
                 <th className="p-2 text-right font-medium">חודש</th>
@@ -183,7 +183,7 @@ export function SalesReports() {
             <tbody>
               {model.perMonth.map((m) => (
                 <tr key={m.key} className="border-b border-slate-100">
-                  <td className="p-2 text-slate-700">{m.label}</td>
+                  <td className="whitespace-nowrap p-2 text-slate-700">{m.label}</td>
                   <td className="p-2">
                     <div className="flex items-center gap-2">
                       <span className="w-6 text-center font-semibold text-slate-800">{m.meetings}</span>

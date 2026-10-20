@@ -198,7 +198,7 @@ export default function Meetings() {
           <input
             type="search"
             className="input !pr-9"
-            placeholder="חיפוש חופשי: נושא, סיכום, החלטות, מקום, משימות…"
+            placeholder="חיפוש: נושא, סיכום, מקום"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
@@ -310,29 +310,32 @@ export default function Meetings() {
                 <span className="chip border-slate-200 bg-slate-50 text-slate-600">
                   {MEETING_STATUS_LABELS[m.status]}
                 </span>
-                <Link
-                  to={`/meetings/${m.id}?mail=1`}
-                  className="btn-secondary !px-3 !py-1.5 text-xs"
-                  title="שלח סיכום פגישה במייל"
-                >
-                  <Mail size={14} />
-                  שלח סיכום במייל
-                </Link>
-                <button
-                  className="btn-ghost !px-2"
-                  onClick={() => setEditing(m)}
-                  aria-label="עריכה"
-                >
-                  <Pencil size={15} />
-                </button>
-                {canDelete(m.created_by) && (
-                  <ConfirmButton
-                    className="btn-ghost !px-2 text-red-500"
-                    onConfirm={() => deleteMeeting.mutate(m.id)}
+                <div className="flex items-center gap-1 [margin-inline-start:auto] lg:[margin-inline-start:0]">
+                  <Link
+                    to={`/meetings/${m.id}?mail=1`}
+                    className="btn-secondary !px-3 !py-1.5 text-xs"
+                    title="שלח סיכום פגישה במייל"
+                    aria-label="שלח סיכום פגישה במייל"
                   >
-                    <Trash2 size={15} />
-                  </ConfirmButton>
-                )}
+                    <Mail size={14} />
+                    <span className="hidden sm:inline">שלח סיכום במייל</span>
+                  </Link>
+                  <button
+                    className="btn-ghost !px-2"
+                    onClick={() => setEditing(m)}
+                    aria-label="עריכה"
+                  >
+                    <Pencil size={15} />
+                  </button>
+                  {canDelete(m.created_by) && (
+                    <ConfirmButton
+                      className="btn-ghost !px-2 text-red-500"
+                      onConfirm={() => deleteMeeting.mutate(m.id)}
+                    >
+                      <Trash2 size={15} />
+                    </ConfirmButton>
+                  )}
+                </div>
               </div>
             </div>
 
