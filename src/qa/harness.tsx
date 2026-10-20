@@ -9,6 +9,7 @@ import { AuthContext } from '../context/AuthProvider'
 import { ToastHost } from '../components/ToastHost'
 import { queryClient } from '../lib/queryClient'
 import { installFakeNetwork } from './fakeNetwork'
+import { QaBridge } from './smoke'
 import { qaProfile } from './seed'
 import '../index.css'
 // the base data, then the seed of every page (src/qa/pages/*.seed.ts)
@@ -50,6 +51,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[params.get('path') ?? '/']}>
         <AuthContext.Provider value={value}>
+          <QaBridge />
           <App />
           <ToastHost />
         </AuthContext.Provider>

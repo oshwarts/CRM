@@ -16,6 +16,10 @@ export type QaApi = {
   setOnline: (online: boolean) => void
   /** make every write fail with this message (null = succeed again) */
   failWrites: (message: string | null) => void
+  /** (set by the harness) open a screen by in-app navigation */
+  go?: (path: string) => Promise<void>
+  /** (set by the harness) measure screens: overflow, bad texts, console errors, unnamed controls … — see smoke.tsx */
+  smoke?: (paths: string[], opts?: { wait?: number }) => Promise<import('./smoke').SmokeRow[]>
 }
 
 declare global {
