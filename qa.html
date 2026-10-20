@@ -1,0 +1,26 @@
+<!doctype html>
+<!-- QA harness page: the real app with a fake signed-in user, seeded data and no network. Dev server only (not part of the build).
+     Open: /qa.html?path=/doctors&role=admin  — see src/qa/README.md -->
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <script>
+      try {
+        var z = localStorage.getItem('ami.size')
+        if (z === 'compact' || z === 'large') document.documentElement.setAttribute('data-size', z)
+        var t = localStorage.getItem('ami.theme') || 'system'
+        if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark')
+      } catch (e) {}
+    </script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+Hebrew:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <title>AMI QA</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/qa/harness.tsx"></script>
+  </body>
+</html>
