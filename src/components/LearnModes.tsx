@@ -57,7 +57,7 @@ function RoundShell({ total, status, render, onFinish }: { total: number; status
             setReviewing(false)
           }}
           className={classNames(
-            'h-7 w-7 rounded-lg border text-xs font-medium transition',
+            'h-8 w-8 rounded-lg border text-xs font-medium transition',
             !reviewing && k === i && 'ring-2 ring-brand-500 ring-offset-1',
             st === 'none' ? 'border-slate-200 bg-white text-slate-500' : st === 'right' ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-red-300 bg-red-50 text-red-600',
           )}
@@ -113,10 +113,10 @@ function RoundShell({ total, status, render, onFinish }: { total: number; status
       {strip}
       {render(i)}
       <div className="flex gap-2">
-        <button className="btn-secondary" disabled={i === 0} onClick={() => setI(i - 1)}>
+        <button className="btn-secondary !py-2.5" disabled={i === 0} onClick={() => setI(i - 1)}>
           <ChevronRight size={16} /> הקודמת
         </button>
-        <button className={answered ? 'btn-primary flex-1' : 'btn-secondary flex-1'} onClick={() => (last ? setReviewing(true) : setI(i + 1))}>
+        <button className={(answered ? 'btn-primary' : 'btn-secondary') + ' flex-1 !py-2.5'} onClick={() => (last ? setReviewing(true) : setI(i + 1))}>
           {last ? (unanswered.length > 0 ? 'לסיכום ולשאלות שנשארו' : 'סיום וצפייה בציון') : answered ? 'הבאה' : 'דלג'}
           {!last && <ChevronLeft size={16} />}
         </button>
@@ -176,7 +176,7 @@ export function TrueFalseStudy({ cards, progress }: { cards: LearnCard[]; progre
                 <button className="btn-secondary !border-red-200 !py-3 !text-red-600" onClick={() => choose(false)}>
                   <X size={16} /> לא נכון
                 </button>
-                <button className="btn-primary !bg-[#1d9a6c] !py-3 hover:!bg-[#17805a]" onClick={() => choose(true)}>
+                <button className="btn-primary !bg-[#17805a] !py-3 hover:!bg-[#126a4a]" onClick={() => choose(true)}>
                   <Check size={16} /> נכון
                 </button>
               </div>
@@ -262,7 +262,7 @@ export function ClozeStudy({ cards, progress }: { cards: LearnCard[]; progress: 
                   disabled={answered}
                   onClick={() => choose(o)}
                   className={classNames(
-                    'rounded-xl border px-3 py-2.5 text-sm transition',
+                    'min-h-[48px] rounded-xl border px-3 py-2.5 text-sm transition',
                     !answered && 'border-slate-200 bg-white hover:border-brand-300 hover:bg-brand-50',
                     answered && o === it.correct && 'border-emerald-400 bg-emerald-50 text-emerald-800',
                     answered && o !== it.correct && o === picked && 'border-red-400 bg-red-50 text-red-700',
@@ -339,7 +339,7 @@ export function MatchStudy({ cards, progress }: { cards: LearnCard[]; progress: 
               type="button"
               disabled={done.has(c.id)}
               onClick={() => setLeft(c.id)}
-              className={classNames('w-full rounded-xl border p-2.5 text-left text-xs leading-snug transition', done.has(c.id) ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : left === c.id ? 'border-brand-500 bg-brand-50' : 'border-slate-200 bg-white hover:border-brand-300')}
+              className={classNames('min-h-[44px] w-full rounded-xl border p-2.5 text-left text-sm leading-snug transition', done.has(c.id) ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : left === c.id ? 'border-brand-500 bg-brand-50' : 'border-slate-200 bg-white hover:border-brand-300')}
             >
               {c.question}
             </button>
@@ -353,7 +353,7 @@ export function MatchStudy({ cards, progress }: { cards: LearnCard[]; progress: 
               disabled={done.has(c.id) || !left}
               onClick={() => pickRight(c)}
               className={classNames(
-                'w-full rounded-xl border p-2.5 text-left text-xs leading-snug transition',
+                'min-h-[44px] w-full rounded-xl border p-2.5 text-left text-sm leading-snug transition',
                 done.has(c.id) ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : flash === c.id ? 'border-red-400 bg-red-50' : left ? 'border-slate-200 bg-white hover:border-brand-300' : 'border-slate-100 bg-slate-50 text-slate-500',
               )}
             >

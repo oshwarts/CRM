@@ -44,8 +44,8 @@ export function AuditLog() {
 
   return (
     <div className="space-y-3">
-      <div className="card grid gap-2 p-3 sm:grid-cols-3 lg:grid-cols-5">
-        <select className="input" value={f.userId} onChange={(e) => set({ userId: e.target.value })} aria-label="משתמש">
+      <div className="card grid grid-cols-2 gap-2 p-3 sm:grid-cols-3 lg:grid-cols-5">
+        <select className="input col-span-2 sm:col-span-1" value={f.userId} onChange={(e) => set({ userId: e.target.value })} aria-label="משתמש">
           <option value="">כל המשתמשים</option>
           {(users.data ?? []).map((u) => (
             <option key={u.id} value={u.id}>
@@ -67,8 +67,12 @@ export function AuditLog() {
           <option value="update">עודכן</option>
           <option value="delete">נמחק</option>
         </select>
-        <input type="date" className="input" value={f.from} onChange={(e) => set({ from: e.target.value })} aria-label="מתאריך" />
-        <input type="date" className="input" value={f.to} onChange={(e) => set({ to: e.target.value })} aria-label="עד תאריך" />
+        <label className="block text-xs text-slate-600">מתאריך
+          <input type="date" className="input mt-0.5" value={f.from} onChange={(e) => set({ from: e.target.value })} />
+        </label>
+        <label className="block text-xs text-slate-600">עד תאריך
+          <input type="date" className="input mt-0.5" value={f.to} onChange={(e) => set({ to: e.target.value })} />
+        </label>
       </div>
 
       {log.isLoading ? (
@@ -81,15 +85,15 @@ export function AuditLog() {
         <>
           <ul className="card divide-y divide-slate-100">
             {(log.data ?? []).map((e) => (
-              <li key={e.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-sm">
-                <span className="w-28 shrink-0 text-xs text-slate-400">{fmt(e.at)}</span>
-                <span className="w-28 shrink-0 truncate font-medium text-slate-700">{e.user_name || 'מערכת'}</span>
+              <li key={e.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2.5 text-sm">
                 <span className={classNames('chip !px-2 !py-0 text-xs', ACTION_LABELS[e.action]?.cls)}>{ACTION_LABELS[e.action]?.label ?? e.action}</span>
-                <span className="text-slate-500">{TABLE_LABELS[e.table_name] ?? e.table_name}</span>
-                {e.label && <span dir="auto" className="min-w-0 truncate text-slate-800">{e.label}</span>}
+                <span className="font-medium text-slate-700">{TABLE_LABELS[e.table_name] ?? e.table_name}</span>
+                <span className="mr-auto text-xs text-slate-500">{fmt(e.at)}</span>
+                <span className="basis-full text-xs text-slate-600">{e.user_name || 'מערכת'}</span>
+                {e.label && <span dir="auto" className="basis-full font-medium text-slate-800 [overflow-wrap:anywhere]">{e.label}</span>}
                 {e.changed_fields.length > 0 && (
-                  <span className="text-xs text-slate-400">
-                    ({e.changed_fields.map((c) => FIELD_LABELS[c] ?? c).join(', ')})
+                  <span className="basis-full text-xs text-slate-500">
+                    שדות ששונו: {e.changed_fields.map((c) => FIELD_LABELS[c] ?? c).join(', ')}
                   </span>
                 )}
                 {e.detail && typeof e.detail === 'object' && !Array.isArray(e.detail) && (e.detail as Record<string, unknown>).as_user_name != null && (
@@ -98,7 +102,7 @@ export function AuditLog() {
                   </span>
                 )}
                 {e.table_name === 'profiles' && e.detail && typeof e.detail === 'object' && !Array.isArray(e.detail) && (
-                  <span className="text-xs text-violet-600">
+                  <span className="text-xs text-violet-700">
                     הרשאה: {String((e.detail as Record<string, unknown>).role)} · {(e.detail as Record<string, unknown>).active === 'true' ? 'פעיל' : 'מושבת'}
                   </span>
                 )}
@@ -112,7 +116,7 @@ export function AuditLog() {
           )}
         </>
       )}
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-slate-500">
         היומן מתעד יצירה, עדכון ומחיקה של רופאים, בתי חולים, אנשי קשר, פגישות, משימות, סריקות, מסמכים ומשתמשים. פרטי המטופל בסריקות אינם נשמרים ביומן. צפייה בלבד, ללא אפשרות עריכה.
       </p>
     </div>

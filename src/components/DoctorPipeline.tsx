@@ -19,6 +19,7 @@ export function DoctorPipeline({ doctor }: { doctor: { id: string; pipeline_stag
   const [taskOpen, setTaskOpen] = useState(false)
   const [closing, setClosing] = useState(false)
   const [reason, setReason] = useState('')
+  const [open, setOpen] = useState(() => typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(min-width: 640px)').matches)
   useEffect(() => {
     setStep(doctor.next_step ?? '')
     setDate(doctor.next_step_date ?? '')
@@ -32,6 +33,7 @@ export function DoctorPipeline({ doctor }: { doctor: { id: string; pipeline_stag
   const daysIn = enteredOn ? -(daysUntil(enteredOn) ?? 0) : null
   const overdue = isOverdue(doctor.next_step_date)
   const hint = stages.find((x) => x.name === current)?.suggested_step ?? ''
+  const editorOpen = open || !current || dirty || closing
 
   function move(stage: string) {
     if (stage === current) return
@@ -67,10 +69,10 @@ export function DoctorPipeline({ doctor }: { doctor: { id: string; pipeline_stag
     )
 
   return (
-    <section className="card space-y-4 p-5">
+    <section className="card space-y-3 p-4 sm:space-y-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="flex items-center gap-2 text-base font-semibold text-brand-800">
-          <Flag size={16} /> משפך — באיזה שלב הרופא ומה הצעד הבא
+          <Flag size={16} /> משפך
         </h2>
         {current && (
           <span className={classNames('text-xs', daysIn != null && daysIn > stuckDaysOf(thresholds, current) ? 'font-semibold text-amber-700' : 'text-slate-500')}>
@@ -78,6 +80,23 @@ export function DoctorPipeline({ doctor }: { doctor: { id: string; pipeline_stag
           </span>
         )}
       </div>
+
+      {/* the answer first: the stage and the next step; the editor opens on demand (open by default on a wide screen) */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1 text-sm">
+          <p className="break-words text-base font-semibold text-slate-800">{current || 'עוד לא נקבע שלב'}</p>
+          <p dir="auto" className={classNames('break-words', overdue ? 'font-medium text-red-600' : 'text-slate-600')}>
+            {doctor.next_step ? `צעד הבא: ${doctor.next_step}` : 'אין צעד הבא'}
+            {doctor.next_step_date ? ` · עד ${formatDate(doctor.next_step_date)}${overdue ? ' (באיחור)' : ''}` : ''}
+          </p>
+        </div>
+        <button type="button" className="btn-secondary shrink-0" aria-expanded={editorOpen} onClick={() => setOpen((v) => !v)}>
+          {editorOpen ? 'סגירה' : 'עדכון'}
+          <ChevronDown size={15} className={classNames('transition', editorOpen && 'rotate-180')} />
+        </button>
+      </div>
+
+      {editorOpen && <div className="space-y-4">
 
       {/* the stages as steps: the ones he passed are filled, the one he is in is dark */}
       <ol className="flex flex-wrap gap-1.5" aria-label="שלבי המשפך">
@@ -191,6 +210,7 @@ export function DoctorPipeline({ doctor }: { doctor: { id: string; pipeline_stag
           )}
         </div>
       )}
+      </div>}
     </section>
   )
 }

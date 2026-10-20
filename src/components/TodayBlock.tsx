@@ -71,33 +71,33 @@ export function TodayBlock() {
     [projects.data, allTasks.data],
   )
 
-  const sub = 'mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-brand-700'
+  const sub = 'mb-1 flex items-center gap-1.5 text-sm font-semibold text-brand-700'
 
   return (
-    <section className="card space-y-4 p-5">
+    <section className="card space-y-4 p-4 sm:p-5">
       <h2 className="flex items-center gap-2.5 text-lg font-semibold text-brand-800">
         <span className="grid h-8 w-8 place-items-center rounded-lg bg-amber-50 text-amber-500">
-          <Sun size={18} />
+          <Sun size={18} aria-hidden />
         </span>
         היום שלי
       </h2>
 
       {surgeries.length > 0 && (
         <div>
-          <p className={sub}>
-            <Scissors size={12} /> ניתוחים היום ומחר
-          </p>
+          <h3 className={sub}>
+            <Scissors size={13} aria-hidden /> ניתוחים היום ומחר
+          </h3>
           <ul className="divide-y divide-slate-100">
             {surgeries.map((s) => (
               <li key={s.id}>
-                <Link to="/scans" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg px-1.5 py-2 text-sm transition hover:bg-brand-50/60">
+                <Link to="/scans" className="flex min-h-[44px] flex-wrap items-center gap-x-2 gap-y-0.5 rounded-lg px-1.5 py-2 text-sm transition hover:bg-brand-50/60">
                   <span className={classNames('chip !px-2 !py-0 text-xs', s.surgery_date === today ? 'border-red-200 bg-red-50 text-red-600' : 'border-slate-200 bg-slate-50 text-slate-600')}>
                     {dayWord(s.surgery_date as string)}
                   </span>
-                  <span className="font-medium text-slate-800">
+                  <span dir="auto" className="font-medium text-slate-800">
                     {SCAN_PROCEDURE_LABELS[s.procedure_type] ?? s.procedure_type} {s.side}
                   </span>
-                  <span className="text-slate-500">
+                  <span dir="auto" className="min-w-0 break-words text-slate-600">
                     {[s.hospital?.name, s.surgeon ? `${s.surgeon.title} ${s.surgeon.name}`.trim() : ''].filter(Boolean).join(' · ')}
                   </span>
                   {!s.plan_ready && <span className="chip border-amber-200 bg-amber-50 !px-2 !py-0 text-xs text-amber-700">תוכנית לא מוכנה</span>}
@@ -111,19 +111,19 @@ export function TodayBlock() {
 
       {todaysMeetings.length > 0 && (
         <div>
-          <p className={sub}>
-            <CalendarDays size={12} /> פגישות היום ומחר
-          </p>
+          <h3 className={sub}>
+            <CalendarDays size={13} aria-hidden /> פגישות היום ומחר
+          </h3>
           <ul className="divide-y divide-slate-100">
             {todaysMeetings.map((m) => (
               <li key={m.id}>
-                <Link to={`/meetings/${m.id}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg px-1.5 py-2 text-sm transition hover:bg-brand-50/60">
+                <Link to={`/meetings/${m.id}`} className="flex min-h-[44px] flex-wrap items-center gap-x-2 gap-y-0.5 rounded-lg px-1.5 py-2 text-sm transition hover:bg-brand-50/60">
                   <span className={classNames('chip !px-2 !py-0 text-xs', m.meeting_date === today ? 'border-red-200 bg-red-50 text-red-600' : 'border-slate-200 bg-slate-50 text-slate-600')}>
                     {dayWord(m.meeting_date as string)}
                     {m.meeting_time ? ` ${formatTime(m.meeting_time)}` : ''}
                   </span>
-                  <span className="font-medium text-slate-800">{m.subject || 'פגישה'}</span>
-                  <span className="text-slate-500">
+                  <span dir="auto" className="min-w-0 break-words font-medium text-slate-800">{m.subject || 'פגישה'}</span>
+                  <span dir="auto" className="min-w-0 break-words text-slate-600">
                     {[m.meeting_doctors.flatMap((x) => (x.doctor ? [x.doctor.name] : [])).join(', '), m.hospital?.name, m.location].filter(Boolean).join(' · ')}
                   </span>
                 </Link>
@@ -135,24 +135,24 @@ export function TodayBlock() {
 
       {projectAlerts.length > 0 && (
         <div>
-          <p className={sub}>
-            <FolderKanban size={12} /> פרויקטים שדורשים תשומת לב
-          </p>
+          <h3 className={sub}>
+            <FolderKanban size={13} aria-hidden /> פרויקטים שדורשים תשומת לב
+          </h3>
           <ul className="divide-y divide-slate-100">
             {projectAlerts.slice(0, 4).map(({ p, stats }) => (
               <li key={p.id}>
-                <Link to={`/projects/${p.id}`} className="flex flex-wrap items-center justify-between gap-2 rounded-lg px-1.5 py-2 text-sm transition hover:bg-brand-50/60">
-                  <span dir="auto" className="font-medium text-slate-800">
+                <Link to={`/projects/${p.id}`} className="flex min-h-[44px] flex-wrap items-center justify-between gap-2 rounded-lg px-1.5 py-2 text-sm transition hover:bg-brand-50/60">
+                  <span dir="auto" className="min-w-0 break-words font-medium text-slate-800">
                     {p.name}
                   </span>
                   <span className="flex items-center gap-2 text-xs">
                     {stats.blocked.length > 0 && (
                       <span className="inline-flex items-center gap-1 text-red-600">
-                        <AlertTriangle size={12} /> {stats.blocked.length} תקועות
+                        <AlertTriangle size={12} aria-hidden /> {stats.blocked.length} תקועות
                       </span>
                     )}
-                    {stats.overdue.length > 0 && <span className="text-amber-600">{stats.overdue.length} באיחור</span>}
-                    <span className="text-slate-400">{stats.percent}%</span>
+                    {stats.overdue.length > 0 && <span className="text-amber-700">{stats.overdue.length} באיחור</span>}
+                    <span className="text-slate-600">{stats.percent}%</span>
                   </span>
                 </Link>
               </li>
@@ -168,34 +168,34 @@ export function TodayBlock() {
 
       {toContact.length > 0 && (
         <div>
-          <p className={sub}>
-            <Stethoscope size={12} /> רופאים לחזור אליהם
-          </p>
+          <h3 className={sub}>
+            <Stethoscope size={13} aria-hidden /> רופאים לחזור אליהם
+          </h3>
           <ul className="divide-y divide-slate-100">
             {toContact.slice(0, 6).map(({ d, st }) => (
-              <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
-                <Link to={`/doctors/${d.id}`} className="min-w-0 hover:underline">
+              <li key={d.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2 text-sm">
+                <Link to={`/doctors/${d.id}`} className="min-w-0 flex-1 basis-40 hover:underline">
                   <span className="font-medium text-slate-800">
                     {d.title} {d.name}
                   </span>
-                  <span className="block text-xs text-slate-400">
+                  <span className="block text-xs text-slate-600">
                     {cadenceLabel(d.contact_cadence_days)} ·{' '}
                     {st.lastDate ? `קשר אחרון ${formatDate(st.lastDate)}` : 'אין פגישה מתועדת'}
                   </span>
                 </Link>
                 <div className="flex items-center gap-2">
-                  <span className={classNames('text-xs', st.status === 'due' ? 'font-medium text-red-600' : 'text-amber-600')}>
-                    <Clock size={12} className="ml-0.5 inline" />
+                  <span className={classNames('text-xs', st.status === 'due' ? 'font-medium text-red-600' : 'text-amber-700')}>
+                    <Clock size={12} aria-hidden className="ml-0.5 inline" />
                     {st.status === 'due' ? `באיחור ${Math.abs(daysUntil(st.dueDate) ?? 0)} ימים` : `בעוד ${st.daysToDue} ימים`}
                   </span>
-                  <button className="btn-secondary !px-2 !py-1 text-xs" onClick={() => setScheduleFor(d.id)}>
+                  <button className="btn-secondary !px-3 !py-1 text-xs" onClick={() => setScheduleFor(d.id)} aria-label={`קבע פגישה עם ${d.title} ${d.name}`}>
                     קבע פגישה
                   </button>
                 </div>
               </li>
             ))}
           </ul>
-          {toContact.length > 6 && <p className="mt-1 text-xs text-slate-400">ועוד {toContact.length - 6}…</p>}
+          {toContact.length > 6 && <p className="mt-1 text-xs text-slate-600">ועוד {toContact.length - 6}…</p>}
         </div>
       )}
 

@@ -5,18 +5,17 @@ import { PendingMark } from '../components/PendingMark'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
   Building2,
-  CalendarDays,
   CheckSquare,
+  ChevronDown,
   Clock,
   Mail,
-  MapPin,
   Pencil,
   Plus,
   Search,
   SlidersHorizontal,
   Square,
   Trash2,
-  User,
+  Users,
   X,
 } from 'lucide-react'
 import {
@@ -31,10 +30,8 @@ import {
   ErrorState,
   Spinner,
 } from '../components/ui'
-import {
-  MEETING_STATUS_LABELS,
-  type MeetingWithRelations,
-} from '../lib/types'
+import { MeetingStatusChip } from '../components/MeetingBits'
+import type { MeetingWithRelations } from '../lib/types'
 import { classNames, formatDate, formatTime, isOverdue, todayISO } from '../lib/utils'
 import { normalizeHe } from '../lib/contactMatch'
 
@@ -42,16 +39,44 @@ type FilterKey = 'all' | 'upcoming' | 'past' | 'followup'
 
 /** the date of a meeting as a small calendar tile: day and month, tinted when it is today or already past */
 function DateTile({ date, status }: { date: string | null; status: string }) {
-  if (!date) return <span className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-slate-50 text-xs text-slate-400">ללא תאריך</span>
+  if (!date) return <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-slate-100 text-center text-xs leading-tight text-slate-500 sm:h-14 sm:w-14">ללא תאריך</span>
   const d = new Date(`${date}T12:00:00`)
   const today = todayISO()
-  const tone = status === 'cancelled' ? 'bg-slate-100 text-slate-400' : date === today ? 'bg-brand-500 text-white' : date < today && status === 'scheduled' ? 'bg-red-50 text-red-600' : 'bg-brand-50 text-brand-700'
+  const tone = status === 'cancelled' ? 'bg-slate-100 text-slate-500' : date === today ? 'bg-brand-500 text-white' : date < today && status === 'scheduled' ? 'bg-red-50 text-red-600' : 'bg-brand-50 text-brand-700'
   return (
-    <span className={classNames('flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-xl leading-tight', tone)}>
-      <span className="text-xl font-semibold">{d.getDate()}</span>
-      <span className="text-xs">{new Intl.DateTimeFormat('he-IL', { month: 'short' }).format(d)}</span>
+    <span className={classNames('flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl leading-tight sm:h-14 sm:w-14', tone)}>
+      <span className="text-lg font-semibold sm:text-xl">{d.getDate()}</span>
+      <span className="text-xs">
+        {new Intl.DateTimeFormat('he-IL', { month: 'short' }).format(d)}
+        {d.getFullYear() !== new Date().getFullYear() ? ` ${String(d.getFullYear()).slice(2)}` : ''}
+      </span>
     </span>
   )
+}
+
+/** does this meeting belong to the tab */
+function inTab(m: MeetingWithRelations, key: FilterKey, today: string): boolean {
+  switch (key) {
+    case 'upcoming':
+      return (m.meeting_date ?? '') >= today && m.status === 'scheduled'
+    case 'past':
+      return (m.meeting_date ?? '') < today || m.status === 'done'
+    case 'followup':
+      return !!m.next_followup_date && m.status !== 'done' && m.status !== 'cancelled'
+    default:
+      return true
+  }
+}
+
+/** doctors in the meeting as one short line: names, and how many other people took part */
+function peopleLine(m: MeetingWithRelations): string {
+  const doctors = m.meeting_doctors.flatMap((d) => (d.doctor ? [`${d.doctor.title} ${d.doctor.name}`] : []))
+  const others =
+    m.meeting_agents.filter((a) => a.agent).length +
+    m.meeting_contacts.filter((c) => c.contact).length +
+    (m.extra_participants?.trim() ? 1 : 0)
+  if (!doctors.length) return others ? `${others} משתתפים` : ''
+  return doctors.join(', ') + (others ? ` +${others}` : '')
 }
 
 export default function Meetings() {
@@ -67,7 +92,8 @@ export default function Meetings() {
   const [params] = useSearchParams()
   const [hospitalId, setHospitalId] = useState(params.get('hospital') ?? '')
   const [doctorId, setDoctorId] = useState('')
-  const [advanced, setAdvanced] = useState(false)
+  const [advanced, setAdvanced] = useState(!!params.get('hospital'))
+  const [openTasks, setOpenTasks] = useState<Record<string, boolean>>({})
   const [from, setFrom] = usePersisted('meetings.from', '')
   const [to, setTo] = usePersisted('meetings.to', '')
 
@@ -91,22 +117,7 @@ export default function Meetings() {
 
   const filtered = useMemo(() => {
     const list = meetings.data ?? []
-    let out: MeetingWithRelations[]
-    switch (filter) {
-      case 'upcoming':
-        out = list.filter((m) => (m.meeting_date ?? '') >= today && m.status === 'scheduled')
-        break
-      case 'past':
-        out = list.filter((m) => (m.meeting_date ?? '') < today || m.status === 'done')
-        break
-      case 'followup':
-        out = list.filter(
-          (m) => m.next_followup_date && m.status !== 'done' && m.status !== 'cancelled',
-        )
-        break
-      default:
-        out = list
-    }
+    let out = list.filter((m) => inTab(m, filter, today))
 
     if (hospitalId) out = out.filter((m) => m.hospital_id === hospitalId)
     if (doctorId) out = out.filter((m) => m.meeting_doctors.some((d) => d.doctor?.id === doctorId))
@@ -153,18 +164,26 @@ export default function Meetings() {
     })
   }, [meetings.data, filter, today, q, hospitalId, doctorId, from, to])
 
+
   const hasSearch = !!(q || hospitalId || doctorId || from || to)
+  const advancedCount = [hospitalId, doctorId, from, to].filter(Boolean).length
 
   const TABS: { key: FilterKey; label: string }[] = [
     { key: 'all', label: 'הכל' },
     { key: 'upcoming', label: 'מתוכננות' },
     { key: 'past', label: 'עבר' },
-    { key: 'followup', label: 'דורשות מעקב' },
+    { key: 'followup', label: 'מעקב' },
   ]
+  const tabCounts = useMemo(() => {
+    const list = meetings.data ?? []
+    const out: Record<FilterKey, number> = { all: 0, upcoming: 0, past: 0, followup: 0 }
+    for (const k of Object.keys(out) as FilterKey[]) out[k] = list.filter((m) => inTab(m, k, today)).length
+    return out
+  }, [meetings.data, today])
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-5">
+      <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold text-brand-800 sm:text-3xl">פגישות</h1>
         <button className="btn-primary" onClick={() => setShowAdd(true)}>
           <Plus size={16} />
@@ -172,73 +191,95 @@ export default function Meetings() {
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-1 rounded-full bg-brand-50 p-1">
+      <div className="grid grid-cols-4 gap-1 rounded-full bg-brand-50 p-1" role="group" aria-label="סוג פגישות">
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => setFilter(t.key)}
+            aria-pressed={filter === t.key}
             className={classNames(
-              'rounded-full px-4 py-1.5 text-sm font-medium transition',
+              'flex min-h-9 items-center justify-center gap-1 rounded-full px-1 py-1.5 text-sm font-medium transition sm:px-4',
               filter === t.key
                 ? 'bg-white text-brand-700 shadow-sm'
                 : 'text-slate-600 hover:text-brand-700',
             )}
           >
             {t.label}
+            {meetings.data && <span className="text-xs tabular-nums text-slate-500">{tabCounts[t.key]}</span>}
           </button>
         ))}
       </div>
 
-      <div className="card space-y-3 p-4">
-        <label className="relative block">
-          <Search
-            size={16}
-            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
-          />
-          <input
-            type="search"
-            className="input !pr-9"
-            placeholder="חיפוש: נושא, סיכום, מקום"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
-        </label>
-        <button type="button" className="btn-secondary sm:hidden" onClick={() => setAdvanced((o) => !o)} aria-expanded={advanced}>
-          <SlidersHorizontal size={16} /> סינון מתקדם
-        </button>
-        <div className={classNames("gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-4", advanced ? "grid" : "hidden")}>
-          <select className="input" aria-label="בית חולים" value={hospitalId} onChange={(e) => setHospitalId(e.target.value)}>
-            <option value="">כל בתי החולים</option>
-            {hospitalOptions.map(([id, name]) => (
-              <option key={id} value={id}>
-                {name}
-              </option>
-            ))}
-          </select>
-          <select className="input" aria-label="רופא" value={doctorId} onChange={(e) => setDoctorId(e.target.value)}>
-            <option value="">כל הרופאים</option>
-            {doctorOptions.map(([id, name]) => (
-              <option key={id} value={id}>
-                {name}
-              </option>
-            ))}
-          </select>
-          <label className="block">
-            <span className="mb-0.5 block text-xs text-slate-500">מתאריך</span>
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <label className="relative block min-w-0 flex-1">
+            <span className="sr-only">חיפוש פגישות</span>
+            <Search
+              size={16}
+              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+            />
+            <input
+              type="search"
+              className="input !pr-9"
+              placeholder="חיפוש: נושא, רופא, מקום"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+          </label>
+          <button
+            type="button"
+            className="btn-secondary relative shrink-0 !px-3 sm:hidden"
+            onClick={() => setAdvanced((o) => !o)}
+            aria-expanded={advanced}
+            aria-label="סינון מתקדם"
+          >
+            <SlidersHorizontal size={16} />
+            {advancedCount > 0 && (
+              <span className="absolute -top-1 -end-1 grid h-5 min-w-5 place-items-center rounded-full bg-brand-500 px-1 text-xs font-semibold text-white">
+                {advancedCount}
+              </span>
+            )}
+          </button>
+        </div>
+        <div className={classNames('card gap-3 p-3 sm:grid sm:grid-cols-2 sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none lg:grid-cols-4', advanced ? 'grid grid-cols-2' : 'hidden')}>
+          <label className="col-span-2 block sm:col-span-1">
+            <span className="mb-0.5 block text-xs text-slate-600">בית חולים</span>
+            <select className="input" value={hospitalId} onChange={(e) => setHospitalId(e.target.value)}>
+              <option value="">כל בתי החולים</option>
+              {hospitalOptions.map(([id, name]) => (
+                <option key={id} value={id}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="col-span-2 block sm:col-span-1">
+            <span className="mb-0.5 block text-xs text-slate-600">רופא</span>
+            <select className="input" value={doctorId} onChange={(e) => setDoctorId(e.target.value)}>
+              <option value="">כל הרופאים</option>
+              {doctorOptions.map(([id, name]) => (
+                <option key={id} value={id}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block min-w-0">
+            <span className="mb-0.5 block text-xs text-slate-600">מתאריך</span>
             <input type="date" className="input" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} />
           </label>
-          <label className="block">
-            <span className="mb-0.5 block text-xs text-slate-500">עד תאריך</span>
+          <label className="block min-w-0">
+            <span className="mb-0.5 block text-xs text-slate-600">עד תאריך</span>
             <input type="date" className="input" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} />
           </label>
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-500">
-          <span>
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600">
+          <span aria-live="polite">
             {meetings.data ? `${filtered.length} פגישות${hasSearch ? ' תואמות לחיפוש' : ''}` : ' '}
           </span>
           {hasSearch && (
             <button
-              className="inline-flex items-center gap-1 text-brand-600 hover:underline"
+              className="inline-flex items-center gap-1 px-2 text-brand-700 hover:underline"
               onClick={() => {
                 setQ('')
                 setHospitalId('')
@@ -259,7 +300,7 @@ export default function Meetings() {
       {meetings.data && filtered.length === 0 && (
         <EmptyState
           title="אין פגישות להצגה"
-          hint={hasSearch ? 'נסה לשנות או לנקות את החיפוש' : undefined}
+          hint={hasSearch ? 'נסה לשנות או לנקות את החיפוש' : filter !== 'all' ? 'אין פגישות בלשונית הזו' : undefined}
           action={
             !hasSearch ? (
               <button className="btn-primary" onClick={() => setShowAdd(true)}>
@@ -270,183 +311,133 @@ export default function Meetings() {
         />
       )}
 
-      <div className="space-y-3">
-        {filtered.map((m) => (
-          <div key={m.id} className="card p-4 transition hover:border-brand-300">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-              <div className="flex min-w-0 flex-1 items-start gap-3">
+      <ul className="space-y-3">
+        {filtered.map((m) => {
+          const people = peopleLine(m)
+          const place = [m.location, m.responsible_agent?.full_name].filter(Boolean).join(' · ')
+          const doneTasks = m.meeting_tasks.filter((t) => t.is_done).length
+          const followupLate = !!m.next_followup_date && isOverdue(m.next_followup_date) && m.status !== 'done'
+          const tasksOpen = !!openTasks[m.id]
+          return (
+            <li key={m.id} className="card relative p-3 transition hover:border-brand-300 sm:p-4">
+              <div className="flex items-start gap-3">
                 <DateTile date={m.meeting_date} status={m.status} />
-                <div className="min-w-0">
-                <Link
-                  to={`/meetings/${m.id}`}
-                  className="break-words text-base font-semibold text-brand-800 hover:text-brand-600 hover:underline"
-                >
-                  {m.subject || 'פגישה'} <PendingMark id={m.id} />
-                </Link>
-                <div className="mt-1 flex flex-col gap-y-1 text-sm text-slate-500 sm:flex-row sm:flex-wrap sm:gap-x-4">
-                  {m.meeting_date && (
-                    <span className="inline-flex items-start gap-1">
-                      <CalendarDays size={14} className="mt-1 shrink-0" />
-                      {formatDate(m.meeting_date)}
-                      {m.meeting_time ? ` · ${formatTime(m.meeting_time)}` : ''}
-                    </span>
-                  )}
-                  {m.location && (
-                    <span className="inline-flex items-start gap-1 break-words">
-                      <MapPin size={14} className="mt-1 shrink-0" />
-                      {m.location}
-                    </span>
-                  )}
-                  {m.responsible_agent?.full_name && (
-                    <span className="inline-flex items-start gap-1">
-                      <User size={14} className="mt-1 shrink-0" />
-                      {m.responsible_agent.full_name}
-                    </span>
-                  )}
-                </div>
+                <div className="min-w-0 flex-1">
+                  <h2 className="line-clamp-2 break-words text-base font-semibold leading-snug text-brand-800">
+                    <Link
+                      to={`/meetings/${m.id}`}
+                      className="hover:text-brand-600 hover:underline after:absolute after:inset-0 after:rounded-2xl after:content-['']"
+                    >
+                      {m.subject || 'פגישה'}
+                    </Link>{' '}
+                    <PendingMark id={m.id} />
+                  </h2>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-600">
+                    <MeetingStatusChip status={m.status} />
+                    {m.meeting_time && <span className="tabular-nums">{formatTime(m.meeting_time)}</span>}
+                    {m.hospital && (
+                      <span className="inline-flex min-w-0 items-center gap-1 font-medium">
+                        <Building2 size={14} className="shrink-0" />
+                        <span className="truncate">{m.hospital.name}</span>
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2 lg:shrink-0 lg:justify-end">
-                <span className="chip border-slate-200 bg-slate-50 text-slate-600">
-                  {MEETING_STATUS_LABELS[m.status]}
-                </span>
-                <div className="flex items-center gap-1 [margin-inline-start:auto] lg:[margin-inline-start:0]">
+
+              {(people || place) && (
+                <div className="mt-2 space-y-0.5 text-sm text-slate-600">
+                  {people && (
+                    <p className="flex items-start gap-1.5" title={people}>
+                      <Users size={14} className="mt-1 shrink-0 text-slate-500" />
+                      <span className="line-clamp-1 break-words">{people}</span>
+                    </p>
+                  )}
+                  {place && <p className="line-clamp-1 break-words ps-5 text-xs text-slate-500">{place}</p>}
+                </div>
+              )}
+
+              {m.summary && <p className="mt-2 line-clamp-2 whitespace-pre-line break-words text-sm text-slate-700">{m.summary}</p>}
+              {m.decisions && (
+                <p className="mt-1.5 line-clamp-2 break-words text-sm text-slate-600">
+                  <span className="font-semibold text-slate-700">החלטות: </span>
+                  {m.decisions}
+                </p>
+              )}
+
+              {tasksOpen && m.meeting_tasks.length > 0 && (
+                <ul className="relative z-10 mt-2 space-y-0.5 rounded-xl bg-slate-50 p-1.5">
+                  {m.meeting_tasks.map((t) => (
+                    <li key={t.id}>
+                      <button
+                        className="flex w-full items-start gap-2 rounded-lg px-1.5 py-1 text-right text-sm text-slate-700 hover:bg-white"
+                        onClick={() => toggleTask.mutate(t)}
+                        aria-pressed={t.is_done}
+                      >
+                        {t.is_done ? (
+                          <CheckSquare size={16} className="mt-0.5 shrink-0 text-brand-500" />
+                        ) : (
+                          <Square size={16} className="mt-0.5 shrink-0 text-slate-500" />
+                        )}
+                        <span className={classNames('min-w-0 break-words', t.is_done && 'text-slate-500 line-through')}>
+                          {t.description}
+                          {t.due_date ? ` (${formatDate(t.due_date)})` : ''}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <div className="relative z-10 mt-2 flex items-center justify-between gap-2 border-t border-slate-100 pt-2">
+                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+                  {m.next_followup_date && (
+                    <span
+                      className={classNames(
+                        'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium',
+                        followupLate ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-800',
+                      )}
+                    >
+                      <Clock size={13} />
+                      מעקב {formatDate(m.next_followup_date)}
+                    </span>
+                  )}
+                  {m.meeting_tasks.length > 0 && (
+                    <button
+                      type="button"
+                      className="inline-flex min-h-8 items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-200"
+                      onClick={() => setOpenTasks((o) => ({ ...o, [m.id]: !o[m.id] }))}
+                      aria-expanded={tasksOpen}
+                    >
+                      <CheckSquare size={13} />
+                      משימות {doneTasks}/{m.meeting_tasks.length}
+                      <ChevronDown size={13} className={classNames('transition', tasksOpen && 'rotate-180')} />
+                    </button>
+                  )}
+                </div>
+                <div className="flex shrink-0 items-center">
                   <Link
                     to={`/meetings/${m.id}?mail=1`}
-                    className="btn-secondary !px-3 !py-1.5 text-xs"
+                    className="btn-ghost !min-h-9 !px-2"
                     title="שלח סיכום פגישה במייל"
                     aria-label="שלח סיכום פגישה במייל"
                   >
-                    <Mail size={14} />
-                    <span className="hidden sm:inline">שלח סיכום במייל</span>
+                    <Mail size={16} />
                   </Link>
-                  <button
-                    className="btn-ghost !px-2"
-                    onClick={() => setEditing(m)}
-                    aria-label="עריכה"
-                  >
-                    <Pencil size={15} />
+                  <button className="btn-ghost !min-h-9 !px-2" onClick={() => setEditing(m)} aria-label="עריכה" title="עריכה">
+                    <Pencil size={16} />
                   </button>
                   {canDelete(m.created_by) && (
-                    <ConfirmButton
-                      className="btn-ghost !px-2 text-red-500"
-                      onConfirm={() => deleteMeeting.mutate(m.id)}
-                    >
-                      <Trash2 size={15} />
+                    <ConfirmButton className="btn-ghost !min-h-9 !px-2 text-red-600" onConfirm={() => deleteMeeting.mutate(m.id)}>
+                      <Trash2 size={16} />
                     </ConfirmButton>
                   )}
                 </div>
               </div>
-            </div>
-
-            {m.hospital && (
-              <p className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-slate-600">
-                <Building2 size={14} />
-                {m.hospital.name}
-              </p>
-            )}
-
-            {(m.meeting_doctors.length > 0 || m.meeting_contacts.length > 0 || m.meeting_agents.length > 0) && (
-              <div className="mt-2 flex flex-wrap gap-1">
-                {m.meeting_doctors.map(
-                  (d) =>
-                    d.doctor && (
-                      <Link
-                        key={d.doctor.id}
-                        to={`/doctors/${d.doctor.id}`}
-                        className="chip border-brand-200 bg-brand-50 text-brand-700 transition hover:bg-brand-100"
-                        title="פתח את כרטיס הרופא"
-                      >
-                        {d.doctor.title} {d.doctor.name}
-                      </Link>
-                    ),
-                )}
-                {m.meeting_agents.map(
-                  (a) =>
-                    a.agent && (
-                      <span
-                        key={a.agent.id}
-                        className="chip border-slate-300 bg-slate-100 text-slate-700"
-                      >
-                        {a.agent.full_name}
-                        {a.agent.role === 'admin' ? ' (מנהל)' : ''}
-                      </span>
-                    ),
-                )}
-                {m.meeting_contacts.map(
-                  (c) =>
-                    c.contact && (
-                      <span
-                        key={c.contact.id}
-                        className="chip border-emerald-200 bg-emerald-50 text-emerald-700"
-                      >
-                        {c.contact.name}
-                        {c.contact.role ? ` · ${c.contact.role}` : ''}
-                      </span>
-                    ),
-                )}
-              </div>
-            )}
-
-            {m.extra_participants && (
-              <p className="mt-2 text-sm text-slate-500">
-                <span className="font-medium">משתתפים נוספים: </span>
-                {m.extra_participants}
-              </p>
-            )}
-
-            {m.summary && (
-              <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">
-                {m.summary}
-              </p>
-            )}
-
-            {m.decisions && (
-              <p className="mt-2 rounded-lg bg-slate-50 p-2 text-sm text-slate-600">
-                <span className="font-medium">החלטות: </span>
-                {m.decisions}
-              </p>
-            )}
-
-            {m.meeting_tasks.length > 0 && (
-              <ul className="mt-2 space-y-1">
-                {m.meeting_tasks.map((t) => (
-                  <li key={t.id}>
-                    <button
-                      className="flex items-center gap-2 text-sm text-slate-600"
-                      onClick={() => toggleTask.mutate(t)}
-                    >
-                      {t.is_done ? (
-                        <CheckSquare size={15} className="text-brand-500" />
-                      ) : (
-                        <Square size={15} className="text-slate-400" />
-                      )}
-                      <span className={t.is_done ? 'line-through text-slate-400' : ''}>
-                        {t.description}
-                        {t.due_date ? ` (${formatDate(t.due_date)})` : ''}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            {m.next_followup_date && (
-              <p
-                className={classNames(
-                  'mt-2 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-sm',
-                  isOverdue(m.next_followup_date) && m.status !== 'done'
-                    ? 'bg-red-50 text-red-600'
-                    : 'bg-amber-50 text-amber-700',
-                )}
-              >
-                <Clock size={14} />
-                מעקב הבא: {formatDate(m.next_followup_date)}
-              </p>
-            )}
-          </div>
-        ))}
-      </div>
+            </li>
+          )
+        })}
+      </ul>
 
       {showAdd && (
         <MeetingFormModal open={showAdd} onClose={() => setShowAdd(false)} />

@@ -14,7 +14,7 @@ const monthLabel = (d: Date) => new Intl.DateTimeFormat('he-IL', { month: 'short
 
 function Bar({ value, max, tone = 'bg-brand-500' }: { value: number; max: number; tone?: string }) {
   return (
-    <div className="h-2 w-full min-w-16 overflow-hidden rounded-full bg-slate-100">
+    <div className="h-2 w-full min-w-8 overflow-hidden rounded-full bg-slate-100">
       <div className={classNames('h-full rounded-full', tone)} style={{ width: `${max > 0 ? Math.max(value > 0 ? 4 : 0, (value / max) * 100) : 0}%` }} />
     </div>
   )
@@ -133,13 +133,13 @@ export function SalesReports() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-slate-500">פעילות הצוות: ביקורים שהתקיימו (פגישה שסומנה כבוצעה), ניתוחי MAKO והמשפך של רופאים פוטנציאליים.</p>
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="min-w-0 text-xs text-slate-500">ביקורים = פגישות שסומנו כבוצעו</p>
+        <div className="flex shrink-0 items-center gap-2">
           <select className="input !w-auto" value={monthsBack} onChange={(e) => setMonthsBack(Number(e.target.value))} aria-label="תקופה">
             {MONTHS_OPTIONS.map((n) => (
               <option key={n} value={n}>
-                {n} חודשים אחרונים
+                {n} חודשים
               </option>
             ))}
           </select>
@@ -169,35 +169,35 @@ export function SalesReports() {
 
       <section className="card p-4">
         <h2 className="mb-3 text-base font-semibold text-brand-800">לפי חודש</h2>
-        <div tabIndex={0} className="overflow-x-auto">
-          <table className="w-full min-w-[420px] text-sm">
+        <div tabIndex={0} aria-label="טבלת פעילות לפי חודש" className="overflow-x-auto">
+          <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 text-slate-500">
-                <th className="p-2 text-right font-medium">חודש</th>
-                <th className="p-2 text-right font-medium">פגישות</th>
-                <th className="p-2 text-center font-medium">רופאים</th>
-                <th className="p-2 text-right font-medium">ניתוחים</th>
-                <th className="p-2 text-center font-medium">משימות</th>
+              <tr className="border-b border-slate-200 text-xs text-slate-500">
+                <th className="px-1 py-2 text-right font-medium">חודש</th>
+                <th className="px-1 py-2 text-right font-medium">פגישות</th>
+                <th className="px-1 py-2 text-center font-medium">רופאים</th>
+                <th className="px-1 py-2 text-right font-medium">ניתוחים</th>
+                <th className="px-1 py-2 text-center font-medium">משימות</th>
               </tr>
             </thead>
             <tbody>
               {model.perMonth.map((m) => (
                 <tr key={m.key} className="border-b border-slate-100">
-                  <td className="whitespace-nowrap p-2 text-slate-700">{m.label}</td>
-                  <td className="p-2">
-                    <div className="flex items-center gap-2">
-                      <span className="w-6 text-center font-semibold text-slate-800">{m.meetings}</span>
+                  <td className="whitespace-nowrap px-1 py-2 text-slate-700">{m.label}</td>
+                  <td className="px-1 py-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-5 text-center font-semibold text-slate-800">{m.meetings}</span>
                       <Bar value={m.meetings} max={maxMeet} />
                     </div>
                   </td>
-                  <td className="p-2 text-center text-slate-600">{m.doctors}</td>
-                  <td className="p-2">
-                    <div className="flex items-center gap-2">
-                      <span className="w-6 text-center font-semibold text-slate-800">{m.surgeries}</span>
+                  <td className="px-1 py-2 text-center text-slate-600">{m.doctors}</td>
+                  <td className="px-1 py-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-5 text-center font-semibold text-slate-800">{m.surgeries}</span>
                       <Bar value={m.surgeries} max={maxSurg} tone="bg-emerald-500" />
                     </div>
                   </td>
-                  <td className="p-2 text-center text-slate-600">{m.tasks}</td>
+                  <td className="px-1 py-2 text-center text-slate-600">{m.tasks}</td>
                 </tr>
               ))}
             </tbody>

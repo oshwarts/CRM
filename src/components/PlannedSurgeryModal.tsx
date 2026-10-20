@@ -111,7 +111,7 @@ export function PlannedSurgeryModal({ surgery, date, hospitalId, onClose }: { su
   return (
     <Modal open onClose={onClose} title={surgery ? 'עריכת ניתוח' : 'ניתוח מתוכנן'} size="lg">
       <div className="space-y-4">
-        <p className="rounded-xl bg-brand-50 px-3 py-2 text-sm text-brand-800">רישום מהיר של ניתוח או כמה ניתוחים מאותו סוג ביום אחד — בלי סריקה ובלי פרטי מטופל. מופיע בלוז השבועי.</p>
+        <p className="rounded-xl bg-brand-50 px-3 py-2 text-sm text-brand-800">ניתוח (או כמה מאותו סוג ביום אחד) בלי סריקה ובלי פרטי מטופל. מופיע בלוז השבועי.</p>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="תאריך הניתוח" error={dateMissing ? 'בחר תאריך' : undefined}>
@@ -119,7 +119,7 @@ export function PlannedSurgeryModal({ surgery, date, hospitalId, onClose }: { su
             <QuickDates value={f.surgery_date} onPick={(d) => set({ surgery_date: d ?? '' })} clearable={false} />
           </Field>
           <Field label="שעה (לא חובה)">
-            <input type="time" className="input" dir="ltr" value={f.surgery_time} onChange={(e) => set({ surgery_time: e.target.value })} />
+            <input type="time" className="input" dir="ltr" inputMode="numeric" value={f.surgery_time} onChange={(e) => set({ surgery_time: e.target.value })} />
           </Field>
         </div>
 
@@ -175,7 +175,7 @@ export function PlannedSurgeryModal({ surgery, date, hospitalId, onClose }: { su
                 key={n}
                 type="button"
                 onClick={() => set({ cases: n })}
-                className={classNames('h-8 w-8 rounded-full border text-sm font-medium transition', f.cases === n ? 'border-brand-500 bg-brand-500 text-white' : 'border-brand-200 bg-white text-brand-700 hover:bg-brand-50')}
+                className={classNames('h-9 w-9 rounded-full border text-sm font-medium transition', f.cases === n ? 'border-brand-500 bg-brand-500 text-white' : 'border-brand-200 bg-white text-brand-700 hover:bg-brand-50')}
               >
                 {n}
               </button>
@@ -222,7 +222,7 @@ export function PlannedSurgeryModal({ surgery, date, hospitalId, onClose }: { su
 
         {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
 
-        <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 pt-4">
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 pt-4">
           {surgery && canDelete(surgery.created_by) && (
             <ConfirmButton className="btn-ghost text-red-500" message="למחוק את הניתוח מהלוז?" onConfirm={() => del.mutate(surgery.id, { onSuccess: onClose })}>
               <Trash2 size={16} /> מחיקה

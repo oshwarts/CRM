@@ -139,23 +139,19 @@ export function ProjectTaskModal({
           <textarea className="input min-h-14" dir="auto" value={d.notes} onChange={(e) => set({ notes: e.target.value })} />
         </Field>
 
-        {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-        <div className="flex items-center justify-between gap-2 border-t border-slate-200 pt-3">
-          <div>
-            {task && (
-              <ConfirmButton message="למחוק את המשימה?" onConfirm={() => del.mutate(task.id, { onSuccess: onClose })}>
-                מחיקה
-              </ConfirmButton>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <button className="btn-secondary" onClick={onClose}>
-              ביטול
-            </button>
-            <button className="btn-primary" onClick={submit} disabled={save.isPending}>
-              {save.isPending ? 'שומר…' : 'שמירה'}
-            </button>
-          </div>
+        {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+        <div className="flex items-center justify-end gap-2 border-t border-slate-200 pt-3">
+          {task && (
+            <ConfirmButton className="btn-danger me-auto" message="למחוק את המשימה?" onConfirm={() => del.mutate(task.id, { onSuccess: onClose })}>
+              מחיקה
+            </ConfirmButton>
+          )}
+          <button className="btn-secondary" onClick={onClose}>
+            ביטול
+          </button>
+          <button className="btn-primary" onClick={submit} disabled={save.isPending}>
+            {save.isPending ? 'שומר…' : 'שמירה'}
+          </button>
         </div>
 
         {task && (

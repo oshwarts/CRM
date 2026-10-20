@@ -16,15 +16,25 @@ export function DeltaBadge({ d, points, className }: { d: Pick<Delta, 'pct'> & {
   )
 }
 
-export function BigNumber({ label, value, suffix, delta, points, sub, inverse }: { label: string; value: number | string | null; suffix?: string; delta?: Pick<Delta, 'pct'>; points?: boolean; sub?: string; inverse?: boolean }) {
+export function BigNumber({ label, value, suffix, delta, points, sub, inverse }: { label: string; value: number | string | null; suffix?: string; delta?: Pick<Delta, 'pct'> & { prev?: number | null }; points?: boolean; sub?: string; inverse?: boolean }) {
+  const prevText = delta && delta.prev != null && delta.pct !== null ? `קודם: ${delta.prev}${suffix ?? ''}` : ''
   return (
     <div className={classNames('card p-4', inverse && 'border-0 bg-white/10 text-white shadow-none')}>
       <p className={classNames('text-sm font-medium', inverse ? 'text-white/80' : 'text-slate-500')}>{label}</p>
-      <p className={classNames('mt-1 text-4xl font-semibold leading-none', inverse ? 'text-white' : 'text-brand-800')}>
+      <p className={classNames('mt-1 text-3xl font-semibold leading-none sm:text-4xl', inverse ? 'text-white' : 'text-brand-800')}>
         {value ?? '—'}
         {suffix && value != null && <span className="text-xl font-medium">{suffix}</span>}
       </p>
-      <div className="mt-2 min-h-5">{delta ? <DeltaBadge d={delta} points={points} /> : sub ? <span className="text-xs text-slate-500">{sub}</span> : null}</div>
+      <div className="mt-2 flex min-h-5 flex-wrap items-center gap-x-2 gap-y-0.5">
+        {delta ? (
+          <>
+            <DeltaBadge d={delta} points={points} />
+            {prevText && <span className="text-xs text-slate-500">{prevText}</span>}
+          </>
+        ) : sub ? (
+          <span className="text-xs text-slate-500">{sub}</span>
+        ) : null}
+      </div>
     </div>
   )
 }
@@ -79,11 +89,11 @@ export function FunnelBars({ funnel, big }: { funnel: { stage: string; count: nu
     <ul className={classNames('space-y-2', big && 'space-y-3')}>
       {funnel.map((f, i) => (
         <li key={f.stage} className="flex items-center gap-3">
-          <span className={classNames('w-40 shrink-0 text-slate-600', big ? 'text-lg' : 'text-sm')}>{f.stage}</span>
+          <span className={classNames('shrink-0 leading-tight text-slate-600', big ? 'w-40 text-lg' : 'w-28 text-sm sm:w-40')}>{f.stage}</span>
           <span className={classNames('flex-1 overflow-hidden rounded-full bg-slate-100', big ? 'h-4' : 'h-3')}>
             <span className={classNames('block h-full rounded-full', i >= funnel.length - 2 ? 'bg-emerald-500' : 'bg-brand-500')} style={{ width: `${(f.count / max) * 100}%`, minWidth: f.count > 0 ? 6 : 0 }} />
           </span>
-          <span className={classNames('w-8 text-left font-semibold text-brand-800', big ? 'text-xl' : 'text-sm')}>{f.count}</span>
+          <span className={classNames('w-8 shrink-0 text-left font-semibold text-brand-800', big ? 'text-xl' : 'text-sm')}>{f.count}</span>
         </li>
       ))}
     </ul>

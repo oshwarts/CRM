@@ -8,6 +8,7 @@ import {
 import { CONTACT_ROLES, type Contact } from '../lib/types'
 import { ConfirmButton, EmptyState, Field } from './ui'
 import { ImportContactButton } from './ImportContactButton'
+import { StickyActions } from './StickyActions'
 
 type Draft = {
   id?: string
@@ -52,8 +53,8 @@ export function ContactsSection({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-500">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="min-w-0 flex-1 basis-48 text-sm text-slate-500">
           {hospitalId
             ? 'עובדי בית החולים: מזכירת רופא, אחות ראשית, אחים בחדרי ניתוח, מכון דימות, רכש…'
             : 'אנשי קשר של הרופא — בדרך כלל המזכירה שלו'}
@@ -119,46 +120,41 @@ function ContactCard({
   onDelete: () => void
 }) {
   return (
-    <div className="card flex items-start justify-between gap-3 p-4">
-      <div className="text-sm">
-        <p className="font-medium text-slate-800">
-          {c.name}
-          {c.role && (
-            <span className="mr-2 text-xs font-normal text-slate-400">
-              {c.role}
-            </span>
-          )}
-        </p>
-        <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-slate-500">
+    <div className="card space-y-2 p-3 sm:p-4">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="break-words font-medium text-slate-800">{c.name}</p>
+          {c.role && <p className="break-words text-xs text-slate-500">{c.role}</p>}
+        </div>
+        <div className="flex shrink-0 gap-1">
+          <button className="btn-ghost !px-2.5" aria-label={`עריכת ${c.name}`} onClick={onEdit}>
+            <Pencil size={16} />
+          </button>
+          <ConfirmButton className="btn-ghost !px-2.5 text-red-600" label={`מחיקת ${c.name}`} onConfirm={onDelete}>
+            <Trash2 size={16} />
+          </ConfirmButton>
+        </div>
+      </div>
+      {(c.phone || c.office_phone || c.email) && (
+        <div className="flex flex-wrap gap-2 text-sm">
           {c.phone && (
-            <a href={`tel:${c.phone}`} className="inline-flex items-center gap-1" dir="ltr">
-              <Phone size={13} /> {c.phone}
+            <a href={`tel:${c.phone}`} className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-brand-50 px-3 text-brand-700" dir="ltr">
+              <Phone size={14} /> {c.phone}
             </a>
           )}
           {c.office_phone && (
-            <a href={`tel:${c.office_phone}`} className="inline-flex items-center gap-1" dir="ltr" title="טלפון במשרד">
-              <Phone size={13} /> {c.office_phone} <span className="text-xs text-slate-400">(משרד)</span>
+            <a href={`tel:${c.office_phone}`} className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-brand-50 px-3 text-brand-700" dir="ltr" title="טלפון במשרד">
+              <Phone size={14} /> {c.office_phone} <span className="text-xs text-slate-500">(משרד)</span>
             </a>
           )}
           {c.email && (
-            <a href={`mailto:${c.email}`} className="inline-flex items-center gap-1" dir="ltr">
-              <Mail size={13} /> {c.email}
+            <a href={`mailto:${c.email}`} className="inline-flex min-h-9 max-w-full items-center gap-1.5 rounded-full bg-brand-50 px-3 text-brand-700" dir="ltr">
+              <Mail size={14} className="shrink-0" /> <span className="min-w-0 break-all">{c.email}</span>
             </a>
           )}
         </div>
-        {c.notes && <p className="mt-1 text-xs text-slate-400">{c.notes}</p>}
-      </div>
-      <div className="flex gap-1">
-        <button className="btn-ghost !px-2" aria-label="עריכה" onClick={onEdit}>
-          <Pencil size={14} />
-        </button>
-        <ConfirmButton
-          className="btn-ghost !px-2 text-red-500"
-          onConfirm={onDelete}
-        >
-          <Trash2 size={14} />
-        </ConfirmButton>
-      </div>
+      )}
+      {c.notes && <p dir="auto" className="break-words text-sm text-slate-500">{c.notes}</p>}
     </div>
   )
 }
@@ -175,7 +171,7 @@ function ContactForm({
   onSave: () => void
 }) {
   return (
-    <div className="card space-y-3 border-brand-200 p-4">
+    <div className="card space-y-3 border-brand-200 p-3 sm:p-4">
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="שם">
           <input
@@ -212,6 +208,8 @@ function ContactForm({
         <Field label="טלפון">
           <input
             dir="ltr"
+            type="tel"
+            inputMode="tel"
             className="input text-right"
             value={draft.phone}
             onChange={(e) => onChange({ ...draft, phone: e.target.value })}
@@ -220,6 +218,8 @@ function ContactForm({
         <Field label="טלפון נוסף במשרד">
           <input
             dir="ltr"
+            type="tel"
+            inputMode="tel"
             className="input text-right"
             value={draft.office_phone}
             onChange={(e) => onChange({ ...draft, office_phone: e.target.value })}
@@ -228,6 +228,8 @@ function ContactForm({
         <Field label="אימייל">
           <input
             dir="ltr"
+            type="email"
+            inputMode="email"
             className="input text-right"
             value={draft.email}
             onChange={(e) => onChange({ ...draft, email: e.target.value })}
@@ -241,14 +243,14 @@ function ContactForm({
           />
         </Field>
       </div>
-      <div className="flex justify-end gap-2">
-        <button className="btn-secondary" onClick={onCancel}>
+      <StickyActions>
+        <button type="button" className="btn-secondary flex-1 sm:flex-none" onClick={onCancel}>
           ביטול
         </button>
-        <button className="btn-primary" onClick={onSave} disabled={!draft.name.trim()}>
+        <button type="button" className="btn-primary flex-1 sm:flex-none" onClick={onSave} disabled={!draft.name.trim()}>
           שמירה
         </button>
-      </div>
+      </StickyActions>
     </div>
   )
 }

@@ -22,7 +22,7 @@ export function hospitalNavLinks(h: NavHospital) {
 }
 
 const tile =
-  'flex min-h-[3.5rem] flex-col items-center justify-center gap-1 rounded-2xl bg-brand-50 px-2 py-2 text-xs font-medium text-brand-700 transition hover:bg-brand-100'
+  'flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 rounded-2xl bg-brand-50 px-2 py-1.5 text-xs font-medium text-brand-700 transition hover:bg-brand-100'
 
 /**
  * One-tap actions for a hospital: navigate (Waze / Google Maps), and a new meeting, task, planned surgery or

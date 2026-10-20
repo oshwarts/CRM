@@ -2,7 +2,7 @@ import { SettingsLink } from '../components/SettingsLink'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { PendingMark } from '../components/PendingMark'
 import { useSearchParams } from 'react-router-dom'
-import { Copy, Eye, Mail, Save, Trash2 } from 'lucide-react'
+import { Copy, Eye, Mail, Minus, Plus, Save, Trash2 } from 'lucide-react'
 import {
   useAppSetting,
   useConsumableCounts,
@@ -34,6 +34,9 @@ const toInt = (v: string | undefined): number | null => {
   return Number.isFinite(n) && n >= 0 ? n : null
 }
 
+const STEP_BTN =
+  'inline-flex h-10 w-10 items-center justify-center rounded-full border border-brand-200 bg-white text-brand-700 transition hover:bg-brand-50 active:bg-brand-100'
+
 export default function Consumables() {
   const { profile } = useAuth()
   const hospitals = useMakoHospitals()
@@ -51,6 +54,7 @@ export default function Consumables() {
   const [date, setDate] = useState(todayISO())
   const [notes, setNotes] = useState('')
   const [notice, setNotice] = useState('')
+  const [onlyShort, setOnlyShort] = useState(false)
   const initKey = useRef<string | null>(null)
 
   const mins = useConsumableMinimums(hospitalId)
@@ -107,7 +111,9 @@ export default function Consumables() {
   }, [items.data, viewed, qty, minv, overrides])
 
   const { missing, units } = summarize(rows)
-  const groups = groupByCategory(rows)
+  const onlyShortActive = onlyShort && missing.length > 0
+  const groups = groupByCategory(onlyShortActive ? rows.filter((r) => shortageOf(r) > 0) : rows)
+  const counted = rows.filter((r) => r.qty !== null).length
   const to = email.data ?? ''
 
   const mail = shortageText({
@@ -169,14 +175,18 @@ export default function Consumables() {
     }
   }
 
+  function step(id: string, delta: number) {
+    setQty((m) => ({ ...m, [id]: String(Math.max(0, (toInt(m[id]) ?? 0) + delta)) }))
+  }
+
   if (hospitals.isLoading || items.isLoading) return <Spinner />
   if (hospitals.error && !hospitals.data) return <ErrorState error={hospitals.error} /> // cached data stays visible when only a background refresh failed
 
   return (
-    <div className="space-y-4 pb-24 md:pb-4">
+    <div className="space-y-4 pb-4">
       <div>
         <h1 className="text-2xl font-semibold text-brand-800 sm:text-3xl">מתכלים MAKO</h1>
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-slate-500">
           ספירת מלאי בבית חולים · המערכת מחשבת אוטומטית כמה חסר מול המינימום
         </p>
       </div>
@@ -188,7 +198,7 @@ export default function Consumables() {
         />
       ) : (
         <>
-          <div className="card grid gap-3 p-4 sm:grid-cols-3">
+          <div className="card space-y-3 p-3 sm:grid sm:grid-cols-3 sm:gap-3 sm:space-y-0 sm:p-4">
             <label className="block">
               <span className="label">בית חולים</span>
               <select className="input" value={hospitalId} onChange={(e) => chooseHospital(e.target.value)}>
@@ -197,21 +207,23 @@ export default function Consumables() {
                 ))}
               </select>
             </label>
-            <label className="block">
-              <span className="label">תאריך ספירה</span>
-              <input
-                type="date"
-                className="input"
-                value={viewed ? viewed.counted_on : date}
-                disabled={!!viewed}
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </label>
-            <div className="block">
-              <span className="label">נספר ע״י</span>
-              <p className="input bg-slate-50 text-slate-600">
-                {viewed ? (viewed.counter?.full_name || viewed.counter?.email || '—') : (profile?.full_name || profile?.email || '—')}
-              </p>
+            <div className="grid grid-cols-2 gap-3 sm:contents">
+              <label className="block min-w-0">
+                <span className="label">תאריך ספירה</span>
+                <input
+                  type="date"
+                  className="input"
+                  value={viewed ? viewed.counted_on : date}
+                  disabled={!!viewed}
+                  onChange={(e) => setDate(e.target.value)}
+                />
+              </label>
+              <div className="block min-w-0">
+                <span className="label">נספר ע״י</span>
+                <p className="input truncate bg-slate-50 text-slate-600">
+                  {viewed ? (viewed.counter?.full_name || viewed.counter?.email || '—') : (profile?.full_name || profile?.email || '—')}
+                </p>
+              </div>
             </div>
           </div>
 
@@ -227,75 +239,141 @@ export default function Consumables() {
           {(counts.isLoading || mins.isLoading) && <Spinner />}
           {counts.error && <ErrorState error={counts.error} />}
 
-          {groups.map((g) => (
-            <section key={g.category} className="card overflow-hidden">
-              <h2 className="bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700">{g.category}</h2>
-              <ul className="divide-y divide-slate-100">
-                {g.rows.map((r) => {
-                  const short = shortageOf(r)
-                  const surplus = r.qty !== null && r.qty > r.min ? r.qty - r.min : 0
-                  return (
-                    <li key={r.item.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="min-w-0">
-                        <p dir="ltr" className="text-left text-sm font-medium text-slate-800 [overflow-wrap:anywhere]">
-                          {r.item.name}
-                        </p>
-                        {r.item.catalog_number && (
-                          <p dir="ltr" className="text-left text-xs text-slate-400">{r.item.catalog_number}</p>
-                        )}
-                      </div>
-                      <div className="grid shrink-0 grid-cols-3 gap-2 text-center sm:w-72">
-                        <label className="block">
-                          <span className="block text-[11px] text-slate-400">מינימום</span>
-                          {viewed ? (
-                            <p className="py-2 text-sm text-slate-600">{r.min}</p>
-                          ) : (
-                            <input
-                              type="number"
-                              inputMode="numeric"
-                              min={0}
-                              className="input !px-1 text-center"
-                              value={minv[r.item.id] ?? ''}
-                              onChange={(e) => setMinv((m) => ({ ...m, [r.item.id]: e.target.value }))}
-                            />
-                          )}
-                        </label>
-                        <label className="block">
-                          <span className="block text-[11px] text-slate-400">בפועל</span>
-                          {viewed ? (
-                            <p className="py-2 text-sm font-medium text-slate-800">{r.qty}</p>
-                          ) : (
-                            <input
-                              type="number"
-                              inputMode="numeric"
-                              min={0}
-                              className="input !px-1 text-center font-semibold"
-                              value={qty[r.item.id] ?? ''}
-                              onChange={(e) => setQty((m) => ({ ...m, [r.item.id]: e.target.value }))}
-                            />
-                          )}
-                        </label>
-                        <div>
-                          <span className="block text-[11px] text-slate-400">חסר</span>
-                          <p
+          <div
+            className={classNames(
+              'flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2 text-sm',
+              missing.length
+                ? 'border-red-200 bg-red-50 text-red-700'
+                : counted > 0
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                  : 'border-slate-200 bg-white text-slate-600',
+            )}
+          >
+            <p className="font-semibold" role="status">
+              {missing.length
+                ? `חסרים ${missing.length} פריטים · ${units} יחידות`
+                : counted > 0
+                  ? 'אין חוסרים'
+                  : 'הזן כמויות כדי לראות מה חסר'}
+              {counted > 0 && <span className="font-normal text-slate-600"> · נספרו {counted} מתוך {rows.length}</span>}
+            </p>
+            {missing.length > 0 && (
+              <button
+                type="button"
+                aria-pressed={onlyShortActive}
+                onClick={() => setOnlyShort((v) => !v)}
+                className={classNames(
+                  'chip',
+                  onlyShortActive ? 'border-red-400 bg-red-600 text-white' : 'border-red-300 bg-white text-red-700',
+                )}
+              >
+                {onlyShortActive ? 'הצג הכל' : 'חוסרים בלבד'}
+              </button>
+            )}
+          </div>
+
+          {groups.map((g) => {
+            const gShort = g.rows.filter((r) => shortageOf(r) > 0).length
+            return (
+              <section key={g.category} className="card overflow-hidden" aria-label={g.category}>
+                <h2 className="flex items-center justify-between gap-2 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700">
+                  <span>{g.category}</span>
+                  {gShort > 0 && <span className="chip border-red-200 bg-red-50 text-red-700">{gShort} חסרים</span>}
+                </h2>
+                <ul className="divide-y divide-slate-100">
+                  {g.rows.map((r) => {
+                    const short = shortageOf(r)
+                    const surplus = r.qty !== null && r.qty > r.min ? r.qty - r.min : 0
+                    const nm = r.item.name
+                    return (
+                      <li
+                        key={r.item.id}
+                        className={classNames('space-y-2 px-3 py-2.5 lg:flex lg:items-center lg:justify-between lg:gap-4 lg:space-y-0', short > 0 && 'bg-red-50/60')}
+                      >
+                        <div className="flex min-w-0 items-start justify-between gap-2 lg:block lg:flex-1">
+                          <div className="min-w-0">
+                            <p dir="ltr" className="text-left text-sm font-medium text-slate-800 [overflow-wrap:anywhere]">
+                              {nm}
+                            </p>
+                            {r.item.catalog_number && (
+                              <p dir="ltr" className="text-left text-xs text-slate-500">{r.item.catalog_number}</p>
+                            )}
+                          </div>
+                          <span
                             className={classNames(
-                              'rounded-lg py-2 text-sm font-bold',
-                              r.qty === null && 'text-slate-300',
-                              short > 0 && 'bg-red-50 text-red-600',
-                              r.qty !== null && short === 0 && surplus === 0 && 'text-emerald-600',
-                              surplus > 0 && 'text-slate-400',
+                              'shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold lg:hidden',
+                              r.qty === null && 'text-slate-500',
+                              short > 0 && 'bg-red-100 text-red-700',
+                              r.qty !== null && short === 0 && surplus === 0 && 'text-emerald-700',
+                              surplus > 0 && 'text-slate-500',
                             )}
                           >
-                            {r.qty === null ? '—' : short > 0 ? short : surplus > 0 ? `+${surplus}` : '✓'}
-                          </p>
+                            {r.qty === null ? '' : short > 0 ? `חסר ${short}` : surplus > 0 ? `+${surplus}` : '✓ תקין'}
+                          </span>
                         </div>
-                      </div>
-                    </li>
-                  )
-                })}
-              </ul>
-            </section>
-          ))}
+                        <div className="flex items-center justify-between gap-3 lg:justify-end">
+                          <label className="flex items-center gap-1.5 text-xs text-slate-500">
+                            מינימום
+                            {viewed ? (
+                              <span className="text-sm text-slate-700">{r.min}</span>
+                            ) : (
+                              <input
+                                type="number"
+                                inputMode="numeric"
+                                min={0}
+                                aria-label={`מינימום: ${nm}`}
+                                className="input !min-h-[36px] !w-16 !px-1 !py-1 text-center [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+                                value={minv[r.item.id] ?? ''}
+                                onFocus={(e) => e.target.select()}
+                                onChange={(e) => setMinv((m) => ({ ...m, [r.item.id]: e.target.value }))}
+                              />
+                            )}
+                          </label>
+                          {viewed ? (
+                            <span className="text-sm font-semibold text-slate-800">בפועל {r.qty}</span>
+                          ) : (
+                            <div className="flex items-center gap-1" role="group" aria-label={`כמות בפועל: ${nm}`}>
+                              <button type="button" className={STEP_BTN} aria-label={`הפחת: ${nm}`} onClick={() => step(r.item.id, -1)}>
+                                <Minus size={18} aria-hidden="true" />
+                              </button>
+                              <input
+                                type="number"
+                                inputMode="numeric"
+                                min={0}
+                                aria-label={`כמות בפועל: ${nm}`}
+                                placeholder="—"
+                                className="input !min-h-[40px] !w-16 !px-1 !py-1 text-center font-semibold [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+                                value={qty[r.item.id] ?? ''}
+                                onFocus={(e) => e.target.select()}
+                                onChange={(e) => setQty((m) => ({ ...m, [r.item.id]: e.target.value }))}
+                              />
+                              <button type="button" className={STEP_BTN} aria-label={`הוסף: ${nm}`} onClick={() => step(r.item.id, 1)}>
+                                <Plus size={18} aria-hidden="true" />
+                              </button>
+                            </div>
+                          )}
+                          <span
+                            className={classNames(
+                              'hidden w-20 rounded-lg py-1.5 text-center text-sm font-bold lg:block',
+                              r.qty === null && 'text-slate-500',
+                              short > 0 && 'bg-red-50 text-red-700',
+                              r.qty !== null && short === 0 && surplus === 0 && 'text-emerald-700',
+                              surplus > 0 && 'text-slate-500',
+                            )}
+                          >
+                            {r.qty === null ? '—' : short > 0 ? `חסר ${short}` : surplus > 0 ? `+${surplus}` : '✓'}
+                          </span>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </section>
+            )
+          })}
+          {groups.length === 0 && onlyShortActive && (
+            <EmptyState title="אין חוסרים" hint="כל הפריטים שנספרו במלאי המינימום או מעליו" />
+          )}
 
           {!viewed && (
             <label className="block">
@@ -304,64 +382,52 @@ export default function Consumables() {
             </label>
           )}
 
-          <div className="sticky bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] z-20 card space-y-2 p-3 shadow-lg md:bottom-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className={classNames('text-sm font-semibold', missing.length ? 'text-red-600' : 'text-emerald-600')}>
-                {missing.length
-                  ? `חסרים ${missing.length} פריטים · ${units} יחידות`
-                  : 'אין חוסרים'}
-              </p>
-              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-                {!viewed && (
-                  <button className="btn-primary col-span-2 sm:col-span-1" onClick={saveCount} disabled={save.isPending}>
-                    <Save size={16} />
-                    שמור ספירה
-                  </button>
-                )}
-                {canMail ? (
-                  <>
-                    <a
-                      className="btn-secondary"
-                      href={outlookUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() =>
-                        setNotice('נפתחה טיוטה ב-Outlook בדפדפן — בדוק אותה ולחץ "שלח". שום דבר לא נשלח לפני כן.')
-                      }
-                    >
-                      <Mail size={16} />
-                      פתח ב-Outlook
-                    </a>
-                    <a className="btn-secondary" href={mailto.url} onClick={onMailtoClick}>
-                      <Mail size={16} />
-                      אפליקציית מייל
-                    </a>
-                  </>
-                ) : (
-                  <button className="btn-secondary" disabled title={to ? 'אין חוסרים' : 'לא הוגדרה כתובת מייל'}>
-                    <Mail size={16} />
-                    פתח מייל חוסרים
-                  </button>
-                )}
-                <button className="btn-secondary" onClick={copyList} disabled={missing.length === 0}>
-                  <Copy size={16} />
-                  העתק
+          <section className="card space-y-2 p-3">
+            <h2 className="font-semibold text-brand-800">שליחת חוסרים במייל</h2>
+            <div className="grid grid-cols-3 gap-2">
+              {canMail ? (
+                <>
+                  <a
+                    className="btn-secondary !px-2"
+                    href={outlookUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() =>
+                      setNotice('נפתחה טיוטה ב-Outlook בדפדפן — בדוק אותה ולחץ "שלח". שום דבר לא נשלח לפני כן.')
+                    }
+                  >
+                    <Mail size={16} aria-hidden="true" />
+                    Outlook
+                  </a>
+                  <a className="btn-secondary !px-2" href={mailto.url} onClick={onMailtoClick}>
+                    <Mail size={16} aria-hidden="true" />
+                    מייל
+                  </a>
+                </>
+              ) : (
+                <button className="btn-secondary col-span-2 !px-2" disabled title={to ? 'אין חוסרים' : 'לא הוגדרה כתובת מייל'}>
+                  <Mail size={16} aria-hidden="true" />
+                  פתח מייל חוסרים
                 </button>
-              </div>
+              )}
+              <button className="btn-secondary !px-2" onClick={copyList} disabled={missing.length === 0}>
+                <Copy size={16} aria-hidden="true" />
+                העתק
+              </button>
             </div>
             {!to && (
-              <p className="text-xs text-amber-600">
+              <p className="text-xs text-amber-700">
                 לא הוגדרה כתובת מייל לשליחת חוסרים — הגדרה בעמוד{' '}
                 <SettingsLink className="font-medium underline">הגדרות ← מתכלים</SettingsLink>.
               </p>
             )}
             {to && missing.length > 0 && !notice && (
-              <p className="text-xs text-slate-400">
-                הכפתורים פותחים טיוטה בלבד — המייל נשלח רק אחרי שתבדוק ותלחץ "שלח". אם אין אפליקציית מייל במכשיר, השתמש ב"פתח ב-Outlook".
+              <p className="text-xs text-slate-500">
+                הכפתורים פותחים טיוטה בלבד — המייל נשלח רק אחרי שתבדוק ותלחץ "שלח". "מייל" פותח את אפליקציית המייל במכשיר; אם אין כזו, השתמש ב-Outlook.
               </p>
             )}
-            {notice && <p className="text-xs text-slate-500">{notice}</p>}
-          </div>
+            {to && missing.length === 0 && <p className="text-xs text-slate-500">אין חוסרים לשלוח.</p>}
+          </section>
 
           {!viewed && hospitalId && (
             <StockForecast
@@ -374,27 +440,38 @@ export default function Consumables() {
           <section className="card p-4">
             <h2 className="mb-2 font-semibold text-brand-800">היסטוריית ספירות</h2>
             {(counts.data ?? []).length === 0 ? (
-              <p className="text-sm text-slate-400">עוד לא בוצעו ספירות בבית חולים זה.</p>
+              <p className="text-sm text-slate-500">עוד לא בוצעו ספירות בבית חולים זה.</p>
             ) : (
               <ul className="divide-y divide-slate-100 text-sm">
                 {(counts.data ?? []).map((c) => {
                   const short = c.lines.filter((l) => l.qty < l.min_qty).length
                   return (
-                    <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
-                      <span className="text-slate-700">
+                    <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 py-1.5">
+                      <span className="min-w-0 text-slate-700">
                         {formatDate(c.counted_on)} <PendingMark id={c.id} />
-                        <span className="mr-2 text-xs text-slate-400">
+                        <span className="mr-2 text-xs text-slate-500">
                           {c.counter?.full_name || c.counter?.email || ''}
                         </span>
                       </span>
                       <span className="flex items-center gap-1">
-                        <span className={classNames('chip', short ? 'border-red-200 bg-red-50 text-red-600' : 'border-emerald-200 bg-emerald-50 text-emerald-700')}>
+                        <span className={classNames('chip', short ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700')}>
                           {short ? `${short} חסרים` : 'תקין'}
                         </span>
-                        <button className="btn-ghost !px-2" onClick={() => setViewId(c.id)} aria-label="הצג">
+                        <button
+                          className="btn-ghost !px-2"
+                          onClick={() => {
+                            setViewId(c.id)
+                            window.scrollTo({ top: 0, behavior: 'smooth' })
+                          }}
+                          aria-label={`הצג ספירה מתאריך ${formatDate(c.counted_on)}`}
+                        >
                           <Eye size={16} />
                         </button>
-                        <ConfirmButton className="btn-ghost !px-2 text-red-500" onConfirm={() => delCount.mutate(c.id)}>
+                        <ConfirmButton
+                          className="btn-ghost !px-2 text-red-500"
+                          label={`מחיקת ספירה מתאריך ${formatDate(c.counted_on)}`}
+                          onConfirm={() => delCount.mutate(c.id)}
+                        >
                           <Trash2 size={16} />
                         </ConfirmButton>
                       </span>
@@ -404,6 +481,22 @@ export default function Consumables() {
               </ul>
             )}
           </section>
+
+          {!viewed && (
+            <div className="sticky bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] z-20 card p-2.5 shadow-lg md:bottom-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className={classNames('min-w-0 text-sm font-semibold', missing.length ? 'text-red-700' : 'text-slate-700')}>
+                  {missing.length ? `חסרים ${missing.length} · ${units} יח׳` : counted > 0 ? 'אין חוסרים' : `${rows.length} פריטים`}
+                </p>
+                <button className="btn-primary shrink-0" onClick={saveCount} disabled={save.isPending}>
+                  <Save size={16} aria-hidden="true" />
+                  שמור ספירה
+                </button>
+              </div>
+              {notice && <p role="status" className="mt-1.5 text-xs text-slate-600">{notice}</p>}
+            </div>
+          )}
+          {viewed && notice && <p role="status" className="text-xs text-slate-600">{notice}</p>}
         </>
       )}
     </div>

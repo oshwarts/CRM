@@ -32,8 +32,9 @@ function DupGroup({ kind, group }: { kind: Kind; group: QRecord[] }) {
     <li className="rounded-xl border border-slate-200 p-3">
       <ul className="space-y-1.5">
         {group.map((r) => (
-          <li key={r.id} className={classNames('flex items-start gap-2 rounded-lg px-2 py-1.5 text-sm', keep === r.id && 'bg-brand-50')}>
-            <input type="radio" name={`keep-${group[0].id}`} checked={keep === r.id} onChange={() => setKeep(r.id)} className="mt-1" aria-label="השאר את הרשומה הזו" />
+          <li key={r.id} className={classNames('rounded-lg text-sm', keep === r.id && 'bg-brand-50')}>
+            <label className="flex min-h-[44px] cursor-pointer items-start gap-3 px-2 py-2">
+            <input type="radio" name={`keep-${group[0].id}`} checked={keep === r.id} onChange={() => setKeep(r.id)} className="mt-0.5 h-5 w-5 shrink-0" aria-label={`השאר את ${r.name}`} />
             <div className="min-w-0 flex-1">
               <p className="font-medium text-slate-800">
                 {link(r) ? (
@@ -48,13 +49,14 @@ function DupGroup({ kind, group }: { kind: Kind; group: QRecord[] }) {
                 {[r.phone, r.office_phone ? `משרד ${r.office_phone}` : '', r.email, r.detail].filter(Boolean).join(' · ') || 'ללא פרטים'}
               </p>
             </div>
+            </label>
           </li>
         ))}
       </ul>
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-slate-400">הרשומה המסומנת נשארת; פרטים חסרים בה יושלמו מהאחרות וכל הקישורים (פגישות, משימות, סריקות…) יעברו אליה.</p>
+        <p className="text-xs text-slate-500">הרשומה המסומנת נשארת; פרטים חסרים בה יושלמו מהאחרות וכל הקישורים (פגישות, משימות, סריקות…) יעברו אליה.</p>
         <ConfirmButton
-          className="btn-primary !py-1 text-xs"
+          className="btn-primary max-sm:w-full"
           message={`לאחד ${group.length} רשומות לרשומה אחת? הפעולה אינה הפיכה.`}
           onConfirm={async () => {
             setError('')
@@ -65,10 +67,10 @@ function DupGroup({ kind, group }: { kind: Kind; group: QRecord[] }) {
             }
           }}
         >
-          <GitMerge size={13} /> {merge.isPending ? 'מאחד…' : 'אחד'}
+          <GitMerge size={16} /> {merge.isPending ? 'מאחד…' : 'אחד'}
         </ConfirmButton>
       </div>
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+      {error && <p role="alert" className="mt-1 text-xs text-red-600">{error}</p>}
     </li>
   )
 }
@@ -119,13 +121,13 @@ export function DataQuality() {
   const missing = (title: string, list: { id: string; name: string; title?: string }[], to: (id: string) => string | null) =>
     list.length > 0 && (
       <details className="card p-4">
-        <summary className="cursor-pointer text-sm font-medium text-slate-700">
+        <summary className="cursor-pointer py-1 text-sm font-medium text-slate-700">
           <AlertTriangle size={14} className="ml-1 inline text-amber-500" />
           {title} ({list.length})
         </summary>
-        <ul className="mt-2 grid gap-x-4 gap-y-1 text-sm sm:grid-cols-2">
+        <ul className="mt-2 grid gap-x-4 text-sm sm:grid-cols-2">
           {list.map((r) => (
-            <li key={r.id}>
+            <li key={r.id} className="py-1">
               {to(r.id) ? (
                 <Link to={to(r.id)!} className="text-brand-700 hover:underline">
                   {r.title ? `${r.title} ` : ''}
@@ -173,7 +175,7 @@ export function DataQuality() {
         (k) =>
           data.dups[k].length > 0 && (
             <section key={k} className="space-y-2">
-              <h2 className="font-semibold text-slate-800">
+              <h2 className="text-base font-semibold text-slate-800">
                 כפילויות — {KIND_LABEL[k]} ({data.dups[k].length})
               </h2>
               <ul className="space-y-2">

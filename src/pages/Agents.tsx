@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Users } from 'lucide-react'
+import { Users } from 'lucide-react'
 import { useAgentGoals, useMetricData } from '../lib/agentsApi'
 import { overlaps, monthPeriod, quarterPeriod } from '../lib/agentMetrics'
 import { useAuth } from '../context/AuthProvider'
@@ -9,6 +9,7 @@ import { GoalBars } from '../components/GoalBars'
 import { TrainingMatrix } from '../components/TrainingMatrix'
 import { ManagementReport } from '../components/team/ManagementReport'
 import { TeamOverview } from '../components/team/TeamOverview'
+import { PeriodControls } from '../components/team/PeriodControls'
 import { useTeamModel, type PeriodKind } from '../components/team/useTeamModel'
 
 /** goals of every agent for the shown period, one block per agent */
@@ -23,13 +24,18 @@ function TeamGoals({ model, period }: { model: NonNullable<ReturnType<typeof use
           const mine = (goals.data ?? []).filter((g) => g.agent_id === r.agent.id && overlaps(g, period as never))
           return (
             <section key={r.agent.id} className="card p-4">
-              <h3 className="mb-2 flex items-center justify-between font-semibold text-brand-800">
-                <Link to={`/agents/${r.agent.id}`} className="hover:underline">
+              <h3 className="mb-3 flex items-center justify-between gap-2 font-semibold text-brand-800">
+                <Link to={`/agents/${r.agent.id}`} className="min-w-0 truncate hover:underline">
                   {r.agent.full_name || r.agent.email}
                 </Link>
-                {r.goalsAvg != null && <span className="text-sm font-medium text-slate-500">ממוצע {r.goalsAvg}%</span>}
+                {r.goalsAvg != null && <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700">ממוצע {r.goalsAvg}%</span>}
               </h3>
               <GoalBars goals={mine} data={data} empty="לא הוגדרו יעדים לתקופה זו." />
+              {mine.length === 0 && (
+                <Link to={`/agents/${r.agent.id}`} className="mt-2 inline-flex min-h-9 items-center text-sm font-medium text-brand-700 hover:underline">
+                  הגדרת יעד בכרטיס הסוכן
+                </Link>
+              )}
             </section>
           )
         })}
@@ -51,7 +57,7 @@ export default function Agents() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
+      <div className="space-y-3 print:hidden">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-semibold text-brand-800 sm:text-3xl">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#00326d] text-white">
@@ -59,30 +65,21 @@ export default function Agents() {
             </span>
             ניהול סוכנים
           </h1>
-          <p className="text-sm text-slate-400">הצוות במבט אחד. לחץ על סוכן כדי לראות לוז, משימות, יעדים ושיחות.</p>
+          <p className="mt-1 text-sm text-slate-500">הצוות במבט אחד. לחץ על סוכן לצפייה בלוז, במשימות, ביעדים ובשיחות.</p>
         </div>
         {view !== 'training' && (
-          <div className="flex items-center gap-2">
-            <select
-              className="input !w-auto"
-              value={kind}
-              aria-label="סוג תקופה"
-              onChange={(e) => {
-                setKind(e.target.value as PeriodKind)
-                setOffset(0)
-              }}
-            >
-              <option value="month">חודשי</option>
-              <option value="quarter">רבעוני</option>
-            </select>
-            <button className="btn-ghost !px-2" onClick={() => setOffset((o) => o - 1)} aria-label="תקופה קודמת">
-              <ChevronRight size={18} />
-            </button>
-            <span className="min-w-28 text-center text-sm font-semibold text-slate-700">{period.label}</span>
-            <button className="btn-ghost !px-2" onClick={() => setOffset((o) => o + 1)} aria-label="תקופה הבאה" disabled={offset >= 0}>
-              <ChevronLeft size={18} />
-            </button>
-          </div>
+          <PeriodControls
+            kind={kind}
+            label={period.label}
+            onKind={(k) => {
+              setKind(k)
+              setOffset(0)
+            }}
+            onPrev={() => setOffset((o) => o - 1)}
+            onNext={() => setOffset((o) => o + 1)}
+            nextDisabled={offset >= 0}
+            onToday={offset !== 0 ? () => setOffset(0) : undefined}
+          />
         )}
       </div>
 

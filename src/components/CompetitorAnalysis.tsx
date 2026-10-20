@@ -112,7 +112,7 @@ export function CompetitorAnalysis() {
               <ul className="space-y-1.5">
                 {[...outcomes.reasons, ...LOSS_REASONS.filter((r) => !outcomes.reasons.some(([x]) => x === r)).map((r) => [r, 0] as [string, number])].map(([reason, n]) => (
                   <li key={reason} className="flex items-center gap-2 text-sm">
-                    <span className="w-40 shrink-0 text-slate-700">{reason}</span>
+                    <span className="w-28 shrink-0 text-slate-700 sm:w-40">{reason}</span>
                     <Bar value={n} max={maxReason} tone="bg-red-400" />
                     <span className="w-6 text-center font-semibold text-slate-800">{n}</span>
                   </li>
@@ -168,15 +168,17 @@ export function CompetitorAnalysis() {
           <>
             <ul className="space-y-1.5">
               {share.rows.map((r) => (
-                <li key={r.name} className="flex items-center gap-2 text-sm">
-                  <span className={classNames('w-36 shrink-0', r.id === ours ? 'font-semibold text-brand-700' : 'text-slate-700')}>
-                    {r.name}
-                    {r.id === ours ? ' (אנחנו)' : ''}
-                  </span>
+                <li key={r.name} className="text-sm sm:flex sm:items-center sm:gap-2">
+                  <div className="mb-1 flex items-baseline justify-between gap-2 sm:mb-0 sm:contents">
+                    <span className={classNames('sm:w-36 sm:shrink-0', r.id === ours ? 'font-semibold text-brand-700' : 'text-slate-700')}>
+                      {r.name}
+                      {r.id === ours ? ' (אנחנו)' : ''}
+                    </span>
+                    <span className="shrink-0 text-xs text-slate-600 sm:order-last sm:w-20 sm:text-left">
+                      {r.count} · {share.total ? Math.round((r.count / share.total) * 100) : 0}%
+                    </span>
+                  </div>
                   <Bar value={r.count} max={maxShare} tone={r.id === ours ? 'bg-brand-500' : 'bg-slate-400'} />
-                  <span className="w-20 shrink-0 text-left text-xs text-slate-600">
-                    {r.count} · {share.total ? Math.round((r.count / share.total) * 100) : 0}%
-                  </span>
                 </li>
               ))}
             </ul>
@@ -219,36 +221,30 @@ export function CompetitorAnalysis() {
         {matrix.length === 0 ? (
           <p className="text-sm text-slate-400">אין עדיין נתונים.</p>
         ) : (
-          <div tabIndex={0} className="overflow-x-auto">
-            <table className="w-full min-w-[480px] text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 text-slate-500">
-                  <th className="p-1.5 text-right font-medium">בית חולים</th>
-                  <th className="p-1.5 text-right font-medium">רובוטים</th>
-                  <th className="p-1.5 text-center font-medium">מקרים</th>
-                  <th className="p-1.5 text-center font-medium">מתוכם אצלנו</th>
-                </tr>
-              </thead>
-              <tbody>
-                {matrix.map((h) => (
-                  <tr key={h.id} className="border-b border-slate-100">
-                    <td className="p-1.5 text-slate-700">{h.name}</td>
-                    <td className="p-1.5">
-                      <span className="flex flex-wrap gap-1">
-                        {h.systems.map((s) => (
-                          <span key={s} className={classNames('chip !px-2 !py-0', /mako/i.test(s) ? 'border-brand-200 bg-brand-50 text-brand-700' : 'border-slate-200 bg-slate-50 text-slate-600')}>
-                            {s}
-                          </span>
-                        ))}
+          <ul className="divide-y divide-slate-100">
+            {matrix.map((h) => (
+              <li key={h.id} className="py-2">
+                <div className="flex items-start justify-between gap-3">
+                  <p dir="auto" className="min-w-0 text-sm font-medium text-slate-800">{h.name}</p>
+                  {h.cases.total > 0 && (
+                    <p className="shrink-0 text-left text-xs text-slate-600">
+                      {h.cases.total} מקרים
+                      <span className="block font-semibold text-slate-800">{Math.round((h.cases.ours / h.cases.total) * 100)}% אצלנו</span>
+                    </p>
+                  )}
+                </div>
+                {h.systems.length > 0 && (
+                  <span className="mt-1 flex flex-wrap gap-1">
+                    {h.systems.map((s) => (
+                      <span key={s} className={classNames('chip !px-2 !py-0', /mako/i.test(s) ? 'border-brand-200 bg-brand-50 text-brand-700' : 'border-slate-200 bg-slate-50 text-slate-600')}>
+                        {s}
                       </span>
-                    </td>
-                    <td className="p-1.5 text-center text-slate-600">{h.cases.total || ''}</td>
-                    <td className="p-1.5 text-center font-semibold text-slate-800">{h.cases.total ? `${Math.round((h.cases.ours / h.cases.total) * 100)}%` : ''}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    ))}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
         )}
       </section>
     </div>

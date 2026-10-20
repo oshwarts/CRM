@@ -43,7 +43,7 @@ export default function Learn() {
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#00326d] text-white"><GraduationCap size={20} /></span>
             לומדה
           </h1>
-          <p className="text-sm text-slate-400">מסלולי למידה, שיעורים, כרטיסיות, מבחנים ומקרים קליניים. ההתקדמות נשמרת לכל משתמש.</p>
+          <p className="text-sm text-slate-500">שיעורים, כרטיסיות, מבחנים ומקרים קליניים. ההתקדמות נשמרת לכל משתמש.</p>
         </div>
         <div className="flex gap-2">
           {isAdmin && (
@@ -59,27 +59,27 @@ export default function Learn() {
         </div>
       </div>
 
-      <LearnStats />
-
       {due > 0 && (
-        <Link to="/learn/review" className="card flex items-center justify-between gap-3 border-brand-300 bg-brand-50/50 p-4 transition hover:bg-brand-50">
-          <span className="flex items-center gap-3">
-            <Repeat size={22} className="text-brand-600" />
+        <Link to="/learn/review" className="card flex flex-col gap-3 border-brand-300 bg-brand-50/50 p-4 transition hover:bg-brand-50 sm:flex-row sm:items-center sm:justify-between">
+          <span className="flex items-start gap-3">
+            <Repeat size={22} className="mt-0.5 shrink-0 text-brand-600" aria-hidden="true" />
             <span>
               <span className="block font-semibold text-slate-800">{due} שאלות לחזרה היום</span>
-              <span className="block text-xs text-slate-500">חזרה קצרה בזמן הנכון משפרת זיכרון — כמה דקות מספיקות</span>
+              <span className="block text-xs text-slate-600">כמה דקות של חזרה בזמן הנכון משפרות זיכרון</span>
             </span>
           </span>
-          <span className="btn-primary">התחל חזרה</span>
+          <span className="btn-primary w-full sm:w-auto">התחל חזרה</span>
         </Link>
       )}
 
+      <LearnStats />
+
       {canEdit && waiting.length > 0 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 sm:p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="font-semibold text-amber-800">{waiting.length} פריטים ממתינים לאישור מנהל</p>
+            <p className="font-semibold text-amber-900">{waiting.length} פריטים ממתינים לאישור מנהל</p>
             {isAdmin && (
-              <button className="btn-primary !bg-[#1d9a6c] hover:!bg-[#17805a]" disabled={approve.isPending} onClick={() => approve.mutate(waiting)}>
+              <button className="btn-primary !bg-[#17805a] hover:!bg-[#126a4a]" disabled={approve.isPending} onClick={() => approve.mutate(waiting)}>
                 <Check size={15} /> אשר הכול
               </button>
             )}
@@ -87,11 +87,11 @@ export default function Learn() {
           <ul className="mt-2 space-y-1 text-sm text-amber-900">
             {waiting.slice(0, 8).map((w) => (
               <li key={`${w.table}-${w.id}`} className="flex items-center justify-between gap-2">
-                <Link to={`/learn/${w.topic_id}`} dir="auto" className="min-w-0 truncate hover:underline">
+                <Link to={`/learn/${w.topic_id}`} dir="auto" className="min-w-0 flex-1 truncate py-1 hover:underline">
                   {topicOf(w.topic_id)?.title}: {w.label}
                 </Link>
                 {isAdmin && (
-                  <button className="shrink-0 text-xs text-emerald-700 hover:underline" onClick={() => approve.mutate([w])}>
+                  <button className="btn-secondary !px-3 !py-1 text-xs" onClick={() => approve.mutate([w])}>
                     אשר
                   </button>
                 )}
@@ -135,8 +135,8 @@ export default function Learn() {
                         {passed ? <Check size={14} /> : locked ? <Lock size={13} /> : i + 1}
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block font-medium text-slate-800">{topic?.title ?? '—'}</span>
-                        <span className="block text-xs text-slate-500">
+                        <span dir="auto" className="block break-words font-medium text-slate-800">{topic?.title ?? '—'}</span>
+                        <span className="block text-xs text-slate-600">
                           {passed ? `עברת בציון ${score}%` : locked ? 'נפתח אחרי שתעבור את השלב הקודם' : score !== undefined ? `ציון אחרון גבוה: ${score}% · נדרש ${it.pass_pct}%` : `מבחן מסכם · ציון עובר ${it.pass_pct}%`}
                         </span>
                       </span>
@@ -145,7 +145,7 @@ export default function Learn() {
                   return (
                     <li key={it.id}>
                       {locked ? (
-                        <div className="flex items-center gap-3 rounded-lg border border-slate-100 bg-slate-50/60 p-2.5 opacity-70">{body}</div>
+                        <div className="flex items-center gap-3 rounded-lg border border-slate-100 bg-slate-50 p-2.5">{body}</div>
                       ) : (
                         <Link to={`/learn/${it.topic_id}`} className={classNames('flex items-center gap-3 rounded-lg border p-2.5 transition hover:border-brand-300', passed ? 'border-emerald-100 bg-emerald-50/40' : 'border-brand-200 bg-white')}>
                           {body}
@@ -171,8 +171,8 @@ export default function Learn() {
               return (
                 <li key={t.id}>
                   <Link to={`/learn/${t.id}`} className="card block p-4 transition hover:border-brand-300">
-                    <p className="font-semibold text-slate-800">{t.title}</p>
-                    {t.description && <p className="text-xs text-slate-400">{t.description}</p>}
+                    <p dir="auto" className="break-words font-semibold text-slate-800">{t.title}</p>
+                    {t.description && <p dir="auto" className="break-words text-xs text-slate-500">{t.description}</p>}
                     <p className="mt-2 text-xs text-slate-500">
                       {t.cards} שאלות {t.cards > 0 && `· ידוע ${known} (${pct}%)`}
                       {best.get(t.id) !== undefined && ` · מבחן: ${best.get(t.id)}%`}

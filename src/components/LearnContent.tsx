@@ -25,7 +25,7 @@ export function ApprovalTag({ approved, table, id, topicId, label }: { approved:
     <span className="inline-flex items-center gap-1.5">
       <span className="chip border-amber-200 bg-amber-50 !px-2 !py-0 text-[11px] text-amber-700">ממתין לאישור</span>
       {isAdmin && (
-        <button className="inline-flex items-center gap-1 rounded bg-[#1d9a6c] px-2 py-0.5 text-[11px] text-white hover:bg-[#17805a]" onClick={() => approve.mutate([{ table, id, topic_id: topicId, label }])}>
+        <button className="inline-flex min-h-[28px] items-center gap-1 rounded-lg bg-[#17805a] px-2.5 py-1 text-xs text-white hover:bg-[#126a4a]" onClick={() => approve.mutate([{ table, id, topic_id: topicId, label }])}>
           <Check size={11} /> אשר
         </button>
       )}
@@ -207,7 +207,7 @@ function LessonModal({ topicId, lesson, nextSort, onClose }: { topicId: string; 
         </Field>
         {error && <p className="text-sm text-red-600">{error}</p>}
         <p className="text-xs text-slate-400">שיעור שנכתב על ידי עורך תוכן מתפרסם רק אחרי שמנהל מאשר אותו.</p>
-        <div className="flex justify-end gap-2">
+        <div className="sticky bottom-0 z-10 flex justify-end gap-2 border-t border-slate-200 bg-white py-3">
           <button type="button" className="btn-secondary" onClick={onClose}>
             ביטול
           </button>
@@ -251,14 +251,20 @@ export function LessonsPanel({ topicId, topicTitle }: { topicId: string; topicTi
             const isOpen = open === l.id
             return (
               <li key={l.id} className="card overflow-hidden">
-                <button className="flex w-full items-center justify-between gap-2 p-3 text-right" onClick={() => setOpen(isOpen ? null : l.id)}>
-                  <span className="flex items-center gap-2 font-medium text-slate-800">
-                    <span className="grid h-6 w-6 place-items-center rounded-full bg-brand-50 text-xs text-brand-700">{i + 1}</span>
-                    {l.title}
-                    <ApprovalTag approved={l.approved} table="learn_lessons" id={l.id} topicId={topicId} label={l.title} />
-                  </span>
-                  {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                </button>
+                <div className="flex flex-wrap items-center">
+                  <button className="flex min-h-[48px] min-w-0 flex-1 items-center justify-between gap-2 p-3 text-right" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : l.id)}>
+                    <span className="flex min-w-0 items-center gap-2 font-medium text-slate-800">
+                      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-brand-50 text-xs text-brand-700">{i + 1}</span>
+                      <span dir="auto" className="min-w-0 break-words">{l.title}</span>
+                    </span>
+                    {isOpen ? <ChevronUp size={18} className="shrink-0" aria-hidden="true" /> : <ChevronDown size={18} className="shrink-0" aria-hidden="true" />}
+                  </button>
+                  {!l.approved && (
+                    <div className="w-full px-3 pb-2">
+                      <ApprovalTag approved={l.approved} table="learn_lessons" id={l.id} topicId={topicId} label={l.title} />
+                    </div>
+                  )}
+                </div>
                 {isOpen && (
                   <div className="space-y-3 border-t border-slate-100 p-4">
                     {l.body && (
@@ -275,12 +281,12 @@ export function LessonsPanel({ topicId, topicTitle }: { topicId: string; topicTi
                           {l.doc_ids.map((id) => {
                             const d = (infoDocs.data ?? []).find((x) => x.id === id)
                             return d ? (
-                              <span key={id} className="inline-flex overflow-hidden rounded-lg border border-slate-200">
-                                <button className="flex items-center gap-1.5 bg-white px-2.5 py-1 text-sm hover:bg-slate-50" onClick={() => setReader({ doc: d, lessonId: l.id })}>
+                              <span key={id} className="inline-flex max-w-full overflow-hidden rounded-lg border border-slate-200">
+                                <button className="flex min-h-[36px] min-w-0 items-center gap-1.5 bg-white px-2.5 py-1 text-right text-sm hover:bg-slate-50" onClick={() => setReader({ doc: d, lessonId: l.id })}>
                                   <BookOpenText size={14} className="text-brand-600" /> קרא: {d.title}
                                 </button>
                                 <button
-                                  className="border-r border-slate-200 bg-slate-50 px-2 text-xs text-slate-500 hover:bg-slate-100"
+                                  className="border-r border-slate-200 bg-slate-50 px-3 text-xs text-slate-500 hover:bg-slate-100" aria-label="פתח את הקובץ המקורי"
                                   title="פתח את הקובץ המקורי"
                                   onClick={async () => setDocError((await openInfoDocument(d)) ?? '')}
                                 >
@@ -302,17 +308,17 @@ export function LessonsPanel({ topicId, topicTitle }: { topicId: string; topicTi
                             <p className="text-sm font-semibold text-slate-700">שאלות על השיעור ({mine.filter((c) => c.approved).length})</p>
                             <span className="flex flex-wrap gap-2">
                               {mine.some((c) => c.approved) && (
-                                <Link to={`/learn/${topicId}?lesson=${l.id}&tab=quiz`} className="btn-primary !py-1 text-xs">
+                                <Link to={`/learn/${topicId}?lesson=${l.id}&tab=quiz`} className="btn-primary !py-1.5 text-xs">
                                   תרגל את שאלות השיעור
                                 </Link>
                               )}
                               {canEdit && (
                                 <>
-                                  <button className="btn-secondary !py-1 text-xs" onClick={() => setCardModal({ card: null, lessonId: l.id })}>
+                                  <button className="btn-secondary !py-1.5 text-xs" onClick={() => setCardModal({ card: null, lessonId: l.id })}>
                                     <Plus size={13} /> שאלה
                                   </button>
                                   {docsOfLesson.length > 0 && (
-                                    <button className="btn-secondary !py-1 text-xs" onClick={() => setReader({ doc: docsOfLesson[0], lessonId: l.id })} title="פותח את המסמך וממנו אפשר ליצור שאלות">
+                                    <button className="btn-secondary !py-1.5 text-xs" onClick={() => setReader({ doc: docsOfLesson[0], lessonId: l.id })} title="פותח את המסמך וממנו אפשר ליצור שאלות">
                                       <Sparkles size={13} /> צור שאלות מהמסמך
                                     </button>
                                   )}
@@ -326,18 +332,18 @@ export function LessonsPanel({ topicId, topicTitle }: { topicId: string; topicTi
                             <ul className="space-y-1">
                               {mine.map((c) => (
                                 <li key={c.id} className="flex items-start justify-between gap-2 rounded-lg bg-white px-2 py-1.5 text-sm">
-                                  <span dir="auto" className="min-w-0 flex-1 text-slate-700">
+                                  <span dir="auto" className="min-w-0 flex-1 break-words py-1 text-slate-700">
                                     {c.question}
                                   </span>
                                   <span className="flex shrink-0 items-center gap-1">
                                     <ApprovalTag approved={c.approved} table="learn_cards" id={c.id} topicId={topicId} label={c.question} />
                                     {canEdit && (
                                       <>
-                                        <button className="btn-ghost !px-1" aria-label="עריכה" onClick={() => setCardModal({ card: c, lessonId: l.id })}>
-                                          <Pencil size={12} />
+                                        <button className="btn-ghost !px-2" aria-label="עריכה" onClick={() => setCardModal({ card: c, lessonId: l.id })}>
+                                          <Pencil size={15} />
                                         </button>
-                                        <ConfirmButton className="btn-ghost !px-1 text-red-500" message="למחוק את השאלה?" onConfirm={() => delCard.mutate(c.id)}>
-                                          <Trash2 size={12} />
+                                        <ConfirmButton className="btn-ghost !px-2 text-red-500" message="למחוק את השאלה?" onConfirm={() => delCard.mutate(c.id)}>
+                                          <Trash2 size={15} />
                                         </ConfirmButton>
                                       </>
                                     )}
@@ -352,10 +358,10 @@ export function LessonsPanel({ topicId, topicTitle }: { topicId: string; topicTi
                     {canEdit && (
                       <div className="flex gap-1">
                         <button className="btn-ghost !px-2" aria-label="עריכה" onClick={() => setModal({ lesson: l })}>
-                          <Pencil size={14} />
+                          <Pencil size={16} />
                         </button>
                         <ConfirmButton className="btn-ghost !px-2 text-red-500" message="למחוק את השיעור?" onConfirm={() => del.mutate(l.id)}>
-                          <Trash2 size={14} />
+                          <Trash2 size={16} />
                         </ConfirmButton>
                       </div>
                     )}
@@ -449,7 +455,7 @@ function CaseModal({ topicId, item, nextSort, onClose }: { topicId: string; item
           <textarea className="input min-h-20" dir="auto" value={explanation} onChange={(e) => setExplanation(e.target.value)} />
         </Field>
         {error && <p className="text-sm text-red-600">{error}</p>}
-        <div className="flex justify-end gap-2">
+        <div className="sticky bottom-0 z-10 flex justify-end gap-2 border-t border-slate-200 bg-white py-3">
           <button type="button" className="btn-secondary" onClick={onClose}>
             ביטול
           </button>
@@ -475,11 +481,11 @@ function CaseCard({ c, topicId, onEdit }: { c: LearnCase; topicId: string; onEdi
         </h3>
         {onEdit && (
           <span className="flex shrink-0 gap-1">
-            <button className="btn-ghost !px-1.5" aria-label="עריכה" onClick={onEdit}>
-              <Pencil size={14} />
+            <button className="btn-ghost !px-2" aria-label="עריכה" onClick={onEdit}>
+              <Pencil size={16} />
             </button>
-            <ConfirmButton className="btn-ghost !px-1.5 text-red-500" message="למחוק את המקרה?" onConfirm={() => del.mutate(c.id)}>
-              <Trash2 size={14} />
+            <ConfirmButton className="btn-ghost !px-2 text-red-500" message="למחוק את המקרה?" onConfirm={() => del.mutate(c.id)}>
+              <Trash2 size={16} />
             </ConfirmButton>
           </span>
         )}
@@ -584,7 +590,7 @@ function SequenceModal({ topicId, item, nextSort, onClose }: { topicId: string; 
         </Field>
         <p className="text-xs text-slate-400">{list.length} שלבים. הסוכן יקבל אותם בסדר מעורבב ויצטרך לסדר. נדרשים לפחות 3 שלבים.</p>
         {error && <p className="text-sm text-red-600">{error}</p>}
-        <div className="flex justify-end gap-2">
+        <div className="sticky bottom-0 z-10 flex justify-end gap-2 border-t border-slate-200 bg-white py-3">
           <button type="button" className="btn-secondary" onClick={onClose}>
             ביטול
           </button>
@@ -621,11 +627,11 @@ export function SequencesPanel({ topicId }: { topicId: string }) {
                     <ApprovalTag approved={q.approved} table="learn_sequences" id={q.id} topicId={topicId} label={q.title} />
                   </span>
                   <span className="flex gap-1">
-                    <button className="btn-ghost !px-1.5" aria-label="עריכה" onClick={() => setModal({ item: q })}>
-                      <Pencil size={13} />
+                    <button className="btn-ghost !px-2" aria-label="עריכה" onClick={() => setModal({ item: q })}>
+                      <Pencil size={15} />
                     </button>
-                    <ConfirmButton className="btn-ghost !px-1.5 text-red-500" message="למחוק את התרגיל?" onConfirm={() => del.mutate(q.id)}>
-                      <Trash2 size={13} />
+                    <ConfirmButton className="btn-ghost !px-2 text-red-500" message="למחוק את התרגיל?" onConfirm={() => del.mutate(q.id)}>
+                      <Trash2 size={15} />
                     </ConfirmButton>
                   </span>
                 </li>

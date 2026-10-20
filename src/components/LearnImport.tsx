@@ -74,7 +74,7 @@ export function LearnImport({ topicId, topicTitle, onClose }: { topicId: string;
           </label>
           {raw.trim() && cards.length === 0 && <p className="text-sm text-amber-600">לא זוהו שאלות. בדוק את המפריד.</p>}
           {error && <p className="text-sm text-red-600">{error}</p>}
-          <div className="flex justify-end gap-2">
+          <div className="sticky bottom-0 z-10 flex justify-end gap-2 border-t border-slate-200 bg-white py-3">
             <button className="btn-secondary" onClick={onClose}>
               ביטול
             </button>

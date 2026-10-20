@@ -67,7 +67,7 @@ export function CaseVolumesManager() {
   const rows = volumes.data ?? []
 
   return (
-    <div className="card space-y-4 p-5">
+    <div className="card space-y-4 p-3 sm:p-5">
       <div>
         <h2 className="font-semibold text-slate-800">הוספה ועריכה של כמויות מקרים</h2>
         <p className="text-sm text-slate-400">
@@ -76,9 +76,9 @@ export function CaseVolumesManager() {
       </div>
 
       {/* add row */}
-      <div className="grid gap-2 rounded-xl border border-brand-200 bg-brand-50/40 p-3 lg:grid-cols-[1.3fr_1.3fr_1.3fr_1fr_.7fr_.7fr_auto]">
+      <div className="grid gap-2 rounded-xl border border-brand-200 bg-brand-50/40 p-3 grid-cols-2 lg:grid-cols-[1.3fr_1.3fr_1.3fr_1fr_.7fr_.7fr_auto]">
         <select
-          className="input"
+          aria-label="רופא" className="input col-span-2 lg:col-span-1"
           value={draft.doctor_id}
           onChange={(e) =>
             setDraft({ ...draft, doctor_id: e.target.value, hospital_id: '' })
@@ -92,7 +92,7 @@ export function CaseVolumesManager() {
           ))}
         </select>
         <select
-          className="input"
+          aria-label="בית חולים" className="input col-span-2 lg:col-span-1"
           value={draft.hospital_id}
           onChange={(e) => setDraft({ ...draft, hospital_id: e.target.value })}
         >
@@ -104,7 +104,7 @@ export function CaseVolumesManager() {
           ))}
         </select>
         <select
-          className="input"
+          aria-label="הליך" className="input col-span-2 lg:col-span-1"
           value={draft.procedure_id}
           onChange={(e) => setDraft({ ...draft, procedure_id: e.target.value })}
         >
@@ -116,7 +116,7 @@ export function CaseVolumesManager() {
           ))}
         </select>
         <select
-          className="input"
+          aria-label="חברה" className="input col-span-2 lg:col-span-1"
           value={draft.company_id}
           onChange={(e) => setDraft({ ...draft, company_id: e.target.value })}
         >
@@ -128,7 +128,7 @@ export function CaseVolumesManager() {
           ))}
         </select>
         <select
-          className="input"
+          aria-label="שנה" className="input"
           value={draft.year}
           onChange={(e) => setDraft({ ...draft, year: Number(e.target.value) })}
         >
@@ -141,7 +141,7 @@ export function CaseVolumesManager() {
         <input
           type="number"
           min={0}
-          className="input text-center"
+          aria-label="כמות" className="input text-center"
           placeholder="כמות"
           value={draft.count || ''}
           onChange={(e) =>
@@ -151,7 +151,7 @@ export function CaseVolumesManager() {
             })
           }
         />
-        <button className="btn-primary" onClick={add} disabled={upsert.isPending}>
+        <button className="btn-primary col-span-2 lg:col-span-1" onClick={add} disabled={upsert.isPending}>
           <Plus size={16} />
           הוסף
         </button>
@@ -168,7 +168,43 @@ export function CaseVolumesManager() {
       ) : rows.length === 0 ? (
         <EmptyState title="עדיין לא הוזנו כמויות" hint="הוסף רשומה ראשונה למעלה" />
       ) : (
-        <div tabIndex={0} className="overflow-x-auto">
+        <>
+        <ul className="space-y-2 md:hidden">
+          {rows.map((r) => (
+            <li key={r.id} className="rounded-xl border border-slate-200 p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 text-sm">
+                  <p dir="auto" className="break-words font-semibold text-slate-800">
+                    {r.doctor?.title} {r.doctor?.name}
+                  </p>
+                  <p dir="auto" className="break-words text-slate-600">{r.hospital?.name}</p>
+                  <p dir="auto" className="break-words text-xs text-slate-500">
+                    {r.procedure?.name} · {r.year}{r.company?.name ? ` · ${r.company.name}` : ''}
+                  </p>
+                </div>
+                <ConfirmButton className="btn-ghost !px-2 text-red-500" onConfirm={() => del.mutate(r.id)}>
+                  <Trash2 size={16} />
+                </ConfirmButton>
+              </div>
+              <label className="mt-2 flex items-center gap-2 text-sm text-slate-600">
+                כמות
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  className="input !w-24 text-center"
+                  defaultValue={r.count}
+                  onBlur={(e) => {
+                    const count = Math.max(0, Number(e.target.value) || 0)
+                    if (count !== r.count)
+                      upsert.mutate({ id: r.id, doctor_id: r.doctor_id, hospital_id: r.hospital_id, procedure_id: r.procedure_id, company_id: r.company_id, year: r.year, count })
+                  }}
+                />
+              </label>
+            </li>
+          ))}
+        </ul>
+        <div tabIndex={0} aria-label="טבלת כמויות" className="hidden overflow-x-auto md:block">
           <table className="w-full min-w-[680px] text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-slate-500">
@@ -195,6 +231,7 @@ export function CaseVolumesManager() {
                     <input
                       type="number"
                       min={0}
+                      aria-label={`כמות — ${r.doctor?.name ?? ''}`}
                       className="input w-20 py-1 text-center"
                       defaultValue={r.count}
                       onBlur={(e) => {
@@ -225,6 +262,7 @@ export function CaseVolumesManager() {
             </tbody>
           </table>
         </div>
+        </>
       )}
     </div>
   )

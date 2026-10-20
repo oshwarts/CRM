@@ -219,7 +219,7 @@ export function InfoDocModal({
         </Field>
 
         {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-        <div className="flex items-center justify-end gap-2 border-t border-slate-200 pt-3">
+        <div className="sticky bottom-0 z-10 flex items-center justify-end gap-2 border-t border-slate-200 bg-white py-3">
           {progress && <span className="ml-auto text-sm text-slate-500">{progress}</span>}
           <button className="btn-secondary" onClick={onClose} disabled={save.isPending}>
             ביטול

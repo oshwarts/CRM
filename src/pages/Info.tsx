@@ -108,7 +108,7 @@ export default function Info() {
             <span dir="auto" className="block break-words text-sm font-semibold text-slate-800">
               {d.title}
             </span>
-            <span className="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-slate-400">
+            <span className="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-slate-500">
               {d.category && <span className="chip border-slate-200 bg-slate-50 !px-2 !py-0 text-slate-600">{d.category.name}</span>}
               {showProcs &&
                 procIdsOf(d).map((id) => (
@@ -133,16 +133,16 @@ export default function Info() {
             )}
           </span>
         </button>
-        <div className="flex flex-col justify-center">
+        <div className="flex flex-col justify-center gap-0.5">
           <button className="btn-ghost !px-2" onClick={() => setEditing(d)} aria-label="עריכה">
-            <Pencil size={15} />
+            <Pencil size={17} />
           </button>
           {isAdmin && (
             <ConfirmButton
               className="btn-ghost !px-2 text-red-500"
               onConfirm={() => del.mutate(d, { onError: (e) => setError(e instanceof Error ? e.message : 'המחיקה נכשלה') })}
             >
-              <Trash2 size={15} />
+              <Trash2 size={17} />
             </ConfirmButton>
           )}
         </div>
@@ -171,7 +171,7 @@ export default function Info() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-2xl font-semibold text-brand-800 sm:text-3xl">מידע קליני</h1>
-          <p className="text-sm text-slate-400">פרוטוקולים, טכניקות ניתוח, מחקרים ומידע על הציוד — לפי פרוצדורה</p>
+          <p className="text-sm text-slate-500">פרוטוקולים, מחקרים ומידע על הציוד — לפי פרוצדורה</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button className="btn-secondary" onClick={() => setImporting(true)}>

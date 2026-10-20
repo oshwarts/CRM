@@ -68,17 +68,17 @@ export function ImportContactButton({ onPick }: { onPick: (c: PickedContact) => 
   const cur = cands[ci]
 
   return (
-    <div className="space-y-2 rounded-xl border border-dashed border-slate-300 p-3">
-      <div className="flex flex-wrap gap-2">
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
         {canPickContacts() && (
-          <button type="button" className="btn-secondary" onClick={fromDevice}>
+          <button type="button" className="btn-secondary max-sm:flex-1" onClick={fromDevice}>
             <BookUser size={16} />
             בחר מאנשי הקשר בטלפון
           </button>
         )}
-        <button type="button" className="btn-secondary" onClick={() => fileRef.current?.click()}>
+        <button type="button" className="btn-secondary max-sm:flex-1" onClick={() => fileRef.current?.click()}>
           <FileUp size={16} />
-          ייבוא מקובץ איש קשר (vCard)
+          מילוי מאיש קשר (vCard)
         </button>
         <input
           ref={fileRef}
@@ -89,12 +89,11 @@ export function ImportContactButton({ onPick }: { onPick: (c: PickedContact) => 
         />
       </div>
       {!canPickContacts() && (
-        <p className="text-xs text-slate-400">
-          באייפון / Outlook: שמור את איש הקשר כקובץ vCard (.vcf) — למשל "שתף ← שמור בקבצים" —
-          ובחר אותו כאן.
+        <p className="text-xs text-slate-500">
+          רוצה למלא טלפון ואימייל מאיש קשר שמור? באייפון / Outlook: שמור אותו כקובץ vCard (.vcf) — "שתף ← שמור בקבצים" — ובחר אותו כאן.
         </p>
       )}
-      {msg && <p className="text-xs text-amber-600">{msg}</p>}
+      {msg && <p role="status" className="text-xs text-amber-700">{msg}</p>}
 
       {cur && (
         <div className="space-y-3 rounded-lg bg-slate-50 p-3 text-sm">
@@ -114,12 +113,12 @@ export function ImportContactButton({ onPick }: { onPick: (c: PickedContact) => 
             <fieldset>
               <legend className="label">טלפון</legend>
               {cur.tels.map((t) => (
-                <label key={t} className="flex items-center gap-2 py-1">
+                <label key={t} className="flex min-h-[36px] items-center gap-2 py-1">
                   <input type="radio" checked={tel === t} onChange={() => setTel(t)} />
                   <span dir="ltr">{t}</span>
                 </label>
               ))}
-              <label className="flex items-center gap-2 py-1 text-slate-400">
+              <label className="flex min-h-[36px] items-center gap-2 py-1 text-slate-500">
                 <input type="radio" checked={tel === ''} onChange={() => setTel('')} />
                 ללא
               </label>
@@ -130,12 +129,12 @@ export function ImportContactButton({ onPick }: { onPick: (c: PickedContact) => 
             <fieldset>
               <legend className="label">אימייל</legend>
               {cur.emails.map((m) => (
-                <label key={m} className="flex items-center gap-2 py-1">
+                <label key={m} className="flex min-h-[36px] items-center gap-2 py-1">
                   <input type="radio" checked={mail === m} onChange={() => setMail(m)} />
                   <span dir="ltr">{m}</span>
                 </label>
               ))}
-              <label className="flex items-center gap-2 py-1 text-slate-400">
+              <label className="flex min-h-[36px] items-center gap-2 py-1 text-slate-500">
                 <input type="radio" checked={mail === ''} onChange={() => setMail('')} />
                 ללא
               </label>
@@ -144,7 +143,7 @@ export function ImportContactButton({ onPick }: { onPick: (c: PickedContact) => 
 
           <div className="flex justify-end gap-2">
             <button type="button" className="btn-secondary" onClick={() => setCands([])}>ביטול</button>
-            <button type="button" className="btn-primary" onClick={() => done(cur, tel, mail)}>החל</button>
+            <button type="button" className="btn-primary max-sm:flex-1" onClick={() => done(cur, tel, mail)}>החל</button>
           </div>
         </div>
       )}

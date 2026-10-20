@@ -26,8 +26,8 @@ import { composeMail } from '../lib/mail'
 import { meetingMailText } from '../lib/meetingMail'
 import { copyText } from '../lib/scanExport'
 import { MeetingFormModal } from '../components/MeetingFormModal'
-import { ConfirmButton, EmptyState, ErrorState, Spinner } from '../components/ui'
-import { MEETING_STATUS_LABELS } from '../lib/types'
+import { MeetingStatusChip } from '../components/MeetingBits'
+import { ConfirmButton, ErrorState, Spinner } from '../components/ui'
 import { classNames, formatDate, formatTime, isOverdue } from '../lib/utils'
 
 export default function MeetingView() {
@@ -72,24 +72,32 @@ export default function MeetingView() {
     }
   }
 
+
+  const weekday = m.meeting_date
+    ? new Intl.DateTimeFormat('he-IL', { weekday: 'long' }).format(new Date(`${m.meeting_date}T12:00:00`))
+    : ''
+  const followupLate = !!m.next_followup_date && isOverdue(m.next_followup_date) && m.status !== 'done'
+  const doneTasks = m.meeting_tasks.filter((t) => t.is_done).length
+  const hasPeople = doctors.length > 0 || m.meeting_contacts.length > 0 || m.meeting_agents.length > 0
+
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Link to="/meetings" className="inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline">
+    <div className="space-y-4 sm:space-y-5">
+      <div className="flex items-center justify-between gap-2">
+        <Link to="/meetings" className="inline-flex items-center gap-1 text-sm font-medium text-brand-700 hover:underline">
           <ArrowRight size={14} />
           לכל הפגישות
         </Link>
-        <div className="flex items-center gap-1">
-          <button className="btn-secondary" onClick={() => setMailOpen((o) => !o)}>
+        <div className="flex items-center">
+          <button className="btn-secondary !min-h-9 !px-3" onClick={() => setMailOpen((o) => !o)} aria-expanded={mailOpen}>
             <Mail size={16} />
-            שלח סיכום במייל
+            שלח במייל
           </button>
-          <button className="btn-ghost !px-2" onClick={() => setEditing(true)} aria-label="עריכה">
+          <button className="btn-ghost !min-h-9 !px-2" onClick={() => setEditing(true)} aria-label="עריכה" title="עריכה">
             <Pencil size={16} />
           </button>
           {canDelete(m.created_by) && (
             <ConfirmButton
-              className="btn-ghost !px-2 text-red-500"
+              className="btn-ghost !min-h-9 !px-2 text-red-600"
               onConfirm={() => deleteMeeting.mutate(m.id, { onSuccess: () => navigate('/meetings') })}
             >
               <Trash2 size={16} />
@@ -99,19 +107,23 @@ export default function MeetingView() {
       </div>
 
       {mailOpen && (
-        <div className="card space-y-3 border-brand-200 p-4">
+        <div className="card space-y-3 border-brand-200 p-3 sm:p-4">
           <p className="text-sm font-semibold text-slate-800">שליחת סיכום הפגישה במייל</p>
           <label className="block">
             <span className="label">אל (כתובת מייל, אפשר כמה מופרדות בפסיק)</span>
             <input
               dir="ltr"
+              type="email"
+              multiple
+              inputMode="email"
+              autoComplete="email"
               className="input text-right"
               placeholder="name@company.co.il"
               value={mailTo}
               onChange={(e) => setMailTo(e.target.value)}
             />
           </label>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid gap-2 sm:flex sm:flex-wrap">
             <a
               className="btn-primary"
               href={links.outlook.url}
@@ -152,127 +164,159 @@ ${mail.body}`)) ? 'הסיכום הועתק.' : 'ההעתקה נכשלה.')}
               העתק טקסט
             </button>
           </div>
-          <p className="text-xs text-slate-400">הכפתורים פותחים טיוטה בלבד — המייל נשלח רק אחרי שתבדוק ותלחץ "שלח".</p>
-          {mailNote && <p className="text-xs text-slate-500">{mailNote}</p>}
+          <p className="text-xs text-slate-600">הכפתורים פותחים טיוטה בלבד — המייל נשלח רק אחרי שתבדוק ותלחץ "שלח".</p>
+          {mailNote && (
+            <p role="status" className="rounded-lg bg-brand-50 px-3 py-2 text-xs text-slate-700">
+              {mailNote}
+            </p>
+          )}
         </div>
       )}
 
-      <div className="card space-y-3 p-4 sm:p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="break-words text-xl font-semibold text-brand-800">{m.subject || 'פגישה'}</h1>
-            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-500">
-              {m.meeting_date && (
-                <span className="inline-flex items-center gap-1">
-                  <CalendarDays size={14} />
-                  {formatDate(m.meeting_date)}
+      <div className="card space-y-4 p-4 sm:p-5">
+        <div className="space-y-2">
+          <div className="flex items-start justify-between gap-3">
+            <h1 className="min-w-0 break-words text-lg font-semibold leading-snug text-brand-800 sm:text-2xl">{m.subject || 'פגישה'}</h1>
+            <MeetingStatusChip status={m.status} className="mt-1 shrink-0" />
+          </div>
+          <div className="grid gap-x-6 gap-y-1.5 text-sm text-slate-700 sm:grid-cols-2">
+            {m.meeting_date && (
+              <p className="flex items-start gap-2">
+                <CalendarDays size={16} className="mt-0.5 shrink-0 text-slate-500" />
+                <span>
+                  {weekday} {formatDate(m.meeting_date)}
                   {m.meeting_time ? ` · ${formatTime(m.meeting_time)}` : ''}
                 </span>
-              )}
-              {m.location && (
-                <span className="inline-flex items-center gap-1">
-                  <MapPin size={14} />
-                  {m.location}
-                </span>
-              )}
-              {m.responsible_agent?.full_name && (
-                <span className="inline-flex items-center gap-1">
-                  <User size={14} />
-                  {m.responsible_agent.full_name}
-                </span>
-              )}
-            </div>
+              </p>
+            )}
+            {m.hospital && (
+              <p className="flex items-start gap-2 font-medium">
+                <Building2 size={16} className="mt-0.5 shrink-0 text-slate-500" />
+                <span className="min-w-0 break-words">{m.hospital.name}</span>
+              </p>
+            )}
+            {m.location && (
+              <p className="flex items-start gap-2">
+                <MapPin size={16} className="mt-0.5 shrink-0 text-slate-500" />
+                <span className="min-w-0 break-words">{m.location}</span>
+              </p>
+            )}
+            {m.responsible_agent?.full_name && (
+              <p className="flex items-start gap-2">
+                <User size={16} className="mt-0.5 shrink-0 text-slate-500" />
+                <span className="min-w-0 break-words">אחראי: {m.responsible_agent.full_name}</span>
+              </p>
+            )}
           </div>
-          <span className="chip border-slate-200 bg-slate-50 text-slate-500">
-            {MEETING_STATUS_LABELS[m.status]}
-          </span>
+          {m.next_followup_date && (
+            <p
+              className={classNames(
+                'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium',
+                followupLate ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-800',
+              )}
+            >
+              <Clock size={14} />
+              מעקב הבא: {formatDate(m.next_followup_date)}
+              {followupLate ? ' (באיחור)' : ''}
+            </p>
+          )}
         </div>
 
-        {m.hospital && (
-          <p className="inline-flex items-center gap-1 text-sm font-medium text-slate-600">
-            <Building2 size={14} />
-            {m.hospital.name}
-          </p>
-        )}
-
-        {(doctors.length > 0 || m.meeting_contacts.length > 0 || m.meeting_agents.length > 0) && (
-          <div className="flex flex-wrap gap-1">
-            {doctors.map((d) => (
-              <Link
-                key={d.id}
-                to={`/doctors/${d.id}`}
-                className="chip border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100"
-              >
-                {d.title} {d.name}
-              </Link>
-            ))}
-            {m.meeting_agents.map(
-              (a) =>
-                a.agent && (
-                  <span key={a.agent.id} className="chip border-slate-300 bg-slate-100 text-slate-700">
-                    {a.agent.full_name}
-                    {a.agent.role === 'admin' ? ' (מנהל)' : ''}
-                  </span>
-                ),
-            )}
-            {m.meeting_contacts.map(
-              (c) =>
-                c.contact && (
-                  <span
-                    key={c.contact.id}
-                    className="chip border-emerald-200 bg-emerald-50 text-emerald-700"
+        {(hasPeople || m.extra_participants) && (
+          <section aria-label="משתתפים" className="space-y-2 border-t border-slate-100 pt-3">
+            {hasPeople && (
+              <div className="flex flex-wrap gap-1.5">
+                {doctors.map((d) => (
+                  <Link
+                    key={d.id}
+                    to={`/doctors/${d.id}`}
+                    className="chip border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100"
                   >
-                    {c.contact.name}
-                    {c.contact.role ? ` · ${c.contact.role}` : ''}
-                  </span>
-                ),
+                    {d.title} {d.name}
+                  </Link>
+                ))}
+                {m.meeting_agents.map(
+                  (a) =>
+                    a.agent && (
+                      <span key={a.agent.id} className="chip border-slate-300 bg-slate-100 text-slate-700">
+                        {a.agent.full_name}
+                        {a.agent.role === 'admin' ? ' (מנהל)' : ''}
+                      </span>
+                    ),
+                )}
+                {m.meeting_contacts.map(
+                  (c) =>
+                    c.contact && (
+                      <span
+                        key={c.contact.id}
+                        className="chip border-emerald-200 bg-emerald-50 text-emerald-700"
+                      >
+                        {c.contact.name}
+                        {c.contact.role ? ` · ${c.contact.role}` : ''}
+                      </span>
+                    ),
+                )}
+              </div>
             )}
-          </div>
+            {m.extra_participants && (
+              <p className="break-words text-sm text-slate-600">
+                <span className="font-medium">משתתפים נוספים: </span>
+                {m.extra_participants}
+              </p>
+            )}
+          </section>
         )}
 
-        {m.extra_participants && (
-          <p className="text-sm text-slate-500">
-            <span className="font-medium">משתתפים נוספים: </span>
-            {m.extra_participants}
-          </p>
-        )}
-
-        {m.summary ? (
-          <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{m.summary}</p>
-        ) : (
-          <p className="text-sm text-slate-400">לא נרשם סיכום.</p>
-        )}
+        <section aria-label="סיכום" className="border-t border-slate-100 pt-3">
+          <h2 className="mb-1 text-sm font-semibold text-slate-700">סיכום</h2>
+          {m.summary ? (
+            <p className="whitespace-pre-wrap break-words text-base leading-relaxed text-slate-800 sm:text-sm">{m.summary}</p>
+          ) : (
+            <p className="text-sm text-slate-600">
+              לא נרשם סיכום.{' '}
+              <button className="font-medium text-brand-700 hover:underline" onClick={() => setEditing(true)}>
+                הוספת סיכום
+              </button>
+            </p>
+          )}
+        </section>
 
         {m.decisions && (
-          <p className="whitespace-pre-wrap rounded-lg bg-slate-50 p-3 text-sm leading-relaxed text-slate-700">
-            <span className="font-medium">החלטות: </span>
-            {m.decisions}
-          </p>
+          <section aria-label="החלטות" className="rounded-xl bg-slate-50 p-3">
+            <h2 className="mb-1 text-sm font-semibold text-slate-700">החלטות</h2>
+            <p className="whitespace-pre-wrap break-words text-base leading-relaxed text-slate-800 sm:text-sm">{m.decisions}</p>
+          </section>
         )}
 
         {m.competitor_notes && (
-          <p className="whitespace-pre-wrap rounded-lg bg-amber-50 p-3 text-sm leading-relaxed text-slate-700">
-            <span className="font-medium">פעילות מתחרים: </span>
-            {m.competitor_notes}
-          </p>
+          <section aria-label="פעילות מתחרים" className="rounded-xl bg-amber-50 p-3">
+            <h2 className="mb-1 text-sm font-semibold text-slate-700">פעילות מתחרים</h2>
+            <p className="whitespace-pre-wrap break-words text-base leading-relaxed text-slate-800 sm:text-sm">{m.competitor_notes}</p>
+          </section>
         )}
 
         {m.meeting_tasks.length > 0 && (
-          <div>
-            <p className="mb-1 text-sm font-semibold text-slate-700">משימות להמשך</p>
-            <ul className="space-y-1.5">
+          <section aria-label="משימות להמשך" className="border-t border-slate-100 pt-3">
+            <h2 className="mb-1 text-sm font-semibold text-slate-700">
+              משימות להמשך{' '}
+              <span className="font-normal text-slate-600">
+                ({doneTasks}/{m.meeting_tasks.length})
+              </span>
+            </h2>
+            <ul>
               {m.meeting_tasks.map((t) => (
                 <li key={t.id}>
                   <button
-                    className="flex items-start gap-2 text-right text-sm text-slate-700"
+                    className="flex min-h-9 w-full items-start gap-2 rounded-lg px-1.5 py-1.5 text-right text-sm text-slate-800 hover:bg-slate-50"
                     onClick={() => toggleTask.mutate(t)}
+                    aria-pressed={t.is_done}
                   >
                     {t.is_done ? (
-                      <CheckSquare size={16} className="mt-0.5 shrink-0 text-brand-500" />
+                      <CheckSquare size={18} className="mt-px shrink-0 text-brand-500" />
                     ) : (
-                      <Square size={16} className="mt-0.5 shrink-0 text-slate-400" />
+                      <Square size={18} className="mt-px shrink-0 text-slate-500" />
                     )}
-                    <span className={t.is_done ? 'text-slate-400 line-through' : ''}>
+                    <span className={classNames('min-w-0 break-words', t.is_done && 'text-slate-500 line-through')}>
                       {t.description}
                       {t.due_date ? ` (${formatDate(t.due_date)})` : ''}
                     </span>
@@ -280,41 +324,28 @@ ${mail.body}`)) ? 'הסיכום הועתק.' : 'ההעתקה נכשלה.')}
                 </li>
               ))}
             </ul>
-          </div>
-        )}
-
-        {m.next_followup_date && (
-          <p
-            className={classNames(
-              'inline-flex items-center gap-1 rounded-lg px-2 py-1 text-sm',
-              isOverdue(m.next_followup_date) && m.status !== 'done'
-                ? 'bg-red-50 text-red-600'
-                : 'bg-amber-50 text-amber-700',
-            )}
-          >
-            <Clock size={14} />
-            מעקב הבא: {formatDate(m.next_followup_date)}
-          </p>
+          </section>
         )}
       </div>
 
       {contextDoctor && (
         <section className="space-y-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="font-semibold text-brand-800">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            <h2 className="min-w-0 break-words font-semibold text-brand-800">
               פגישות נוספות עם {contextDoctor.title} {contextDoctor.name}
             </h2>
-            <Link to={`/doctors/${contextDoctor.id}`} className="text-sm font-medium text-brand-600 hover:underline">
-              לכרטיס הרופא →
+            <Link to={`/doctors/${contextDoctor.id}`} className="text-sm font-medium text-brand-700 hover:underline">
+              לכרטיס הרופא ←
             </Link>
           </div>
 
           {doctors.length > 1 && (
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label="בחירת רופא להיסטוריה">
               {doctors.map((d) => (
                 <button
                   key={d.id}
                   onClick={() => setPickedDoctor(d.id)}
+                  aria-pressed={d.id === contextDoctor.id}
                   className={classNames(
                     'chip',
                     d.id === contextDoctor.id
@@ -330,7 +361,9 @@ ${mail.body}`)) ? 'הסיכום הועתק.' : 'ההעתקה נכשלה.')}
 
           {history.isLoading && <Spinner />}
           {history.data && others.length === 0 && (
-            <EmptyState title="אין פגישות נוספות עם רופא זה" />
+            <p className="rounded-xl border border-dashed border-brand-200 bg-white/70 p-4 text-center text-sm text-slate-600">
+              אין פגישות נוספות עם רופא זה
+            </p>
           )}
           <div className="space-y-2">
             {others.map((x) => (
@@ -339,23 +372,18 @@ ${mail.body}`)) ? 'הסיכום הועתק.' : 'ההעתקה נכשלה.')}
                 to={`/meetings/${x.id}?doctor=${contextDoctor.id}`}
                 className="card block p-3 hover:border-brand-200"
               >
-                <div className="flex items-center justify-between gap-3">
-                  <p className="font-medium text-slate-800">{x.subject || 'פגישה'}</p>
-                  <span className="shrink-0 text-sm text-slate-400">{formatDate(x.meeting_date)}</span>
+                <div className="flex items-start justify-between gap-3">
+                  <p className="line-clamp-2 min-w-0 break-words font-medium text-slate-800">{x.subject || 'פגישה'}</p>
+                  <span className="shrink-0 text-sm tabular-nums text-slate-600">{formatDate(x.meeting_date)}</span>
                 </div>
                 {x.summary && (
-                  <p className="mt-1 line-clamp-2 text-sm text-slate-500">{x.summary}</p>
+                  <p className="mt-1 line-clamp-2 break-words text-sm text-slate-600">{x.summary}</p>
                 )}
               </Link>
             ))}
           </div>
         </section>
       )}
-
-      <Link to="/meetings" className="inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline">
-        <ArrowRight size={14} />
-        לכל הפגישות
-      </Link>
 
       {editing && <MeetingFormModal open meeting={m} onClose={() => setEditing(false)} />}
     </div>

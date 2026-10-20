@@ -226,8 +226,8 @@ export function TrainingPanel({ agentId }: { agentId: string }) {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="flex items-center gap-2 text-sm text-slate-500">
-          <GraduationCap size={16} className="text-brand-500" />
+        <p className="flex items-start gap-2 text-sm text-slate-600">
+          <GraduationCap size={16} className="mt-0.5 shrink-0 text-brand-500" aria-hidden />
           לכל שלב מוסיפים השלמה עם תאריך, הערות וקובץ. הכשרה שלא התקדמה {STUCK_DAYS} ימים מסומנת כתקועה. הסוכן רואה את ההתקדמות שלו בדף הבית.
         </p>
         <button className="btn-secondary" onClick={() => setEditing(true)}>
@@ -249,7 +249,7 @@ export function TrainingPanel({ agentId }: { agentId: string }) {
                       <AlertTriangle size={12} /> תקועה {st.daysSince} ימים
                     </span>
                   )}
-                  {st.complete ? <span className="text-emerald-600">הושלם</span> : <span className="text-slate-400">{st.doneCount}/{st.total} שלבים</span>}
+                  {st.complete ? <span className="font-medium text-emerald-700">הושלם</span> : <span className="text-slate-600">{st.doneCount}/{st.total} שלבים</span>}
                 </span>
               </div>
               <ul className="space-y-2">
@@ -261,10 +261,10 @@ export function TrainingPanel({ agentId }: { agentId: string }) {
                         {sp.stage.name}
                       </span>
                       <span className="flex items-center gap-2">
-                        <span className={classNames('text-xs', sp.done ? 'text-emerald-600' : 'text-slate-500')}>
+                        <span className={classNames('text-xs font-medium', sp.done ? 'text-emerald-700' : 'text-slate-600')}>
                           {sp.count}/{sp.stage.required_count}
                         </span>
-                        <button className="btn-secondary !py-0.5 text-xs" onClick={() => setModal({ stage: sp.stage, existing: null })}>
+                        <button className="btn-secondary !px-3 !py-1 text-xs" onClick={() => setModal({ stage: sp.stage, existing: null })}>
                           <Plus size={12} /> השלמה
                         </button>
                       </span>
@@ -277,7 +277,7 @@ export function TrainingPanel({ agentId }: { agentId: string }) {
                         {sp.rows.map((r) => (
                           <button
                             key={r.id}
-                            className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] text-slate-600 hover:bg-slate-100"
+                            className="inline-flex min-h-8 items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs text-slate-700 hover:bg-slate-100"
                             title={r.notes || 'עריכה'}
                             onClick={() => setModal({ stage: sp.stage, existing: r })}
                           >
@@ -294,7 +294,7 @@ export function TrainingPanel({ agentId }: { agentId: string }) {
           )
         })}
       </ul>
-      {allStages.length === 0 && <p className="text-sm text-slate-400">עדיין לא הוגדרו שלבי הכשרה. לחץ על "עריכת שלבים".</p>}
+      {allStages.length === 0 && <p className="text-sm text-slate-600">עדיין לא הוגדרו שלבי הכשרה. לחץ על "עריכת שלבים".</p>}
       {modal && <CompletionModal agentId={agentId} stage={modal.stage} existing={modal.existing} onClose={() => setModal(null)} />}
       {editing && <StagesEditor onClose={() => setEditing(false)} />}
     </div>

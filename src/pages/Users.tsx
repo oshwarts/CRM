@@ -93,7 +93,7 @@ function UsersTab() {
 
   return (
     <div className="space-y-4">
-      {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+      {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
 
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <Stat label="משתמשים פעילים" value={all.filter((u) => u.active).length} />
@@ -103,8 +103,10 @@ function UsersTab() {
 
       <label className="relative block">
         <Search size={18} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <span className="sr-only">חיפוש משתמש</span>
         <input
           type="search"
+          enterKeyHint="search"
           className="input !pr-10"
           placeholder="חיפוש לפי שם או אימייל…"
           value={q}
@@ -115,13 +117,13 @@ function UsersTab() {
       {inactive.length > 0 && (
         <section className="space-y-2">
           <h2 className="text-lg font-semibold text-brand-800">
-            ממתינים לאישור / מושבתים <span className="text-sm font-normal text-slate-400">{inactive.length}</span>
+            ממתינים לאישור / מושבתים <span className="text-sm font-normal text-slate-500">{inactive.length}</span>
           </h2>
           <ul className="space-y-2">
             {inactive.map((u) => (
               <li key={u.id} className="card flex flex-wrap items-center justify-between gap-2 border-amber-200 bg-amber-50/40 p-3">
                 <Who u={u} sub={u.status_changed_at ? 'חשבון מושבת' : `נרשם ${formatDate(u.created_at.slice(0, 10))}`} />
-                <button className="btn-primary" onClick={() => change(u, { active: true })} disabled={update.isPending}>
+                <button className="btn-primary max-sm:w-full" onClick={() => change(u, { active: true })} disabled={update.isPending}>
                   <Check size={16} />
                   {u.status_changed_at ? 'הפעל מחדש' : 'אשר גישה'}
                 </button>
@@ -133,7 +135,7 @@ function UsersTab() {
 
       <section className="space-y-2">
         <h2 className="text-lg font-semibold text-brand-800">
-          משתמשים פעילים <span className="text-sm font-normal text-slate-400">{active.length}</span>
+          משתמשים פעילים <span className="text-sm font-normal text-slate-500">{active.length}</span>
         </h2>
         {active.length === 0 ? (
           <EmptyState title="לא נמצאו משתמשים" />
@@ -142,18 +144,18 @@ function UsersTab() {
             {active.map((u) => {
               const me = u.id === user?.id
               return (
-                <li key={u.id} className="card flex flex-wrap items-center justify-between gap-3 p-3">
+                <li key={u.id} className="card p-3">
                   <Who u={u} me={me} sub={`נרשם ${formatDate(u.created_at.slice(0, 10))} · כניסה אחרונה ${lastSeen(u.id)}`} />
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
                     {u.role === "agent" && (
-                      <label className="flex items-center gap-1.5 text-xs text-slate-600" title="עורך תוכן יכול להוסיף ולערוך שיעורים, שאלות ומקרים בלומדה. מה שהוא כותב מתפרסם אחרי אישור מנהל.">
-                        <input type="checkbox" checked={u.is_content_editor} disabled={update.isPending} onChange={(e) => change(u, { is_content_editor: e.target.checked })} />
+                      <label className="flex min-h-[40px] w-full items-center gap-2 text-sm text-slate-700 sm:w-auto" title="עורך תוכן יכול להוסיף ולערוך שיעורים, שאלות ומקרים בלומדה. מה שהוא כותב מתפרסם אחרי אישור מנהל.">
+                        <input type="checkbox" className="h-5 w-5" checked={u.is_content_editor} disabled={update.isPending} onChange={(e) => change(u, { is_content_editor: e.target.checked })} />
                         עורך תוכן
                       </label>
                     )}
                     {!me && !u.is_developer && (u.role !== 'admin' || isDeveloper) && <ResetLinkButton user={u} />}
                     <select
-                      className="input !w-auto"
+                      className="input !w-auto max-sm:flex-1"
                       aria-label={`הרשאה של ${u.full_name || u.email}`}
                       value={u.role}
                       disabled={me || update.isPending}
@@ -164,7 +166,7 @@ function UsersTab() {
                       <option value="admin">מנהל</option>
                     </select>
                     <button
-                      className={classNames('btn-secondary', !me && 'text-red-600')}
+                      className={classNames('btn-secondary max-sm:flex-1', !me && 'text-red-600')}
                       disabled={me || update.isPending}
                       title={me ? 'לא ניתן להשבית את עצמך' : undefined}
                       onClick={() => {
@@ -192,15 +194,15 @@ function UsersTab() {
 
 function Who({ u, sub, me }: { u: Profile; sub: string; me?: boolean }) {
   return (
-    <div className="min-w-0">
-      <p className="text-sm font-semibold text-slate-800">
+    <div className="min-w-0 flex-1">
+      <p className="text-sm font-semibold text-slate-800 [overflow-wrap:anywhere]">
         {u.full_name || '—'}
         {me && <span className="mr-2 text-xs font-normal text-brand-600">(אתה)</span>}
       </p>
-      <p dir="ltr" className="text-right text-xs text-slate-500">
+      <p dir="ltr" className="text-right text-xs text-slate-600 [overflow-wrap:anywhere]">
         {u.email}
       </p>
-      <p className="text-xs text-slate-400">{sub}</p>
+      <p className="text-xs text-slate-500">{sub}</p>
     </div>
   )
 }
@@ -209,7 +211,7 @@ function Stat({ label, value, warn }: { label: string; value: number; warn?: boo
   return (
     <div className={classNames('card p-2.5 sm:p-3', warn && value > 0 && 'border-amber-300 bg-amber-50')}>
       <p className="text-2xl font-bold text-slate-800">{value}</p>
-      <p className="text-[11px] leading-tight text-slate-500 sm:text-xs">{label}</p>
+      <p className="text-xs leading-tight text-slate-600">{label}</p>
     </div>
   )
 }

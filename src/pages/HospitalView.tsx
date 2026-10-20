@@ -105,17 +105,17 @@ export default function HospitalView() {
   const volumeRows = [...volumes.entries()].filter(([, v]) => v.now > 0 || v.prev > 0).sort((a, b) => b[1].now - a[1].now)
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3 sm:space-y-5">
       <div className="card overflow-hidden">
         <div aria-hidden className="h-1.5 bg-gradient-to-l from-[#00326d] via-[#1863dc] to-[#cc3366]" />
-        <div className="space-y-4 p-5">
-          <div className="flex min-w-0 items-start gap-4">
-            <span className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-[#00326d] text-white">
-              <Building2 size={28} />
+        <div className="space-y-3 p-4 sm:space-y-4 sm:p-5">
+          <div className="flex min-w-0 items-start gap-3 sm:gap-4">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#00326d] text-white sm:h-16 sm:w-16">
+              <Building2 size={22} />
             </span>
             <div className="min-w-0">
-              <h1 className="no-accent text-2xl font-semibold text-brand-800 sm:text-3xl">{h.name}</h1>
-              <p className="text-slate-500">
+              <h1 className="no-accent break-words text-xl font-semibold leading-snug text-brand-800 sm:text-3xl">{h.name}</h1>
+              <p className="text-sm text-slate-500 sm:text-base">
                 {[h.address, h.city].filter(Boolean).join(', ') || '—'}
                 {h.organization ? ` · ${h.organization.name}` : ''}
                 {h.sector ? ` · ${SECTOR_LABELS[h.sector] ?? h.sector}` : ''}
@@ -138,7 +138,7 @@ export default function HospitalView() {
 
           <HospitalActions hospital={h} />
 
-          <div className="flex flex-wrap gap-x-4 gap-y-1.5 border-t border-slate-100 pt-4 text-sm">
+          <div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-slate-100 pt-2 text-sm sm:pt-4">
             <Link to={`/map?hospital=${h.id}`} className="inline-flex items-center gap-1 font-medium text-brand-600 hover:underline">
               <MapIcon size={14} /> הצג במפה
             </Link>
@@ -158,7 +158,7 @@ export default function HospitalView() {
 
       <HospitalCommercial hospital={h} />
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
         <Kpi label="רופאים" value={doctors.length} onClick={() => setTab('doctors')} />
         <Kpi
           label="פגישה אחרונה"
@@ -325,10 +325,10 @@ export default function HospitalView() {
 
 function Kpi({ label, value, hint, warn, onClick }: { label: string; value: string | number; hint?: string; warn?: boolean; onClick: () => void }) {
   return (
-    <button onClick={onClick} className="card p-4 text-right transition hover:border-brand-200">
-      <p className="text-xs text-slate-400">{label}</p>
-      <p className={classNames('mt-1 text-xl font-semibold', warn ? 'text-amber-600' : 'text-brand-800')}>{value}</p>
-      {hint && <p className="text-xs text-slate-400">{hint}</p>}
+    <button type="button" onClick={onClick} className="card px-3 py-2.5 text-right transition hover:border-brand-200 sm:p-4">
+      <p className="text-xs text-slate-500">{label}</p>
+      <p className={classNames('text-lg font-semibold leading-tight sm:mt-1 sm:text-xl', warn ? 'text-amber-700' : 'text-brand-800')}>{value}</p>
+      {hint && <p className="text-xs text-slate-500">{hint}</p>}
     </button>
   )
 }
@@ -336,7 +336,7 @@ function Kpi({ label, value, hint, warn, onClick }: { label: string; value: stri
 function Section({ title, icon: Icon, className, children }: { title: string; icon: typeof Bot; className?: string; children: React.ReactNode }) {
   return (
     <div className={classNames('card p-4', className)}>
-      <p className="mb-2 flex items-center gap-1 text-xs font-medium text-slate-400">
+      <p className="mb-2 flex items-center gap-1 text-sm font-semibold text-slate-600">
         <Icon size={12} /> {title}
       </p>
       {children}

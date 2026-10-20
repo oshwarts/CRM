@@ -152,8 +152,8 @@ export default function Tasks() {
       <li key={t.id}>
         <SwipeToComplete disabled={t.is_done} onComplete={() => markDone(t, true)}>
         <div className={classNames('card p-3', t.priority === 'urgent' && !t.is_done && 'border-r-4 border-r-red-400')}>
-        <div className="flex items-start gap-3">
-          <label className="-m-2 grid shrink-0 cursor-pointer place-items-center p-2">
+        <div className="flex items-start gap-1">
+          <label className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center">
             <input
               type="checkbox"
               className="h-6 w-6 cursor-pointer accent-emerald-600"
@@ -163,13 +163,13 @@ export default function Tasks() {
             />
           </label>
           <div className="min-w-0 flex-1">
-            <button className="block min-h-[32px] w-full text-right" onClick={() => setEditing(t)}>
+            <button className="block min-h-[40px] w-full py-2 text-right" onClick={() => setEditing(t)}>
               <span dir="auto" className={classNames('block whitespace-pre-line break-words text-sm font-medium', t.is_done ? 'text-slate-400 line-through' : 'text-slate-800')}>
                 {t.description}
               </span>
             </button>
-            {t.notes && !t.is_done && <p dir="auto" className="mt-0.5 line-clamp-2 whitespace-pre-line text-xs text-slate-500">{t.notes}</p>}
-            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
+            {t.notes && !t.is_done && <p dir="auto" className="-mt-1 line-clamp-2 whitespace-pre-line text-xs text-slate-500">{t.notes}</p>}
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 pb-1 text-xs">
               {t.due_date && (
                 <span
                   className={classNames(
@@ -227,12 +227,12 @@ export default function Tasks() {
               {t.is_done && t.done_at && <span className="text-slate-400">בוצע {formatDate(t.done_at.slice(0, 10))}</span>}
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-0.5">
-            <button className="btn-ghost !px-2" onClick={() => setEditing(t)} aria-label="עריכה">
+          <div className="flex shrink-0 items-center">
+            <button className="btn-ghost hidden !px-2 sm:inline-flex" onClick={() => setEditing(t)} aria-label="עריכה">
               <Pencil size={15} />
             </button>
             <button
-              className="btn-ghost !px-2 text-slate-500"
+              className="btn-ghost !gap-1 !px-2 text-slate-600"
               onClick={() =>
                 setOpen((s) => {
                   const n = new Set(s)
@@ -241,7 +241,8 @@ export default function Tasks() {
                   return n
                 })
               }
-              aria-label="שלבים"
+              aria-expanded={expanded}
+              aria-label={total > 0 ? `שלבים, ${done} מתוך ${total}` : 'שלבים'}
             >
               {total > 0 && <span className="text-xs">{done}/{total}</span>}
               {expanded ? <ChevronDown size={16} /> : <ChevronLeft size={16} />}
@@ -250,18 +251,18 @@ export default function Tasks() {
         </div>
 
         {total > 0 && (
-          <div className="mr-9 mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+          <div className="mr-11 mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
             <div className="h-full bg-emerald-500 transition-all" style={{ width: `${(done / total) * 100}%` }} />
           </div>
         )}
 
         {expanded && (
-          <div className="mr-9 mt-2 space-y-1.5">
+          <div className="mr-11 mt-2 space-y-1">
             {t.subtasks.map((s) => (
-              <label key={s.id} className="flex items-center gap-2 text-sm">
+              <label key={s.id} className="flex min-h-[36px] items-center gap-2 text-sm">
                 <input
                   type="checkbox"
-                  className="h-5 w-5 accent-emerald-600"
+                  className="h-5 w-5 shrink-0 accent-emerald-600"
                   checked={s.is_done}
                   onChange={(e) => toggleSub.mutate({ id: s.id, is_done: e.target.checked }, { onError: fail })}
                 />
@@ -285,6 +286,8 @@ export default function Tasks() {
               <input
                 className="input !py-1.5 text-sm"
                 dir="auto"
+                aria-label="שלב חדש"
+                enterKeyHint="done"
                 placeholder="הוסף שלב…"
                 value={subText[t.id] ?? ''}
                 onChange={(e) => setSubText((x) => ({ ...x, [t.id]: e.target.value }))}
@@ -308,8 +311,9 @@ export default function Tasks() {
     <button
       key={label}
       onClick={onClick}
+      aria-pressed={active}
       className={classNames(
-        'chip shrink-0 transition',
+        'chip shrink-0 !py-1.5 transition',
         active ? 'border-brand-500 bg-brand-500 text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
       )}
     >
@@ -319,24 +323,24 @@ export default function Tasks() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
           <h1 className="flex items-center gap-2 text-2xl font-semibold text-brand-800 sm:text-3xl">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#00326d] text-white"><ListChecks size={20} /></span>
             משימות
           </h1>
-          <p className="text-sm text-slate-400">
-            {myOpen} משימות פתוחות שלי{isAdmin ? ' · כמנהל אתה רואה ויכול להקצות משימות לסוכנים' : ''}
+          <p className="text-sm text-slate-500">
+            {myOpen} משימות פתוחות שלי
           </p>
         </div>
-        <button className="btn-primary" onClick={() => setAdding(true)}>
+        <button className="btn-secondary shrink-0" onClick={() => setAdding(true)}>
           <Plus size={16} />
           משימה חדשה
         </button>
       </div>
 
       <form
-        className="card flex gap-2 p-2"
+        className="card flex items-center gap-2 p-2"
         onSubmit={(e) => {
           e.preventDefault()
           addQuick()
@@ -345,11 +349,13 @@ export default function Tasks() {
         <input
           className="input !border-0 !shadow-none"
           dir="auto"
-          placeholder="הוספה מהירה — כתוב משימה ולחץ Enter"
+          aria-label="הוספה מהירה של משימה"
+          enterKeyHint="done"
+          placeholder="משימה חדשה — כתוב ולחץ הוסף"
           value={quickText}
           onChange={(e) => setQuickText(e.target.value)}
         />
-        <button className="btn-primary" disabled={!quickText.trim() || quick.isPending}>
+        <button className="btn-primary shrink-0" disabled={!quickText.trim() || quick.isPending}>
           <Plus size={16} />
           הוסף
         </button>
@@ -368,30 +374,31 @@ export default function Tasks() {
       <div className="card space-y-3 p-3">
         <label className="relative block">
           <Search size={18} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input type="search" className="input !pr-10" placeholder="חיפוש במשימות, רופא, בית חולים…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input type="search" className="input !pr-10" aria-label="חיפוש במשימות" placeholder="חיפוש: משימה, רופא, בית חולים…" value={q} onChange={(e) => setQ(e.target.value)} />
         </label>
-        <div className="-mx-1 flex flex-wrap items-center gap-1.5 px-1">
+        {isAdmin && (
+          <select className="input !py-1.5 text-sm sm:!w-auto" value={who} onChange={(e) => setWho(e.target.value)} aria-label="משימות של">
+            <option value="me">המשימות שלי</option>
+            <option value="all">כל הסוכנים</option>
+            {(agents.data ?? [])
+              .filter((a) => a.id !== user?.id)
+              .map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.full_name || a.email}
+                </option>
+              ))}
+          </select>
+        )}
+ 
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
           {chip(status === 'open', 'פתוחות', () => setStatus('open'))}
           {chip(status === 'done', 'בוצעו', () => setStatus('done'))}
           {chip(status === 'all', 'הכול', () => setStatus('all'))}
           {chip(urgentOnly, 'דחוף בלבד', () => setUrgentOnly((v) => !v))}
-          {isAdmin && (
-            <select className="input !w-auto !py-1.5 text-sm" value={who} onChange={(e) => setWho(e.target.value)} aria-label="משימות של">
-              <option value="me">המשימות שלי</option>
-              <option value="all">כל הסוכנים</option>
-              {(agents.data ?? [])
-                .filter((a) => a.id !== user?.id)
-                .map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.full_name || a.email}
-                  </option>
-                ))}
-            </select>
-          )}
-        </div>
+       </div>
       </div>
 
-      {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+      {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
 
       {list.length === 0 ? (
         <EmptyState

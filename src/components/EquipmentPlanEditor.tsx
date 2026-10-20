@@ -40,16 +40,14 @@ export function EquipmentPlanEditor({
     return (
       <EmptyState
         title="בחר תחילה הליכים"
-        hint="הוסף הליכים בטאב 'הליכים' כדי להגדיר את הציוד הנדרש לכל אחד"
+        hint="הוסף הליכים בעריכת פרטי הרופא כדי להגדיר את הציוד הנדרש לכל אחד"
       />
     )
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <p className="text-sm text-slate-500">
-        לכל הליך – רשימת הציוד הנדרש. סמן ✓ בעמודת "לפי כמות" לפריטים שכמותם
-        גדלה עם מספר הניתוחים (שתלים, חד־פעמי); בטל את הסימון לפריט בכמות קבועה
-        (מגש מכשירים).
+        לכל הליך – רשימת הציוד הנדרש. סמן "לפי כמות" לפריטים שכמותם גדלה עם מספר הניתוחים (שתלים, חד־פעמי); בלי הסימון הפריט הוא בכמות קבועה (מגש מכשירים).
       </p>
 
       {catalog.data && catalog.data.length === 0 && (
@@ -115,99 +113,85 @@ function ProcedureEquipment({
   const available = catalog.filter((c) => !usedItemIds.includes(c.id))
 
   return (
-    <div className="card p-4">
-      <p className="mb-2 font-semibold text-slate-800">{procedure.name}</p>
+    <section className="card p-3 sm:p-4">
+      <h2 className="mb-2 break-words font-semibold text-slate-800">{procedure.name}</h2>
 
       {rows.length === 0 ? (
-        <p className="mb-2 text-sm text-slate-400">לא הוגדר ציוד להליך זה</p>
+        <p className="mb-2 text-sm text-slate-500">לא הוגדר ציוד להליך זה</p>
       ) : (
-        <div tabIndex={0} className="overflow-x-auto">
-          <table className="w-full min-w-[440px] text-sm">
-            <thead>
-              <tr className="text-slate-400">
-                <th className="p-1.5 text-right font-medium">פריט</th>
-                <th className="p-1.5 text-center font-medium">מק״ט</th>
-                <th className="p-1.5 text-center font-medium">כמות לניתוח</th>
-                <th className="p-1.5 text-center font-medium">לפי כמות</th>
-                <th className="p-1.5" />
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.id} className="border-t border-slate-100">
-                  <td className="p-1.5 text-slate-700">
-                    {r.item ? (
-                      <button className="text-right font-medium hover:text-brand-600 hover:underline" onClick={() => onView(r.item as EquipmentItemWithCompany)}>
-                        {r.item.name}
-                        {(itemImages(r.item).length > 0 || r.item.parts?.length > 0) && (
-                          <span className="mr-1.5 text-xs font-normal text-brand-500">
-                            {r.item.parts?.length > 0 ? `${r.item.parts.length} מק״טים` : 'תמונה'}
-                          </span>
-                        )}
-                      </button>
-                    ) : null}
-                    {r.item?.company?.name && (
-                      <span className="mr-1 text-xs text-slate-400">
-                        {r.item.company.name}
-                      </span>
-                    )}
-                  </td>
-                  <td className="p-1.5 text-center text-xs text-slate-400" dir="ltr">
-                    {r.item?.catalog_number || '—'}
-                  </td>
-                  <td className="p-1.5 text-center">
-                    <input
-                      type="number"
-                      min={1}
-                      className="input w-16 py-1 text-center"
-                      defaultValue={r.qty_per_case}
-                      onBlur={(e) => {
-                        const qty = Math.max(1, Number(e.target.value) || 1)
-                        if (qty !== r.qty_per_case)
-                          onUpdate({
-                            id: r.id,
-                            procedure_id: r.procedure_id,
-                            item_id: r.item_id,
-                            qty_per_case: qty,
-                            scales_with_cases: r.scales_with_cases,
-                          })
-                      }}
-                    />
-                  </td>
-                  <td className="p-1.5 text-center">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4"
-                      checked={r.scales_with_cases}
-                      onChange={(e) =>
+        <ul className="divide-y divide-slate-100">
+          {rows.map((r) => (
+            <li key={r.id} className="space-y-2 py-3 first:pt-0">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1 text-sm">
+                  {r.item ? (
+                    <button className="break-words text-right font-medium text-slate-800 hover:text-brand-600 hover:underline" onClick={() => onView(r.item as EquipmentItemWithCompany)}>
+                      {r.item.name}
+                    </button>
+                  ) : null}
+                  <p className="break-words text-xs text-slate-500">
+                    {[
+                      r.item?.catalog_number,
+                      r.item?.company?.name,
+                      r.item && r.item.parts?.length > 0 ? `${r.item.parts.length} מק״טים` : r.item && itemImages(r.item).length > 0 ? 'יש תמונה' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </p>
+                </div>
+                <ConfirmButton className="btn-ghost shrink-0 !px-2.5 text-red-600" onConfirm={() => onDelete(r.id)}>
+                  <Trash2 size={16} />
+                </ConfirmButton>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <label className="flex items-center gap-2 text-sm text-slate-600">
+                  כמות לניתוח
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    className="input !w-16 py-1 text-center"
+                    defaultValue={r.qty_per_case}
+                    onBlur={(e) => {
+                      const qty = Math.max(1, Number(e.target.value) || 1)
+                      if (qty !== r.qty_per_case)
                         onUpdate({
                           id: r.id,
                           procedure_id: r.procedure_id,
                           item_id: r.item_id,
-                          qty_per_case: r.qty_per_case,
-                          scales_with_cases: e.target.checked,
+                          qty_per_case: qty,
+                          scales_with_cases: r.scales_with_cases,
                         })
-                      }
-                    />
-                  </td>
-                  <td className="p-1.5 text-center">
-                    <ConfirmButton
-                      className="btn-ghost !px-2 text-red-500"
-                      onConfirm={() => onDelete(r.id)}
-                    >
-                      <Trash2 size={14} />
-                    </ConfirmButton>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                    }}
+                  />
+                </label>
+                <label className="flex min-h-9 cursor-pointer items-center gap-2 text-sm text-slate-600">
+                  <input
+                    type="checkbox"
+                    className="h-5 w-5"
+                    checked={r.scales_with_cases}
+                    onChange={(e) =>
+                      onUpdate({
+                        id: r.id,
+                        procedure_id: r.procedure_id,
+                        item_id: r.item_id,
+                        qty_per_case: r.qty_per_case,
+                        scales_with_cases: e.target.checked,
+                      })
+                    }
+                  />
+                  לפי כמות
+                </label>
+              </div>
+            </li>
+          ))}
+        </ul>
       )}
 
       <div className="mt-2 flex gap-2">
         <select
-          className="input"
+          className="input min-w-0 flex-1"
+          aria-label={`הוספת פריט להליך ${procedure.name}`}
           value={toAdd}
           onChange={(e) => setToAdd(e.target.value)}
         >
@@ -231,6 +215,6 @@ function ProcedureEquipment({
           הוסף
         </button>
       </div>
-    </div>
+    </section>
   )
 }

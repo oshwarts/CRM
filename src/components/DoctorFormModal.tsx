@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import {
   useCompanies,
@@ -25,6 +25,7 @@ import {
   Tabs,
 } from './ui'
 import { ImportContactButton } from './ImportContactButton'
+import { CADENCE_LABELS } from '../lib/cadence'
 
 type Props = {
   open: boolean
@@ -73,6 +74,7 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
   const [tab, setTab] = useState('general')
   const [data, setData] = useState<DoctorFormData>(() => initialData(doctor))
   const [error, setError] = useState<string | null>(null)
+  const nameRef = useRef<HTMLInputElement>(null)
 
   const { names: stageNames } = usePipelineStages()
   const companies = useCompanies()
@@ -114,6 +116,8 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
     if (!data.name.trim()) {
       setTab('general')
       setTriedSave(true)
+      // the name field is on the first tab: bring the cursor back to it
+      setTimeout(() => nameRef.current?.focus(), 0)
       return
     }
     try {
@@ -135,217 +139,237 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
       title={isEdit ? 'עריכת רופא' : 'הוספת רופא חדש'}
       size="xl"
     >
-      <Tabs value={tab} onChange={setTab}>
-        <TabList>
-          <Tab id="general">פרטים כלליים</Tab>
-          <Tab id="hospitals">בתי חולים</Tab>
-          <Tab id="procedures">הליכים</Tab>
-          <Tab id="preop">תכנון טרום ניתוחי</Tab>
-        </TabList>
+      <form
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault()
+          void submit()
+        }}
+      >
+        <Tabs value={tab} onChange={setTab}>
+          <TabList>
+            <Tab id="general">פרטים כלליים</Tab>
+            <Tab id="hospitals">בתי חולים{data.hospitals.length > 0 ? ` (${data.hospitals.length})` : ''}</Tab>
+            <Tab id="procedures">הליכים{data.procedureIds.length > 0 ? ` (${data.procedureIds.length})` : ''}</Tab>
+          </TabList>
 
-        <TabPanel id="general">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="שם הרופא" error={triedSave && !data.name.trim() ? 'יש להזין שם רופא' : undefined}>
-              <input
-                className="input"
-                value={data.name}
-                onChange={(e) => patch({ name: e.target.value })}
-                placeholder="הזן שם הרופא"
-              />
-            </Field>
-            <Field label="תואר">
-              <select
-                className="input"
-                value={data.title}
-                onChange={(e) => patch({ title: e.target.value })}
-              >
-                {TITLES.map((t) => (
-                  <option key={t}>{t}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="תפקיד">
-              <input
-                className="input"
-                value={data.position}
-                onChange={(e) => patch({ position: e.target.value })}
-                placeholder="לדוגמה: מנהל מחלקת אורתופדיה"
-              />
-            </Field>
-            <div className="sm:col-span-2">
-              <ImportContactButton
-                onPick={(c) =>
-                  patch({
-                    name: data.name || c.name,
-                    phone: c.phone || data.phone,
-                    email: c.email || data.email,
-                  })
-                }
-              />
-            </div>
-            <Field label="טלפון">
-              <input
-                dir="ltr"
-                className="input text-right"
-                value={data.phone}
-                onChange={(e) => patch({ phone: e.target.value })}
-                placeholder="הזן מספר טלפון"
-              />
-            </Field>
-            <Field label="אימייל">
-              <input
-                dir="ltr"
-                className="input text-right"
-                value={data.email}
-                onChange={(e) => patch({ email: e.target.value })}
-              />
-            </Field>
-            <Field label="סטטוס">
-              <select
-                className="input"
-                value={data.status}
-                onChange={(e) => patch({ status: e.target.value })}
-              >
-                {Object.entries(DOCTOR_STATUS_LABELS).map(([v, l]) => (
-                  <option key={v} value={v}>
-                    {l}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
-            {data.status === 'potential' && (
-              <>
-                <Field label="שלב בתהליך">
-                  <select className="input" value={data.pipeline_stage} onChange={(e) => patch({ pipeline_stage: e.target.value })}>
-                    <option value="">לא הוגדר</option>
-                    {(stageNames.includes(data.pipeline_stage) || !data.pipeline_stage ? stageNames : [data.pipeline_stage, ...stageNames]).map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="הצעד הבא">
-                  <input className="input" dir="auto" value={data.next_step} onChange={(e) => patch({ next_step: e.target.value })} placeholder="לדוגמה: להציג את המערכת בישיבת המחלקה" />
-                </Field>
-                <Field label="תאריך צעד הבא">
-                  <input
-                    type="date"
-                    className="input"
-                    value={data.next_step_date ?? ''}
-                    onChange={(e) =>
-                      patch({ next_step_date: e.target.value || null })
-                    }
-                  />
-                </Field>
-              </>
-            )}
-
-            <Field label="קצב קשר רצוי עם הרופא">
-              <select
-                className="input"
-                value={data.contact_cadence_days ?? ''}
-                onChange={(e) => patch({ contact_cadence_days: e.target.value ? Number(e.target.value) : null })}
-              >
-                <option value="">ללא (לא נעקב)</option>
-                <option value="7">כל שבוע</option>
-                <option value="14">כל שבועיים</option>
-                <option value="30">כל חודש</option>
-                <option value="60">כל חודשיים</option>
-                <option value="90">כל 3 חודשים</option>
-              </select>
-            </Field>
-
-            <Field
-              label={
-                data.status === 'potential'
-                  ? 'הערות מעקב (התהליך מול הרופא)'
-                  : 'הערות מעקב'
-              }
-              className="sm:col-span-2"
-            >
-              <textarea
-                className="input min-h-20"
-                value={data.tracking_notes}
-                onChange={(e) => patch({ tracking_notes: e.target.value })}
-                placeholder="איפה עומד התהליך, מה הצעד הבא…"
-              />
-            </Field>
-            <Field label="הערות כלליות" className="sm:col-span-2">
-              <textarea
-                className="input min-h-20"
-                value={data.notes}
-                onChange={(e) => patch({ notes: e.target.value })}
-              />
-            </Field>
-            <Field label="חברות" className="sm:col-span-2">
-              <MultiSelectChips
-                options={companies.data ?? []}
-                selected={data.companyIds}
-                onToggle={(id) => toggleId('companyIds', id)}
-                labelOf={(c) => c.name}
-              />
-            </Field>
-            <Field label="רובוטיקה בשימוש" className="sm:col-span-2">
-              <MultiSelectChips
-                options={roboticSystems.data ?? []}
-                selected={data.roboticSystemIds}
-                onToggle={(id) => toggleId('roboticSystemIds', id)}
-                labelOf={(r) => r.name}
-              />
-            </Field>
-          </div>
-        </TabPanel>
-
-        <TabPanel id="hospitals">
-          <p className="text-sm text-slate-500">
-            לרופא יכולים להיות מספר בתי חולים (למשל ציבורי ופרטי).
-          </p>
-          <div className="space-y-3">
-            {data.hospitals.map((h, i) => (
-              <div
-                key={i}
-                className="grid gap-3 rounded-xl border border-slate-200 p-3 sm:grid-cols-[1fr_1fr_auto]"
-              >
+          <TabPanel id="general">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-3.5 sm:gap-4">
+              <Field label="שם הרופא" className="col-span-2 sm:col-span-1" error={triedSave && !data.name.trim() ? 'יש להזין שם רופא' : undefined}>
+                <input
+                  ref={nameRef}
+                  className="input"
+                  autoComplete="off"
+                  enterKeyHint="next"
+                  value={data.name}
+                  onChange={(e) => patch({ name: e.target.value })}
+                  placeholder="הזן שם הרופא"
+                />
+              </Field>
+              <Field label="תואר" className="sm:col-span-1">
                 <select
                   className="input"
-                  value={h.hospital_id}
-                  onChange={(e) => {
-                    const next = [...data.hospitals]
-                    next[i] = { ...h, hospital_id: e.target.value }
-                    patch({ hospitals: next })
-                  }}
+                  value={data.title}
+                  onChange={(e) => patch({ title: e.target.value })}
                 >
-                  <option value="">בחר בית חולים…</option>
-                  {availableHospitals
-                    .filter(
-                      (opt) =>
-                        opt.id === h.hospital_id ||
-                        !usedHospitalIds.includes(opt.id),
-                    )
-                    .map((opt) => (
-                      <option key={opt.id} value={opt.id}>
-                        {opt.name}
-                        {opt.city ? ` – ${opt.city}` : ''}
-                      </option>
-                    ))}
+                  {TITLES.map((t) => (
+                    <option key={t}>{t}</option>
+                  ))}
                 </select>
+              </Field>
+              <Field label="סטטוס">
+                <select
+                  className="input"
+                  value={data.status}
+                  onChange={(e) => patch({ status: e.target.value })}
+                >
+                  {Object.entries(DOCTOR_STATUS_LABELS).map(([v, l]) => (
+                    <option key={v} value={v}>
+                      {l}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="תפקיד" className="col-span-2">
                 <input
                   className="input"
-                  placeholder="תפקיד בבית החולים"
-                  value={h.role_at_hospital}
-                  onChange={(e) => {
-                    const next = [...data.hospitals]
-                    next[i] = { ...h, role_at_hospital: e.target.value }
-                    patch({ hospitals: next })
-                  }}
+                  autoComplete="off"
+                  enterKeyHint="next"
+                  value={data.position}
+                  onChange={(e) => patch({ position: e.target.value })}
+                  placeholder="לדוגמה: מנהל מחלקת אורתופדיה"
                 />
-                <div className="flex items-center gap-2">
-                  {/* public / private belongs to the hospital — changed only in Settings */}
-                  {(() => {
-                    const sector = availableHospitals.find((o) => o.id === h.hospital_id)?.sector
-                    return (
+              </Field>
+              <Field label="טלפון" className="col-span-2 sm:col-span-1">
+                <input
+                  dir="ltr"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="off"
+                  className="input text-right"
+                  value={data.phone}
+                  onChange={(e) => patch({ phone: e.target.value })}
+                  placeholder="הזן מספר טלפון"
+                />
+              </Field>
+              <Field label="אימייל" className="col-span-2 sm:col-span-1">
+                <input
+                  dir="ltr"
+                  type="email"
+                  inputMode="email"
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  className="input text-right"
+                  value={data.email}
+                  onChange={(e) => patch({ email: e.target.value })}
+                />
+              </Field>
+              <div className="col-span-2">
+                <ImportContactButton
+                  onPick={(c) =>
+                    patch({
+                      name: data.name || c.name,
+                      phone: c.phone || data.phone,
+                      email: c.email || data.email,
+                    })
+                  }
+                />
+              </div>
+
+              {data.status === 'potential' && (
+                <div className="col-span-2 grid grid-cols-2 gap-x-3 gap-y-3.5 rounded-xl border border-amber-200 bg-amber-50/50 p-3 sm:gap-4">
+                  <Field label="שלב בתהליך" className="col-span-2 sm:col-span-1">
+                    <select className="input" value={data.pipeline_stage} onChange={(e) => patch({ pipeline_stage: e.target.value })}>
+                      <option value="">לא הוגדר</option>
+                      {(stageNames.includes(data.pipeline_stage) || !data.pipeline_stage ? stageNames : [data.pipeline_stage, ...stageNames]).map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="תאריך צעד הבא" className="col-span-2 sm:col-span-1">
+                    <input
+                      type="date"
+                      className="input"
+                      value={data.next_step_date ?? ''}
+                      onChange={(e) =>
+                        patch({ next_step_date: e.target.value || null })
+                      }
+                    />
+                  </Field>
+                  <Field label="הצעד הבא" className="col-span-2">
+                    <input className="input" dir="auto" enterKeyHint="next" value={data.next_step} onChange={(e) => patch({ next_step: e.target.value })} placeholder="לדוגמה: להציג את המערכת בישיבת המחלקה" />
+                  </Field>
+                </div>
+              )}
+
+              <Field label="קצב קשר רצוי עם הרופא" className="col-span-2 sm:col-span-1">
+                <select
+                  className="input"
+                  value={data.contact_cadence_days ?? ''}
+                  onChange={(e) => patch({ contact_cadence_days: e.target.value ? Number(e.target.value) : null })}
+                >
+                  <option value="">ללא (לא נעקב)</option>
+                  {Object.entries(CADENCE_LABELS).map(([days, label]) => (
+                    <option key={days} value={days}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field
+                label={
+                  data.status === 'potential'
+                    ? 'הערות מעקב (התהליך מול הרופא)'
+                    : 'הערות מעקב'
+                }
+                className="col-span-2"
+              >
+                <textarea
+                  className="input min-h-20"
+                  value={data.tracking_notes}
+                  onChange={(e) => patch({ tracking_notes: e.target.value })}
+                  placeholder="איפה עומד התהליך, מה הצעד הבא…"
+                />
+              </Field>
+              <Field label="הערות כלליות" className="col-span-2">
+                <textarea
+                  className="input min-h-20"
+                  value={data.notes}
+                  onChange={(e) => patch({ notes: e.target.value })}
+                />
+              </Field>
+              <Field label="חברות" className="col-span-2">
+                <MultiSelectChips
+                  options={companies.data ?? []}
+                  selected={data.companyIds}
+                  onToggle={(id) => toggleId('companyIds', id)}
+                  labelOf={(c) => c.name}
+                />
+              </Field>
+              <Field label="רובוטיקה בשימוש" className="col-span-2">
+                <MultiSelectChips
+                  options={roboticSystems.data ?? []}
+                  selected={data.roboticSystemIds}
+                  onToggle={(id) => toggleId('roboticSystemIds', id)}
+                  labelOf={(r) => r.name}
+                />
+              </Field>
+            </div>
+          </TabPanel>
+
+          <TabPanel id="hospitals">
+            <p className="text-sm text-slate-600">
+              לרופא יכולים להיות מספר בתי חולים (למשל ציבורי ופרטי).
+            </p>
+            <div className="space-y-3">
+              {data.hospitals.length === 0 && (
+                <p className="rounded-xl border border-dashed border-slate-300 p-4 text-center text-sm text-slate-500">עוד לא נבחר בית חולים</p>
+              )}
+              {data.hospitals.map((h, i) => {
+                const sector = availableHospitals.find((o) => o.id === h.hospital_id)?.sector
+                return (
+                  <div key={i} className="grid gap-2.5 rounded-xl border border-slate-200 p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-center">
+                    <select
+                      className="input"
+                      aria-label={`בית חולים ${i + 1}`}
+                      value={h.hospital_id}
+                      onChange={(e) => {
+                        const next = [...data.hospitals]
+                        next[i] = { ...h, hospital_id: e.target.value }
+                        patch({ hospitals: next })
+                      }}
+                    >
+                      <option value="">בחר בית חולים…</option>
+                      {availableHospitals
+                        .filter(
+                          (opt) =>
+                            opt.id === h.hospital_id ||
+                            !usedHospitalIds.includes(opt.id),
+                        )
+                        .map((opt) => (
+                          <option key={opt.id} value={opt.id}>
+                            {opt.name}
+                            {opt.city ? ` – ${opt.city}` : ''}
+                          </option>
+                        ))}
+                    </select>
+                    <input
+                      className="input"
+                      aria-label={`תפקיד בבית חולים ${i + 1}`}
+                      autoComplete="off"
+                      placeholder="תפקיד בבית החולים"
+                      value={h.role_at_hospital}
+                      onChange={(e) => {
+                        const next = [...data.hospitals]
+                        next[i] = { ...h, role_at_hospital: e.target.value }
+                        patch({ hospitals: next })
+                      }}
+                    />
+                    <div className="flex items-center justify-between gap-2">
+                      {/* public / private belongs to the hospital — changed only in Settings */}
                       <span
                         className={
                           'chip shrink-0 ' +
@@ -353,100 +377,94 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
                             ? 'border-violet-200 bg-violet-50 text-violet-700'
                             : sector
                               ? 'border-sky-200 bg-sky-50 text-sky-700'
-                              : 'border-slate-200 bg-slate-50 text-slate-400')
+                              : 'border-slate-200 bg-slate-50 text-slate-500')
                         }
                         title="נקבע לפי בית החולים — ניתן לשינוי בהגדרות"
                       >
-                        {sector ? (SECTOR_LABELS[sector] ?? sector) : '—'}
+                        {sector ? (SECTOR_LABELS[sector] ?? sector) : 'ציבורי / פרטי'}
                       </span>
-                    )
-                  })()}
-                  <button
-                    type="button"
-                    className="btn-ghost !px-2 text-red-500"
-                    onClick={() =>
-                      patch({
-                        hospitals: data.hospitals.filter((_, x) => x !== i),
-                      })
-                    }
+                      <button
+                        type="button"
+                        className="btn-ghost !px-2 text-red-600"
+                        aria-label={`הסר את בית חולים ${i + 1}`}
+                        title="הסר"
+                        onClick={() =>
+                          patch({
+                            hospitals: data.hospitals.filter((_, x) => x !== i),
+                          })
+                        }
+                      >
+                        <Trash2 size={16} />
+                        <span className="text-sm sm:hidden">הסר</span>
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+              <button
+                type="button"
+                className="btn-secondary max-sm:w-full"
+                onClick={() =>
+                  patch({
+                    hospitals: [
+                      ...data.hospitals,
+                      { hospital_id: '', role_at_hospital: '', sector: 'public' },
+                    ],
+                  })
+                }
+              >
+                <Plus size={16} />
+                הוסף בית חולים
+              </button>
+            </div>
+          </TabPanel>
+
+          <TabPanel id="procedures">
+            <p className="text-sm text-slate-600">
+              סמן את ההליכים שהרופא מבצע. כמויות מקרים שנתיות ותכנון טרום־ניתוחי (העדפות מנתח, גישה וציוד לכל הליך) נערכים בכרטיס הרופא לאחר השמירה.
+            </p>
+            <div className="space-y-1">
+              {(procedures.data ?? []).map((p) => {
+                const on = data.procedureIds.includes(p.id)
+                return (
+                  <label
+                    key={p.id}
+                    className="flex min-h-[40px] items-center gap-3 rounded-lg px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
                   >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              </div>
-            ))}
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={() =>
-                patch({
-                  hospitals: [
-                    ...data.hospitals,
-                    { hospital_id: '', role_at_hospital: '', sector: 'public' },
-                  ],
-                })
-              }
-            >
-              <Plus size={16} />
-              הוסף בית חולים
-            </button>
-          </div>
-        </TabPanel>
+                    <input
+                      type="checkbox"
+                      className="h-5 w-5 shrink-0"
+                      checked={on}
+                      onChange={() => toggleProcedure(p.id)}
+                    />
+                    {p.name}
+                    {p.is_mako && (
+                      <span className="chip border-brand-200 bg-brand-50 text-brand-600">
+                        MAKO
+                      </span>
+                    )}
+                  </label>
+                )
+              })}
+            </div>
+          </TabPanel>
+        </Tabs>
 
-        <TabPanel id="procedures">
-          <p className="text-sm text-slate-500">
-            סמן את ההליכים שהרופא מבצע. כמויות מקרים שנתיות נערכות בטאב "כמויות
-            מקרים" בכרטיס הרופא לאחר השמירה.
+        {error && (
+          <p role="alert" className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+            {error}
           </p>
-          <div className="space-y-1">
-            {(procedures.data ?? []).map((p) => {
-              const on = data.procedureIds.includes(p.id)
-              return (
-                <label
-                  key={p.id}
-                  className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
-                >
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4"
-                    checked={on}
-                    onChange={() => toggleProcedure(p.id)}
-                  />
-                  {p.name}
-                  {p.is_mako && (
-                    <span className="chip border-brand-200 bg-brand-50 text-brand-600">
-                      MAKO
-                    </span>
-                  )}
-                </label>
-              )
-            })}
-          </div>
-        </TabPanel>
+        )}
 
-        <TabPanel id="preop">
-          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-500">
-            תכנון טרום־ניתוחי לרובוט MAKO (לפי הליך – ברך / ירך): העדפות מנתח,
-            גישה ניתוחית וציוד נדרש – נערך בכרטיס הרופא לאחר השמירה, שם ניתן
-            להוסיף תוכנית נפרדת לכל הליך.
-          </div>
-        </TabPanel>
-      </Tabs>
-
-      {error && (
-        <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
-          {error}
-        </p>
-      )}
-
-      <div className="mt-5 flex justify-end gap-2 border-t border-slate-200 pt-4">
-        <button className="btn-secondary" onClick={onClose}>
-          ביטול
-        </button>
-        <button className="btn-primary" onClick={submit} disabled={saving}>
-          {saving ? 'שומר…' : 'שמירה'}
-        </button>
-      </div>
+        <div className="mt-5 flex justify-end gap-2 border-t border-slate-200 pt-4">
+          <button type="button" className="btn-secondary" onClick={onClose}>
+            ביטול
+          </button>
+          <button type="submit" className="btn-primary max-sm:flex-1" disabled={saving}>
+            {saving ? 'שומר…' : 'שמירה'}
+          </button>
+        </div>
+      </form>
     </Modal>
   )
 }

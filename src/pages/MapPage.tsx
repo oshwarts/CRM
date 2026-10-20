@@ -191,14 +191,14 @@ export default function MapPage({ embedded, pinColor }: { embedded?: boolean; pi
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        {!embedded && (
-          <div>
-            <h1 className="text-2xl font-semibold text-brand-800 sm:text-3xl">בתי חולים</h1>
-            <p className="text-sm text-slate-400">לחיצה על בית חולים מציגה את הרופאים, הסוכן המטפל והרובוטיקה</p>
-          </div>
-        )}
-        <label className="relative block w-full sm:w-64">
+      {!embedded && (
+        <div>
+          <h1 className="text-2xl font-semibold text-brand-800 sm:text-3xl">בתי חולים</h1>
+          <p className="text-sm text-slate-500">לחיצה על בית חולים מציגה את הרופאים, הסוכן המטפל והרובוטיקה</p>
+        </div>
+      )}
+      <div className="grid grid-cols-2 items-end gap-2 sm:flex sm:flex-wrap">
+        <label className="relative col-span-2 block sm:w-64">
           <Search
             size={16}
             className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
@@ -207,6 +207,7 @@ export default function MapPage({ embedded, pinColor }: { embedded?: boolean; pi
             type="search"
             className="input !pr-9"
             placeholder="חיפוש בית חולים לפי שם"
+            aria-label="חיפוש בית חולים לפי שם"
             value={query}
             onChange={(e) => {
               setQuery(e.target.value)
@@ -215,7 +216,8 @@ export default function MapPage({ embedded, pinColor }: { embedded?: boolean; pi
           />
         </label>
         <select
-          className="input max-w-48"
+          className="input min-w-0 sm:max-w-48"
+          aria-label="ארגון"
           value={orgFilter}
           onChange={(e) => setOrgFilter(e.target.value)}
         >
@@ -227,7 +229,7 @@ export default function MapPage({ embedded, pinColor }: { embedded?: boolean; pi
           ))}
         </select>
         {robotNames.length > 0 && (
-          <select className="input max-w-48" value={robotFilter} onChange={(e) => setRobotFilter(e.target.value)}>
+          <select className="input min-w-0 sm:max-w-48" aria-label="רובוט" value={robotFilter} onChange={(e) => setRobotFilter(e.target.value)}>
             <option value="">כל הרובוטים</option>
             {robotNames.map((n) => (
               <option key={n} value={n}>
@@ -269,7 +271,7 @@ export default function MapPage({ embedded, pinColor }: { embedded?: boolean; pi
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
-        <div className="card h-[50vh] min-h-[300px] overflow-hidden lg:h-[560px]">
+        <div className="card h-[45vh] min-h-[280px] overflow-hidden lg:h-[560px]">
           <MapContainer
             center={[31.6, 34.95]}
             zoom={8}
@@ -336,10 +338,10 @@ export default function MapPage({ embedded, pinColor }: { embedded?: boolean; pi
                 <button
                   key={h.id}
                   onClick={() => setSelectedId(h.id)}
-                  className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-right text-sm hover:bg-slate-50"
+                  className="flex min-h-12 w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-right text-sm hover:bg-slate-50"
                 >
                   <span className="min-w-0">
-                    <span className="block text-slate-700">{h.name}</span>
+                    <span className="block break-words text-slate-700">{h.name}</span>
                     <span className="block truncate text-xs text-slate-400">
                       {[
                         h.hospital_agents.map((a) => a.agent?.full_name).filter(Boolean).join(', '),

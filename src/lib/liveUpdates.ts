@@ -25,6 +25,8 @@ const KEYS: Record<string, string[]> = {
 }
 
 const DELAY_MS = 2000
+/** a channel name of its own for every subscription: re-subscribing under the same name (strict mode, hot reload) fails with "cannot add callbacks after subscribe()" */
+let channelCounter = 0
 
 export function useLiveUpdates(enabled: boolean) {
   useEffect(() => {
@@ -45,7 +47,7 @@ export function useLiveUpdates(enabled: boolean) {
     }
 
     const channel = supabase
-      .channel('live-updates')
+      .channel(`live-updates-${++channelCounter}`)
       .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
         for (const key of KEYS[payload.table] ?? []) pending.add(key)
         schedule()

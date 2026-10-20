@@ -1,6 +1,6 @@
 import { lazy, Suspense, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { AlertTriangle, Building2, Download, CalendarDays, Navigation, Phone, Scissors, Search, User } from 'lucide-react'
+import { AlertTriangle, Building2, Download, CalendarDays, Navigation, Phone, Scissors, Search, SlidersHorizontal, User } from 'lucide-react'
 import { useMapData, useMeetings, usePatientScans } from '../lib/api'
 import { usePlannedSurgeries } from '../lib/plannedSurgeries'
 import { buildHospitalRows, NO_VISIT_DAYS, STATUS_CHIP, STATUS_LABELS, STATUS_ORDER, STATUS_PIN, useSetHospitalCommercial, type CommercialStatus, type HospitalRow, type Warning } from '../lib/hospitalStats'
@@ -34,7 +34,7 @@ function StatusSelect({ row }: { row: HospitalRow }) {
   const set = useSetHospitalCommercial()
   return (
     <select
-      className={classNames('rounded-full border px-2.5 py-1 text-xs font-medium', STATUS_CHIP[row.status])}
+      className={classNames('min-h-8 max-w-full shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium', STATUS_CHIP[row.status])}
       value={row.status}
       aria-label={`סטטוס מסחרי של ${row.h.name}`}
       title={row.suggested ? 'הסטטוס מוצע לפי הרובוטים — בחירה שומרת אותו' : undefined}
@@ -51,24 +51,31 @@ function StatusSelect({ row }: { row: HospitalRow }) {
   )
 }
 
-function RowActions({ row, onMeeting, onSurgery }: { row: HospitalRow; onMeeting: () => void; onSurgery: () => void }) {
+function RowActions({ row, onMeeting, onSurgery, labeled }: { row: HospitalRow; onMeeting: () => void; onSurgery: () => void; labeled?: boolean }) {
   const nav = hospitalNavLinks(row.h)
-  const btn = 'grid h-9 w-9 place-items-center rounded-full bg-brand-50 text-brand-700 transition hover:bg-brand-100'
+  const btn = labeled
+    ? 'flex min-h-11 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl bg-brand-50 px-1 py-1 text-xs font-medium text-brand-700 transition hover:bg-brand-100'
+    : 'grid h-9 w-9 place-items-center rounded-full bg-brand-50 text-brand-700 transition hover:bg-brand-100'
+  const txt = (t: string) => (labeled ? <span>{t}</span> : null)
   return (
-    <div className="flex items-center gap-1.5">
+    <div className={classNames('flex items-center', labeled ? 'gap-2 border-t border-slate-100 pt-2.5' : 'gap-1.5')}>
       {row.contactPhone && (
         <a href={`tel:${row.contactPhone.phone}`} className={btn} aria-label={`התקשר ל${row.contactPhone.name}`} title={`${row.contactPhone.name} · ${row.contactPhone.phone}`}>
           <Phone size={16} />
+          {txt('התקשר')}
         </a>
       )}
       <a href={nav.waze} target="_blank" rel="noreferrer" className={btn} aria-label={`נווט אל ${row.h.name}`} title="ניווט ב-Waze">
         <Navigation size={16} />
+        {txt('נווט')}
       </a>
       <button type="button" className={btn} aria-label={`פגישה חדשה ב${row.h.name}`} title="פגישה חדשה" onClick={onMeeting}>
         <CalendarDays size={16} />
+        {txt('פגישה')}
       </button>
       <button type="button" className={btn} aria-label={`ניתוח חדש ב${row.h.name}`} title="ניתוח חדש" onClick={onSurgery}>
         <Scissors size={16} />
+        {txt('ניתוח')}
       </button>
     </div>
   )
@@ -107,6 +114,8 @@ export default function Hospitals() {
   const [tab, setTab] = useState(params.get('hospital') ? 'map' : 'list')
   const [f, setF] = usePersisted<Filters>('hospitals.filters', NO_FILTERS)
   const [modal, setModal] = useState<{ kind: 'meeting' | 'surgery'; hospitalId: string } | null>(null)
+  // on the phone the four selects hide behind one "filter" button (open from the start when one is active)
+  const [panel, setPanel] = useState(() => !!(f.status || f.org || f.robot || f.agent))
   const set = (p: Partial<Filters>) => setF((x) => ({ ...x, ...p }))
 
   const rows = useMemo(
@@ -181,14 +190,42 @@ export default function Hospitals() {
     </button>
   )
 
+  /** the same filters as a wrapping row of chips: on the phone, instead of six big tiles */
+  const kpiChip = (label: string, value: number, active: boolean, onClick: () => void, warn?: boolean) => (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={classNames(
+        'chip',
+        active
+          ? 'border-brand-500 bg-brand-600 text-white'
+          : warn && value > 0
+            ? 'border-amber-300 bg-amber-50 text-amber-700'
+            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+      )}
+    >
+      {label} <b className="text-sm">{value}</b>
+    </button>
+  )
+  const activeSelects = [f.status, f.org, f.robot, f.agent].filter(Boolean).length
+
   return (
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-semibold text-brand-800 sm:text-3xl">בתי חולים</h1>
-        <p className="text-sm text-slate-400">הסטטוס המסחרי, הפעילות האחרונה והניתוחים של כל בית חולים — והמפה בלשונית נפרדת</p>
+        <p className="text-sm text-slate-500">סטטוס מסחרי, ביקורים וניתוחים — והמפה בלשונית נפרדת</p>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 lg:grid-cols-6">
+      <div className={classNames('flex flex-wrap gap-1.5 lg:hidden', tab !== 'list' && '!hidden')}>
+        {kpiChip('הכל', counts.all, !filtered, () => setF(NO_FILTERS))}
+        {kpiChip('דורשים תשומת לב', counts.attention, f.warn === 'any', () => set({ warn: f.warn === 'any' ? '' : 'any' }), true)}
+        {kpiChip(`ללא ביקור ${NO_VISIT_DAYS} יום`, counts.noVisit, f.warn === 'no-visit', () => set({ warn: f.warn === 'no-visit' ? '' : 'no-visit' }), true)}
+        {kpiChip('ללא סוכן', counts.noAgent, f.warn === 'no-agent', () => set({ warn: f.warn === 'no-agent' ? '' : 'no-agent' }), true)}
+        {kpiChip('לקוחות', counts.client, f.status === 'client', () => set({ status: f.status === 'client' ? '' : 'client' }))}
+        {kpiChip('פוטנציאליים', counts.potential, f.status === 'potential', () => set({ status: f.status === 'potential' ? '' : 'potential' }))}
+      </div>
+      <div className={classNames('hidden grid-cols-6 gap-2', tab === 'list' && 'lg:grid')}>
         {kpi('בתי חולים', counts.all, !filtered, () => setF(NO_FILTERS))}
         {kpi('לקוחות', counts.client, f.status === 'client', () => set({ status: f.status === 'client' ? '' : 'client' }))}
         {kpi('פוטנציאליים', counts.potential, f.status === 'potential', () => set({ status: f.status === 'potential' ? '' : 'potential' }))}
@@ -205,11 +242,28 @@ export default function Hospitals() {
 
         <TabPanel id="list">
           <div className="space-y-3">
-            <div className="card grid grid-cols-2 items-center gap-2 p-3 sm:flex sm:flex-wrap">
-              <label className="relative col-span-2 block sm:w-60">
+            <div className="card flex flex-wrap items-center gap-2 p-3">
+              <label className="relative block w-full sm:w-60">
                 <Search size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input type="search" className="input !pr-9" placeholder="חיפוש בית חולים, עיר או ארגון" value={f.q} onChange={(e) => set({ q: e.target.value })} />
+                <input type="search" className="input !pr-9" placeholder="חיפוש בית חולים, עיר או ארגון" aria-label="חיפוש בית חולים, עיר או ארגון" value={f.q} onChange={(e) => set({ q: e.target.value })} />
               </label>
+              <button type="button" className="btn-secondary shrink-0 sm:hidden" aria-expanded={panel} onClick={() => setPanel((v) => !v)}>
+                <SlidersHorizontal size={15} /> סינון
+                {activeSelects > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-brand-600 px-1 text-xs text-white">{activeSelects}</span>}
+              </button>
+              <select className="input min-w-0 flex-1 sm:!w-auto sm:flex-none" value={f.sort} aria-label="מיון" onChange={(e) => set({ sort: e.target.value })}>
+                {Object.entries(SORTS).map(([k, s]) => (
+                  <option key={k} value={k}>
+                    מיון: {s.label}
+                  </option>
+                ))}
+              </select>
+              {hasMine && (
+                <button type="button" aria-pressed={f.mine} onClick={() => set({ mine: !f.mine })} className={classNames('chip', f.mine ? 'border-brand-500 bg-brand-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50')}>
+                  <User size={13} /> בתי החולים שלי
+                </button>
+              )}
+              <div className={classNames('grid-cols-2 gap-2 sm:flex sm:flex-wrap', panel ? 'grid w-full' : 'hidden')}>
               <select className="input !w-full sm:!w-auto" value={f.status} aria-label="סטטוס מסחרי" onChange={(e) => set({ status: e.target.value as Filters['status'] })}>
                 <option value="">כל הסטטוסים</option>
                 {STATUS_ORDER.map((s) => (
@@ -238,28 +292,19 @@ export default function Hospitals() {
                   </option>
                 ))}
               </select>
-              {hasMine && (
-                <button type="button" aria-pressed={f.mine} onClick={() => set({ mine: !f.mine })} className={classNames('chip', f.mine ? 'border-brand-500 bg-brand-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50')}>
-                  <User size={13} /> בתי החולים שלי
-                </button>
-              )}
-              <select className="input col-span-2 !w-full sm:col-span-1 sm:!w-auto" value={f.sort} aria-label="מיון" onChange={(e) => set({ sort: e.target.value })}>
-                {Object.entries(SORTS).map(([k, s]) => (
-                  <option key={k} value={k}>
-                    מיון: {s.label}
-                  </option>
-                ))}
-              </select>
-              {filtered && (
-                <button type="button" className="col-span-2 text-sm font-medium text-brand-600 underline sm:col-span-1" onClick={() => setF({ ...NO_FILTERS, sort: f.sort })}>
-                  נקה סינון
-                </button>
-              )}
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm text-slate-500">
-                {shown.length} בתי חולים{filtered ? ` מתוך ${rows.length}` : ''}
+              <p className="flex items-center gap-3 text-sm text-slate-500">
+                <span>
+                  {shown.length} בתי חולים{filtered ? ` מתוך ${rows.length}` : ''}
+                </span>
+                {filtered && (
+                  <button type="button" className="text-sm font-medium text-brand-600 underline" onClick={() => setF({ ...NO_FILTERS, sort: f.sort })}>
+                    נקה סינון
+                  </button>
+                )}
               </p>
               <button type="button" className="btn-ghost !text-xs" onClick={exportCsv}>
                 <Download size={14} /> ייצוא לאקסל
@@ -324,32 +369,32 @@ export default function Hospitals() {
                 <ul className="space-y-2.5 md:hidden">
                   {shown.map((r) => (
                     <li key={r.h.id} className="card space-y-2.5 p-3.5">
-                      <div className="space-y-2">
+                      <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <Link to={`/hospitals/${r.h.id}`} className="flex items-center gap-1.5 font-semibold text-brand-800">
-                            <Building2 size={15} className="shrink-0" /> <span className="break-words">{r.h.name}</span>
+                          <Link to={`/hospitals/${r.h.id}`} className="flex min-h-8 items-start gap-1.5 py-1 text-base font-semibold leading-snug text-brand-800">
+                            <Building2 size={15} className="mt-1 shrink-0" /> <span className="break-words">{r.h.name}</span>
                           </Link>
                           <p className="text-xs text-slate-500">{[r.h.city, r.h.organization?.name].filter(Boolean).join(' · ')}</p>
                         </div>
                         <StatusSelect row={r} />
                       </div>
                       <Warnings warnings={r.warnings} />
-                      <dl className="grid grid-cols-3 gap-2 text-center text-xs">
-                        <div className="rounded-xl bg-slate-50 p-2">
+                      <dl className="grid grid-cols-3 divide-x divide-x-reverse divide-slate-200 rounded-xl bg-slate-50 py-2 text-center text-xs">
+                        <div className="px-1">
+                          <dd className="font-medium">{lastText(r)}</dd>
                           <dt className="text-slate-500">פגישה אחרונה</dt>
-                          <dd className="mt-0.5 font-medium">{lastText(r)}</dd>
                         </div>
-                        <div className="rounded-xl bg-slate-50 p-2">
-                          <dt className="text-slate-500">ניתוחים 30 י׳</dt>
-                          <dd className="mt-0.5 font-semibold text-brand-800">{r.surgeries30}</dd>
+                        <div className="px-1">
+                          <dd className="text-sm font-semibold text-brand-800">{r.surgeries30}</dd>
+                          <dt className="text-slate-500">ניתוחים ב-30 יום</dt>
                         </div>
-                        <div className="rounded-xl bg-slate-50 p-2">
+                        <div className="px-1">
+                          <dd className="text-sm font-semibold text-brand-800">{r.upcoming30}</dd>
                           <dt className="text-slate-500">קרובים</dt>
-                          <dd className="mt-0.5 font-semibold text-brand-800">{r.upcoming30}</dd>
                         </div>
                       </dl>
                       <p className="text-xs text-slate-600">
-                        {r.robots.length > 0 && <span>רובוטים: {r.robots.join(' · ')} · </span>}
+                        {r.robots.length > 0 && <span>{r.robots.join(' · ')} · </span>}
                         {r.agents.length > 0 ? r.agents.map((a) => a.name).join(', ') : <span className="text-amber-700">אין סוכן מטפל</span>}
                       </p>
                       {r.h.next_step && (
@@ -358,7 +403,7 @@ export default function Hospitals() {
                           {r.h.next_step_date ? ` (${formatDate(r.h.next_step_date)})` : ''}
                         </p>
                       )}
-                      <RowActions row={r} onMeeting={() => setModal({ kind: 'meeting', hospitalId: r.h.id })} onSurgery={() => setModal({ kind: 'surgery', hospitalId: r.h.id })} />
+                      <RowActions labeled row={r} onMeeting={() => setModal({ kind: 'meeting', hospitalId: r.h.id })} onSurgery={() => setModal({ kind: 'surgery', hospitalId: r.h.id })} />
                     </li>
                   ))}
                 </ul>

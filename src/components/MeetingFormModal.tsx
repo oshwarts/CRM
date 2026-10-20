@@ -17,6 +17,7 @@ import {
   type MeetingWithRelations,
 } from '../lib/types'
 import { plusDaysISO } from '../lib/utils'
+import { normalizeHe } from '../lib/contactMatch'
 import {
   Field,
   Modal,
@@ -76,6 +77,46 @@ function initial(
   }
 }
 
+const chipBtn =
+  'rounded-full border border-brand-200 bg-white px-3 py-1 text-xs font-medium text-brand-700 transition hover:bg-brand-50'
+
+/** pick doctors: the chosen ones stay on top, the rest are found by typing (a long list of chips is not scannable on a phone) */
+function DoctorPicker({
+  options,
+  selected,
+  onToggle,
+}: {
+  options: { id: string; label: string }[]
+  selected: string[]
+  onToggle: (id: string) => void
+}) {
+  const [q, setQ] = useState('')
+  const words = normalizeHe(q).split(' ').filter(Boolean)
+  const short = options.length <= 12
+  const chosen = options.filter((o) => selected.includes(o.id))
+  const rest = options.filter((o) => !selected.includes(o.id))
+  const found = words.length ? rest.filter((o) => words.every((w) => normalizeHe(o.label).includes(w))) : short ? rest : []
+  const shown = found.slice(0, 30)
+  return (
+    <div className="space-y-2">
+      {!short && (
+        <input
+          type="search"
+          className="input"
+          placeholder="הקלד שם רופא כדי להוסיף"
+          aria-label="חיפוש רופא להוספה"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+      )}
+      <MultiSelectChips options={[...chosen, ...shown]} selected={selected} onToggle={onToggle} labelOf={(o) => o.label} />
+      {found.length > shown.length && <p className="text-xs text-slate-600">יש עוד {found.length - shown.length} — המשך להקליד כדי לצמצם.</p>}
+      {!short && !words.length && chosen.length === 0 && <p className="text-xs text-slate-600">לא נבחרו רופאים.</p>}
+      {!short && words.length > 0 && found.length === 0 && <p className="text-xs text-slate-600">לא נמצא רופא בשם הזה.</p>}
+    </div>
+  )
+}
+
 export function MeetingFormModal({
   open,
   onClose,
@@ -98,9 +139,13 @@ export function MeetingFormModal({
     initial(meeting, user?.id, defaultDoctorId, defaultHospitalId),
   )
   const [error, setError] = useState<string | null>(null)
+  const [focusTask, setFocusTask] = useState<number | null>(null)
 
   function patch(p: Partial<MeetingFormData>) {
     setData((d) => ({ ...d, ...p }))
+  }
+  function patchTask(i: number, p: Partial<MeetingFormData['tasks'][number]>) {
+    setData((d) => ({ ...d, tasks: d.tasks.map((t, x) => (x === i ? { ...t, ...p } : t)) }))
   }
 
   const [triedSave, setTriedSave] = useState(false)
@@ -121,6 +166,8 @@ export function MeetingFormModal({
     }
   }
 
+  const hospitalContacts = (contacts.data ?? []).filter((c) => c.hospital_id === data.hospitalId)
+
   return (
     <Modal
       open={open}
@@ -131,21 +178,32 @@ export function MeetingFormModal({
       <Tabs value={tab} onChange={setTab}>
         <TabList>
           <Tab id="general">פרטים כלליים</Tab>
-          <Tab id="doctors">משתתפים</Tab>
+          <Tab id="doctors">
+            משתתפים
+            {data.doctorIds.length + data.agentIds.length + data.contactIds.length > 0 &&
+              ` (${data.doctorIds.length + data.agentIds.length + data.contactIds.length})`}
+          </Tab>
           <Tab id="content">תוכן הפגישה</Tab>
         </TabList>
 
         <TabPanel id="general">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="נושא הפגישה" className="sm:col-span-2" error={triedSave && !data.subject.trim() ? 'יש להזין נושא לפגישה' : undefined}>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-4 sm:gap-x-4">
+            <Field
+              label="נושא הפגישה"
+              className="col-span-2"
+              error={triedSave && !data.subject.trim() ? 'יש להזין נושא לפגישה' : undefined}
+            >
               <input
                 className="input"
                 value={data.subject}
                 onChange={(e) => patch({ subject: e.target.value })}
                 placeholder="הזן נושא הפגישה"
+                enterKeyHint="next"
+                autoComplete="off"
+                required
               />
             </Field>
-            <Field label="תאריך">
+            <Field label="תאריך" className="col-span-2 min-w-0 sm:col-span-1">
               <input
                 type="date"
                 className="input"
@@ -154,7 +212,7 @@ export function MeetingFormModal({
               />
               <QuickDates value={data.meeting_date} onPick={(iso) => patch({ meeting_date: iso })} />
             </Field>
-            <Field label="שעה">
+            <Field label="שעה" className="col-span-2 min-w-0 sm:col-span-1">
               <input
                 type="time"
                 className="input"
@@ -162,7 +220,7 @@ export function MeetingFormModal({
                 onChange={(e) => patch({ meeting_time: e.target.value || null })}
               />
             </Field>
-            <Field label="בית חולים">
+            <Field label="בית חולים" className="col-span-2">
               <select
                 className="input"
                 value={data.hospitalId ?? ''}
@@ -184,15 +242,20 @@ export function MeetingFormModal({
                 ))}
               </select>
             </Field>
-            <Field label="מיקום (אופציונלי)">
-              <input
+            <Field label="סטטוס" className="col-span-2 sm:col-span-1">
+              <select
                 className="input"
-                value={data.location}
-                onChange={(e) => patch({ location: e.target.value })}
-                placeholder="מיקום הפגישה"
-              />
+                value={data.status}
+                onChange={(e) => patch({ status: e.target.value })}
+              >
+                {Object.entries(MEETING_STATUS_LABELS).map(([v, l]) => (
+                  <option key={v} value={v}>
+                    {l}
+                  </option>
+                ))}
+              </select>
             </Field>
-            <Field label="סוכן אחראי">
+            <Field label="סוכן אחראי" className="col-span-2 sm:col-span-1">
               <select
                 className="input"
                 value={data.responsible_agent_id ?? ''}
@@ -208,48 +271,39 @@ export function MeetingFormModal({
                 ))}
               </select>
             </Field>
-            <Field label="סטטוס">
-              <select
+            <Field label="מיקום (אופציונלי)" className="col-span-2">
+              <input
                 className="input"
-                value={data.status}
-                onChange={(e) => patch({ status: e.target.value })}
-              >
-                {Object.entries(MEETING_STATUS_LABELS).map(([v, l]) => (
-                  <option key={v} value={v}>
-                    {l}
-                  </option>
-                ))}
-              </select>
+                value={data.location}
+                onChange={(e) => patch({ location: e.target.value })}
+                placeholder="מיקום הפגישה"
+                autoComplete="off"
+              />
             </Field>
 
-            <Field label="תאריך מעקב הבא" className="sm:col-span-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <input
-                  type="date"
-                  className="input max-w-48"
-                  value={data.next_followup_date ?? ''}
-                  onChange={(e) =>
-                    patch({ next_followup_date: e.target.value || null })
-                  }
-                />
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => patch({ next_followup_date: plusDaysISO(14) })}
-                >
+            <Field label="תאריך מעקב הבא (אופציונלי)" className="col-span-2">
+              <input
+                type="date"
+                className="input sm:max-w-48"
+                value={data.next_followup_date ?? ''}
+                onChange={(e) =>
+                  patch({ next_followup_date: e.target.value || null })
+                }
+              />
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                <button type="button" className={chipBtn} onClick={() => patch({ next_followup_date: plusDaysISO(7) })}>
+                  בעוד שבוע
+                </button>
+                <button type="button" className={chipBtn} onClick={() => patch({ next_followup_date: plusDaysISO(14) })}>
                   בעוד שבועיים
                 </button>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => patch({ next_followup_date: plusDaysISO(30) })}
-                >
+                <button type="button" className={chipBtn} onClick={() => patch({ next_followup_date: plusDaysISO(30) })}>
                   בעוד חודש
                 </button>
                 {data.next_followup_date && (
                   <button
                     type="button"
-                    className="btn-ghost text-slate-500"
+                    className="rounded-full px-3 py-1 text-xs text-slate-600 hover:bg-slate-100"
                     onClick={() => patch({ next_followup_date: null })}
                   >
                     נקה
@@ -262,7 +316,7 @@ export function MeetingFormModal({
 
         <TabPanel id="doctors">
           <Field label="רופאים משתתפים">
-            <MultiSelectChips
+            <DoctorPicker
               options={(doctors.data ?? []).map((d) => ({
                 id: d.id,
                 label: `${d.title} ${d.name}`,
@@ -276,7 +330,6 @@ export function MeetingFormModal({
                 const suggested = adding && !data.hospitalId && links.length === 1 ? links[0].hospital_id : null
                 patch({ doctorIds: next, ...(suggested ? { hospitalId: suggested } : {}) })
               }}
-              labelOf={(o) => o.label}
             />
           </Field>
           <Field label="סוכנים ומנהלים משתתפים">
@@ -296,21 +349,11 @@ export function MeetingFormModal({
               labelOf={(o) => o.label}
             />
           </Field>
-          <Field label="משתתפים נוספים (טקסט חופשי)">
-            <textarea
-              className="input min-h-16"
-              placeholder="שמות של מי שאינו במערכת — למשל: ד״ר כהן (מנתח אורח), נציג חברה אחרת…"
-              value={data.extraParticipants}
-              onChange={(e) => patch({ extraParticipants: e.target.value })}
-            />
-          </Field>
           <Field label="אנשי קשר משתתפים (של בית החולים)">
             {data.hospitalId ? (
-              (contacts.data ?? []).filter((c) => c.hospital_id === data.hospitalId).length ? (
+              hospitalContacts.length ? (
                 <MultiSelectChips
-                  options={(contacts.data ?? [])
-                    .filter((c) => c.hospital_id === data.hospitalId)
-                    .map((c) => ({ id: c.id, label: c.role ? `${c.name} · ${c.role}` : c.name }))}
+                  options={hospitalContacts.map((c) => ({ id: c.id, label: c.role ? `${c.name} · ${c.role}` : c.name }))}
                   selected={data.contactIds}
                   onToggle={(id) =>
                     patch({
@@ -322,13 +365,28 @@ export function MeetingFormModal({
                   labelOf={(o) => o.label}
                 />
               ) : (
-                <p className="text-sm text-slate-400">
+                <p className="text-sm text-slate-600">
                   אין אנשי קשר לבית החולים הזה. אפשר להוסיף בהגדרות ← אנשי קשר (למשל רכש או מכון דימות).
                 </p>
               )
             ) : (
-              <p className="text-sm text-slate-400">בחר בית חולים בטאב "פרטים כלליים" כדי לבחור אנשי קשר.</p>
+              <p className="text-sm text-slate-600">
+                בחר בית חולים ב
+                <button type="button" className="font-medium text-brand-700 underline" onClick={() => setTab('general')}>
+                  פרטים כלליים
+                </button>{' '}
+                כדי לבחור אנשי קשר.
+              </p>
             )}
+          </Field>
+          <Field label="משתתפים נוספים (טקסט חופשי)">
+            <textarea
+              className="input min-h-16"
+              dir="auto"
+              placeholder="שמות של מי שאינו במערכת — למשל: ד״ר כהן (מנתח אורח), נציג חברה אחרת…"
+              value={data.extraParticipants}
+              onChange={(e) => patch({ extraParticipants: e.target.value })}
+            />
           </Field>
         </TabPanel>
 
@@ -336,6 +394,7 @@ export function MeetingFormModal({
           <Field label="סיכום הפגישה">
             <textarea
               className="input min-h-28"
+              dir="auto"
               value={data.summary}
               onChange={(e) => patch({ summary: e.target.value })}
             />
@@ -343,6 +402,7 @@ export function MeetingFormModal({
           <Field label="החלטות">
             <textarea
               className="input min-h-20"
+              dir="auto"
               value={data.decisions}
               onChange={(e) => patch({ decisions: e.target.value })}
             />
@@ -359,59 +419,54 @@ export function MeetingFormModal({
           <Field label="משימות להמשך">
             <div className="space-y-2">
               {data.tasks.map((t, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4"
-                    checked={t.is_done}
-                    onChange={(e) => {
-                      const tasks = [...data.tasks]
-                      tasks[i] = { ...t, is_done: e.target.checked }
-                      patch({ tasks })
-                    }}
-                  />
-                  <input
-                    className="input flex-1"
-                    placeholder="תיאור המשימה"
-                    value={t.description}
-                    onChange={(e) => {
-                      const tasks = [...data.tasks]
-                      tasks[i] = { ...t, description: e.target.value }
-                      patch({ tasks })
-                    }}
-                  />
-                  <input
-                    type="date"
-                    className="input max-w-40"
-                    value={t.due_date ?? ''}
-                    onChange={(e) => {
-                      const tasks = [...data.tasks]
-                      tasks[i] = { ...t, due_date: e.target.value || null }
-                      patch({ tasks })
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className="btn-ghost !px-2 text-red-500"
-                    onClick={() =>
-                      patch({ tasks: data.tasks.filter((_, x) => x !== i) })
-                    }
-                  >
-                    <Trash2 size={15} />
-                  </button>
+                <div key={t.id ?? `new-${i}`} className="rounded-xl border border-slate-200 bg-slate-50/60 p-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      className="h-7 w-7 shrink-0"
+                      aria-label={`משימה ${i + 1} בוצעה`}
+                      checked={t.is_done}
+                      onChange={(e) => patchTask(i, { is_done: e.target.checked })}
+                    />
+                    <input
+                      className="input min-w-0 flex-1"
+                      dir="auto"
+                      placeholder="תיאור המשימה"
+                      aria-label={`תיאור משימה ${i + 1}`}
+                      autoFocus={focusTask === i}
+                      value={t.description}
+                      onChange={(e) => patchTask(i, { description: e.target.value })}
+                    />
+                    <button
+                      type="button"
+                      className="btn-ghost !min-h-10 !px-2 text-red-600"
+                      aria-label={`הסרת משימה ${i + 1}`}
+                      title="הסרת משימה"
+                      onClick={() => patch({ tasks: data.tasks.filter((_, x) => x !== i) })}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                  <label className="mt-1.5 flex items-center gap-2 ps-9 text-xs text-slate-600">
+                    <span className="shrink-0">תאריך יעד</span>
+                    <input
+                      type="date"
+                      className="input min-w-0 flex-1 sm:max-w-44"
+                      value={t.due_date ?? ''}
+                      onChange={(e) => patchTask(i, { due_date: e.target.value || null })}
+                    />
+                  </label>
                 </div>
               ))}
               <button
                 type="button"
                 className="btn-secondary"
-                onClick={() =>
+                onClick={() => {
+                  setFocusTask(data.tasks.length)
                   patch({
-                    tasks: [
-                      ...data.tasks,
-                      { description: '', is_done: false, due_date: null },
-                    ],
+                    tasks: [...data.tasks, { description: '', is_done: false, due_date: null }],
                   })
-                }
+                }}
               >
                 <Plus size={16} />
                 הוסף משימה
@@ -421,27 +476,27 @@ export function MeetingFormModal({
         </TabPanel>
       </Tabs>
 
+      {isEdit && meeting && (
+        <p className="mt-3 flex flex-wrap items-center gap-x-2 text-sm text-slate-600">
+          <Link to={`/meetings/${meeting.id}?mail=1`} className="inline-flex min-h-8 items-center gap-1 font-medium text-brand-700 hover:underline">
+            <Mail size={14} />
+            שלח סיכום במייל
+          </Link>
+          (שמור קודם את השינויים)
+        </p>
+      )}
+
       {error && (
-        <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+        <p role="alert" className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
         </p>
       )}
 
-      <div className="mt-5 flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 pt-4">
-        {isEdit && meeting && (
-          <Link
-            to={`/meetings/${meeting.id}?mail=1`}
-            className="btn-secondary ml-auto"
-            title="שמור קודם את השינויים, ואז שלח"
-          >
-            <Mail size={16} />
-            שלח סיכום במייל
-          </Link>
-        )}
-        <button className="btn-secondary" onClick={onClose}>
+      <div className="mt-5 flex items-center justify-end gap-2 border-t border-slate-200 pt-4">
+        <button className="btn-secondary max-sm:flex-1" onClick={onClose}>
           ביטול
         </button>
-        <button className="btn-primary" onClick={submit} disabled={saving}>
+        <button className="btn-primary max-sm:flex-[2]" onClick={submit} disabled={saving}>
           {saving ? 'שומר…' : 'שמירה'}
         </button>
       </div>

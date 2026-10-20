@@ -15,7 +15,7 @@ import { useAuth } from '../context/AuthProvider'
 import type { CompetitorIntelRow } from '../lib/types'
 import { LOSS_REASONS, LOYALTY_LABELS, LOYALTY_TONE, OUTCOME_LABELS, OUTCOME_TONE, isStale, money } from '../lib/competitors'
 import { classNames, formatDate, plusDaysISO, todayISO } from '../lib/utils'
-import { ConfirmButton, Field, Modal } from './ui'
+import { ConfirmButton, EmptyState, Field, Modal } from './ui'
 import { SearchSelect } from './SearchSelect'
 import { TaskFormModal } from './TaskFormModal'
 
@@ -374,12 +374,12 @@ export function CompetitorSection({ doctorId, hospitalId }: { doctorId?: string;
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <p className="flex items-center gap-1 text-xs font-medium uppercase text-slate-400">
-          <Swords size={12} /> פעילות מתחרים ({list.length})
-        </p>
-        <button className="text-sm font-medium text-brand-600 hover:underline" onClick={() => setAdding(true)}>
-          <Plus size={14} className="inline" /> הוסף
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="flex items-center gap-1.5 text-sm font-semibold text-slate-600">
+          <Swords size={14} /> פעילות מתחרים ({list.length})
+        </h2>
+        <button className="btn-secondary" onClick={() => setAdding(true)}>
+          <Plus size={16} /> הוסף
         </button>
       </div>
       {current && (
@@ -390,36 +390,36 @@ export function CompetitorSection({ doctorId, hospitalId }: { doctorId?: string;
         </p>
       )}
       {list.length === 0 ? (
-        <p className="text-sm text-slate-400">לא תועדה פעילות של מתחרים</p>
+        <EmptyState title="לא תועדה פעילות של מתחרים" hint="לחץ על 'הוסף' כדי לתעד מה ראית או שמעת" />
       ) : (
-        <ul className="divide-y divide-slate-100 rounded-lg border border-slate-100">
+        <ul className="space-y-2">
           {list.map((i) => (
-            <li key={i.id} className="flex items-start justify-between gap-2 px-3 py-2">
-              <div className="min-w-0 text-sm">
-                <p className="font-medium text-slate-800">
+            <li key={i.id} className="card space-y-1.5 p-3 text-sm">
+              <div className="flex items-start justify-between gap-2">
+                <p className="min-w-0 flex-1 break-words font-medium text-slate-800">
                   {i.competitor}
                   {i.product && <span className="font-normal text-slate-500"> · {i.product}</span>}
-                  <span className="mr-2 text-xs font-normal text-slate-400">{formatDate(i.intel_date)}</span>
+                  <span className="block text-xs font-normal text-slate-500">{formatDate(i.intel_date)}</span>
                 </p>
-                <IntelChips i={i} />
-                {i.offer && <p dir="auto" className="whitespace-pre-line text-slate-600">{i.offer}</p>}
-                {i.notes && <p dir="auto" className="whitespace-pre-line text-xs text-slate-400">{i.notes}</p>}
-                {i.image_paths?.length > 0 && (
-                  <span className="mt-1 flex flex-wrap gap-1.5">
-                    {i.image_paths.map((p) => (
-                      <IntelPicture key={p} path={p} />
-                    ))}
-                  </span>
-                )}
+                <div className="flex shrink-0 gap-1">
+                  <button className="btn-ghost !px-2.5" onClick={() => setTaskFor(i)} aria-label={`צור משימה מהרישום של ${i.competitor}`} title="צור משימה מהרישום">
+                    <CheckSquare size={16} />
+                  </button>
+                  <button className="btn-ghost !px-2.5" onClick={() => setEditing(i)} aria-label={`עריכת הרישום של ${i.competitor}`}>
+                    <Pencil size={16} />
+                  </button>
+                </div>
               </div>
-              <div className="flex shrink-0 gap-0.5">
-                <button className="btn-ghost !px-2" onClick={() => setTaskFor(i)} aria-label="צור משימה" title="צור משימה מהרישום">
-                  <CheckSquare size={14} />
-                </button>
-                <button className="btn-ghost !px-2" onClick={() => setEditing(i)} aria-label="עריכה">
-                  <Pencil size={14} />
-                </button>
-              </div>
+              <IntelChips i={i} />
+              {i.offer && <p dir="auto" className="whitespace-pre-line break-words text-slate-600">{i.offer}</p>}
+              {i.notes && <p dir="auto" className="whitespace-pre-line break-words text-xs text-slate-500">{i.notes}</p>}
+              {i.image_paths?.length > 0 && (
+                <span className="flex flex-wrap gap-1.5">
+                  {i.image_paths.map((p) => (
+                    <IntelPicture key={p} path={p} />
+                  ))}
+                </span>
+              )}
             </li>
           ))}
         </ul>

@@ -39,26 +39,30 @@ export function ManagementReport({ model }: { model: TeamModel }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3 print:hidden">
-        <button className="btn-primary" onClick={() => window.print()}>
-          <Printer size={16} /> הדפס / שמור כ-PDF
-        </button>
-        <button className="btn-secondary" onClick={() => setPresenting(true)}>
-          <MonitorPlay size={16} /> מצגת לישיבה
-        </button>
-        <label className="flex items-center gap-1.5 text-sm text-slate-600">
-          <input type="checkbox" checked={showAgents} onChange={(e) => setShowAgents(e.target.checked)} /> פירוט לפי סוכן
-        </label>
-        <label className="flex items-center gap-1.5 text-sm text-slate-600">
-          <input type="checkbox" checked={showAttention} onChange={(e) => setShowAttention(e.target.checked)} /> נקודות לתשומת לב
-        </label>
-        <p className="text-xs text-slate-400">הדוח לא כולל הערות מנהל ושיחות אישיות עם הסוכנים.</p>
+      <div className="card space-y-3 p-3 print:hidden sm:flex sm:flex-wrap sm:items-center sm:gap-3 sm:space-y-0">
+        <div className="grid grid-cols-2 gap-2 sm:flex">
+          <button className="btn-primary !px-4" onClick={() => window.print()}>
+            <Printer size={16} /> הדפס / PDF
+          </button>
+          <button className="btn-secondary !px-4" onClick={() => setPresenting(true)}>
+            <MonitorPlay size={16} /> מצגת לישיבה
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-x-4 gap-y-1">
+          <label className="flex min-h-9 items-center gap-2 text-sm text-slate-700">
+            <input type="checkbox" className="h-4 w-4" checked={showAgents} onChange={(e) => setShowAgents(e.target.checked)} /> פירוט לפי סוכן
+          </label>
+          <label className="flex min-h-9 items-center gap-2 text-sm text-slate-700">
+            <input type="checkbox" className="h-4 w-4" checked={showAttention} onChange={(e) => setShowAttention(e.target.checked)} /> נקודות לתשומת לב
+          </label>
+        </div>
+        <p className="text-xs text-slate-500">הדוח לא כולל הערות מנהל ושיחות אישיות עם הסוכנים.</p>
       </div>
 
-      <article id="management-report" className="card space-y-5 p-6 sm:p-8">
+      <article id="management-report" className="card space-y-5 p-4 sm:p-8">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-[#00326d] pb-4">
           <BrandLogo size="lg" />
-          <div className="text-left">
+          <div className="sm:text-left">
             <h2 className="text-2xl font-semibold text-brand-800">דוח ביצועי צוות</h2>
             <p className="text-sm text-slate-500">
               {model.period.label} · הופק ב-{formatDate(todayISO())}
@@ -96,7 +100,29 @@ export function ManagementReport({ model }: { model: TeamModel }) {
         {showAgents && (
           <section>
             <h3 className="mb-1.5 font-semibold text-brand-800">הסוכנים מול היעדים וההכשרה</h3>
-            <table className="w-full text-sm">
+            <ul className="space-y-2 sm:hidden print:hidden">
+              {model.agents.map((r) => (
+                <li key={r.agent.id} className="rounded-xl border border-slate-200 p-3">
+                  <p className="font-semibold text-slate-800">{r.agent.full_name || r.agent.email}</p>
+                  <p className="mt-0.5 text-xs text-slate-600">
+                    {r.m.meetings_held} פגישות · {r.m.surgeries_covered} ניתוחים בבתי החולים · {r.m.tasks_done} משימות הושלמו
+                  </p>
+                  <div className="mt-2 space-y-1 text-xs text-slate-600">
+                    <div className="flex items-center gap-2">
+                      <span className="w-12 shrink-0">יעדים</span>
+                      <div className="flex-1">{r.goalsCount > 0 ? <Meter pct={r.goalsAvg} /> : <span className="text-slate-400">לא הוגדרו</span>}</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-12 shrink-0">הכשרה</span>
+                      <div className="flex-1">
+                        <Meter pct={r.training.pct} />
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <table className="hidden w-full text-sm sm:table print:table">
               <thead>
                 <tr className="border-b border-slate-300 text-right text-xs text-slate-500">
                   <th className="py-1.5 font-medium">סוכן</th>

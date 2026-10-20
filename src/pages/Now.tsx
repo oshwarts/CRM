@@ -1,6 +1,7 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, CalendarDays, CheckCircle2, CheckSquare, Clock, DatabaseBackup, FileUp, ScanLine, Stethoscope, Swords, Target } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import { AlertTriangle, CalendarDays, CheckCircle2, CheckSquare, DatabaseBackup, FileUp, ScanLine, Stethoscope, Sun, Swords, Target } from 'lucide-react'
 import { useAuth } from '../context/AuthProvider'
 import { useCompetitorIntel, useDoctors, useFavorites, useMeetings, useMyHospitalIds, usePatientScans, useTasks } from '../lib/api'
 import { competitorAlerts, newActivity } from '../lib/competitors'
@@ -15,7 +16,10 @@ import { useAppSetting } from '../lib/api'
 import { stageSinceMap, stuckPotentials } from '../lib/pipelineStats'
 
 type Item = { key: string; to: string; icon: React.ReactNode; title: string; sub: string; when: string }
-type Group = { id: string; title: string; tone: 'red' | 'amber' | 'blue'; items: Item[] }
+type Group = { id: string; title: string; tone: 'red' | 'amber' | 'blue'; icon: LucideIcon; items: Item[] }
+const LIMIT = 8
+/** short names of the groups for the jump strip */
+const SHORT: Record<string, string> = { late: 'באיחור', today: 'היום', soon: 'השבוע', contact: 'לחזור לרופאים', backup: 'גיבוי', uploads: 'קבצים גדולים', pipeline: 'פוטנציאליים', competitors: 'מתחרים' }
 
 const TONE = {
   red: { box: 'border-red-200 bg-red-50/60', head: 'text-red-700', chip: 'border-red-200 bg-white text-red-600' },
@@ -38,6 +42,7 @@ export default function Now() {
   const uploads = useUploadRequests()
   const backupSetting = useAppSetting('backup.last')
   const { isAdmin } = useAuth()
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const loading = [tasks, meetings, scans, doctors].some((q) => q.isLoading)
 
   const groups = useMemo(() => {
@@ -70,7 +75,7 @@ export default function Now() {
       to: '/scans',
       icon: <ScanLine size={16} />,
       title: `${s.patient_name || 'מטופל'} · ${SCAN_PROCEDURE_LABELS[s.procedure_type] ?? s.procedure_type}`,
-      sub: [s.hospital?.name, what].filter(Boolean).join(' · '),
+      sub: [what, s.hospital?.name].filter(Boolean).join(' · '),
       when: s.surgery_date ? `ניתוח ${formatDate(s.surgery_date)}` : s.ct_date ? `CT ${formatDate(s.ct_date)}` : '',
     })
 
@@ -160,14 +165,14 @@ export default function Now() {
       : []
 
     const out: Group[] = [
-      { id: 'late', title: 'באיחור — לטפל קודם', tone: 'red', items: late },
-      { id: 'today', title: 'היום', tone: 'amber', items: today },
-      { id: 'soon', title: 'השבוע הקרוב', tone: 'blue', items: soon },
-      { id: 'contact', title: 'רופאים לחזור אליהם', tone: 'blue', items: toContact },
-      { id: 'backup', title: 'גיבוי נתונים', tone: 'amber', items: backupItems },
-      { id: 'uploads', title: 'קבצים גדולים — אישורי העלאה', tone: 'amber', items: uploadItems },
-      { id: 'pipeline', title: 'רופאים פוטנציאליים שדורשים דחיפה', tone: 'amber', items: stuck },
-      { id: 'competitors', title: 'הזדמנויות מול מתחרים', tone: 'amber', items: opportunities },
+      { id: 'late', title: 'באיחור — לטפל קודם', tone: 'red', icon: AlertTriangle, items: late },
+      { id: 'today', title: 'היום', tone: 'amber', icon: Sun, items: today },
+      { id: 'soon', title: 'השבוע הקרוב', tone: 'blue', icon: CalendarDays, items: soon },
+      { id: 'contact', title: 'רופאים לחזור אליהם', tone: 'blue', icon: Stethoscope, items: toContact },
+      { id: 'backup', title: 'גיבוי נתונים', tone: 'amber', icon: DatabaseBackup, items: backupItems },
+      { id: 'uploads', title: 'קבצים גדולים — אישורי העלאה', tone: 'amber', icon: FileUp, items: uploadItems },
+      { id: 'pipeline', title: 'רופאים פוטנציאליים שדורשים דחיפה', tone: 'amber', icon: Target, items: stuck },
+      { id: 'competitors', title: 'הזדמנויות מול מתחרים', tone: 'amber', icon: Swords, items: opportunities },
     ]
     return out.filter((g) => g.items.length > 0)
   }, [tasks.data, meetings.data, scans.data, doctors.data, favorites.data, competitorIntel.data, stageHistory.data, stuckThresholds, uploads.data, backupSetting.data, backupSetting.isLoading, myHospitals, isAdmin, user?.id])
@@ -175,50 +180,73 @@ export default function Now() {
   const total = groups.reduce((n, g) => n + g.items.length, 0)
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 sm:space-y-5">
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-semibold text-brand-800 sm:text-3xl">
-          <AlertTriangle className="text-accent" size={26} />
+          <AlertTriangle className="shrink-0 text-accent" size={26} aria-hidden />
           דחוף עכשיו
         </h1>
-        <p className="text-sm text-slate-500">כל מה שדורש אותך, בסדר דחיפות: משימות, פגישות, סריקות וקשר עם רופאים</p>
+        <p className="text-sm text-slate-600">
+          {loading || total === 0 ? 'מה שדורש אותך, בסדר דחיפות' : `${total} דברים מחכים לך, לפי סדר דחיפות`}
+        </p>
       </div>
       {loading ? (
         <Spinner />
       ) : total === 0 ? (
         <div className="card flex flex-col items-center gap-2 p-10 text-center">
-          <CheckCircle2 size={40} className="text-emerald-500" />
+          <CheckCircle2 size={40} aria-hidden className="text-emerald-500" />
           <p className="text-lg font-semibold text-brand-800">הכול מטופל</p>
-          <p className="text-sm text-slate-500">אין עכשיו משהו שמחכה לך.</p>
+          <p className="text-sm text-slate-600">אין עכשיו משהו שמחכה לך.</p>
         </div>
       ) : (
-        groups.map((g) => (
-          <section key={g.id} className={classNames('rounded-2xl border p-4', TONE[g.tone].box)}>
-            <h2 className={classNames('mb-2 flex items-center gap-2 text-lg font-semibold', TONE[g.tone].head)}>
-              <Clock size={17} /> {g.title} <span className="font-normal opacity-90">({g.items.length})</span>
-            </h2>
-            <ul className="divide-y divide-white/70">
-              {g.items.map((it) => (
-                <li key={it.key}>
-                  <Link to={it.to} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl px-2 py-2.5 transition hover:bg-white/70">
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white text-brand-600 shadow-sm">{it.icon}</span>
-                    <span className="min-w-[8rem] flex-1">
-                      <span dir="auto" className="line-clamp-2 break-words text-sm font-medium text-slate-800">
-                        {it.title}
-                      </span>
-                      {it.sub && (
-                        <span dir="auto" className="line-clamp-2 break-words text-xs text-slate-600">
-                          {it.sub}
-                        </span>
-                      )}
-                    </span>
-                    {it.when && <span className={classNames('chip shrink-0', TONE[g.tone].chip)}>{it.when}</span>}
-                  </Link>
-                </li>
+        <>
+          {groups.length > 1 && (
+            <nav aria-label="קפיצה לקבוצה" className="flex flex-wrap gap-2">
+              {groups.map((g) => (
+                <a key={g.id} href={`#now-${g.id}`} className={classNames('chip', TONE[g.tone].chip)}>
+                  {SHORT[g.id] ?? g.title} <span className="font-semibold">{g.items.length}</span>
+                </a>
               ))}
-            </ul>
-          </section>
-        ))
+            </nav>
+          )}
+          {groups.map((g) => {
+            const open = !!expanded[g.id]
+            const shown = open ? g.items : g.items.slice(0, LIMIT)
+            const Icon = g.icon
+            return (
+              <section key={g.id} id={`now-${g.id}`} aria-labelledby={`now-h-${g.id}`} className={classNames('scroll-mt-20 rounded-2xl border p-3 sm:p-4', TONE[g.tone].box)}>
+                <h2 id={`now-h-${g.id}`} className={classNames('mb-1 flex items-center gap-2 text-base font-semibold sm:text-lg', TONE[g.tone].head)}>
+                  <Icon size={17} aria-hidden className="shrink-0" /> {g.title} <span className="font-normal opacity-90">({g.items.length})</span>
+                </h2>
+                <ul className="divide-y divide-white/70">
+                  {shown.map((it) => (
+                    <li key={it.key}>
+                      <Link to={it.to} className="flex min-h-[48px] items-start gap-2 rounded-xl px-1.5 py-2.5 transition hover:bg-white/70">
+                        <span aria-hidden className="mt-0.5 shrink-0 text-brand-600">{it.icon}</span>
+                        <span className="min-w-0 flex-1">
+                          <span dir="auto" className="line-clamp-2 break-words text-sm font-medium text-slate-800">
+                            {it.title}
+                          </span>
+                          {it.sub && (
+                            <span dir="auto" className="line-clamp-2 break-words text-xs text-slate-600">
+                              {it.sub}
+                            </span>
+                          )}
+                        </span>
+                        {it.when && <span className={classNames('chip shrink-0', TONE[g.tone].chip)}>{it.when}</span>}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+                {g.items.length > LIMIT && (
+                  <button className="btn-ghost mt-1 w-full text-sm" aria-expanded={open} onClick={() => setExpanded((e) => ({ ...e, [g.id]: !open }))}>
+                    {open ? 'הצג פחות' : `הצג עוד ${g.items.length - LIMIT}`}
+                  </button>
+                )}
+              </section>
+            )
+          })}
+        </>
       )}
     </div>
   )

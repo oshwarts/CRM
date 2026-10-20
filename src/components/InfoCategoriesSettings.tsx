@@ -41,8 +41,8 @@ export function InfoCategoriesSettings() {
   return (
     <div className="card space-y-4 p-4">
       <div>
-        <h3 className="font-semibold text-slate-800">קטגוריות מסמכים (עמוד "מידע קליני")</h3>
-        <p className="text-sm text-slate-400">
+        <h2 className="text-base font-semibold text-slate-800">קטגוריות מסמכים (עמוד "מידע קליני")</h2>
+        <p className="text-sm text-slate-600">
           הקטגוריות משותפות לכל הפרוצדורות. מחיקת קטגוריה לא מוחקת מסמכים — הם יעברו ל"ללא קטגוריה".
         </p>
       </div>
@@ -50,9 +50,10 @@ export function InfoCategoriesSettings() {
       <div className="space-y-2">
         {list.map((c, i) => (
           <div key={c.id} className="flex items-center gap-1">
-            <span className="w-5 text-center text-xs text-slate-400">{i + 1}</span>
+            <span className="w-5 shrink-0 text-center text-xs text-slate-500" aria-hidden>{i + 1}</span>
             <input
-              className="input max-w-sm"
+              className="input min-w-0 flex-1 sm:max-w-sm"
+              aria-label={`שם קטגוריה ${i + 1}`}
               value={names[c.id] ?? ''}
               onChange={(e) => setNames((n) => ({ ...n, [c.id]: e.target.value }))}
               onBlur={() => {
@@ -61,13 +62,13 @@ export function InfoCategoriesSettings() {
                 else setNames((n) => ({ ...n, [c.id]: c.name }))
               }}
             />
-            <button type="button" className="btn-ghost !px-2" onClick={() => swap(i, -1)} disabled={i === 0} aria-label="למעלה">
+            <button type="button" className="btn-ghost !px-2" onClick={() => swap(i, -1)} disabled={i === 0} aria-label={`הזז את ${c.name} למעלה`}>
               <ArrowUp size={16} />
             </button>
-            <button type="button" className="btn-ghost !px-2" onClick={() => swap(i, 1)} disabled={i === list.length - 1} aria-label="למטה">
+            <button type="button" className="btn-ghost !px-2" onClick={() => swap(i, 1)} disabled={i === list.length - 1} aria-label={`הזז את ${c.name} למטה`}>
               <ArrowDown size={16} />
             </button>
-            <ConfirmButton className="btn-ghost !px-2 text-red-500" onConfirm={() => run(() => del.mutateAsync(c.id))}>
+            <ConfirmButton className="btn-ghost !px-2 text-red-600" label={`מחק את ${c.name}`} onConfirm={() => run(() => del.mutateAsync(c.id))}>
               <Trash2 size={16} />
             </ConfirmButton>
           </div>
@@ -76,7 +77,9 @@ export function InfoCategoriesSettings() {
 
       <div className="flex items-center gap-2 border-t border-slate-200 pt-3">
         <input
-          className="input max-w-sm"
+          className="input sm:max-w-sm"
+          aria-label="שם קטגוריה חדשה"
+          enterKeyHint="done"
           placeholder="קטגוריה חדשה"
           value={adding}
           onChange={(e) => setAdding(e.target.value)}
@@ -95,7 +98,7 @@ export function InfoCategoriesSettings() {
           הוסף
         </button>
       </div>
-      {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+      {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
     </div>
   )
 }

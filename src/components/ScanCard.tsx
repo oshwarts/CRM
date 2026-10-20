@@ -1,4 +1,4 @@
-import { CalendarPlus, Pencil, Phone, Trash2 } from 'lucide-react'
+import { CalendarPlus, Check, Pencil, Phone, Trash2 } from 'lucide-react'
 import { PendingMark } from './PendingMark'
 import { ConfirmButton } from './ui'
 import { rowFlags } from '../lib/scanAlerts'
@@ -9,7 +9,7 @@ import {
   SCAN_STATUS_LABELS,
   type PatientScanRow,
 } from '../lib/types'
-import { classNames, formatDate, formatTime } from '../lib/utils'
+import { classNames, daysUntil, formatDate, formatTime } from '../lib/utils'
 
 type Patch = Partial<
   Pick<PatientScanRow, 'scanned' | 'disk_collected' | 'plan_ready'>
@@ -17,9 +17,21 @@ type Patch = Partial<
 
 const TOGGLES: { key: keyof Patch; label: string }[] = [
   { key: 'scanned', label: 'נסרק' },
-  { key: 'disk_collected', label: 'הועלה דיסק' },
+  { key: 'disk_collected', label: 'דיסק הועלה' },
   { key: 'plan_ready', label: 'תוכנית מוכנה' },
 ]
+
+/** "today", "in 3 days", "2 days ago" — only while the scan is still open */
+function relDays(d: number | null): string {
+  if (d === null) return ''
+  if (d === 0) return 'היום'
+  if (d === 1) return 'מחר'
+  if (d === -1) return 'אתמול'
+  return d > 0 ? `בעוד ${d} ימים` : `לפני ${-d} ימים`
+}
+
+const ICON_BTN =
+  'inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-600 transition hover:bg-brand-50 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-40'
 
 export function ScanCard({
   s,
@@ -40,6 +52,7 @@ export function ScanCard({
 }) {
   const { overdueRow, soon, noCtSoon, noDiskSoon, missing, rescanKind, hasEvents } = rowFlags(s)
   const implantRows = useImplantFields().data
+  const implants = implantSummary(s, implantRows)
   const tone = noCtSoon
     ? 'border-fuchsia-300 bg-fuchsia-50/60'
     : noDiskSoon
@@ -54,47 +67,70 @@ export function ScanCard({
               ? 'border-amber-300 bg-amber-50/60'
               : 'border-slate-200 bg-white'
 
+  const ctDays = s.ct_date ? daysUntil(s.ct_date) : null
+  const ctRel = !s.scanned && s.status !== 'cancelled' ? relDays(ctDays) : ''
+  const ctUrgent = ctDays !== null && !s.scanned && s.status !== 'cancelled' && ctDays <= 0
+  const what = [SCAN_PROCEDURE_LABELS[s.procedure_type], s.side].filter(Boolean).join(' ')
+  const surgeon = s.surgeon ? `${s.surgeon.title} ${s.surgeon.name}` : ''
+  const hasAlerts = noCtSoon || noDiskSoon || missing.length > 0 || s.rescan
+
   return (
-    <div className={classNames('rounded-2xl border p-3 shadow-sm', tone, selected && 'ring-2 ring-brand-400')}>
-      <div className="flex items-start gap-3">
-        <input
-          type="checkbox"
-          className="mt-1 h-5 w-5 shrink-0"
-          checked={selected}
-          onChange={onToggle}
-          aria-label="בחר"
-        />
+    <article className={classNames('rounded-2xl border p-3 shadow-sm', tone, selected && 'ring-2 ring-brand-400')}>
+      <div className="flex items-start gap-2">
+        <label className="-my-1 flex h-9 w-8 shrink-0 cursor-pointer items-center justify-center">
+          <input
+            type="checkbox"
+            className="h-5 w-5"
+            checked={selected}
+            onChange={onToggle}
+            aria-label={`בחר את ${s.patient_name}`}
+          />
+        </label>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <p className="font-semibold text-slate-800">
+            <h2 className="min-w-0 text-base font-semibold leading-snug text-slate-800 [overflow-wrap:anywhere]">
               {s.patient_name} <PendingMark id={s.id} />
-            </p>
-            <span className="chip shrink-0 border-slate-200 bg-white/70 text-slate-600">
+            </h2>
+            <span
+              className={classNames(
+                'chip shrink-0',
+                s.status === 'done'
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                  : s.status === 'cancelled'
+                    ? 'border-red-200 bg-red-50 text-red-600'
+                    : 'border-slate-200 bg-white/70 text-slate-600',
+              )}
+            >
               {SCAN_STATUS_LABELS[s.status]}
             </span>
           </div>
-          <p className="text-sm text-slate-500">{s.hospital?.name}</p>
-          <p className="text-sm text-slate-600">
-            {[SCAN_PROCEDURE_LABELS[s.procedure_type], s.side].filter(Boolean).join(' ')}
-            {s.surgeon ? ` · ${s.surgeon.title} ${s.surgeon.name}` : ''}
+          <p className="text-sm text-slate-600 [overflow-wrap:anywhere]">
+            {[s.hospital?.name, what, surgeon].filter(Boolean).join(' · ')}
           </p>
         </div>
       </div>
 
-      <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
-        <div>
-          <dt className="text-xs text-slate-400">ניתוח</dt>
-          <dd className="text-slate-700">{formatDate(s.surgery_date) || '—'}</dd>
+      <dl className="mt-2 grid grid-cols-2 gap-2 text-sm">
+        <div className="min-w-0 rounded-xl bg-white/70 px-2.5 py-1.5">
+          <dt className="text-xs text-slate-500">CT</dt>
+          <dd className="font-semibold text-slate-800">
+            {s.ct_date ? formatDate(s.ct_date) : <span className="font-normal text-slate-500">לא נקבע</span>}
+          </dd>
+          {(s.ct_time || ctRel) && (
+            <dd className={classNames('text-xs', ctUrgent ? 'font-medium text-red-600' : 'text-slate-500')}>
+              {[s.ct_time ? formatTime(s.ct_time) : '', ctRel].filter(Boolean).join(' · ')}
+            </dd>
+          )}
         </div>
-        <div>
-          <dt className="text-xs text-slate-400">CT</dt>
-          <dd className="text-slate-700">
-            {s.ct_date ? `${formatDate(s.ct_date)}${s.ct_time ? ` ${formatTime(s.ct_time)}` : ''}` : '—'}
+        <div className="min-w-0 rounded-xl bg-white/70 px-2.5 py-1.5">
+          <dt className="text-xs text-slate-500">ניתוח</dt>
+          <dd className="font-semibold text-slate-800">
+            {s.surgery_date ? formatDate(s.surgery_date) : <span className="font-normal text-slate-500">לא נקבע</span>}
           </dd>
         </div>
       </dl>
 
-      {(noCtSoon || noDiskSoon || missing.length > 0 || s.rescan) && (
+      {hasAlerts && (
         <div className="mt-2 flex flex-wrap gap-1">
           {noCtSoon && <span className="chip border-fuchsia-200 bg-fuchsia-100 text-fuchsia-700">ניתוח השבוע — אין CT</span>}
           {!noCtSoon && noDiskSoon && <span className="chip border-orange-200 bg-orange-100 text-orange-700">ניתוח השבוע — אין דיסק</span>}
@@ -119,39 +155,52 @@ export function ScanCard({
         </div>
       )}
 
-      {implantSummary(s, implantRows) && <p className="mt-2 text-xs text-slate-500">{implantSummary(s, implantRows)}</p>}
-      {s.anaesthesia_note && <p className="mt-1 text-xs text-slate-500">מרדים: {s.anaesthesia_note}</p>}
+      {implants && <p className="mt-2 text-xs text-slate-500 [overflow-wrap:anywhere]">{implants}</p>}
+      {s.anaesthesia_note && <p className="mt-1 text-xs text-slate-500 [overflow-wrap:anywhere]">מרדים: {s.anaesthesia_note}</p>}
 
-      <div className="mt-3 grid grid-cols-4 gap-1 border-t border-slate-200/70 pt-2">
-        {TOGGLES.map(({ key, label }) => (
-          <label key={key} className="flex flex-col items-center gap-1 py-1 text-xs text-slate-600">
-            <input
-              type="checkbox"
-              className="h-6 w-6"
-              checked={!!s[key]}
-              onChange={(e) => onPatch({ [key]: e.target.checked })}
-            />
-            {label}
-          </label>
-        ))}
+      <div className="mt-2 grid grid-cols-3 gap-1.5 border-t border-slate-200/70 pt-2" role="group" aria-label={`התקדמות של ${s.patient_name}`}>
+        {TOGGLES.map(({ key, label }) => {
+          const on = !!s[key]
+          return (
+            <button
+              key={key}
+              type="button"
+              aria-pressed={on}
+              onClick={() => onPatch({ [key]: !on })}
+              className={classNames(
+                'flex min-h-[38px] items-center justify-center gap-1 rounded-xl border px-1 text-[13px] font-medium transition',
+                on
+                  ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                  : 'border-slate-300 bg-white text-slate-600 hover:border-brand-300',
+              )}
+            >
+              {on && <Check size={14} aria-hidden="true" />}
+              {label}
+            </button>
+          )
+        })}
       </div>
 
-      <div className="mt-2 flex items-center justify-end gap-1">
+      <div className="mt-1.5 flex items-center gap-0.5">
         {s.patient_phone && (
-          <a href={`tel:${s.patient_phone}`} className="btn-ghost !px-3" aria-label="התקשר">
+          <a href={`tel:${s.patient_phone}`} className={ICON_BTN} aria-label={`התקשר ל${s.patient_name}`} title="התקשר">
             <Phone size={18} />
           </a>
         )}
-        <button className="btn-ghost !px-3 disabled:opacity-30" disabled={!hasEvents} onClick={onInvite} aria-label="זימון Outlook">
+        <button type="button" className={ICON_BTN} disabled={!hasEvents} onClick={onInvite} aria-label={`זימון Outlook: ${s.patient_name}`} title="זימון Outlook">
           <CalendarPlus size={18} />
         </button>
-        <button className="btn-ghost !px-3" onClick={onEdit} aria-label="עריכה">
+        <button type="button" className={ICON_BTN} onClick={onEdit} aria-label={`עריכת ${s.patient_name}`} title="עריכה">
           <Pencil size={18} />
         </button>
-        <ConfirmButton className="btn-ghost !px-3 text-red-500" onConfirm={onDelete}>
+        <ConfirmButton
+          className={classNames(ICON_BTN, 'ms-auto text-red-500 hover:text-red-600')}
+          label={`מחיקת ${s.patient_name}`}
+          onConfirm={onDelete}
+        >
           <Trash2 size={18} />
         </ConfirmButton>
       </div>
-    </div>
+    </article>
   )
 }

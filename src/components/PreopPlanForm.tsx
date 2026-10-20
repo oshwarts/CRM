@@ -159,7 +159,7 @@ export function PreopPlanSummary({ schema, values }: { schema: PreopSchema; valu
             <div className="space-y-1.5 rounded-lg bg-slate-50 p-3">
               {g.blocks.map((b, i) => (
                 <div key={i} className="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-sm">
-                  {b.sub && <span className="w-14 text-xs font-semibold text-brand-600">{b.sub}</span>}
+                  {b.sub && <span className="w-full text-xs font-semibold text-brand-600 sm:w-14">{b.sub}</span>}
                   {b.rows.map(({ fl, text }) => (
                     <span key={fl.key} className="text-slate-700">
                       <span className="text-slate-400">{fl.label}: </span>
@@ -169,7 +169,29 @@ export function PreopPlanSummary({ schema, values }: { schema: PreopSchema; valu
                 </div>
               ))}
               {g.planeRows.length > 0 && (
-                <div tabIndex={0} className="overflow-x-auto pt-1">
+                <div className="space-y-2 pt-1 sm:hidden">
+                  {g.planeRows.map((r) => (
+                    <div key={r.name} className="rounded-lg border border-slate-200 bg-white p-2">
+                      <p className="mb-1 text-xs font-bold text-brand-600">{r.name}</p>
+                      {r.cells.map((cell, ci) =>
+                        cell.length > 0 ? (
+                          <div key={ci} className="border-t border-slate-100 py-1 first:border-0">
+                            <p className="text-xs font-semibold text-slate-500">{g.planes[ci]}</p>
+                            {cell.map(({ fl, text }) => (
+                              <p key={fl.key} className="break-words text-sm text-slate-700">
+                                <span className="text-xs text-slate-500">{fl.label}: </span>
+                                {text}
+                              </p>
+                            ))}
+                          </div>
+                        ) : null,
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {g.planeRows.length > 0 && (
+                <div tabIndex={0} role="region" aria-label="טבלת תכנון לפי מישורים" className="hidden overflow-x-auto pt-1 sm:block">
                   <table dir="ltr" className="w-full min-w-[420px] border-collapse text-sm">
                     <thead>
                       <tr className="text-xs text-slate-400">

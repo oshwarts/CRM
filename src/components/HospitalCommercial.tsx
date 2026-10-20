@@ -20,7 +20,7 @@ export function HospitalCommercial({ hospital: h }: { hospital: MapHospital }) {
   const dirty = step !== (h.next_step ?? '') || date !== (h.next_step_date ?? '')
 
   return (
-    <section className="card space-y-3 p-4">
+    <section className="card space-y-3 p-3.5 sm:p-4">
       <h2 className="flex items-center gap-2 text-base font-semibold text-brand-800">
         <Flag size={16} /> מצב מסחרי והצעד הבא
       </h2>
@@ -37,18 +37,20 @@ export function HospitalCommercial({ hospital: h }: { hospital: MapHospital }) {
             {STATUS_LABELS[s]}
           </button>
         ))}
-        {!stored && <span className="text-xs text-slate-400">מוצע לפי הרובוטים — לחץ כדי לשמור</span>}
+        {!stored && <span className="w-full text-xs text-slate-500">מוצע לפי הרובוטים — לחץ כדי לשמור</span>}
       </div>
-      <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+      <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:gap-x-3">
         <label className="block">
           <span className="label">הצעד הבא</span>
           <input className="input" dir="auto" placeholder="למשל: הצגה להנהלה, הצעת מחיר, פגישה עם מנהל חדר הניתוח" value={step} onChange={(e) => setStep(e.target.value)} />
         </label>
-        <label className="block">
-          <span className="label">עד תאריך</span>
-          <input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} />
+        <div>
+          <label className="block w-44 max-w-full">
+            <span className="label">עד תאריך</span>
+            <input type="date" className="input !px-2.5" value={date} onChange={(e) => setDate(e.target.value)} />
+          </label>
           <QuickDates value={date || null} onPick={(d) => setDate(d ?? '')} />
-        </label>
+        </div>
       </div>
       {dirty && (
         <div className="flex justify-end gap-2">

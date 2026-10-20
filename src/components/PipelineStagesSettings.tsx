@@ -4,8 +4,8 @@ import { useDoctors } from '../lib/api'
 import { useDeleteStage, useMoveStage, useSaveStage, useSetWonStage, usePipelineStages, useStuckThresholds, STUCK_SETTING_KEY, type PipelineStage } from '../lib/pipeline'
 import { useSaveAppSetting } from '../lib/api'
 import { toast } from '../lib/toast'
-import { classNames } from '../lib/utils'
-import { Spinner } from './ui'
+import { Field, Spinner } from './ui'
+import { Section } from './SettingsKit'
 
 function StageRow({ stage, index, last, count, others, onMove }: { stage: PipelineStage; index: number; last: boolean; count: number; others: PipelineStage[]; onMove: (dir: -1 | 1) => void }) {
   const save = useSaveStage()
@@ -28,56 +28,88 @@ function StageRow({ stage, index, last, count, others, onMove }: { stage: Pipeli
     del.mutate({ id: stage.id, moveTo })
   }
 
+  function cancel() {
+    setName(stage.name)
+    setHint(stage.suggested_step ?? '')
+    setStuck(stage.stuck_days ? String(stage.stuck_days) : '')
+    setEditing(false)
+  }
+
+  function submit() {
+    if (!name.trim()) return
+    save.mutate(
+      { id: stage.id, name, suggested_step: hint, stuck_days: stuck.trim() ? Math.min(365, Math.max(1, Math.floor(Number(stuck)) || 1)) : null },
+      { onSuccess: () => setEditing(false), onError: (e) => toast(e instanceof Error ? e.message : 'השמירה נכשלה', { kind: 'error' }) },
+    )
+  }
+
+  if (editing) {
+    return (
+      <li className="py-2">
+        <form
+          className="space-y-3 rounded-xl border border-brand-200 bg-brand-50/40 p-3"
+          onSubmit={(e) => {
+            e.preventDefault()
+            submit()
+          }}
+        >
+          <Field label="שם השלב">
+            <input className="input" value={name} autoFocus onChange={(e) => setName(e.target.value)} />
+          </Field>
+          <Field label="תקוע אחרי כמה ימים בשלב הזה">
+            <input className="input" type="number" min={1} max={365} inputMode="numeric" value={stuck} placeholder="ריק = ברירת המחדל" onChange={(e) => setStuck(e.target.value)} />
+          </Field>
+          <Field label="צעד הבא מוצע בשלב הזה">
+            <input className="input" value={hint} onChange={(e) => setHint(e.target.value)} />
+          </Field>
+          <label className="flex min-h-[40px] items-start gap-2 text-sm text-slate-700">
+            <input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0" checked={stage.is_won} disabled={won.isPending} onChange={() => won.mutate(stage.is_won ? null : stage.id)} />
+            <span>
+              שלב הסגירה
+              <span className="block text-xs text-slate-500">הגעה לשלב הזה = הרופא הפך ללקוח. השינוי נשמר מיד.</span>
+            </span>
+          </label>
+          <div className="flex flex-wrap items-center gap-2">
+            <button className="btn-primary flex-1 sm:flex-none" disabled={!name.trim() || save.isPending}>
+              <Check size={16} aria-hidden /> שמור
+            </button>
+            <button type="button" className="btn-secondary flex-1 sm:flex-none" onClick={cancel}>
+              ביטול
+            </button>
+            <button type="button" className="btn-ghost text-red-600 max-sm:basis-full" onClick={() => void remove()}>
+              <Trash2 size={16} aria-hidden /> מחק את השלב
+            </button>
+          </div>
+        </form>
+      </li>
+    )
+  }
+
   return (
-    <li className="flex flex-wrap items-center gap-2 py-2 text-sm">
-      <span className="w-6 shrink-0 text-center text-xs text-slate-400">{index + 1}</span>
-      {editing ? (
-        <div className="flex min-w-0 flex-1 flex-wrap gap-2">
-          <input className="input !w-auto max-w-xs flex-1" value={name} autoFocus aria-label="שם השלב" onChange={(e) => setName(e.target.value)} />
-          <input className="input !w-24" type="number" min={1} max={365} inputMode="numeric" value={stuck} aria-label="תקוע אחרי כמה ימים (ריק = ברירת המחדל)" placeholder="ימים" title="תקוע אחרי כמה ימים בשלב הזה (ריק = ברירת המחדל)" onChange={(e) => setStuck(e.target.value)} />
-          <input className="input !w-auto min-w-48 flex-1" value={hint} aria-label="צעד הבא מוצע בשלב" placeholder="צעד הבא מוצע בשלב הזה" onChange={(e) => setHint(e.target.value)} />
-        </div>
-      ) : (
-        <span className="min-w-[9rem] flex-1 font-medium text-slate-800">
-          {stage.name} <span className="mr-1 text-xs font-normal text-slate-400">{count} רופאים</span>
-          {stage.suggested_step && <span className="block text-xs font-normal text-slate-500">צעד מוצע: {stage.suggested_step}</span>}
-          {stage.stuck_days ? <span className="block text-xs font-normal text-slate-500">תקוע אחרי {stage.stuck_days} ימים בשלב</span> : null}
-          {stage.is_won && <span className="chip mr-1 border-emerald-200 bg-emerald-50 !py-0 text-emerald-700">הפך ללקוח</span>}
-        </span>
-      )}
-      {editing ? (
-        <>
-          <button
-            type="button"
-            className="btn-ghost !px-2 text-brand-600"
-            disabled={!name.trim() || save.isPending}
-            onClick={() => save.mutate({ id: stage.id, name, suggested_step: hint, stuck_days: stuck.trim() ? Math.min(365, Math.max(1, Math.floor(Number(stuck)) || 1)) : null }, { onSuccess: () => setEditing(false), onError: (e) => toast(e instanceof Error ? e.message : 'השמירה נכשלה', { kind: 'error' }) })}
-          >
-            <Check size={15} /> שמור
-          </button>
-          <button type="button" className="btn-ghost !px-2 text-slate-500" onClick={() => (setName(stage.name), setHint(stage.suggested_step ?? ''), setStuck(stage.stuck_days ? String(stage.stuck_days) : ''), setEditing(false))}>
-            ביטול
-          </button>
-        </>
-      ) : (
-        <>
-          <button type="button" className={classNames('rounded-full border px-2.5 py-0.5 text-xs', stage.is_won ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50')} aria-pressed={stage.is_won} title="הגעה לשלב הזה = הרופא הפך ללקוח" onClick={() => won.mutate(stage.is_won ? null : stage.id)}>
-            {stage.is_won ? 'שלב הסגירה' : 'סמן כשלב הסגירה'}
-          </button>
-          <button type="button" className="rounded-lg p-1.5 hover:bg-slate-100 disabled:opacity-30" aria-label={`הזז את ${stage.name} למעלה`} disabled={index === 0} onClick={() => onMove(-1)}>
-            <ArrowUp size={15} />
-          </button>
-          <button type="button" className="rounded-lg p-1.5 hover:bg-slate-100 disabled:opacity-30" aria-label={`הזז את ${stage.name} למטה`} disabled={last} onClick={() => onMove(1)}>
-            <ArrowDown size={15} />
-          </button>
-          <button type="button" className="btn-ghost !px-2" aria-label={`שנה שם של ${stage.name}`} onClick={() => setEditing(true)}>
-            <Pencil size={15} />
-          </button>
-          <button type="button" className="btn-ghost !px-2 text-red-500" aria-label={`מחק את ${stage.name}`} onClick={() => void remove()}>
-            <Trash2 size={15} />
-          </button>
-        </>
-      )}
+    <li className="flex items-start gap-1 py-2 text-sm">
+      <span className="mt-2 w-6 shrink-0 text-center text-xs text-slate-500" aria-hidden>
+        {index + 1}
+      </span>
+      <div className="min-w-0 flex-1 py-1">
+        <p className="font-medium text-slate-800 [overflow-wrap:anywhere]">
+          {stage.name}
+          {stage.is_won && <span className="chip mr-2 border-emerald-200 bg-emerald-50 !py-0 text-emerald-700">שלב הסגירה</span>}
+        </p>
+        <p className="text-xs text-slate-500">
+          {count} רופאים
+          {stage.stuck_days ? ` · תקוע אחרי ${stage.stuck_days} ימים` : ''}
+        </p>
+        {stage.suggested_step && <p className="text-xs text-slate-500">צעד מוצע: {stage.suggested_step}</p>}
+      </div>
+      <button type="button" className="btn-ghost !px-2 disabled:opacity-30" aria-label={`הזז את ${stage.name} למעלה`} disabled={index === 0} onClick={() => onMove(-1)}>
+        <ArrowUp size={16} />
+      </button>
+      <button type="button" className="btn-ghost !px-2 disabled:opacity-30" aria-label={`הזז את ${stage.name} למטה`} disabled={last} onClick={() => onMove(1)}>
+        <ArrowDown size={16} />
+      </button>
+      <button type="button" className="btn-ghost !px-2" aria-label={`עריכת השלב ${stage.name}`} onClick={() => setEditing(true)}>
+        <Pencil size={16} />
+      </button>
     </li>
   )
 }
@@ -99,31 +131,38 @@ export function PipelineStagesSettings() {
   for (const d of doctors.data ?? []) if (d.status === 'potential' && d.pipeline_stage) counts.set(d.pipeline_stage, (counts.get(d.pipeline_stage) ?? 0) + 1)
 
   return (
-    <div className="card p-5">
-      <h2 className="mb-1 font-semibold text-slate-800">שלבי המשפך של רופאים פוטנציאליים</h2>
-      <p className="mb-3 text-xs text-slate-500">הסדר כאן הוא הסדר במשפך. שינוי שם של שלב מעדכן את כל הרופאים שנמצאים בו. מחיקת שלב מעבירה את הרופאים לשלב אחר.</p>
-      <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl bg-slate-50 p-3 text-sm">
-        <span className="text-slate-700">רופא פוטנציאלי נחשב תקוע אחרי</span>
-        <input type="number" min={1} max={365} inputMode="numeric" className="input !w-20 text-center" aria-label="ימים לתקוע — ברירת מחדל" value={days} onChange={(e) => setDays(e.target.value)} />
+    <Section title="שלבי המשפך של רופאים פוטנציאליים" count={stages.length} className="lg:col-span-2">
+      <p className="mb-3 text-sm text-slate-600">הסדר כאן הוא הסדר במשפך. שינוי שם של שלב מעדכן את כל הרופאים שנמצאים בו. מחיקת שלב מעבירה את הרופאים לשלב אחר.</p>
+      <form
+        className="mb-3 flex flex-wrap items-center gap-2 rounded-xl bg-slate-50 p-3 text-sm"
+        onSubmit={(e) => {
+          e.preventDefault()
+          if (daysDirty && Number(days) >= 1) saveSetting.mutate({ key: STUCK_SETTING_KEY, value: String(Math.min(365, Math.max(1, Math.floor(Number(days))))) }, { onSuccess: () => toast('הסף עודכן') })
+        }}
+      >
+        <label htmlFor="stuck-days" className="text-slate-700">
+          רופא פוטנציאלי נחשב תקוע אחרי
+        </label>
+        <input id="stuck-days" type="number" min={1} max={365} inputMode="numeric" className="input !w-20 text-center" value={days} onChange={(e) => setDays(e.target.value)} />
         <span className="text-slate-700">ימים באותו שלב.</span>
         {daysDirty && (
-          <button type="button" className="btn-primary !py-1" disabled={saveSetting.isPending || !(Number(days) >= 1)} onClick={() => saveSetting.mutate({ key: STUCK_SETTING_KEY, value: String(Math.min(365, Math.max(1, Math.floor(Number(days))))) }, { onSuccess: () => toast('הסף עודכן') })}>
+          <button className="btn-primary" disabled={saveSetting.isPending || !(Number(days) >= 1)}>
             שמירה
           </button>
         )}
-        <span className="w-full text-xs text-slate-500">אפשר להגדיר סף אחר לשלב מסוים בעריכת השלב (העיפרון).</span>
-      </div>
+        <span className="w-full text-xs text-slate-500">אפשר להגדיר סף אחר לשלב מסוים בעריכת השלב.</span>
+      </form>
       <form
-        className="mb-3 flex gap-2"
+        className="mb-2 flex gap-2"
         onSubmit={(e) => {
           e.preventDefault()
           if (!name.trim()) return
           save.mutate({ name, sort: Math.max(0, ...stages.map((s) => s.sort)) + 1 }, { onSuccess: () => setName(''), onError: (err) => toast(err instanceof Error ? err.message : 'ההוספה נכשלה (אולי השלב כבר קיים)', { kind: 'error' }) })
         }}
       >
-        <input className="input" placeholder="שם שלב חדש, למשל: הצעת מחיר" value={name} onChange={(e) => setName(e.target.value)} />
+        <input className="input" aria-label="שם שלב חדש" enterKeyHint="done" placeholder="שלב חדש, למשל: הצעת מחיר" value={name} onChange={(e) => setName(e.target.value)} />
         <button className="btn-primary shrink-0" disabled={!name.trim() || save.isPending}>
-          <Plus size={16} /> הוסף
+          <Plus size={16} aria-hidden /> הוסף
         </button>
       </form>
       {isLoading ? (
@@ -133,8 +172,9 @@ export function PipelineStagesSettings() {
           {stages.map((s, i) => (
             <StageRow key={s.id} stage={s} index={i} last={i === stages.length - 1} count={counts.get(s.name) ?? 0} others={stages.filter((o) => o.id !== s.id)} onMove={(dir) => move.mutate({ a: s, b: stages[i + dir] })} />
           ))}
+          {stages.length === 0 && <li className="py-5 text-center text-sm text-slate-500">עוד לא הוגדרו שלבים.</li>}
         </ul>
       )}
-    </div>
+    </Section>
   )
 }

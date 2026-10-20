@@ -117,7 +117,7 @@ export function ProjectFormModal({
           הפרויקט גלוי רק למנהלים ולסוכן האחראי עליו.
         </p>
 
-        {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+        {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
         <div className="flex justify-end gap-2 border-t border-slate-200 pt-3">
           <button className="btn-secondary" onClick={onClose}>
             ביטול

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Plus, ScanLine, Trash2 } from 'lucide-react'
+import { Plus, ScanLine, Trash2, X } from 'lucide-react'
 import {
   useCaseVolumes,
   useCompanies,
@@ -9,7 +9,7 @@ import {
   useUpsertCaseVolume,
 } from '../lib/api'
 import { CURRENT_YEAR, YEAR_OPTIONS } from '../lib/types'
-import { ConfirmButton, EmptyState, Spinner } from './ui'
+import { ConfirmButton, EmptyState, Field, Spinner } from './ui'
 
 type Option = { id: string; label: string }
 
@@ -40,6 +40,7 @@ export function CaseVolumesEditor(props: Props) {
     count: 0,
   })
   const [error, setError] = useState<string | null>(null)
+  const [adding, setAdding] = useState(false)
 
   const rows = volumes.data ?? []
 
@@ -121,155 +122,203 @@ export function CaseVolumesEditor(props: Props) {
 
   if (volumes.isLoading) return <Spinner />
 
+  type Row = (typeof rows)[number]
+  const saveCount = (r: Row, value: string) => {
+    const count = Math.max(0, Number(value) || 0)
+    if (count !== r.count)
+      upsert.mutate({
+        id: r.id,
+        doctor_id: r.doctor_id,
+        hospital_id: r.hospital_id,
+        procedure_id: r.procedure_id,
+        company_id: r.company_id,
+        year: r.year,
+        count,
+      })
+  }
+  const nameOf = (r: Row) => (isDoctorMode ? r.hospital?.name : `${r.doctor?.title} ${r.doctor?.name}`)
+  const countLabel = (r: Row) => `כמות: ${nameOf(r)} ${r.procedure?.name ?? ''} ${r.year}`
+  const showForm = adding || rows.length === 0
+
   return (
     <div className="space-y-3">
-      <p className="text-sm text-slate-500">
-        כמות מקרים שנתית. כל מקרה משויך לרופא ולבית חולים, כך שהסכומים מתאזנים
-        אוטומטית בין הרופא לבית החולים.
-      </p>
-
-      {/* new row */}
-      <div className="grid gap-2 rounded-xl border border-brand-200 p-3 sm:grid-cols-[1.4fr_1.4fr_1fr_.8fr_.8fr_auto]">
-        <select
-          className="input"
-          value={draft.entityId}
-          onChange={(e) => setDraft({ ...draft, entityId: e.target.value })}
-        >
-          <option value="">{entityLabel}…</option>
-          {entityOptions.map((o) => (
-            <option key={o.id} value={o.id}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-        <select
-          className="input"
-          value={draft.procedure_id}
-          onChange={(e) => setDraft({ ...draft, procedure_id: e.target.value })}
-        >
-          <option value="">הליך…</option>
-          {(procedures.data ?? []).map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-        <select
-          className="input"
-          value={draft.company_id}
-          onChange={(e) => setDraft({ ...draft, company_id: e.target.value })}
-        >
-          <option value="">חברה (אופ׳)</option>
-          {(companies.data ?? []).map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-        <select
-          className="input"
-          value={draft.year}
-          onChange={(e) => setDraft({ ...draft, year: Number(e.target.value) })}
-        >
-          {YEAR_OPTIONS.map((y) => (
-            <option key={y} value={y}>
-              {y}
-            </option>
-          ))}
-        </select>
-        <input
-          type="number"
-          min={0}
-          className="input text-center"
-          placeholder="כמות"
-          value={draft.count || ''}
-          onChange={(e) =>
-            setDraft({ ...draft, count: Math.max(0, Number(e.target.value) || 0) })
-          }
-        />
-        <button className="btn-primary !px-3" aria-label="הוסף" onClick={add} disabled={upsert.isPending}>
-          <Plus size={16} />
-        </button>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="min-w-0 flex-1 basis-48 text-sm text-slate-500">
+          כמות מקרים שנתית לפי {entityLabel} והליך. הסכומים מתאזנים אוטומטית בין הרופא לבית החולים.
+        </p>
+        {!showForm && (
+          <button className="btn-secondary" onClick={() => setAdding(true)}>
+            <Plus size={16} />
+            הוספת כמות
+          </button>
+        )}
       </div>
 
-      {error && (
-        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
-          {error}
-        </p>
+      {Object.keys(totalsByYear).length > 0 && (
+        <ul className="flex flex-wrap gap-2" aria-label="סה״כ מקרים לפי שנה">
+          {Object.entries(totalsByYear)
+            .sort((a, b) => Number(b[0]) - Number(a[0]))
+            .map(([year, total]) => (
+              <li key={year} className="chip border-brand-200 bg-brand-50 text-brand-700">
+                {year}: <b>{total}</b> מקרים
+              </li>
+            ))}
+        </ul>
+      )}
+
+      {showForm && (
+        <div className="card space-y-3 border-brand-200 p-3 sm:p-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-[1.4fr_1.4fr_1fr_.7fr_.7fr]">
+            <Field label={entityLabel} className="col-span-2 sm:col-span-1">
+              <select className="input" value={draft.entityId} onChange={(e) => setDraft({ ...draft, entityId: e.target.value })}>
+                <option value="">בחר…</option>
+                {entityOptions.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="הליך" className="col-span-2 sm:col-span-1">
+              <select className="input" value={draft.procedure_id} onChange={(e) => setDraft({ ...draft, procedure_id: e.target.value })}>
+                <option value="">בחר…</option>
+                {(procedures.data ?? []).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="חברה (אופציונלי)" className="col-span-2 sm:col-span-1">
+              <select className="input" value={draft.company_id} onChange={(e) => setDraft({ ...draft, company_id: e.target.value })}>
+                <option value="">ללא</option>
+                {(companies.data ?? []).map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="שנה">
+              <select className="input" value={draft.year} onChange={(e) => setDraft({ ...draft, year: Number(e.target.value) })}>
+                {YEAR_OPTIONS.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="כמות">
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                className="input text-center"
+                value={draft.count || ''}
+                onChange={(e) => setDraft({ ...draft, count: Math.max(0, Number(e.target.value) || 0) })}
+              />
+            </Field>
+          </div>
+          {error && (
+            <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+              {error}
+            </p>
+          )}
+          <div className="flex justify-end gap-2">
+            {rows.length > 0 && (
+              <button
+                className="btn-secondary flex-1 sm:flex-none"
+                onClick={() => {
+                  setAdding(false)
+                  setError(null)
+                }}
+              >
+                <X size={16} />
+                סגירה
+              </button>
+            )}
+            <button className="btn-primary flex-1 sm:flex-none" onClick={add} disabled={upsert.isPending}>
+              <Plus size={16} />
+              הוספה
+            </button>
+          </div>
+        </div>
       )}
 
       {rows.length === 0 ? (
         <EmptyState title="לא הוזנו כמויות" />
       ) : (
-        <div tabIndex={0} className="card overflow-x-auto">
-          <table className="w-full min-w-[560px] text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 text-slate-500">
-                <th className="p-2 text-right font-medium">{entityLabel}</th>
-                <th className="p-2 text-right font-medium">הליך</th>
-                <th className="p-2 text-right font-medium">חברה</th>
-                <th className="p-2 text-center font-medium">שנה</th>
-                <th className="p-2 text-center font-medium">כמות</th>
-                <th className="p-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.id} className="border-b border-slate-100">
-                  <td className="p-2 text-slate-700">
-                    {isDoctorMode ? r.hospital?.name : `${r.doctor?.title} ${r.doctor?.name}`}
-                  </td>
-                  <td className="p-2 text-slate-600">{r.procedure?.name}</td>
-                  <td className="p-2 text-slate-400">{r.company?.name ?? '—'}</td>
-                  <td className="p-2 text-center text-slate-500">{r.year}</td>
-                  <td className="p-2 text-center">
-                    <input
-                      type="number"
-                      min={0}
-                      className="input w-20 py-1 text-center"
-                      defaultValue={r.count}
-                      onBlur={(e) => {
-                        const count = Math.max(0, Number(e.target.value) || 0)
-                        if (count !== r.count)
-                          upsert.mutate({
-                            id: r.id,
-                            doctor_id: r.doctor_id,
-                            hospital_id: r.hospital_id,
-                            procedure_id: r.procedure_id,
-                            company_id: r.company_id,
-                            year: r.year,
-                            count,
-                          })
-                      }}
-                    />
-                  </td>
-                  <td className="p-2 text-center">
-                    <ConfirmButton
-                      className="btn-ghost !px-2 text-red-500"
-                      onConfirm={() => del.mutate(r.id)}
-                    >
-                      <Trash2 size={14} />
-                    </ConfirmButton>
-                  </td>
+        <>
+          {/* phone: one card per row */}
+          <ul className="space-y-2 md:hidden">
+            {rows.map((r) => (
+              <li key={r.id} className="card flex items-center gap-2 p-3">
+                <div className="min-w-0 flex-1 text-sm">
+                  <p className="break-words font-medium text-slate-800">{nameOf(r)}</p>
+                  <p className="break-words text-slate-600">{r.procedure?.name}</p>
+                  <p className="text-xs text-slate-500">
+                    {r.year}
+                    {r.company?.name ? ` · ${r.company.name}` : ''}
+                  </p>
+                </div>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  aria-label={countLabel(r)}
+                  className="input !w-20 shrink-0 text-center"
+                  defaultValue={r.count}
+                  onBlur={(e) => saveCount(r, e.target.value)}
+                />
+                <ConfirmButton className="btn-ghost shrink-0 !px-2.5 text-red-600" onConfirm={() => del.mutate(r.id)}>
+                  <Trash2 size={16} />
+                </ConfirmButton>
+              </li>
+            ))}
+          </ul>
+          {/* wide screens: a table */}
+          <div tabIndex={0} role="region" aria-label="כמויות מקרים" className="card hidden overflow-x-auto md:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 text-slate-500">
+                  <th className="p-2 text-right font-medium">{entityLabel}</th>
+                  <th className="p-2 text-right font-medium">הליך</th>
+                  <th className="p-2 text-right font-medium">חברה</th>
+                  <th className="p-2 text-center font-medium">שנה</th>
+                  <th className="p-2 text-center font-medium">כמות</th>
+                  <th className="p-2">
+                    <span className="sr-only">פעולות</span>
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              {Object.entries(totalsByYear)
-                .sort((a, b) => Number(b[0]) - Number(a[0]))
-                .map(([year, total]) => (
-                  <tr key={year} className="bg-slate-50 font-medium text-slate-700">
-                    <td className="p-2" colSpan={3}>
-                      סה״כ {year}
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.id} className="border-b border-slate-100">
+                    <td className="p-2 text-slate-700">{nameOf(r)}</td>
+                    <td className="p-2 text-slate-600">{r.procedure?.name}</td>
+                    <td className="p-2 text-slate-500">{r.company?.name ?? '—'}</td>
+                    <td className="p-2 text-center text-slate-500">{r.year}</td>
+                    <td className="p-2 text-center">
+                      <input
+                        type="number"
+                        min={0}
+                        aria-label={countLabel(r)}
+                        className="input !w-20 py-1 text-center"
+                        defaultValue={r.count}
+                        onBlur={(e) => saveCount(r, e.target.value)}
+                      />
                     </td>
-                    <td className="p-2 text-center">{year}</td>
-                    <td className="p-2 text-center">{total}</td>
-                    <td className="p-2" />
+                    <td className="p-2 text-center">
+                      <ConfirmButton className="btn-ghost !px-2 text-red-600" onConfirm={() => del.mutate(r.id)}>
+                        <Trash2 size={14} />
+                      </ConfirmButton>
+                    </td>
                   </tr>
                 ))}
-            </tfoot>
-          </table>
-        </div>
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {scanCounts.length > 0 && (
@@ -278,34 +327,25 @@ export function CaseVolumesEditor(props: Props) {
             <ScanLine size={15} className="text-brand-500" />
             ניתוחי MAKO שבוצעו (מתוך עמוד הסריקות)
           </p>
-          <div tabIndex={0} className="overflow-x-auto">
-            <table className="w-full min-w-[480px] text-sm">
-              <tbody>
-                {scanCounts.map((s, i) => (
-                  <tr key={i} className="border-b border-slate-200 last:border-0">
-                    <td className="p-1.5 text-slate-700">{s.otherLabel}</td>
-                    <td className="p-1.5 text-slate-500">{s.procedure_name}</td>
-                    <td className="p-1.5 text-center text-slate-500">{s.year}</td>
-                    <td className="p-1.5 text-center font-semibold text-slate-800">
-                      {s.count}
-                    </td>
-                    <td className="p-1.5 text-center">
-                      <button
-                        className="btn-secondary !py-1 !text-xs"
-                        disabled={!s.procedure_id || upsert.isPending}
-                        onClick={() => applyScanCount(s)}
-                      >
-                        עדכן כמות
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="mt-1 text-xs text-slate-400">
-            "עדכן כמות" מעדכן את הכמות הידנית שלמעלה לפי מספר הניתוחים שבוצעו.
-          </p>
+          <ul className="divide-y divide-slate-200">
+            {scanCounts.map((s, i) => (
+              <li key={i} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2 text-sm">
+                <div className="min-w-0 flex-1 basis-40">
+                  <p className="break-words text-slate-700">{s.otherLabel}</p>
+                  <p className="break-words text-xs text-slate-500">
+                    {s.procedure_name} · {s.year}
+                  </p>
+                </div>
+                <span className="text-lg font-semibold text-slate-800" aria-label={`${s.count} ניתוחים`}>
+                  {s.count}
+                </span>
+                <button className="btn-secondary" disabled={!s.procedure_id || upsert.isPending} onClick={() => applyScanCount(s)}>
+                  עדכן כמות
+                </button>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1 text-xs text-slate-500">"עדכן כמות" מעדכן את הכמות הידנית שלמעלה לפי מספר הניתוחים שבוצעו.</p>
         </div>
       )}
     </div>

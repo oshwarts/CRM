@@ -32,7 +32,7 @@ function PicTile({ pic, index, total, onLabel, onMove, onRemove }: { pic: Pic; i
     <div className="w-36 space-y-1 rounded-xl border border-slate-200 p-1.5">
       <div className="relative">
         {src ? <img src={src} alt="" className="h-28 w-full rounded-lg object-cover" /> : <div className="h-28 w-full animate-pulse rounded-lg bg-slate-100" />}
-        <button type="button" className="absolute -left-1.5 -top-1.5 grid h-6 w-6 place-items-center rounded-full bg-slate-700 text-white" onClick={onRemove} aria-label="הסר תמונה">
+        <button type="button" className="absolute -left-1.5 -top-1.5 grid h-8 w-8 place-items-center rounded-full bg-slate-700 text-white" onClick={onRemove} aria-label="הסר תמונה">
           <X size={12} />
         </button>
       </div>
@@ -171,8 +171,8 @@ export function EquipmentItemModal({ item, onClose }: { item?: EquipmentItemWith
           <span className="label">מק״טים שנמצאים בציוד ({parts.length})</span>
           {parts.length > 0 && (
             <div tabIndex={0} className="overflow-x-auto">
-              <table className="w-full min-w-[520px] text-sm">
-                <thead>
+              <table className="w-full text-sm max-sm:block sm:min-w-[520px]">
+                <thead className="max-sm:hidden">
                   <tr className="text-xs text-slate-400">
                     <th className="w-14 p-1 text-center font-medium">#</th>
                     <th className="w-36 p-1 text-center font-medium">מק״ט</th>
@@ -181,23 +181,23 @@ export function EquipmentItemModal({ item, onClose }: { item?: EquipmentItemWith
                     <th className="w-8" />
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="max-sm:block">
                   {parts.map((p, i) => (
-                    <tr key={i}>
-                      <td className="p-1">
-                        <input type="number" min={1} className="input !py-1 text-center" value={p.position ?? ''} onChange={(e) => setPart(i, { position: e.target.value ? Number(e.target.value) : null })} />
+                    <tr key={i} className="max-sm:mb-2 max-sm:grid max-sm:grid-cols-[3.5rem_1fr_3.5rem_auto] max-sm:items-center max-sm:gap-1.5 max-sm:rounded-xl max-sm:border max-sm:border-slate-200 max-sm:p-2">
+                      <td className="p-1 max-sm:p-0">
+                        <input type="number" min={1} aria-label={`מספר סידורי, שורה ${i + 1}`} placeholder="#" className="input !py-1 text-center" value={p.position ?? ''} onChange={(e) => setPart(i, { position: e.target.value ? Number(e.target.value) : null })} />
                       </td>
-                      <td className="p-1">
-                        <input className="input !py-1 text-center font-mono" dir="ltr" value={p.catalog_no} onChange={(e) => setPart(i, { catalog_no: e.target.value })} />
+                      <td className="p-1 max-sm:p-0">
+                        <input aria-label={`מק״ט, שורה ${i + 1}`} placeholder="מק״ט" className="input !py-1 text-center font-mono" dir="ltr" value={p.catalog_no} onChange={(e) => setPart(i, { catalog_no: e.target.value })} />
                       </td>
-                      <td className="p-1">
-                        <input className="input !py-1" dir="auto" value={p.description} onChange={(e) => setPart(i, { description: e.target.value })} />
+                      <td className="p-1 max-sm:order-last max-sm:col-span-4 max-sm:p-0">
+                        <input aria-label={`תיאור, שורה ${i + 1}`} placeholder="תיאור" className="input !py-1" dir="auto" value={p.description} onChange={(e) => setPart(i, { description: e.target.value })} />
                       </td>
-                      <td className="p-1">
-                        <input type="number" min={1} className="input !py-1 text-center" value={p.qty} onChange={(e) => setPart(i, { qty: Math.max(1, Number(e.target.value) || 1) })} />
+                      <td className="p-1 max-sm:p-0">
+                        <input type="number" min={1} aria-label={`כמות, שורה ${i + 1}`} placeholder="כמות" className="input !py-1 text-center" value={p.qty} onChange={(e) => setPart(i, { qty: Math.max(1, Number(e.target.value) || 1) })} />
                       </td>
-                      <td className="p-1">
-                        <button type="button" className="btn-ghost !px-1.5 text-red-500" onClick={() => setParts((x) => x.filter((_, k) => k !== i))} aria-label="הסר שורה">
+                      <td className="p-1 max-sm:p-0">
+                        <button type="button" className="btn-ghost !px-2 text-red-600" onClick={() => setParts((x) => x.filter((_, k) => k !== i))} aria-label={`הסר שורה ${i + 1}`}>
                           <Trash2 size={14} />
                         </button>
                       </td>
@@ -230,8 +230,12 @@ export function EquipmentItemModal({ item, onClose }: { item?: EquipmentItemWith
           </details>
         </div>
 
-        {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-        <div className="flex justify-end gap-2 border-t border-slate-200 pt-3">
+        <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-3">
+          {error && (
+            <p role="alert" className="basis-full rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+              {error}
+            </p>
+          )}
           <button className="btn-secondary" onClick={onClose}>
             ביטול
           </button>

@@ -36,12 +36,12 @@ export function TrainingMatrix() {
       {stuck.length > 0 && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           <p className="mb-1 flex items-center gap-1.5 font-semibold">
-            <AlertTriangle size={15} /> {stuck.length} הכשרות תקועות
+            <AlertTriangle size={15} aria-hidden /> {stuck.length} הכשרות תקועות
           </p>
-          <ul className="space-y-0.5 text-xs">
+          <ul className="space-y-0.5 text-sm">
             {stuck.map(({ a, sc, st }) => (
               <li key={`${a.id}-${sc.key}`}>
-                <Link to={`/agents/${a.id}`} className="font-medium underline">
+                <Link to={`/agents/${a.id}`} className="inline-flex min-h-8 items-center font-medium underline">
                   {a.full_name || a.email}
                 </Link>{' '}
                 — {sc.title}: {st.current ? `"${st.current.stage.name}" ${st.current.count}/${st.current.stage.required_count}` : ''} (אחרון {formatDate(st.last!)}), {st.daysSince} ימים בלי התקדמות
@@ -50,7 +50,34 @@ export function TrainingMatrix() {
           </ul>
         </div>
       )}
-      <div tabIndex={0} className="card overflow-x-auto">
+      <ul className="space-y-2 sm:hidden">
+        {cells.map(({ a, states }) => (
+          <li key={a.id} className="card p-3">
+            <Link to={`/agents/${a.id}`} className="inline-flex min-h-9 items-center font-semibold text-brand-700 hover:underline">
+              {a.full_name || a.email}
+            </Link>
+            <ul className="mt-1 divide-y divide-slate-100">
+              {states.map(({ sc, st }) => (
+                <li key={sc.key} className="flex items-center justify-between gap-3 py-2 text-sm">
+                  <span className="min-w-0 text-slate-800">
+                    {sc.title}
+                    {!st.complete && st.started && st.current && (
+                      <span className="block text-xs text-slate-600">
+                        {st.current.stage.name} {st.current.count}/{st.current.stage.required_count}
+                      </span>
+                    )}
+                  </span>
+                  <span className={classNames('shrink-0 rounded-lg border px-2.5 py-1 text-xs font-medium', scopeTone(st))}>
+                    {st.complete ? 'הושלם' : st.started ? `${st.doneCount}/${st.total}` : 'לא התחיל'}
+                    {st.stuck && ' ⚠ תקועה'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))}
+      </ul>
+      <div tabIndex={0} role="region" aria-label="טבלת הכשרות, גלילה לצדדים" className="card hidden overflow-x-auto sm:block">
         <table className="w-full min-w-[640px] text-sm">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50 text-right text-xs text-slate-500">
@@ -91,7 +118,7 @@ export function TrainingMatrix() {
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-slate-400">הטבלה מראה כמה שלבים הושלמו בכל תחום ואיפה הסוכן עומד כרגע. לחץ על סוכן כדי לעדכן השלמות ולערוך שלבים.</p>
+      <p className="text-xs text-slate-600">הטבלה מראה כמה שלבים הושלמו בכל תחום ואיפה הסוכן עומד כרגע. לחץ על סוכן כדי לעדכן השלמות ולערוך שלבים.</p>
     </div>
   )
 }

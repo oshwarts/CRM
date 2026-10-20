@@ -287,6 +287,7 @@ export function MultiSelectChips<T extends { id: string }>({
           <button
             key={o.id}
             type="button"
+            aria-pressed={on}
             onClick={() => onToggle(o.id)}
             className={classNames(
               'chip',

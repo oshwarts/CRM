@@ -25,9 +25,9 @@ export function MyTraining() {
   })
   return (
     <div>
-      <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
-        <GraduationCap size={12} /> ההכשרות שלי
-      </p>
+      <h3 className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-brand-700">
+        <GraduationCap size={13} aria-hidden /> ההכשרות שלי
+      </h3>
       <ul className="space-y-2.5">
         {rows.map(({ sc, st }) => (
           <li key={sc.key} className="text-sm">
@@ -40,11 +40,11 @@ export function MyTraining() {
             <ul className="mt-1 space-y-0.5">
               {st.stages.map((sp) => (
                 <li key={sp.stage.id} className="flex items-center gap-2 text-xs text-slate-600">
-                  <span className={classNames('w-28 truncate', sp.done && 'text-emerald-700')}>{sp.stage.name}</span>
+                  <span className={classNames('w-24 shrink-0 truncate sm:w-28', sp.done && 'text-emerald-700')}>{sp.stage.name}</span>
                   <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
                     <span className={classNames('block h-full', sp.done ? 'bg-emerald-500' : 'bg-brand-500')} style={{ width: `${Math.min(100, (sp.count / sp.stage.required_count) * 100)}%` }} />
                   </span>
-                  <span className="w-8 text-left text-slate-400">
+                  <span className="w-8 text-left text-slate-500">
                     {sp.count}/{sp.stage.required_count}
                   </span>
                 </li>

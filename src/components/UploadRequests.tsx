@@ -33,7 +33,7 @@ export function UploadRequests() {
     <li key={r.id} className="flex flex-wrap items-center gap-2 py-2.5 text-sm">
       <FileUp size={16} className="shrink-0 text-brand-500" />
       <div className="min-w-0 flex-1 basis-40">
-        <p dir="auto" className="truncate font-medium text-slate-800">
+        <p dir="auto" className="font-medium text-slate-800 [overflow-wrap:anywhere]">
           {r.file_name}
         </p>
         <p className="text-xs text-slate-500">
@@ -43,11 +43,11 @@ export function UploadRequests() {
         </p>
       </div>
       {actions ? (
-        <div className="flex gap-1.5">
-          <button type="button" className="btn-primary !py-1" disabled={decide.isPending} onClick={() => decide.mutate({ id: r.id, approve: true }, { onSuccess: () => toast('הבקשה אושרה — המשתמש יכול להעלות את הקובץ') })}>
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:gap-1.5">
+          <button type="button" className="btn-primary" disabled={decide.isPending} onClick={() => decide.mutate({ id: r.id, approve: true }, { onSuccess: () => toast('הבקשה אושרה — המשתמש יכול להעלות את הקובץ') })}>
             <Check size={15} /> אשר
           </button>
-          <button type="button" className="btn-secondary !py-1" disabled={decide.isPending} onClick={() => reject(r)}>
+          <button type="button" className="btn-secondary" disabled={decide.isPending} onClick={() => reject(r)}>
             <X size={15} /> דחה
           </button>
         </div>
@@ -59,17 +59,17 @@ export function UploadRequests() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-slate-500">
+      <p className="text-sm text-slate-600">
         קובץ מעל {mb(LARGE_LIMIT)} (ועד 50MB) מועלה רק באישור מנהל: מי שבוחר קובץ כזה שולח בקשה, ואחרי האישור מעלה אותו שוב. מנהלים מעלים קבצים כאלה ישירות.
       </p>
       {isAdmin && (
         <section className="card p-4">
-          <h3 className="mb-1 font-semibold text-slate-800">ממתינות לאישור ({pending.length})</h3>
-          {pending.length === 0 ? <p className="py-2 text-sm text-slate-400">אין בקשות ממתינות.</p> : <ul className="divide-y divide-slate-100">{pending.map((r) => row(r, true))}</ul>}
+          <h2 className="mb-1 text-base font-semibold text-slate-800">ממתינות לאישור ({pending.length})</h2>
+          {pending.length === 0 ? <p className="py-2 text-sm text-slate-500">אין בקשות ממתינות.</p> : <ul className="divide-y divide-slate-100">{pending.map((r) => row(r, true))}</ul>}
         </section>
       )}
       <section className="card p-4">
-        <h3 className="mb-1 font-semibold text-slate-800">{isAdmin ? 'בקשות אחרונות' : 'הבקשות שלי'}</h3>
+        <h2 className="mb-1 text-base font-semibold text-slate-800">{isAdmin ? 'בקשות אחרונות' : 'הבקשות שלי'}</h2>
         {(isAdmin ? rest : rows).length === 0 ? <EmptyState title="אין בקשות" /> : <ul className="divide-y divide-slate-100">{(isAdmin ? rest : rows).map((r) => row(r, false))}</ul>}
       </section>
     </div>

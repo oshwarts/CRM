@@ -95,16 +95,23 @@ export function ScanFormModal({
 
   const [d, setD] = useState<Draft>(() => ({ ...toDraft(scan), ...initial }))
   const [error, setError] = useState<string | null>(null)
+  const [fieldErr, setFieldErr] = useState<{ hospital?: string; name?: string; surgeon?: string }>({})
   const set = (p: Partial<Draft>) => setD((x) => ({ ...x, ...p }))
 
   const implantFields = useMemo(() => implantFieldsOf(d.procedure_type, fieldRows.data), [d.procedure_type, fieldRows.data])
 
+  function fail(e: typeof fieldErr) {
+    setFieldErr(e)
+    setError('יש להשלים את השדות המסומנים')
+  }
+
   async function submit() {
     setError(null)
-    if (!d.hospital_id) return setError('בחר בית חולים')
-    if (!d.patient_name.trim()) return setError('הזן שם מטופל')
+    setFieldErr({})
+    if (!d.hospital_id) return fail({ hospital: 'בחר בית חולים' })
+    if (!d.patient_name.trim()) return fail({ name: 'הזן שם מטופל' })
     if (d.status === 'done' && !d.surgeon_id)
-      return setError('ניתוח שבוצע — יש לשייך מנתח')
+      return fail({ surgeon: 'ניתוח שבוצע — יש לשייך מנתח' })
     try {
       await save.mutateAsync({
         id: scan?.id,
@@ -140,9 +147,11 @@ export function ScanFormModal({
     }
   }
 
+  const check = 'flex min-h-[40px] items-center gap-2 text-sm'
+
   return (
     <Modal open onClose={onClose} title={scan ? 'עריכת מטופל' : 'הוספת מטופל'} size="xl">
-      <div className="space-y-4">
+      <div className="space-y-5">
         {notices && notices.length > 0 && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
             <p className="mb-1 font-semibold">הפרטים חולצו אוטומטית מההפנייה — בדוק לפני שמירה:</p>
@@ -153,148 +162,157 @@ export function ScanFormModal({
             </ul>
           </div>
         )}
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Field label="בית חולים (MAKO)">
-            <select className="input" value={d.hospital_id} onChange={(e) => set({ hospital_id: e.target.value })}>
-              <option value="">בחר…</option>
-              {(hospitals.data ?? []).map((h) => (
-                <option key={h.id} value={h.id}>{h.name}</option>
-              ))}
-            </select>
-          </Field>
-          <Field label="תאריך ניתוח">
-            <input type="date" className="input" value={d.surgery_date} onChange={(e) => set({ surgery_date: e.target.value })} />
-          </Field>
-          <Field label="סטטוס">
-            <select className="input" value={d.status} onChange={(e) => set({ status: e.target.value })}>
-              {Object.entries(SCAN_STATUS_LABELS).map(([v, l]) => (
-                <option key={v} value={v}>{l}</option>
-              ))}
-            </select>
-          </Field>
-        </div>
 
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="sm:col-span-3">
-            <ImportContactButton
-              onPick={(c) =>
-                set({
-                  patient_name: d.patient_name || c.name,
-                  patient_phone: c.phone || d.patient_phone,
-                })
-              }
-            />
+        <section className="space-y-3" aria-label="פרטי המטופל">
+          <h3 className="text-sm font-semibold text-brand-800">פרטי המטופל</h3>
+          <ImportContactButton
+            onPick={(c) =>
+              set({
+                patient_name: d.patient_name || c.name,
+                patient_phone: c.phone || d.patient_phone,
+              })
+            }
+          />
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <Field label="שם מלא" error={fieldErr.name} className="col-span-2 sm:col-span-1">
+              <input className="input" autoComplete="off" value={d.patient_name} onChange={(e) => set({ patient_name: e.target.value })} />
+            </Field>
+            <Field label="טלפון" className="min-w-0">
+              <input dir="ltr" type="tel" inputMode="tel" autoComplete="off" className="input text-right" value={d.patient_phone} onChange={(e) => set({ patient_phone: e.target.value })} />
+            </Field>
+            <Field label="ת״ז" className="min-w-0">
+              <input dir="ltr" inputMode="numeric" autoComplete="off" className="input text-right" value={d.patient_id_number} onChange={(e) => set({ patient_id_number: e.target.value })} />
+            </Field>
+            <Field label="תאריך לידה" className="min-w-0">
+              <input type="date" className="input" value={d.patient_dob} onChange={(e) => set({ patient_dob: e.target.value })} />
+            </Field>
+            <Field label="קופת חולים" className="min-w-0">
+              <select className="input" value={d.health_fund} onChange={(e) => set({ health_fund: e.target.value })}>
+                <option value="">—</option>
+                {HEALTH_FUNDS.map((f) => (
+                  <option key={f} value={f}>{f}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="חברת ביטוח" className="col-span-2 sm:col-span-1">
+              <input className="input" autoComplete="off" value={d.insurance} onChange={(e) => set({ insurance: e.target.value })} />
+            </Field>
           </div>
-          <Field label="שם מלא">
-            <input className="input" value={d.patient_name} onChange={(e) => set({ patient_name: e.target.value })} />
-          </Field>
-          <Field label="ת״ז">
-            <input dir="ltr" className="input text-right" value={d.patient_id_number} onChange={(e) => set({ patient_id_number: e.target.value })} />
-          </Field>
-          <Field label="טלפון">
-            <input dir="ltr" className="input text-right" value={d.patient_phone} onChange={(e) => set({ patient_phone: e.target.value })} />
-          </Field>
-          <Field label="תאריך לידה">
-            <input type="date" className="input" value={d.patient_dob} onChange={(e) => set({ patient_dob: e.target.value })} />
-          </Field>
-          <Field label="קופת חולים">
-            <select className="input" value={d.health_fund} onChange={(e) => set({ health_fund: e.target.value })}>
-              <option value="">—</option>
-              {HEALTH_FUNDS.map((f) => (
-                <option key={f} value={f}>{f}</option>
-              ))}
-            </select>
-          </Field>
-          <Field label="חברת ביטוח">
-            <input className="input" value={d.insurance} onChange={(e) => set({ insurance: e.target.value })} />
-          </Field>
-        </div>
+        </section>
 
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Field label="מנתח">
-            <select className="input" value={d.surgeon_id} onChange={(e) => set({ surgeon_id: e.target.value })}>
-              <option value="">בחר רופא…</option>
-              {(doctors.data ?? []).map((doc) => (
-                <option key={doc.id} value={doc.id}>{doc.title} {doc.name}</option>
-              ))}
-            </select>
-          </Field>
-          <Field label="סוג ניתוח">
-            <select
-              className="input"
-              value={d.procedure_type}
-              onChange={(e) => set({ procedure_type: e.target.value as Draft['procedure_type'], implant_data: {} })}
-            >
-              {Object.entries(SCAN_PROCEDURE_LABELS).map(([v, l]) => (
-                <option key={v} value={v}>{l}</option>
-              ))}
-            </select>
-          </Field>
-          <Field label="רגל">
-            <select className="input" value={d.side} onChange={(e) => set({ side: e.target.value })}>
-              <option value="">—</option>
-              <option value="ימין">ימין</option>
-              <option value="שמאל">שמאל</option>
-            </select>
-          </Field>
-          <Field label="תאריך CT">
-            <input type="date" className="input" value={d.ct_date} onChange={(e) => set({ ct_date: e.target.value })} />
-          </Field>
-          <Field label="שעת CT">
-            <input type="time" className="input" value={d.ct_time} onChange={(e) => set({ ct_time: e.target.value })} />
-          </Field>
-          <Field label="תאריך ושעה מרדים">
-            <input className="input" value={d.anaesthesia_note} onChange={(e) => set({ anaesthesia_note: e.target.value })} placeholder="לדוגמה: 12.8.26 שעה 10:20" />
-          </Field>
-        </div>
+        <section className="space-y-3" aria-label="ניתוח">
+          <h3 className="text-sm font-semibold text-brand-800">הניתוח</h3>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <Field label="בית חולים (MAKO)" error={fieldErr.hospital} className="col-span-2 sm:col-span-1">
+              <select className="input" value={d.hospital_id} onChange={(e) => set({ hospital_id: e.target.value })}>
+                <option value="">בחר…</option>
+                {(hospitals.data ?? []).map((h) => (
+                  <option key={h.id} value={h.id}>{h.name}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="תאריך ניתוח" className="min-w-0">
+              <input type="date" className="input" value={d.surgery_date} onChange={(e) => set({ surgery_date: e.target.value })} />
+            </Field>
+            <Field label="סטטוס" className="min-w-0">
+              <select className="input" value={d.status} onChange={(e) => set({ status: e.target.value })}>
+                {Object.entries(SCAN_STATUS_LABELS).map(([v, l]) => (
+                  <option key={v} value={v}>{l}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="מנתח" error={fieldErr.surgeon} className="col-span-2 sm:col-span-1">
+              <select className="input" value={d.surgeon_id} onChange={(e) => set({ surgeon_id: e.target.value })}>
+                <option value="">בחר רופא…</option>
+                {(doctors.data ?? []).map((doc) => (
+                  <option key={doc.id} value={doc.id}>{doc.title} {doc.name}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="סוג ניתוח" className="min-w-0">
+              <select
+                className="input"
+                value={d.procedure_type}
+                onChange={(e) => set({ procedure_type: e.target.value as Draft['procedure_type'], implant_data: {} })}
+              >
+                {Object.entries(SCAN_PROCEDURE_LABELS).map(([v, l]) => (
+                  <option key={v} value={v}>{l}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="רגל" className="min-w-0">
+              <select className="input" value={d.side} onChange={(e) => set({ side: e.target.value })}>
+                <option value="">—</option>
+                <option value="ימין">ימין</option>
+                <option value="שמאל">שמאל</option>
+              </select>
+            </Field>
+          </div>
+        </section>
 
-        <div className="flex gap-6">
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" className="h-4 w-4" checked={d.scanned} onChange={(e) => set({ scanned: e.target.checked })} />
-            נסרק
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" className="h-4 w-4" checked={d.disk_collected} onChange={(e) => set({ disk_collected: e.target.checked })} />
-            הועלה דיסק
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" className="h-4 w-4" checked={d.plan_ready} onChange={(e) => set({ plan_ready: e.target.checked })} />
-            תוכנית מוכנה
-          </label>
-        </div>
+        <section className="space-y-3" aria-label="סריקת CT">
+          <h3 className="text-sm font-semibold text-brand-800">סריקת CT</h3>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <Field label="תאריך CT" className="min-w-0">
+              <input type="date" className="input" value={d.ct_date} onChange={(e) => set({ ct_date: e.target.value })} />
+            </Field>
+            <Field label="שעת CT" className="min-w-0">
+              <input type="time" className="input" value={d.ct_time} onChange={(e) => set({ ct_time: e.target.value })} />
+            </Field>
+            <Field label="תאריך ושעה מרדים" className="col-span-2 sm:col-span-1">
+              <input className="input" value={d.anaesthesia_note} onChange={(e) => set({ anaesthesia_note: e.target.value })} placeholder="לדוגמה: 12.8.26 שעה 10:20" />
+            </Field>
+          </div>
 
-        <div className="rounded-lg border border-slate-200 p-3">
-          <label className="flex items-center gap-2 text-sm font-medium">
-            <input type="checkbox" className="h-4 w-4" checked={d.rescan} onChange={(e) => set({ rescan: e.target.checked })} />
-            סריקה חוזרת
-          </label>
-          {d.rescan && (
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
-              <Field label="תאריך סריקה חוזרת">
-                <input type="date" className="input" value={d.rescan_date} onChange={(e) => set({ rescan_date: e.target.value })} />
-              </Field>
-              <Field label="סיבה">
-                <input className="input" value={d.rescan_reason} onChange={(e) => set({ rescan_reason: e.target.value })} placeholder="לדוגמה: איכות סריקה לא תקינה" />
-              </Field>
-              <label className="flex items-end gap-2 pb-2 text-sm">
-                <input type="checkbox" className="h-4 w-4" checked={d.rescan_done} onChange={(e) => set({ rescan_done: e.target.checked })} />
-                הסריקה החוזרת בוצעה
-              </label>
-            </div>
-          )}
-        </div>
+          <div className="grid grid-cols-1 gap-x-6 sm:grid-cols-3">
+            <label className={check}>
+              <input type="checkbox" className="h-5 w-5" checked={d.scanned} onChange={(e) => set({ scanned: e.target.checked })} />
+              נסרק
+            </label>
+            <label className={check}>
+              <input type="checkbox" className="h-5 w-5" checked={d.disk_collected} onChange={(e) => set({ disk_collected: e.target.checked })} />
+              הועלה דיסק
+            </label>
+            <label className={check}>
+              <input type="checkbox" className="h-5 w-5" checked={d.plan_ready} onChange={(e) => set({ plan_ready: e.target.checked })} />
+              תוכנית מוכנה
+            </label>
+          </div>
 
-        <div>
-          <p className="label">מידות שתל ({SCAN_PROCEDURE_LABELS[d.procedure_type]})</p>
-          <div className="grid gap-3 sm:grid-cols-4">
+          <div className="rounded-xl border border-slate-200 p-3">
+            <label className={`${check} font-medium`}>
+              <input type="checkbox" className="h-5 w-5" checked={d.rescan} onChange={(e) => set({ rescan: e.target.checked })} />
+              סריקה חוזרת
+            </label>
+            {d.rescan && (
+              <div className="mt-2 grid gap-3 sm:grid-cols-3">
+                <Field label="תאריך סריקה חוזרת">
+                  <input type="date" className="input" value={d.rescan_date} onChange={(e) => set({ rescan_date: e.target.value })} />
+                </Field>
+                <Field label="סיבה">
+                  <input className="input" value={d.rescan_reason} onChange={(e) => set({ rescan_reason: e.target.value })} placeholder="לדוגמה: איכות סריקה לא תקינה" />
+                </Field>
+                <label className={`${check} sm:self-end`}>
+                  <input type="checkbox" className="h-5 w-5" checked={d.rescan_done} onChange={(e) => set({ rescan_done: e.target.checked })} />
+                  הסריקה החוזרת בוצעה
+                </label>
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section aria-label="מידות שתל">
+          <h3 className="mb-2 text-sm font-semibold text-brand-800">מידות שתל ({SCAN_PROCEDURE_LABELS[d.procedure_type]})</h3>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {implantFields.map((f) => {
               // a field that depends on another (neck on head) offers the sizes that fit the chosen value
               const { values, narrowedBy } = optionsForField(f, d.implant_data, implantFields, options.data ?? [])
               return (
-                <Field key={f.key} label={f.label}>
+                <Field key={f.key} label={f.label} className="min-w-0">
                   <input
                     className="input"
                     list={`impl-${f.key}`}
+                    autoComplete="off"
                     value={d.implant_data[f.key] ?? ''}
                     onChange={(e) =>
                       set({ implant_data: { ...d.implant_data, [f.key]: e.target.value } })
@@ -305,24 +323,24 @@ export function ScanFormModal({
                       <option key={v} value={v} />
                     ))}
                   </datalist>
-                  {narrowedBy && <p className="mt-0.5 text-[11px] text-brand-600">מידות עבור {narrowedBy}</p>}
+                  {narrowedBy && <p className="mt-0.5 text-xs text-brand-600">מידות עבור {narrowedBy}</p>}
                 </Field>
               )
             })}
           </div>
-        </div>
+        </section>
 
         <Field label="הערות">
-          <textarea className="input min-h-16" value={d.notes} onChange={(e) => set({ notes: e.target.value })} />
+          <textarea className="input min-h-20" value={d.notes} onChange={(e) => set({ notes: e.target.value })} />
         </Field>
       </div>
 
       {error && (
-        <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
+        <p role="alert" className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
       )}
       <div className="mt-5 flex justify-end gap-2 border-t border-slate-200 pt-4">
         <button className="btn-secondary" onClick={onClose}>ביטול</button>
-        <button className="btn-primary" onClick={submit} disabled={save.isPending}>שמירה</button>
+        <button className="btn-primary" onClick={submit} disabled={save.isPending}>{save.isPending ? 'שומר…' : 'שמירה'}</button>
       </div>
     </Modal>
   )

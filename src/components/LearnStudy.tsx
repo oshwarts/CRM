@@ -119,15 +119,15 @@ export function FlashStudy({ cards, progress, auto, onExit }: { cards: LearnCard
       </button>
       {flipped ? (
         <div className="grid grid-cols-2 gap-2">
-          <button className="btn-secondary !border-red-200 !text-red-600" onClick={() => answer(false)}>
+          <button className="btn-secondary !border-red-200 !py-3 !text-red-600" onClick={() => answer(false)}>
             <X size={16} /> לא ידעתי
           </button>
-          <button className="btn-primary !bg-[#1d9a6c] hover:!bg-[#17805a]" onClick={() => answer(true)}>
+          <button className="btn-primary !bg-[#17805a] !py-3 hover:!bg-[#126a4a]" onClick={() => answer(true)}>
             <Check size={16} /> ידעתי
           </button>
         </div>
       ) : (
-        <button className="btn-secondary w-full" onClick={() => setFlipped(true)}>
+        <button className="btn-secondary w-full !py-3" onClick={() => setFlipped(true)}>
           הצג תשובה
         </button>
       )}
@@ -260,7 +260,7 @@ export function QuizStudy({ topicId, cards, progress, passPct }: { topicId: stri
           }}
           aria-label={`שאלה ${k + 1}`}
           className={classNames(
-            'h-7 w-7 rounded-lg border text-xs font-medium transition',
+            'h-8 w-8 rounded-lg border text-xs font-medium transition',
             !reviewing && k === i && 'ring-2 ring-brand-500 ring-offset-1',
             picks[k] === null ? 'border-slate-200 bg-white text-slate-500' : isRight(k) ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-red-300 bg-red-50 text-red-600',
           )}
@@ -347,7 +347,7 @@ export function QuizStudy({ topicId, cards, progress, passPct }: { topicId: stri
               onClick={() => choose(o)}
               disabled={answered}
               className={classNames(
-                'w-full rounded-xl border px-4 py-3 text-sm transition',
+                'min-h-[48px] w-full rounded-xl border px-4 py-3 text-base transition sm:text-sm',
                 text,
                 !answered && 'border-slate-200 bg-white hover:border-brand-300 hover:bg-brand-50',
                 answered && right && 'border-emerald-400 bg-emerald-50 text-emerald-800',
@@ -366,10 +366,10 @@ export function QuizStudy({ topicId, cards, progress, passPct }: { topicId: stri
         </p>
       )}
       <div className="flex gap-2">
-        <button className="btn-secondary" disabled={i === 0} onClick={() => setI(i - 1)}>
+        <button className="btn-secondary !py-2.5" disabled={i === 0} onClick={() => setI(i - 1)}>
           <ChevronRight size={16} /> הקודמת
         </button>
-        <button className={answered ? 'btn-primary flex-1' : 'btn-secondary flex-1'} onClick={forward}>
+        <button className={(answered ? "btn-primary" : "btn-secondary") + " flex-1 !py-2.5"} onClick={forward}>
           {last ? (unanswered.length > 0 ? 'לסיכום ולשאלות שנשארו' : 'סיום וצפייה בציון') : answered ? 'הבאה' : 'דלג'}
           {!last && <ChevronLeft size={16} />}
         </button>

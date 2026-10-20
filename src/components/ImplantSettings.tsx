@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Link2, Plus, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, Check, ChevronLeft, ChevronRight, Link2, Plus, Trash2 } from 'lucide-react'
 import {
   useDeleteImplantField,
   useDeleteImplantOption,
@@ -72,46 +72,76 @@ function OptionList({ category, parentId, options, placeholder }: { category: st
     reorder.mutate(ids)
   }
 
+  const editingOpt = editing ? list.find((o) => o.id === editing.id) : undefined
+  const editingIndex = editingOpt ? list.indexOf(editingOpt) : -1
+
   return (
     <div>
       <div className="flex flex-wrap gap-1.5">
-        {list.length === 0 && <span className="text-xs text-slate-400">אין ערכים</span>}
-        {list.map((o, i) => (
-          <span key={o.id} className="inline-flex items-center gap-0.5 rounded-full border border-slate-200 bg-slate-50 py-0.5 pl-1 pr-2 text-sm text-slate-700">
-            {editing?.id === o.id ? (
-              <input
-                autoFocus
-                dir="ltr"
-                className="w-16 rounded border border-brand-300 bg-white px-1 text-center text-sm outline-none"
-                value={editing.value}
-                onChange={(e) => setEditing({ id: o.id, value: e.target.value })}
-                onBlur={() => void rename()}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') void rename()
-                  if (e.key === 'Escape') setEditing(null)
-                }}
-              />
-            ) : (
-              <button type="button" dir="ltr" className="min-w-6 px-0.5 hover:text-brand-600" title="לחץ לעריכה" onClick={() => setEditing({ id: o.id, value: o.value })}>
-                {o.value}
-              </button>
+        {list.length === 0 && <span className="text-xs text-slate-500">אין ערכים</span>}
+        {list.map((o) => (
+          <button
+            key={o.id}
+            type="button"
+            dir="ltr"
+            aria-pressed={editing?.id === o.id}
+            aria-label={`${o.value}: עריכה, הזזה ומחיקה`}
+            className={classNames(
+              'chip min-w-10 justify-center transition',
+              editing?.id === o.id ? 'border-brand-500 bg-brand-500 text-white' : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-brand-300',
             )}
-            <button type="button" className="text-slate-300 hover:text-slate-600 disabled:opacity-30" disabled={i === 0} onClick={() => move(i, -1)} aria-label="הזז ימינה" title="הזז קדימה">
-              <ChevronRight size={13} />
-            </button>
-            <button type="button" className="text-slate-300 hover:text-slate-600 disabled:opacity-30" disabled={i === list.length - 1} onClick={() => move(i, 1)} aria-label="הזז שמאלה" title="הזז אחורה">
-              <ChevronLeft size={13} />
-            </button>
-            <button type="button" className="text-red-300 hover:text-red-500" onClick={() => del.mutate(o.id)} aria-label="מחק" title="מחק">
-              <Trash2 size={12} />
-            </button>
-          </span>
+            onClick={() => setEditing(editing?.id === o.id ? null : { id: o.id, value: o.value })}
+          >
+            {o.value}
+          </button>
         ))}
       </div>
-      <div className="mt-1.5 flex gap-1">
+      {editing && editingOpt && (
+        <form
+          className="mt-2 flex flex-wrap items-center gap-1.5 rounded-xl border border-brand-200 bg-brand-50/50 p-2"
+          onSubmit={(e) => {
+            e.preventDefault()
+            void rename()
+          }}
+        >
+          <input
+            autoFocus
+            dir="ltr"
+            className="input min-w-0 flex-1 basis-24 text-center"
+            aria-label={`שם הערך ${editingOpt.value}`}
+            value={editing.value}
+            onChange={(e) => setEditing({ id: editing.id, value: e.target.value })}
+            onKeyDown={(e) => e.key === 'Escape' && setEditing(null)}
+          />
+          <button type="button" className="btn-ghost !px-2 disabled:opacity-30" disabled={editingIndex === 0} onClick={() => move(editingIndex, -1)} aria-label={`הזז את ${editingOpt.value} קדימה`}>
+            <ChevronRight size={18} />
+          </button>
+          <button type="button" className="btn-ghost !px-2 disabled:opacity-30" disabled={editingIndex === list.length - 1} onClick={() => move(editingIndex, 1)} aria-label={`הזז את ${editingOpt.value} אחורה`}>
+            <ChevronLeft size={18} />
+          </button>
+          <button
+            type="button"
+            className="btn-ghost !px-2 text-red-600"
+            aria-label={`מחק את ${editingOpt.value}`}
+            onClick={() => {
+              del.mutate(editingOpt.id)
+              setEditing(null)
+            }}
+          >
+            <Trash2 size={18} />
+          </button>
+          <button className="btn-primary !px-3" aria-label="שמור שם">
+            <Check size={18} aria-hidden />
+            שמור
+          </button>
+        </form>
+      )}
+      <div className="mt-2 flex gap-2">
         <input
-          className="input !py-1 text-sm"
+          className="input"
           dir="auto"
+          aria-label={placeholder}
+          enterKeyHint="done"
           placeholder={placeholder}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -122,11 +152,11 @@ function OptionList({ category, parentId, options, placeholder }: { category: st
             }
           }}
         />
-        <button className="btn-secondary shrink-0 !py-1" disabled={!draft.trim() || upsert.isPending} onClick={() => void add()} aria-label="הוסף">
-          <Plus size={14} />
+        <button className="btn-secondary shrink-0" disabled={!draft.trim() || upsert.isPending} onClick={() => void add()} aria-label="הוסף ערך">
+          <Plus size={16} />
         </button>
       </div>
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+      {error && <p role="alert" className="mt-1 text-xs text-red-600">{error}</p>}
     </div>
   )
 }
@@ -156,19 +186,39 @@ function FieldCard({
 
   return (
     <div className="rounded-xl border border-slate-200 p-3">
-      <div className="mb-2 flex flex-wrap items-center gap-2">
-        <input
-          className="input !w-40 !py-1 text-sm font-semibold"
-          dir="auto"
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          onBlur={() => row && label.trim() && label !== f.label && save.mutate({ id: row.id, procedure_type: row.procedure_type, label, depends_on: row.depends_on })}
-          aria-label="שם השדה"
-        />
-        <label className="flex items-center gap-1 text-xs text-slate-500">
-          <Link2 size={13} /> תלוי ב:
+      <div className="mb-3 space-y-2">
+        <div className="flex items-center gap-1">
+          <input
+            className="input min-w-0 flex-1 font-semibold"
+            dir="auto"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            onBlur={() => row && label.trim() && label !== f.label && save.mutate({ id: row.id, procedure_type: row.procedure_type, label, depends_on: row.depends_on })}
+            aria-label="שם השדה"
+          />
+          <button className="btn-ghost !px-2 disabled:opacity-30" disabled={index === 0 || !row} onClick={() => onMove(-1)} aria-label={`הזז את ${f.label} למעלה`}>
+            <ArrowUp size={16} />
+          </button>
+          <button className="btn-ghost !px-2 disabled:opacity-30" disabled={index === total - 1 || !row} onClick={() => onMove(1)} aria-label={`הזז את ${f.label} למטה`}>
+            <ArrowDown size={16} />
+          </button>
+          {row && (
+            <button
+              className="btn-ghost !px-2 text-red-600"
+              aria-label={`מחק את השדה ${f.label}`}
+              onClick={() => {
+                if (window.confirm(`למחוק את השדה "${f.label}" ואת כל המידות שלו? מידות שכבר נרשמו בסריקות לא נמחקות מהסריקות.`)) del.mutate({ id: row.id, category: f.category })
+              }}
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
+        </div>
+        <label className="flex items-center gap-2 text-sm text-slate-600">
+          <Link2 size={14} aria-hidden className="shrink-0" />
+          <span className="shrink-0">תלוי ב:</span>
           <select
-            className="input !w-auto !py-0.5 text-xs"
+            className="input min-w-0 flex-1"
             value={f.depends_on ?? ''}
             disabled={!row}
             onChange={(e) => row && save.mutate({ id: row.id, procedure_type: row.procedure_type, label: f.label, depends_on: e.target.value || null })}
@@ -183,25 +233,6 @@ function FieldCard({
               ))}
           </select>
         </label>
-        <span className="mr-auto flex items-center gap-0.5">
-          <button className="btn-ghost !px-1.5 disabled:opacity-30" disabled={index === 0 || !row} onClick={() => onMove(-1)} aria-label="הזז למעלה">
-            <ArrowUp size={14} />
-          </button>
-          <button className="btn-ghost !px-1.5 disabled:opacity-30" disabled={index === total - 1 || !row} onClick={() => onMove(1)} aria-label="הזז למטה">
-            <ArrowDown size={14} />
-          </button>
-          {row && (
-            <button
-              className="btn-ghost !px-1.5 text-red-400"
-              aria-label="מחק שדה"
-              onClick={() => {
-                if (window.confirm(`למחוק את השדה "${f.label}" ואת כל המידות שלו? מידות שכבר נרשמו בסריקות לא נמחקות מהסריקות.`)) del.mutate({ id: row.id, category: f.category })
-              }}
-            >
-              <Trash2 size={14} />
-            </button>
-          )}
-        </span>
       </div>
 
       {parent && parentValues.length > 0 ? (
@@ -260,14 +291,20 @@ export function ImplantSettings() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-slate-500">
-        המידות שמופיעות ברשימת הבחירה בסריקות MAKO. אפשר להוסיף, לשנות שם, לסדר מחדש ולמחוק כל ערך וכל שדה. שדה יכול להיות <b>תלוי</b> בשדה אחר:
-        למשל Neck לפי גודל ה-Head — כש-Head הוא 36 תוצג הרשימה 0, +2.5, +5, וכש-32 הרשימה 0, 4, -4.
-      </p>
+      <div>
+        <p className="text-sm text-slate-600">המידות שמופיעות ברשימת הבחירה בסריקות MAKO. לחיצה על מידה פותחת עריכה, הזזה ומחיקה.</p>
+        <details className="mt-1 text-sm text-slate-600">
+          <summary className="cursor-pointer py-1 font-medium text-brand-700">שדה שתלוי בשדה אחר</summary>
+          <p className="mt-1">
+            שדה יכול להיות <b>תלוי</b> בשדה אחר: למשל Neck לפי גודל ה-Head — כש-Head הוא 36 תוצג הרשימה 0, +2.5, +5, וכש-32 הרשימה 0, 4, -4.
+          </p>
+        </details>
+      </div>
       <div className="flex flex-wrap gap-1.5">
         {procedures.map((p) => (
           <button
             key={p}
+            aria-pressed={proc === p}
             className={classNames('chip transition', proc === p ? 'border-brand-500 bg-brand-500 text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50')}
             onClick={() => setProc(p)}
           >
@@ -300,13 +337,13 @@ export function ImplantSettings() {
         {fields.length === 0 && <p className="text-sm text-slate-400">אין שדות לסוג הניתוח הזה.</p>}
       </div>
 
-      <div className="flex max-w-md gap-2">
-        <input className="input" dir="auto" placeholder="שדה חדש (למשל: Offset)" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void addField()} />
+      <div className="flex gap-2 sm:max-w-md">
+        <input className="input" dir="auto" aria-label="שם שדה חדש" enterKeyHint="done" placeholder="שדה חדש (למשל: Offset)" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void addField()} />
         <button className="btn-primary shrink-0" disabled={!newLabel.trim() || saveField.isPending || !fieldRows.data} onClick={() => void addField()}>
           <Plus size={16} /> הוסף שדה
         </button>
       </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
     </div>
   )
 }

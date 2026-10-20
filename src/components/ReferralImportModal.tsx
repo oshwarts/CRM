@@ -78,7 +78,7 @@ export function ReferralImportModal({
             {file && (
               <span className="text-sm text-slate-600">
                 {file.name}{' '}
-                <button type="button" className="text-red-500 underline" onClick={() => setFile(null)}>
+                <button type="button" className="inline-flex min-h-[32px] items-center text-red-600 underline" onClick={() => setFile(null)}>
                   הסר
                 </button>
               </span>
@@ -98,27 +98,28 @@ export function ReferralImportModal({
 
         <div className="rounded-lg border border-slate-200 p-3">
           <span className="label">כתוב בכתב יד על ההפנייה? (אופציונלי)</span>
-          <p className="mb-2 text-xs text-slate-400">
+          <p className="mb-2 text-xs text-slate-500">
             כתב יד (למשל "LT TKR", תאריך הניתוח והמספר המעוגל) לא נקרא אוטומטית — מלא כאן ונוסיף לטופס.
           </p>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <select className="input" value={hProc} onChange={(e) => setHProc(e.target.value as typeof hProc)}>
+            <select className="input min-w-0" aria-label="סוג ניתוח" value={hProc} onChange={(e) => setHProc(e.target.value as typeof hProc)}>
               <option value="">סוג ניתוח</option>
               <option value="knee">ברך מלאה (TKR)</option>
               <option value="uni">ברך חלקית (יוני)</option>
               <option value="hip">ירך (THR)</option>
             </select>
-            <select className="input" value={hSide} onChange={(e) => setHSide(e.target.value as typeof hSide)}>
+            <select className="input min-w-0" aria-label="צד הניתוח" value={hSide} onChange={(e) => setHSide(e.target.value as typeof hSide)}>
               <option value="">צד</option>
               <option value="שמאל">שמאל (LT)</option>
               <option value="ימין">ימין (RT)</option>
             </select>
-            <input type="date" className="input" value={hDate} onChange={(e) => setHDate(e.target.value)} aria-label="תאריך ניתוח" />
+            <input type="date" className="input min-w-0" value={hDate} onChange={(e) => setHDate(e.target.value)} aria-label="תאריך ניתוח" />
             <input
               type="number"
+              inputMode="numeric"
               min={1}
               className="input"
-              placeholder="ניתוח מס׳ ביום"
+              placeholder="ניתוח מס׳ ביום" aria-label="מספר הניתוח ביום"
               value={hOrder}
               onChange={(e) => setHOrder(e.target.value)}
             />

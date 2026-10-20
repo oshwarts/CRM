@@ -11,6 +11,7 @@ import {
 import type { SurgicalCourse as Course } from '../lib/types'
 import { classNames } from '../lib/utils'
 import { ConfirmButton, EmptyState, Spinner } from './ui'
+import { StickyActions } from './StickyActions'
 
 const checkKey = (courseId: string) => `ami.course.checked.${courseId}`
 
@@ -82,14 +83,14 @@ function Checklist({ course }: { course: Course }) {
         const stDone = st.items.filter((i) => checked.has(i.id)).length
         return (
           <section key={st.id} className="rounded-xl border border-slate-200">
-            <h4 className="flex items-center justify-between rounded-t-xl bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700">
+            <h3 className="flex items-center justify-between rounded-t-xl bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700">
               <span>{st.title}</span>
               {st.items.length > 0 && (
-                <span className={classNames('text-xs font-normal', stDone === st.items.length ? 'text-emerald-600' : 'text-slate-400')}>
+                <span className={classNames('text-xs font-normal', stDone === st.items.length ? 'text-emerald-700' : 'text-slate-500')}>
                   {stDone}/{st.items.length}
                 </span>
               )}
-            </h4>
+            </h3>
             {st.items.length === 0 ? (
               <p className="px-3 py-2 text-sm text-slate-300">—</p>
             ) : (
@@ -167,53 +168,57 @@ function Editor({
         <section key={i} className="space-y-2 rounded-xl border border-brand-200 bg-brand-50/30 p-3">
           <div className="flex items-center gap-1">
             <input
-              className="input font-semibold"
+              className="input min-w-0 flex-1 font-semibold"
               placeholder="שם השלב"
+              aria-label={`שם שלב ${i + 1}`}
               value={st.title}
               onChange={(e) => setStage(i, { title: e.target.value })}
             />
-            <button type="button" className="btn-ghost !px-2" onClick={() => setDraft((d) => move(d, i, -1))} aria-label="למעלה">
+            <button type="button" className="btn-ghost !px-2" onClick={() => setDraft((d) => move(d, i, -1))} aria-label={`הזז שלב ${i + 1} למעלה`}>
               <ArrowUp size={16} />
             </button>
-            <button type="button" className="btn-ghost !px-2" onClick={() => setDraft((d) => move(d, i, 1))} aria-label="למטה">
+            <button type="button" className="btn-ghost !px-2" onClick={() => setDraft((d) => move(d, i, 1))} aria-label={`הזז שלב ${i + 1} למטה`}>
               <ArrowDown size={16} />
             </button>
             <button
               type="button"
-              className="btn-ghost !px-2 text-red-500"
+              className="btn-ghost !px-2 text-red-600"
               onClick={() => setDraft((d) => d.filter((_, x) => x !== i))}
-              aria-label="מחק שלב"
+              aria-label={`מחק שלב ${i + 1}`}
             >
               <Trash2 size={16} />
             </button>
           </div>
 
           {st.items.map((text, k) => (
-            <div key={k} className="flex items-start gap-1">
-              <span className="mt-2 w-5 shrink-0 text-center text-xs text-slate-400">{k + 1}</span>
+            <div key={k} className="space-y-1 rounded-lg bg-white/70 p-2">
               <textarea
                 dir="auto"
-                className="input min-h-10 flex-1"
-                rows={Math.min(5, Math.max(1, Math.ceil(text.length / 45)))}
+                className="input min-h-10 w-full"
+                aria-label={`שורה ${k + 1} בשלב ${i + 1}`}
+                rows={Math.min(5, Math.max(1, Math.ceil(text.length / 40)))}
                 value={text}
                 onChange={(e) => setStage(i, { items: st.items.map((t, x) => (x === k ? e.target.value : t)) })}
               />
-              <div className="flex flex-col">
-                <button type="button" className="btn-ghost !px-1 !py-0.5" onClick={() => setStage(i, { items: move(st.items, k, -1) })} aria-label="שורה למעלה">
-                  <ArrowUp size={14} />
-                </button>
-                <button type="button" className="btn-ghost !px-1 !py-0.5" onClick={() => setStage(i, { items: move(st.items, k, 1) })} aria-label="שורה למטה">
-                  <ArrowDown size={14} />
-                </button>
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-xs text-slate-500">שורה {k + 1}</span>
+                <div className="flex gap-1">
+                  <button type="button" className="btn-ghost !px-2.5" onClick={() => setStage(i, { items: move(st.items, k, -1) })} aria-label={`שורה ${k + 1} למעלה`}>
+                    <ArrowUp size={15} />
+                  </button>
+                  <button type="button" className="btn-ghost !px-2.5" onClick={() => setStage(i, { items: move(st.items, k, 1) })} aria-label={`שורה ${k + 1} למטה`}>
+                    <ArrowDown size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost !px-2.5 text-red-600"
+                    onClick={() => setStage(i, { items: st.items.filter((_, x) => x !== k) })}
+                    aria-label={`מחק שורה ${k + 1}`}
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
               </div>
-              <button
-                type="button"
-                className="btn-ghost !px-2 text-red-500"
-                onClick={() => setStage(i, { items: st.items.filter((_, x) => x !== k) })}
-                aria-label="מחק שורה"
-              >
-                <Trash2 size={15} />
-              </button>
             </div>
           ))}
 
@@ -230,14 +235,14 @@ function Editor({
       </button>
 
       {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-      <div className="flex justify-end gap-2 border-t border-slate-200 pt-3">
-        <button className="btn-secondary" onClick={onCancel}>
+      <StickyActions>
+        <button type="button" className="btn-secondary flex-1 sm:flex-none" onClick={onCancel}>
           ביטול
         </button>
-        <button className="btn-primary" onClick={submit} disabled={save.isPending}>
+        <button type="button" className="btn-primary flex-1 sm:flex-none" onClick={submit} disabled={save.isPending}>
           {save.isPending ? 'שומר…' : 'שמירה'}
         </button>
-      </div>
+      </StickyActions>
     </div>
   )
 }
@@ -304,10 +309,10 @@ export function SurgicalCourseSection({ doctorId }: { doctorId: string }) {
       {(courses.data ?? []).map((c) => (
         <div key={c.id} className="card space-y-3 p-3 sm:p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="flex items-center gap-2 font-semibold text-slate-800">
+            <h2 className="flex items-center gap-2 font-semibold text-slate-800">
               <ListChecks size={18} className="text-brand-500" />
               {c.procedure?.name ?? 'פרוצדורה'}
-            </h3>
+            </h2>
             <div className="flex gap-1">
               {editingId !== c.id && (
                 <button className="btn-ghost !px-2" onClick={() => setEditingId(c.id)} aria-label="עריכה">

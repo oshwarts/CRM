@@ -41,13 +41,13 @@ function Favorites() {
     })
 
   return (
-    <section className="card space-y-4 p-5">
+    <section className="card space-y-4 p-4 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="flex items-center gap-2 text-lg font-semibold">
             <Star size={18} className="fill-amber-400 text-amber-500" /> המועדפים שלי
           </h2>
-          <p className="text-sm text-slate-500">הדפים האלה מופיעים למעלה בתפריט, בסדר שתבחר. זה נשמר במכשיר הזה בלבד.</p>
+          <p className="text-sm text-slate-600">הדפים האלה מופיעים למעלה בתפריט, בסדר שתבחר. זה נשמר במכשיר הזה בלבד.</p>
         </div>
         <button type="button" className="btn-ghost shrink-0 !text-xs" onClick={() => setFavorites(DEFAULT_FAVORITES)}>
           <RotateCcw size={14} /> ברירת מחדל
@@ -69,7 +69,7 @@ function Favorites() {
             </button>
           </li>
         ))}
-        {mine.length === 0 && <li className="rounded-xl bg-slate-50 px-3 py-3 text-sm text-slate-400">אין מועדפים — הוסף דפים מהרשימה למטה</li>}
+        {mine.length === 0 && <li className="rounded-xl bg-slate-50 px-3 py-3 text-sm text-slate-500">אין מועדפים — הוסף דפים מהרשימה למטה</li>}
       </ul>
 
       {others.length > 0 && (
@@ -170,12 +170,12 @@ function Structure({ saved }: { saved: MenuGroup[] }) {
 
   return (
     <section className="space-y-4">
-      <div className="card space-y-1 p-5">
+      <div className="card space-y-1 p-4 sm:p-5">
         <h2 className="flex items-center gap-2 text-lg font-semibold">
           <LayoutList size={18} className="text-brand-500" /> קטגוריות התפריט — לכל המשתמשים
         </h2>
         <p className="text-sm text-slate-500">
-          שנה שם לקטגוריה, גרור דף (בעזרת הידית) לקטגוריה אחרת, או השתמש בחצים ובתיבת "העבר ל". השינוי נכנס לתוקף אחרי "שמירה".
+          שנה שם לקטגוריה, והעבר דף לקטגוריה אחרת בעזרת תיבת הבחירה שבשורת הדף (במחשב אפשר גם לגרור). השינוי נכנס לתוקף אחרי "שמירה".
         </p>
       </div>
 
@@ -232,7 +232,7 @@ function Structure({ saved }: { saved: MenuGroup[] }) {
                     over === p && drag !== p && 'shadow-[0_-3px_0_0_var(--blue)]',
                   )}
                 >
-                  <GripVertical size={16} className="shrink-0 cursor-grab text-slate-400" aria-hidden />
+                  <GripVertical size={16} className="hidden shrink-0 cursor-grab text-slate-500 sm:block" aria-hidden />
                   <PageName path={p} />
                   <button type="button" className="rounded-lg p-1.5 hover:bg-slate-200 disabled:opacity-30" aria-label={`הזז את ${labelOf(p)} למעלה`} disabled={pi === 0} onClick={() => nudge(g.id, p, -1)}>
                     <ArrowUp size={15} />
@@ -254,7 +254,7 @@ function Structure({ saved }: { saved: MenuGroup[] }) {
                   </select>
                 </li>
               ))}
-              {g.paths.length === 0 && <li className="rounded-xl border border-dashed border-slate-300 px-3 py-4 text-center text-xs text-slate-400">ריק — גרור לכאן דף, או העבר דף בעזרת "העבר ל"</li>}
+              {g.paths.length === 0 && <li className="rounded-xl border border-dashed border-slate-300 px-3 py-4 text-center text-xs text-slate-500">ריק — העבר לכאן דף בעזרת תיבת הבחירה בשורת הדף</li>}
             </ul>
           </div>
         ))}

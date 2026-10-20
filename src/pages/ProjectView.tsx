@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import { AlertTriangle, ArrowDown, Copy, Search, X, ArrowRight, ArrowUp, Building2, CalendarDays, Clock, GripVertical, Mail, Pencil, Phone, Plus, Trash2, User, Users } from 'lucide-react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { AlertTriangle, ArrowDown, Copy, Search, X, ArrowUp, Building2, CalendarDays, Clock, GripVertical, Mail, Pencil, Phone, Plus, Trash2, User, Users } from 'lucide-react'
 import { useTasks } from '../lib/api'
 import { useDeleteArea, useDeleteProject, useProjectUpdates, useProjects, useMoveTask, useReorderAreas, useSaveArea, useSetAreaContact, useSetTaskStatus, useSetTasksContact } from '../lib/projectsApi'
 import { PROJECT_STATUS, STATUS_ORDER, TASK_STATUS, isOverdue, projectStats } from '../lib/projects'
@@ -31,14 +31,21 @@ function TaskLine({ t, onOpen, showArea, onStatus, selected, onSelect, last }: {
   const st = TASK_STATUS[t.status] ?? TASK_STATUS.todo
   const owner = t.assignee?.full_name || t.external_owner
   return (
-    <div className="flex flex-wrap items-start gap-2 py-2">
-      {onSelect && <input type="checkbox" className="mt-1 h-4 w-4 shrink-0" checked={!!selected} onChange={onSelect} aria-label="בחר משימה" />}
-      <span className={classNames('mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full', st.dot)} />
-      <button className="min-w-0 flex-1 text-right" onClick={onOpen}>
+    <div className="flex items-start gap-2 py-2">
+      {onSelect && (
+        <label className="grid h-8 w-7 shrink-0 cursor-pointer place-items-center">
+          <input type="checkbox" className="h-5 w-5" checked={!!selected} onChange={onSelect} aria-label={`בחר משימה: ${t.description}`} />
+        </label>
+      )}
+      <span className={classNames('mt-2 h-2.5 w-2.5 shrink-0 rounded-full', st.dot)} aria-hidden="true" />
+      <div className="flex min-w-0 flex-1 flex-col items-start gap-1 sm:flex-row sm:gap-2">
+      <div className="block w-full min-w-0 sm:flex-1">
+      <button className="block min-h-8 w-full min-w-0 text-right" onClick={onOpen}>
         <span dir="auto" className={classNames('block text-sm', t.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-800')}>
           {t.description}
         </span>
-        <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-400">
+      </button>
+        <span className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-400">
           {showArea && t.area && <span>{t.area.name}</span>}
           {owner && (
             <span className="inline-flex items-center gap-1">
@@ -52,16 +59,16 @@ function TaskLine({ t, onOpen, showArea, onStatus, selected, onSelect, last }: {
             </span>
           )}
           {t.contact && (
-            <span className="inline-flex items-center gap-1 rounded bg-sky-50 px-1.5 py-0.5 text-sky-700">
+            <span className="inline-flex max-w-full flex-wrap items-center gap-1 rounded bg-sky-50 px-1.5 py-0.5 text-sky-700">
               <Users size={11} /> מול: {t.contact.name}
               {t.contact.role ? ` · ${t.contact.role}` : ''}
               {t.contact.phone && (
-                <a href={`tel:${t.contact.phone}`} dir="ltr" className="mr-1 underline" onClick={(e) => e.stopPropagation()}>
+                <a href={`tel:${t.contact.phone}`} dir="ltr" className="mr-1 inline-block min-h-[28px] underline" onClick={(e) => e.stopPropagation()}>
                   {t.contact.phone}
                 </a>
               )}
               {t.contact.office_phone && (
-                <a href={`tel:${t.contact.office_phone}`} dir="ltr" className="mr-1 underline" title="טלפון במשרד" onClick={(e) => e.stopPropagation()}>
+                <a href={`tel:${t.contact.office_phone}`} dir="ltr" className="mr-1 inline-block min-h-[28px] underline" title="טלפון במשרד" onClick={(e) => e.stopPropagation()}>
                   {t.contact.office_phone} (משרד)
                 </a>
               )}
@@ -71,7 +78,7 @@ function TaskLine({ t, onOpen, showArea, onStatus, selected, onSelect, last }: {
             <span className="inline-flex items-center gap-1 rounded bg-violet-50 px-1.5 py-0.5 text-violet-700">
               <Users size={11} /> מתאם אמי: {[t.coordinator?.name, t.coordinator_text].filter(Boolean).join(" · ")}
               {t.coordinator?.phone && (
-                <a href={`tel:${t.coordinator.phone}`} dir="ltr" className="mr-1 underline" onClick={(e) => e.stopPropagation()}>
+                <a href={`tel:${t.coordinator.phone}`} dir="ltr" className="mr-1 inline-block min-h-[28px] underline" onClick={(e) => e.stopPropagation()}>
                   {t.coordinator.phone}
                 </a>
               )}
@@ -88,12 +95,12 @@ function TaskLine({ t, onOpen, showArea, onStatus, selected, onSelect, last }: {
             </span>
           )}
         </span>
-      </button>
+      </div>
       <select
-        className={classNames('rounded-lg border px-2 py-1 text-xs', st.chip)}
+        className={classNames('min-h-8 shrink-0 rounded-lg border px-2 py-1 text-xs', st.chip)}
         value={t.status}
         onChange={(e) => onStatus(e.target.value)}
-        aria-label="סטטוס"
+        aria-label={`סטטוס: ${t.description}`}
       >
         {STATUS_ORDER.map((s) => (
           <option key={s} value={s}>
@@ -101,6 +108,7 @@ function TaskLine({ t, onOpen, showArea, onStatus, selected, onSelect, last }: {
           </option>
         ))}
       </select>
+      </div>
     </div>
   )
 }
@@ -133,6 +141,8 @@ export default function ProjectView() {
   const [editing, setEditing] = useState(false)
   const [taskModal, setTaskModal] = useState<{ task?: TaskRow; areaId?: string | null } | null>(null)
   const [newArea, setNewArea] = useState('')
+  const [reorder, setReorder] = useState(false) // shows the up / down arrows (on a phone there is no dragging)
+  const [boardStatus, setBoardStatus] = useState<string>('in_progress') // the column shown on a phone
 
   const project = (projects.data ?? []).find((p) => p.id === id) as ProjectWithRelations | undefined
   // the project's order: by area, then by the order the user gave the tasks inside the area
@@ -219,41 +229,37 @@ export default function ProjectView() {
 
   return (
     <div className="space-y-4">
-      <Link to="/projects" className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700">
-        <ArrowRight size={15} />
-        כל הפרויקטים
-      </Link>
-
       <div className="card p-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <h1 dir="auto" className="text-xl font-semibold text-brand-800">
               {project.name}
             </h1>
-            <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500">
+            <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600">
+              <span className="chip border-slate-200 bg-slate-50 !px-2 !py-0 text-xs">{PROJECT_STATUS[project.status]}</span>
               {project.hospital && (
                 <span className="inline-flex items-center gap-1">
-                  <Building2 size={14} /> {project.hospital.name}
+                  <Building2 size={14} aria-hidden="true" /> {project.hospital.name}
                 </span>
               )}
               {project.owner && <span>אחראי: {project.owner.full_name}</span>}
               {project.start_date && <span>התחלה {formatDate(project.start_date)}</span>}
-              {project.target_date && <span className={classNames(lateProject && 'font-medium text-red-600')}>יעד {formatDate(project.target_date)}{lateProject ? ' (עבר)' : ''}</span>}
-              <span className="chip border-slate-200 bg-slate-50 !px-2 !py-0 text-xs">{PROJECT_STATUS[project.status]}</span>
+              {project.target_date && (
+                <span className={classNames(lateProject && 'font-medium text-red-600')}>
+                  יעד {formatDate(project.target_date)}
+                  {lateProject ? ' (עבר)' : ''}
+                </span>
+              )}
             </p>
-            {project.description && (
-              <p dir="auto" className="mt-2 whitespace-pre-wrap text-sm text-slate-600">
-                {project.description}
-              </p>
-            )}
           </div>
-          <div className="flex gap-2">
-            <button className="btn-secondary" onClick={() => setEditing(true)}>
+          <div className="flex shrink-0 gap-1">
+            <button className="btn-secondary" onClick={() => setEditing(true)} aria-label="עריכת פרויקט">
               <Pencil size={15} />
-              עריכה
+              <span className="hidden sm:inline">עריכה</span>
             </button>
             <ConfirmButton
               className="btn-ghost text-red-500"
+              label="מחיקת הפרויקט"
               message="למחוק את הפרויקט עם כל התחומים, המשימות והעדכונים שלו? הפעולה אינה הפיכה."
               onConfirm={() => del.mutate(project.id, { onSuccess: () => navigate('/projects') })}
             >
@@ -261,50 +267,69 @@ export default function ProjectView() {
             </ConfirmButton>
           </div>
         </div>
+        {project.description && (
+          <p dir="auto" className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm text-slate-700">
+            {project.description}
+          </p>
+        )}
         <div className="mt-3 flex items-center gap-3">
-          <Bar percent={stats.percent} />
-          <span className="shrink-0 text-sm font-medium text-slate-600">
+          <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label="התקדמות הפרויקט" aria-valuemin={0} aria-valuemax={100} aria-valuenow={stats.percent}>
+            <div className="h-full bg-emerald-500 transition-all" style={{ width: `${stats.percent}%` }} />
+          </div>
+          <span className="shrink-0 text-sm font-medium text-slate-700">
             {stats.done}/{stats.total} · {stats.percent}%
           </span>
         </div>
-      </div>
-
-      {/* find all the tasks with one person (when sitting with him) or search the project */}
-      <div className="card flex flex-wrap items-center gap-2 p-3">
-        <Users size={16} className="shrink-0 text-sky-600" />
-        <select className="input !w-auto min-w-48 flex-1 sm:flex-none" value={contactFilter} onChange={(e) => pickPerson(e.target.value)} aria-label="סינון לפי איש קשר">
-          <option value="">כל אנשי הקשר</option>
-          {people.map((e) => (
-            <option key={e.key} value={e.key}>
-              {e.label} ({e.open} פתוחות)
-            </option>
-          ))}
-        </select>
-        <label className="relative block min-w-40 flex-1">
-          <Search size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="search"
-            className="input !py-1.5 !pr-9"
-            placeholder="חיפוש במשימות: טקסט, איש קשר, תחום…"
-            value={q}
-            onChange={(e) => {
-              setQ(e.target.value)
-              if (e.target.value) setTab((t) => (t === 'summary' ? 'areas' : t))
-            }}
-          />
-        </label>
-        {filtering && (
-          <button
-            className="btn-ghost text-sm text-brand-600"
-            onClick={() => {
-              setContactFilter('')
-              setQ('')
-            }}
-          >
-            <X size={14} /> נקה סינון
-          </button>
+        {(stats.blocked.length > 0 || stats.overdue.length > 0) && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {stats.blocked.length > 0 && (
+              <span className="chip border-red-200 bg-red-50 !px-2 !py-0.5 text-xs text-red-600">
+                <AlertTriangle size={11} aria-hidden="true" /> {stats.blocked.length} תקועות
+              </span>
+            )}
+            {stats.overdue.length > 0 && <span className="chip border-amber-200 bg-amber-50 !px-2 !py-0.5 text-xs text-amber-700">{stats.overdue.length} באיחור</span>}
+          </div>
         )}
       </div>
+
+      {/* find all the tasks with one person (when sitting with him) or search the project: only where the tasks are listed */}
+      {(tab === 'areas' || tab === 'board' || tab === 'timeline' || filtering) && tab !== 'updates' && (
+        <div className="card grid grid-cols-1 gap-2 p-3 sm:flex sm:flex-wrap sm:items-center">
+          <label className="relative block min-w-0 flex-1 sm:min-w-40">
+            <Search size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+            <input
+              type="search"
+              className="input !py-1.5 !pr-9"
+              aria-label="חיפוש במשימות"
+              placeholder="חיפוש במשימות: טקסט, איש קשר, תחום…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+          </label>
+          <div className="flex items-center gap-2">
+            <Users size={16} className="shrink-0 text-sky-700" aria-hidden="true" />
+            <select className="input min-w-0 flex-1 sm:!w-auto sm:min-w-48 sm:flex-none" value={contactFilter} onChange={(e) => pickPerson(e.target.value)} aria-label="סינון לפי איש קשר">
+              <option value="">כל אנשי הקשר</option>
+              {people.map((e) => (
+                <option key={e.key} value={e.key}>
+                  {e.label} ({e.open} פתוחות)
+                </option>
+              ))}
+            </select>
+          </div>
+          {filtering && (
+            <button
+              className="btn-ghost justify-center text-sm text-brand-600"
+              onClick={() => {
+                setContactFilter('')
+                setQ('')
+              }}
+            >
+              <X size={14} /> נקה סינון
+            </button>
+          )}
+        </div>
+      )}
 
       {contactFilter && person && (
         <div className="card space-y-2 border-sky-200 bg-sky-50/40 p-4">
@@ -316,17 +341,17 @@ export default function ProjectView() {
               </p>
               <p className="mt-0.5 flex flex-wrap items-center gap-x-4 text-sm">
                 {person.contact?.phone && (
-                  <a href={`tel:${person.contact.phone}`} dir="ltr" className="inline-flex items-center gap-1 text-brand-600 hover:underline">
+                  <a href={`tel:${person.contact.phone}`} dir="ltr" className="inline-flex min-h-[28px] items-center gap-1 text-brand-600 hover:underline">
                     <Phone size={13} /> {person.contact.phone}
                   </a>
                 )}
                 {person.contact?.office_phone && (
-                  <a href={`tel:${person.contact.office_phone}`} dir="ltr" className="inline-flex items-center gap-1 text-brand-600 hover:underline">
+                  <a href={`tel:${person.contact.office_phone}`} dir="ltr" className="inline-flex min-h-[28px] items-center gap-1 text-brand-600 hover:underline">
                     <Phone size={13} /> {person.contact.office_phone} <span className="text-xs text-slate-400">(משרד)</span>
                   </a>
                 )}
                 {person.contact?.email && (
-                  <a href={`mailto:${person.contact.email}`} dir="ltr" className="inline-flex items-center gap-1 text-brand-600 hover:underline">
+                  <a href={`mailto:${person.contact.email}`} dir="ltr" className="inline-flex min-h-[28px] items-center gap-1 text-brand-600 hover:underline">
                     <Mail size={13} /> {person.contact.email}
                   </a>
                 )}
@@ -372,36 +397,15 @@ export default function ProjectView() {
 
         {/* ---- summary: progress per area, what is stuck, next steps ---- */}
         <TabPanel id="summary">
-          <div className="grid gap-4 lg:grid-cols-2">
-            <div className="card space-y-3 p-4">
-              <h2 className="font-semibold text-brand-800">התקדמות לפי תחום</h2>
-              {areas.length === 0 && noArea.length === 0 && <p className="text-sm text-slate-400">אין עדיין תחומים — הוסף בלשונית "תחומים ומשימות".</p>}
-              {areas.map((a) => {
-                const s = projectStats(byArea(a.id))
-                return (
-                  <div key={a.id}>
-                    <div className="mb-1 flex items-center justify-between text-sm">
-                      <span className="font-medium text-slate-700">{a.name}</span>
-                      <span className="flex items-center gap-2 text-xs text-slate-500">
-                        {s.blocked.length > 0 && <span className="text-red-600">{s.blocked.length} תקועות</span>}
-                        {s.done}/{s.total}
-                      </span>
-                    </div>
-                    <Bar percent={s.percent} />
-                  </div>
-                )
-              })}
-            </div>
-
+          <div className="grid items-start gap-4 lg:grid-cols-2 [&>*]:min-w-0">
             <div className="space-y-4">
-              <WorkingWith tasks={tasks} onPick={pickPerson} />
               <div className={classNames('card p-4', stats.blocked.length > 0 && 'border-red-200')}>
-                <h2 className="mb-2 flex items-center gap-2 font-semibold text-brand-800">
-                  <AlertTriangle size={16} className={stats.blocked.length ? 'text-red-500' : 'text-slate-300'} />
+                <h2 className="mb-1 flex items-center gap-2 font-semibold text-brand-800">
+                  <AlertTriangle size={16} className={stats.blocked.length ? 'text-red-500' : 'text-slate-400'} aria-hidden="true" />
                   מה תקוע ({stats.blocked.length})
                 </h2>
                 {stats.blocked.length === 0 ? (
-                  <p className="text-sm text-slate-400">אין משימות תקועות.</p>
+                  <p className="text-sm text-slate-500">אין משימות תקועות.</p>
                 ) : (
                   <div className="divide-y divide-slate-100">
                     {stats.blocked.map((t) => (
@@ -411,9 +415,9 @@ export default function ProjectView() {
                 )}
               </div>
               <div className="card p-4">
-                <h2 className="mb-2 font-semibold text-brand-800">הצעדים הבאים</h2>
+                <h2 className="mb-1 font-semibold text-brand-800">הצעדים הבאים</h2>
                 {stats.next.length === 0 ? (
-                  <p className="text-sm text-slate-400">{stats.total ? 'כל המשימות הושלמו או תקועות.' : 'אין משימות.'}</p>
+                  <p className="text-sm text-slate-500">{stats.total ? 'כל המשימות הושלמו או תקועות.' : 'אין משימות.'}</p>
                 ) : (
                   <div className="divide-y divide-slate-100">
                     {stats.next.map((t) => (
@@ -423,200 +427,241 @@ export default function ProjectView() {
                 )}
               </div>
             </div>
+
+            <div className="space-y-4">
+              <div className="card space-y-3 p-4">
+                <h2 className="font-semibold text-brand-800">התקדמות לפי תחום</h2>
+                {areas.length === 0 && noArea.length === 0 && <p className="text-sm text-slate-500">אין עדיין תחומים — הוסף בלשונית "תחומים ומשימות".</p>}
+                {areas.map((a) => {
+                  const s = projectStats(byArea(a.id))
+                  return (
+                    <div key={a.id}>
+                      <div className="mb-1 flex items-baseline justify-between gap-2 text-sm">
+                        <span dir="auto" className="min-w-0 font-medium text-slate-800">
+                          {a.name}
+                        </span>
+                        <span className="flex shrink-0 items-center gap-2 text-xs text-slate-600">
+                          {s.blocked.length > 0 && <span className="font-medium text-red-600">{s.blocked.length} תקועות</span>}
+                          {s.done}/{s.total}
+                        </span>
+                      </div>
+                      <Bar percent={s.percent} />
+                    </div>
+                  )
+                })}
+              </div>
+              <WorkingWith tasks={tasks} onPick={pickPerson} />
+            </div>
           </div>
         </TabPanel>
 
         {/* ---- areas: the tasks of each area ---- */}
         <TabPanel id="areas">
           <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm text-slate-600">
+                {visibleTasks.length} משימות ב-{areas.length + (noArea.length ? 1 : 0)} תחומים
+              </p>
+              <button type="button" className={classNames('btn-secondary text-sm', reorder && 'border-brand-400 bg-brand-50 text-brand-700')} aria-pressed={reorder} onClick={() => setReorder((v) => !v)}>
+                <ArrowUp size={14} aria-hidden="true" />
+                {reorder ? 'סיום סידור' : 'סידור'}
+              </button>
+            </div>
             {filtering && visibleTasks.length === 0 && <EmptyState title="לא נמצאו משימות" hint="נסה לנקות את הסינון או לשנות את החיפוש" />}
             {[...areas.map((a) => ({ id: a.id as string | null, name: a.name })), ...(noArea.length ? [{ id: null, name: 'ללא תחום' }] : [])]
               .filter((a) => !filtering || (a.id ? byAreaV(a.id).length > 0 : noAreaV.length > 0))
               .map((a) => {
-              const list = byAreaV(a.id)
-              const s = projectStats(list)
-              return (
-                <section
-                  key={a.id ?? 'none'}
-                  className={classNames('card p-4', overArea === a.id && dragArea && 'border-t-4 border-t-brand-400')}
-                  onDragOver={(e) => {
-                    if (dragArea && a.id && dragArea !== a.id) {
-                      e.preventDefault()
-                      setOverArea(a.id)
-                    }
-                  }}
-                  onDrop={(e) => {
-                    if (dragArea && a.id) {
-                      e.preventDefault()
-                      placeArea(dragArea, a.id)
-                      setDragArea(null)
-                      setOverArea(null)
-                    }
-                  }}
-                >
-                  <div
-                    className="mb-2 flex flex-wrap items-center justify-between gap-2"
-                    draggable={!!a.id}
-                    onDragStart={(e) => {
-                      if (!a.id) return
-                      e.stopPropagation()
-                      setDragArea(a.id)
+                const list = byAreaV(a.id)
+                const s = projectStats(list)
+                const ar = a.id ? areas.find((x) => x.id === a.id) : undefined
+                const areaContact = ar ? tasks.find((x) => x.contact_id && x.contact_id === ar.contact_id)?.contact : undefined
+                const areaContactLabel = areaContact ? `מול: ${areaContact.name}` : ar?.contact_text ? `מול: ${ar.contact_text}` : 'איש קשר לתחום'
+                return (
+                  <section
+                    key={a.id ?? 'none'}
+                    aria-label={a.name}
+                    className={classNames('card p-4', overArea === a.id && dragArea && 'border-t-4 border-t-brand-400')}
+                    onDragOver={(e) => {
+                      if (dragArea && a.id && dragArea !== a.id) {
+                        e.preventDefault()
+                        setOverArea(a.id)
+                      }
                     }}
-                    onDragEnd={() => {
-                      setDragArea(null)
-                      setOverArea(null)
+                    onDrop={(e) => {
+                      if (dragArea && a.id) {
+                        e.preventDefault()
+                        placeArea(dragArea, a.id)
+                        setDragArea(null)
+                        setOverArea(null)
+                      }
                     }}
                   >
-                    <h2 className="flex items-center gap-2 font-semibold text-brand-800">
-                      {a.id && (
-                        <span className="flex items-center text-slate-300">
-                          <GripVertical size={14} className="hidden cursor-grab md:block" />
-                          <button
-                            className="rounded p-0.5 hover:text-brand-600 disabled:opacity-20"
-                            disabled={areas[0]?.id === a.id}
-                            aria-label="הזז תחום למעלה"
-                            onClick={() => placeArea(a.id as string, areas[areas.findIndex((x) => x.id === a.id) - 1]?.id ?? null)}
-                          >
-                            <ArrowUp size={15} />
-                          </button>
-                          <button
-                            className="rounded p-0.5 hover:text-brand-600 disabled:opacity-20"
-                            disabled={areas[areas.length - 1]?.id === a.id}
-                            aria-label="הזז תחום למטה"
-                            onClick={() => placeArea(a.id as string, areas[areas.findIndex((x) => x.id === a.id) + 2]?.id ?? null)}
-                          >
-                            <ArrowDown size={15} />
-                          </button>
-                        </span>
-                      )}
-                      {a.name}
-                      <span className="text-xs font-normal text-slate-400">
-                        {s.done}/{s.total}
-                      </span>
-                    </h2>
-                    <div className="flex flex-wrap items-center gap-1">
-                      {a.id && (
-                        <button
-                          className="btn-ghost text-sky-700"
-                          onClick={() => {
-                            const ar = areas.find((x) => x.id === a.id)
-                            setAreaContactFor({ id: a.id as string, name: a.name, contactId: ar?.contact_id ?? null, text: ar?.contact_text ?? '' })
-                          }}
-                        >
-                          <Users size={15} />
-                          {(() => {
-                            const ar = areas.find((x) => x.id === a.id)
-                            const c = tasks.find((x) => x.contact_id && x.contact_id === ar?.contact_id)?.contact
-                            return c ? `מול: ${c.name}` : ar?.contact_text ? `מול: ${ar.contact_text}` : 'איש קשר לתחום'
-                          })()}
-                        </button>
-                      )}
-                      <button className="btn-ghost text-brand-600" onClick={() => setTaskModal({ areaId: a.id })}>
-                        <Plus size={15} /> משימה
-                      </button>
-                      {a.id && (
-                        <>
-                          <button
-                            className="btn-ghost !px-2"
-                            aria-label="שנה שם"
-                            onClick={() => {
-                              const name = window.prompt('שם התחום', a.name)
-                              if (name?.trim()) saveArea.mutate({ id: a.id as string, project_id: project.id, name })
-                            }}
-                          >
-                            <Pencil size={14} />
-                          </button>
-                          <ConfirmButton className="btn-ghost !px-2 text-slate-300 hover:text-red-500" message="למחוק את התחום? המשימות שלו יישארו בלי תחום." onConfirm={() => delArea.mutate(a.id as string)}>
-                            <Trash2 size={14} />
-                          </ConfirmButton>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  {list.length === 0 ? (
-                    <p
-                      className={classNames('rounded-lg py-2 text-sm text-slate-400', dragId && 'border border-dashed border-brand-300 bg-brand-50/40 text-center')}
-                      onDragOver={(e) => dragId && e.preventDefault()}
-                      onDrop={(e) => {
-                        e.preventDefault()
-                        if (dragId) place(dragId, a.id, null)
-                        setDragId(null)
+                    <div
+                      className="mb-2"
+                      draggable={!!a.id}
+                      onDragStart={(e) => {
+                        if (!a.id) return
+                        e.stopPropagation()
+                        setDragArea(a.id)
+                      }}
+                      onDragEnd={() => {
+                        setDragArea(null)
+                        setOverArea(null)
                       }}
                     >
-                      {dragId ? 'שחרר כאן להעברה לתחום' : 'אין משימות בתחום.'}
-                    </p>
-                  ) : (
-                    <div className="divide-y divide-slate-100">
-                      {list.map((t, idx) => (
-                        <div
-                          key={t.id}
-                          draggable
-                          onDragStart={() => setDragId(t.id)}
-                          onDragEnd={() => {
-                            setDragId(null)
-                            setOverId(null)
-                          }}
-                          onDragOver={(e) => {
-                            if (dragId && dragId !== t.id) {
-                              e.preventDefault()
-                              setOverId(t.id)
-                            }
-                          }}
-                          onDrop={(e) => {
-                            e.preventDefault()
-                            if (dragId) place(dragId, a.id, t.id)
-                            setDragId(null)
-                            setOverId(null)
-                          }}
-                          className={classNames('flex items-start gap-1', dragId === t.id && 'opacity-40', overId === t.id && 'border-t-2 border-brand-400')}
-                        >
-                          <div className="flex shrink-0 flex-col items-center pt-1.5 text-slate-300">
-                            <GripVertical size={14} className="hidden cursor-grab md:block" />
-                            <button className="rounded p-0.5 hover:text-brand-600 disabled:opacity-20" disabled={idx === 0} aria-label="הזז למעלה" onClick={() => place(t.id, a.id, list[idx - 1].id)}>
-                              <ArrowUp size={14} />
-                            </button>
-                            <button
-                              className="rounded p-0.5 hover:text-brand-600 disabled:opacity-20"
-                              disabled={idx === list.length - 1}
-                              aria-label="הזז למטה"
-                              onClick={() => place(t.id, a.id, list[idx + 2]?.id ?? null)}
-                            >
-                              <ArrowDown size={14} />
-                            </button>
-                          </div>
-                          <div className="min-w-0 flex-1">
-                        <TaskLine
-                          t={t}
-                          onOpen={() => open(t)}
-                          onStatus={(s) => change(t, s)}
-                          last={lastNote.get(t.id)}
-                          selected={picked.has(t.id)}
-                          onSelect={() =>
-                            setPicked((x) => {
-                              const n = new Set(x)
-                              if (n.has(t.id)) n.delete(t.id)
-                              else n.add(t.id)
-                              return n
-                            })
-                          }
-                        />
-                          </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <h2 dir="auto" className="flex min-w-0 items-center gap-2 font-semibold text-brand-800">
+                          {a.id && <GripVertical size={14} className="hidden shrink-0 cursor-grab text-slate-400 md:block" aria-hidden="true" />}
+                          <span className="min-w-0">{a.name}</span>
+                          <span className="shrink-0 text-xs font-normal text-slate-600">
+                            {s.done}/{s.total}
+                          </span>
+                        </h2>
+                        <div className="flex shrink-0 items-center gap-0.5">
+                          {a.id && reorder && (
+                            <>
+                              <button
+                                className="btn-ghost !px-2 disabled:opacity-30"
+                                disabled={areas[0]?.id === a.id}
+                                aria-label={`הזז את התחום ${a.name} למעלה`}
+                                onClick={() => placeArea(a.id as string, areas[areas.findIndex((x) => x.id === a.id) - 1]?.id ?? null)}
+                              >
+                                <ArrowUp size={16} />
+                              </button>
+                              <button
+                                className="btn-ghost !px-2 disabled:opacity-30"
+                                disabled={areas[areas.length - 1]?.id === a.id}
+                                aria-label={`הזז את התחום ${a.name} למטה`}
+                                onClick={() => placeArea(a.id as string, areas[areas.findIndex((x) => x.id === a.id) + 2]?.id ?? null)}
+                              >
+                                <ArrowDown size={16} />
+                              </button>
+                            </>
+                          )}
+                          {a.id && (
+                            <>
+                              <button
+                                className="btn-ghost !px-2 text-slate-600"
+                                aria-label={`שנה שם לתחום ${a.name}`}
+                                onClick={() => {
+                                  const name = window.prompt('שם התחום', a.name)
+                                  if (name?.trim()) saveArea.mutate({ id: a.id as string, project_id: project.id, name })
+                                }}
+                              >
+                                <Pencil size={15} />
+                              </button>
+                              <ConfirmButton className="btn-ghost !px-2 text-slate-500 hover:text-red-500" label={`מחיקת התחום ${a.name}`} message="למחוק את התחום? המשימות שלו יישארו בלי תחום." onConfirm={() => delArea.mutate(a.id as string)}>
+                                <Trash2 size={15} />
+                              </ConfirmButton>
+                            </>
+                          )}
                         </div>
-                      ))}
+                      </div>
+                      {s.total > 0 && (
+                        <div className="mt-1.5">
+                          <Bar percent={s.percent} />
+                        </div>
+                      )}
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        {a.id && (
+                          <button
+                            className="btn-secondary max-w-full text-sm text-sky-800"
+                            onClick={() => setAreaContactFor({ id: a.id as string, name: a.name, contactId: ar?.contact_id ?? null, text: ar?.contact_text ?? '' })}
+                          >
+                            <Users size={15} aria-hidden="true" />
+                            <span dir="auto" className="min-w-0 truncate">{areaContactLabel}</span>
+                          </button>
+                        )}
+                        <button className="btn-secondary text-sm text-brand-700" onClick={() => setTaskModal({ areaId: a.id })}>
+                          <Plus size={15} aria-hidden="true" /> משימה
+                        </button>
+                      </div>
                     </div>
-                  )}
-                </section>
-              )
-            })}
+                    {list.length === 0 ? (
+                      <p
+                        className={classNames('rounded-lg py-2 text-sm text-slate-500', dragId && 'border border-dashed border-brand-300 bg-brand-50/40 text-center')}
+                        onDragOver={(e) => dragId && e.preventDefault()}
+                        onDrop={(e) => {
+                          e.preventDefault()
+                          if (dragId) place(dragId, a.id, null)
+                          setDragId(null)
+                        }}
+                      >
+                        {dragId ? 'שחרר כאן להעברה לתחום' : 'אין משימות בתחום.'}
+                      </p>
+                    ) : (
+                      <div className="divide-y divide-slate-100">
+                        {list.map((t, idx) => (
+                          <div
+                            key={t.id}
+                            draggable
+                            onDragStart={() => setDragId(t.id)}
+                            onDragEnd={() => {
+                              setDragId(null)
+                              setOverId(null)
+                            }}
+                            onDragOver={(e) => {
+                              if (dragId && dragId !== t.id) {
+                                e.preventDefault()
+                                setOverId(t.id)
+                              }
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault()
+                              if (dragId) place(dragId, a.id, t.id)
+                              setDragId(null)
+                              setOverId(null)
+                            }}
+                            className={classNames('flex items-start gap-1', dragId === t.id && 'opacity-40', overId === t.id && 'border-t-2 border-brand-400')}
+                          >
+                            {reorder && (
+                              <div className="flex shrink-0 flex-col items-center pt-1">
+                                <button className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:text-brand-600 disabled:opacity-30" disabled={idx === 0} aria-label={`הזז למעלה: ${t.description}`} onClick={() => place(t.id, a.id, list[idx - 1].id)}>
+                                  <ArrowUp size={16} />
+                                </button>
+                                <button
+                                  className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 hover:text-brand-600 disabled:opacity-30"
+                                  disabled={idx === list.length - 1}
+                                  aria-label={`הזז למטה: ${t.description}`}
+                                  onClick={() => place(t.id, a.id, list[idx + 2]?.id ?? null)}
+                                >
+                                  <ArrowDown size={16} />
+                                </button>
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <TaskLine
+                                t={t}
+                                onOpen={() => open(t)}
+                                onStatus={(s) => change(t, s)}
+                                last={lastNote.get(t.id)}
+                                selected={picked.has(t.id)}
+                                onSelect={() =>
+                                  setPicked((x) => {
+                                    const n = new Set(x)
+                                    if (n.has(t.id)) n.delete(t.id)
+                                    else n.add(t.id)
+                                    return n
+                                  })
+                                }
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+                )
+              })}
             <form
-              className="card flex gap-2 p-3"
+              className="card flex flex-wrap gap-2 p-3"
               onSubmit={(e) => {
                 e.preventDefault()
                 if (!newArea.trim()) return
                 saveArea.mutate({ project_id: project.id, name: newArea, sort: areas.length }, { onSuccess: () => setNewArea('') })
               }}
             >
-              <input className="input" dir="auto" placeholder="תחום חדש (למשל: מימון, הדרכה…)" value={newArea} onChange={(e) => setNewArea(e.target.value)} />
+              <input className="input min-w-0 flex-1" dir="auto" aria-label="שם תחום חדש" placeholder="תחום חדש (למשל: מימון, הדרכה…)" value={newArea} onChange={(e) => setNewArea(e.target.value)} />
               <button className="btn-secondary shrink-0" disabled={!newArea.trim()}>
                 <Plus size={16} /> הוסף תחום
               </button>
@@ -626,17 +671,31 @@ export default function ProjectView() {
 
         {/* ---- board: four columns by status ---- */}
         <TabPanel id="board">
+          {/* on a phone one status at a time (chips with the counts); from a tablet up all columns */}
+          <div className="grid grid-cols-2 gap-2 md:hidden" role="group" aria-label="סטטוס">
+            {STATUS_ORDER.map((s) => (
+              <button
+                key={s}
+                type="button"
+                aria-pressed={boardStatus === s}
+                onClick={() => setBoardStatus(s)}
+                className={classNames('chip justify-center gap-1.5 !py-1.5', boardStatus === s ? 'border-brand-500 bg-brand-600 text-white' : 'border-slate-200 bg-white text-slate-700')}
+              >
+                {TASK_STATUS[s].label} · {visibleTasks.filter((t) => t.status === s).length}
+              </button>
+            ))}
+          </div>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {STATUS_ORDER.map((s) => {
               const col = visibleTasks.filter((t) => t.status === s)
               return (
-                <div key={s} className="rounded-xl bg-slate-100/70 p-2">
-                  <p className="mb-2 flex items-center justify-between px-1 text-sm font-semibold text-slate-700">
+                <div key={s} className={classNames('rounded-xl bg-slate-100/70 p-2', boardStatus !== s && 'max-md:hidden')}>
+                  <p className="mb-2 hidden items-center justify-between px-1 text-sm font-semibold text-slate-700 md:flex">
                     <span className="flex items-center gap-1.5">
-                      <span className={classNames('h-2.5 w-2.5 rounded-full', TASK_STATUS[s].dot)} />
+                      <span className={classNames('h-2.5 w-2.5 rounded-full', TASK_STATUS[s].dot)} aria-hidden="true" />
                       {TASK_STATUS[s].label}
                     </span>
-                    <span className="text-xs font-normal text-slate-400">{col.length}</span>
+                    <span className="text-xs font-normal text-slate-600">{col.length}</span>
                   </p>
                   <div className="space-y-2">
                     {col.map((t) => (
@@ -644,7 +703,7 @@ export default function ProjectView() {
                         <TaskLine t={t} showArea onOpen={() => open(t)} onStatus={(x) => change(t, x)} last={lastNote.get(t.id)} />
                       </div>
                     ))}
-                    {col.length === 0 && <p className="px-1 py-3 text-center text-xs text-slate-400">ריק</p>}
+                    {col.length === 0 && <p className="px-1 py-3 text-center text-xs text-slate-500">ריק</p>}
                   </div>
                 </div>
               )
@@ -739,7 +798,7 @@ function WorkingWith({ tasks, onPick }: { tasks: TaskRow[]; onPick: (key: string
         מול מי עובדים
       </h2>
       {list.length === 0 ? (
-        <p className="text-sm text-slate-400">עדיין לא נבחרו אנשי קשר במשימות. בחר "איש קשר" בעריכת משימה כדי לראות כאן מי אחראי מצד בית החולים.</p>
+        <p className="text-sm text-slate-500">עדיין לא נבחרו אנשי קשר במשימות. בחר "איש קשר" בעריכת משימה כדי לראות כאן מי אחראי מצד בית החולים.</p>
       ) : (
         <ul className="divide-y divide-slate-100">
           {list.map((e) => (
@@ -754,17 +813,17 @@ function WorkingWith({ tasks, onPick }: { tasks: TaskRow[]; onPick: (key: string
                   </button>
                   <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs text-slate-400">
                     {e.phone && (
-                      <a href={`tel:${e.phone}`} dir="ltr" className="inline-flex items-center gap-1 text-brand-600 hover:underline">
+                      <a href={`tel:${e.phone}`} dir="ltr" className="inline-flex min-h-[28px] items-center gap-1 text-brand-600 hover:underline">
                         <Phone size={12} /> {e.phone}
                       </a>
                     )}
                     {e.officePhone && (
-                      <a href={`tel:${e.officePhone}`} dir="ltr" className="inline-flex items-center gap-1 text-brand-600 hover:underline">
+                      <a href={`tel:${e.officePhone}`} dir="ltr" className="inline-flex min-h-[28px] items-center gap-1 text-brand-600 hover:underline">
                         <Phone size={12} /> {e.officePhone} (משרד)
                       </a>
                     )}
                     {e.email && (
-                      <a href={`mailto:${e.email}`} dir="ltr" className="inline-flex items-center gap-1 text-brand-600 hover:underline">
+                      <a href={`mailto:${e.email}`} dir="ltr" className="inline-flex min-h-[28px] items-center gap-1 text-brand-600 hover:underline">
                         <Mail size={12} /> {e.email}
                       </a>
                     )}

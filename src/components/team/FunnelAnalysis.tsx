@@ -10,13 +10,13 @@ export function FunnelAnalysis({ model, className }: { model: TeamModel; classNa
       {known < 5 ? (
         <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">המעברים בין השלבים נרשמים מעכשיו, ולכן אחוזי ההמרה וזמן השהייה ימלאו עם הזמן.</p>
       ) : null}
-      <table className="mt-2 w-full text-sm">
+      <table className="mt-2 w-full text-sm" aria-label="המרה וזמן שהייה בכל שלב במשפך">
         <thead>
           <tr className="border-b border-slate-200 text-right text-xs text-slate-500">
             <th className="py-1.5 font-medium">שלב</th>
             <th className="py-1.5 text-center font-medium">הגיעו</th>
-            <th className="py-1.5 text-center font-medium">עברו הלאה</th>
-            <th className="py-1.5 text-center font-medium">ימים בשלב (ממוצע)</th>
+            <th className="py-1.5 text-center font-medium">עברו</th>
+            <th className="py-1.5 text-center font-medium">ימים בשלב</th>
           </tr>
         </thead>
         <tbody>

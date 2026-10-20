@@ -60,13 +60,13 @@ export function HospitalContactModal({
             </datalist>
           </Field>
           <Field label="טלפון">
-            <input dir="ltr" className="input text-right" value={d.phone} onChange={(e) => set({ phone: e.target.value })} />
+            <input type="tel" inputMode="tel" dir="ltr" className="input text-right" value={d.phone} onChange={(e) => set({ phone: e.target.value })} />
           </Field>
           <Field label="טלפון נוסף במשרד">
-            <input dir="ltr" className="input text-right" value={d.office_phone} onChange={(e) => set({ office_phone: e.target.value })} />
+            <input type="tel" inputMode="tel" dir="ltr" className="input text-right" value={d.office_phone} onChange={(e) => set({ office_phone: e.target.value })} />
           </Field>
           <Field label="אימייל">
-            <input dir="ltr" className="input text-right" value={d.email} onChange={(e) => set({ email: e.target.value })} />
+            <input type="email" inputMode="email" dir="ltr" className="input text-right" value={d.email} onChange={(e) => set({ email: e.target.value })} />
           </Field>
           <Field label="הערות" className="sm:col-span-2">
             <input className="input" value={d.notes} onChange={(e) => set({ notes: e.target.value })} />

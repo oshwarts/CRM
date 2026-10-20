@@ -80,7 +80,7 @@ export function LearnCardModal({
         </Field>
         {error && <p className="text-sm text-red-600">{error}</p>}
         <p className="text-xs text-slate-400">שאלה שנכתבת או נערכת על ידי עורך תוכן מתפרסמת רק אחרי שמנהל מאשר אותה.</p>
-        <div className="flex justify-end gap-2">
+        <div className="sticky bottom-0 z-10 flex justify-end gap-2 border-t border-slate-200 bg-white py-3">
           <button type="button" className="btn-secondary" onClick={onClose}>
             ביטול
           </button>

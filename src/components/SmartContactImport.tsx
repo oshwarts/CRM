@@ -174,27 +174,27 @@ export function SmartContactImport({ onClose }: { onClose: () => void }) {
   }
 
   const option = (id: Destination, children?: ReactNode) => (
-    <label
+    <div
       className={classNames(
-        'block cursor-pointer rounded-xl border p-3 transition',
+        'rounded-xl border p-3 transition',
         dest === id ? 'border-brand-500 bg-brand-50/50' : 'border-slate-200 hover:bg-slate-50',
       )}
     >
-      <span className="flex items-center gap-2 text-sm font-medium text-slate-800">
-        <input type="radio" name="dest" checked={dest === id} onChange={() => setDest(id)} />
+      <label className="flex min-h-[32px] cursor-pointer flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium text-slate-800">
+        <input type="radio" name="dest" className="h-5 w-5 shrink-0" checked={dest === id} onChange={() => setDest(id)} />
         {DEST_LABEL[id]}
         {recommended === id && (
-          <span className="chip border-emerald-200 bg-emerald-50 text-emerald-700">
+          <span className="chip !py-0 border-emerald-200 bg-emerald-50 text-emerald-700">
             <Sparkles size={12} /> מומלץ
           </span>
         )}
-      </span>
+      </label>
       {dest === id && children && <div className="mt-3 space-y-3">{children}</div>}
-    </label>
+    </div>
   )
 
   const doctorSelect = (
-    <select className="input" value={doctorId} onChange={(e) => setDoctorId(e.target.value)}>
+    <select className="input" aria-label="רופא" value={doctorId} onChange={(e) => setDoctorId(e.target.value)}>
       <option value="">בחר רופא…</option>
       {docList.map((d) => (
         <option key={d.id} value={d.id}>{d.title} {d.name}</option>
@@ -202,7 +202,7 @@ export function SmartContactImport({ onClose }: { onClose: () => void }) {
     </select>
   )
   const hospitalSelect = (
-    <select className="input" value={hospitalId} onChange={(e) => setHospitalId(e.target.value)}>
+    <select className="input" aria-label="בית חולים" value={hospitalId} onChange={(e) => setHospitalId(e.target.value)}>
       <option value="">בחר בית חולים…</option>
       {hospList.map((h) => (
         <option key={h.id} value={h.id}>{h.name}</option>
@@ -223,7 +223,7 @@ export function SmartContactImport({ onClose }: { onClose: () => void }) {
     <Modal open onClose={onClose} title="ייבוא איש קשר מהטלפון" size="lg">
       <div className="space-y-4">
         {done && (
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+          <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
             {done}.{' '}
             {dest === 'doctor_update' && doctorId && (
               <Link to={`/doctors/${doctorId}`} className="font-medium underline">לכרטיס הרופא</Link>
@@ -233,12 +233,12 @@ export function SmartContactImport({ onClose }: { onClose: () => void }) {
 
         <div className="flex flex-wrap gap-2">
           {canPickContacts() && (
-            <button type="button" className="btn-secondary" onClick={fromDevice}>
+            <button type="button" className="btn-secondary max-sm:flex-1" onClick={fromDevice}>
               <BookUser size={16} />
               בחר מאנשי הקשר בטלפון
             </button>
           )}
-          <button type="button" className="btn-secondary" onClick={() => fileRef.current?.click()}>
+          <button type="button" className="btn-secondary max-sm:flex-1" onClick={() => fileRef.current?.click()}>
             <FileUp size={16} />
             ייבוא מקובץ vCard
           </button>
@@ -251,11 +251,11 @@ export function SmartContactImport({ onClose }: { onClose: () => void }) {
           />
         </div>
         {!canPickContacts() && (
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-500">
             באייפון / Outlook: שמור את איש הקשר כקובץ vCard (.vcf) — "שתף ← שמור בקבצים" — ובחר אותו כאן.
           </p>
         )}
-        {msg && <p className="text-xs text-amber-600">{msg}</p>}
+        {msg && <p role="status" className="text-xs text-amber-700">{msg}</p>}
 
         {cands.length > 1 && !chosen && cur && (
           <div className="space-y-2 rounded-xl bg-slate-50 p-3">
@@ -268,7 +268,7 @@ export function SmartContactImport({ onClose }: { onClose: () => void }) {
               </select>
             </label>
             <button
-              className="btn-primary"
+              className="btn-primary max-sm:w-full"
               onClick={() => choose(cur, cur.tels[0] ?? '', cur.emails[0] ?? '')}
             >
               המשך
@@ -276,12 +276,18 @@ export function SmartContactImport({ onClose }: { onClose: () => void }) {
           </div>
         )}
 
+        {done && !chosen && (
+          <button type="button" className="btn-primary max-sm:w-full" onClick={onClose}>
+            סיום
+          </button>
+        )}
+
         {chosen && (
           <>
             <div className="grid gap-3 sm:grid-cols-3">
               <label className="block">
                 <span className="label">שם</span>
-                <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+                <input className="input" autoComplete="off" value={name} onChange={(e) => setName(e.target.value)} />
               </label>
               <label className="block">
                 <span className="label">טלפון</span>
@@ -290,7 +296,7 @@ export function SmartContactImport({ onClose }: { onClose: () => void }) {
                     {cur.tels.map((t) => <option key={t} value={t}>{t}</option>)}
                   </select>
                 ) : (
-                  <input dir="ltr" className="input text-right" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                  <input dir="ltr" type="tel" inputMode="tel" autoComplete="off" className="input text-right" value={phone} onChange={(e) => setPhone(e.target.value)} />
                 )}
               </label>
               <label className="block">
@@ -300,7 +306,7 @@ export function SmartContactImport({ onClose }: { onClose: () => void }) {
                     {cur.emails.map((m) => <option key={m} value={m}>{m}</option>)}
                   </select>
                 ) : (
-                  <input dir="ltr" className="input text-right" value={email} onChange={(e) => setEmail(e.target.value)} />
+                  <input dir="ltr" type="email" inputMode="email" autoCapitalize="none" autoComplete="off" className="input text-right" value={email} onChange={(e) => setEmail(e.target.value)} />
                 )}
               </label>
             </div>
@@ -316,12 +322,12 @@ export function SmartContactImport({ onClose }: { onClose: () => void }) {
                   {doctorSelect}
                   {selDoctor && (
                     <div className="space-y-1 text-sm text-slate-600">
-                      <label className="flex items-center gap-2">
-                        <input type="checkbox" checked={setPhoneOn} disabled={!phone} onChange={(e) => setSetPhoneOn(e.target.checked)} />
+                      <label className="flex min-h-[32px] items-center gap-2">
+                        <input type="checkbox" className="h-5 w-5 shrink-0" checked={setPhoneOn} disabled={!phone} onChange={(e) => setSetPhoneOn(e.target.checked)} />
                         עדכן טלפון{selDoctor.phone ? ` (כעת: ${selDoctor.phone})` : ' (כעת ריק)'}
                       </label>
-                      <label className="flex items-center gap-2">
-                        <input type="checkbox" checked={setEmailOn} disabled={!email} onChange={(e) => setSetEmailOn(e.target.checked)} />
+                      <label className="flex min-h-[32px] items-center gap-2">
+                        <input type="checkbox" className="h-5 w-5 shrink-0" checked={setEmailOn} disabled={!email} onChange={(e) => setSetEmailOn(e.target.checked)} />
                         עדכן אימייל{selDoctor.email ? ` (כעת: ${selDoctor.email})` : ' (כעת ריק)'}
                       </label>
                     </div>
@@ -353,11 +359,11 @@ export function SmartContactImport({ onClose }: { onClose: () => void }) {
               </div>
             </div>
 
-            {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+            {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
             <div className="flex justify-end gap-2 border-t border-slate-200 pt-4">
               <button className="btn-secondary" onClick={onClose}>סגירה</button>
               <button
-                className="btn-primary"
+                className="btn-primary max-sm:flex-1"
                 onClick={save}
                 disabled={patchDoctor.isPending || upsertContact.isPending || createDoctor.isPending}
               >

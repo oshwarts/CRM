@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { AlertTriangle, BookOpen, CalendarClock, CheckSquare, Plus, Search, Swords, TrendingDown, UserPlus } from 'lucide-react'
+import { AlertTriangle, BookOpen, CalendarClock, CheckSquare, Pencil, Plus, Search, SlidersHorizontal, Swords, TrendingDown, UserPlus, X } from 'lucide-react'
 import { useCompetitorIntel, useCompetitors, useHospitals, useMyHospitalIds, useSaveCompetitor } from '../lib/api'
 import { useAuth } from '../context/AuthProvider'
 import { IntelChips, IntelFormModal, IntelPicture, taskFromIntel } from '../components/CompetitorSection'
@@ -15,9 +15,17 @@ import { classNames, daysUntil, formatDate, plusDaysISO } from '../lib/utils'
 function Stat({ icon, value, label, tone, onClick }: { icon: React.ReactNode; value: number; label: string; tone?: 'amber' | 'red'; onClick?: () => void }) {
   const hot = value > 0 && tone
   return (
-    <button type="button" onClick={onClick} className={classNames('card flex items-center gap-3 p-3 text-right transition hover:shadow-pop', hot && tone === 'amber' && 'border-amber-300 bg-amber-50', hot && tone === 'red' && 'border-red-200 bg-red-50')}>
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-700">{icon}</span>
-      <span>
+    <button
+      type="button"
+      onClick={onClick}
+      className={classNames(
+        'card flex min-h-[56px] items-center gap-2.5 p-2.5 text-right transition hover:shadow-pop sm:gap-3 sm:p-3',
+        hot && tone === 'amber' && 'border-amber-300 bg-amber-50',
+        hot && tone === 'red' && 'border-red-200 bg-red-50',
+      )}
+    >
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-700 sm:h-10 sm:w-10">{icon}</span>
+      <span className="min-w-0">
         <span className="block text-2xl font-semibold leading-none text-brand-800">{value}</span>
         <span className="mt-1 block text-xs leading-tight text-slate-600">{label}</span>
       </span>
@@ -47,6 +55,7 @@ export default function Competitors() {
   const [onlyStale, setOnlyStale] = useState(false)
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
+  const [showFilters, setShowFilters] = useState(false)
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<CompetitorIntelRow | null>(null)
   const [taskFor, setTaskFor] = useState<CompetitorIntelRow | null>(null)
@@ -72,6 +81,17 @@ export default function Competitors() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [all, q, competitor, hospital, outcome, onlyStale, from, to],
   )
+  const panelFilters = [hospital, outcome, onlyStale, from, to].filter(Boolean).length
+  const anyFilter = !!(competitor || panelFilters || q)
+  const clearAll = () => {
+    setCompetitor('')
+    setHospital('')
+    setOutcome('')
+    setOnlyStale(false)
+    setFrom('')
+    setTo('')
+    setQ('')
+  }
 
   const summary = useMemo(() => {
     const m = new Map<string, { n: number; hospitals: Set<string>; doctors: Set<string>; products: Set<string>; last: string; won: number; lost: number }>()
@@ -117,49 +137,53 @@ export default function Competitors() {
 
   const recordCard = (i: CompetitorIntelRow) => (
     <li key={i.id} className="card p-3">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="font-semibold text-slate-800">
-            {i.competitor_id ? (
-              <Link to={`/competitors/${i.competitor_id}`} className="hover:text-brand-600 hover:underline">
-                {i.competitor}
-              </Link>
-            ) : (
-              i.competitor
-            )}
-            {i.product && <span className="font-normal text-slate-500"> · {i.product}</span>}
-          </p>
-          <p className="text-xs text-slate-400">
-            {formatDate(i.intel_date)}
-            {i.doctor && (
-              <>
-                {' · '}
-                <Link to={`/doctors/${i.doctor.id}`} className="hover:underline">
-                  {i.doctor.title} {i.doctor.name}
-                </Link>
-              </>
-            )}
-            {i.hospital && ` · ${i.hospital.name}`}
-          </p>
-          <IntelChips i={i} />
-          {i.offer && <p dir="auto" className="mt-1 whitespace-pre-line text-sm text-slate-600">{i.offer}</p>}
-          {i.notes && <p dir="auto" className="mt-0.5 whitespace-pre-line text-xs text-slate-400">{i.notes}</p>}
-          {i.image_paths?.length > 0 && (
-            <span className="mt-1.5 flex flex-wrap gap-1.5">
-              {i.image_paths.map((p) => (
-                <IntelPicture key={p} path={p} />
-              ))}
-            </span>
-          )}
-        </div>
-        <div className="flex shrink-0 flex-col gap-1">
-          <button className="btn-secondary !px-3 !py-1 text-xs" onClick={() => setEditing(i)}>
-            עריכה
-          </button>
-          <button className="btn-ghost !px-2 !py-1 text-xs" onClick={() => setTaskFor(i)} title="צור משימה מהרישום">
-            <CheckSquare size={13} /> משימה
-          </button>
-        </div>
+      <p dir="auto" className="font-semibold text-slate-800">
+        {i.competitor_id ? (
+          <Link to={`/competitors/${i.competitor_id}`} className="inline-block min-h-[28px] hover:text-brand-600 hover:underline">
+            {i.competitor}
+          </Link>
+        ) : (
+          i.competitor
+        )}
+        {i.product && <span className="font-normal text-slate-500"> · {i.product}</span>}
+      </p>
+      <p className="mt-0.5 text-xs text-slate-500">
+        {formatDate(i.intel_date)}
+        {i.doctor && (
+          <>
+            {' · '}
+            <Link to={`/doctors/${i.doctor.id}`} className="inline-block min-h-[28px] hover:underline">
+              {i.doctor.title} {i.doctor.name}
+            </Link>
+          </>
+        )}
+        {i.hospital && ` · ${i.hospital.name}`}
+      </p>
+      <IntelChips i={i} />
+      {i.offer && (
+        <p dir="auto" className="mt-1.5 whitespace-pre-line text-sm text-slate-700">
+          {i.offer}
+        </p>
+      )}
+      {i.notes && (
+        <p dir="auto" className="mt-0.5 whitespace-pre-line text-xs text-slate-500">
+          {i.notes}
+        </p>
+      )}
+      {i.image_paths?.length > 0 && (
+        <span className="mt-1.5 flex flex-wrap gap-1.5">
+          {i.image_paths.map((p) => (
+            <IntelPicture key={p} path={p} />
+          ))}
+        </span>
+      )}
+      <div className="mt-2 flex items-center gap-1 border-t border-slate-100 pt-1.5">
+        <button className="btn-ghost text-sm text-brand-600" onClick={() => setEditing(i)}>
+          <Pencil size={14} /> עריכה
+        </button>
+        <button className="btn-ghost text-sm text-brand-600" onClick={() => setTaskFor(i)}>
+          <CheckSquare size={14} /> משימה מהרישום
+        </button>
       </div>
     </li>
   )
@@ -167,12 +191,14 @@ export default function Competitors() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
+        <div className="min-w-0">
           <h1 className="flex items-center gap-2 text-2xl font-semibold text-brand-800 sm:text-3xl">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#00326d] text-white"><Swords size={20} /></span>
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#00326d] text-white">
+              <Swords size={20} />
+            </span>
             פעילות מתחרים
           </h1>
-          <p className="text-sm text-slate-400">מי פעיל אצל איזה רופא ובית חולים, מה הוא מציע, ומתי אפשר להיכנס</p>
+          <p className="text-sm text-slate-500">מי פעיל אצל איזה רופא ובית חולים, מה הוא מציע, ומתי אפשר להיכנס</p>
         </div>
         <button className="btn-primary" onClick={() => setAdding(true)}>
           <Plus size={16} />
@@ -180,11 +206,11 @@ export default function Competitors() {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat icon={<UserPlus size={20} />} value={recent.length} label="רישומים חדשים השבוע" onClick={() => { setTab('records'); setFrom(plusDaysISO(-7)) }} />
-        <Stat icon={<CalendarClock size={20} />} value={alerts.length} label="חוזים ומכרזים עד 90 יום" tone="amber" onClick={() => setTab('contracts')} />
-        <Stat icon={<TrendingDown size={20} />} value={lost90} label="הפסדים ב-90 יום" tone="red" onClick={() => { setTab('records'); setOutcome('lost') }} />
-        <Stat icon={<AlertTriangle size={20} />} value={stale} label="רישומים שלא עודכנו" onClick={() => { setTab('records'); setOnlyStale(true) }} />
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+        <Stat icon={<UserPlus size={18} />} value={recent.length} label="רישומים חדשים השבוע" onClick={() => { setTab('records'); setFrom(plusDaysISO(-7)); setShowFilters(true) }} />
+        <Stat icon={<CalendarClock size={18} />} value={alerts.length} label="חוזים ומכרזים עד 90 יום" tone="amber" onClick={() => setTab('contracts')} />
+        <Stat icon={<TrendingDown size={18} />} value={lost90} label="הפסדים ב-90 יום" tone="red" onClick={() => { setTab('records'); setOutcome('lost'); setShowFilters(true) }} />
+        <Stat icon={<AlertTriangle size={18} />} value={stale} label="רישומים שלא עודכנו" onClick={() => { setTab('records'); setOnlyStale(true); setShowFilters(true) }} />
       </div>
 
       <Tabs value={tab} onChange={setTab}>
@@ -196,9 +222,78 @@ export default function Competitors() {
         </TabList>
 
         <TabPanel id="records">
+          {/* search + the filters behind one button */}
+          <div className="flex items-center gap-2">
+            <label className="relative block min-w-0 flex-1">
+              <Search size={18} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input type="search" className="input !pr-10" placeholder="חיפוש: מתחרה, מוצר, רופא, בית חולים" aria-label="חיפוש ברישומים" value={q} onChange={(e) => setQ(e.target.value)} />
+            </label>
+            <button type="button" className={classNames('btn-secondary shrink-0', (showFilters || panelFilters > 0) && 'border-brand-400 text-brand-700')} aria-expanded={showFilters} onClick={() => setShowFilters((v) => !v)}>
+              <SlidersHorizontal size={16} />
+              סינון
+              {panelFilters > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-brand-600 px-1 text-xs text-white">{panelFilters}</span>}
+            </button>
+          </div>
+
+          {showFilters && (
+            <div className="card grid grid-cols-2 gap-2 p-3 sm:grid-cols-4">
+              <label className="col-span-2 flex flex-col gap-1 text-xs text-slate-600 sm:col-span-2">
+                בית חולים
+                <select className="input text-sm" value={hospital} onChange={(e) => setHospital(e.target.value)}>
+                  <option value="">כל בתי החולים</option>
+                  {(hospitals.data ?? [])
+                    .filter((h) => all.some((i) => i.hospital_id === h.id))
+                    .map((h) => (
+                      <option key={h.id} value={h.id}>
+                        {h.name}
+                      </option>
+                    ))}
+                </select>
+              </label>
+              <label className="col-span-2 flex flex-col gap-1 text-xs text-slate-600 sm:col-span-2">
+                תוצאה
+                <select className="input text-sm" value={outcome} onChange={(e) => setOutcome(e.target.value)}>
+                  <option value="">כל התוצאות</option>
+                  {Object.entries(OUTCOME_LABELS).map(([k, v]) => (
+                    <option key={k} value={k}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1 text-xs text-slate-600">
+                מתאריך
+                <input type="date" className="input text-sm" value={from} onChange={(e) => setFrom(e.target.value)} />
+              </label>
+              <label className="flex flex-col gap-1 text-xs text-slate-600">
+                עד תאריך
+                <input type="date" className="input text-sm" value={to} onChange={(e) => setTo(e.target.value)} />
+              </label>
+              <label className="col-span-2 flex min-h-8 items-center gap-2 text-sm text-slate-600">
+                <input type="checkbox" className="h-5 w-5" checked={onlyStale} onChange={(e) => setOnlyStale(e.target.checked)} /> רק רישומים ישנים (מעל 90 יום)
+              </label>
+            </div>
+          )}
+
+          {/* competitor quick filter on the phone; the full table on a wide screen */}
+          {summary.length > 1 && (
+            <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none] md:hidden [&::-webkit-scrollbar]:hidden" role="group" aria-label="סינון לפי מתחרה">
+              {summary.map(([name, e]) => (
+                <button
+                  key={name}
+                  type="button"
+                  aria-pressed={competitor === name}
+                  onClick={() => setCompetitor(competitor === name ? '' : name)}
+                  className={classNames('chip shrink-0 whitespace-nowrap', competitor === name ? 'border-brand-500 bg-brand-600 text-white' : 'border-slate-200 bg-white text-slate-700')}
+                >
+                  {name} · {e.n}
+                </button>
+              ))}
+            </div>
+          )}
           {summary.length > 0 && (
-            <div tabIndex={0} className="card overflow-x-auto">
-              <table className="w-full min-w-[620px] text-sm">
+            <div tabIndex={0} aria-label="סיכום לפי מתחרה" className="card hidden overflow-x-auto md:block">
+              <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-right text-slate-500">
                     <th className="p-2.5 font-medium">מתחרה</th>
@@ -229,73 +324,48 @@ export default function Competitors() {
             </div>
           )}
 
-          <div className="card space-y-2 p-3">
-            <label className="relative block">
-              <Search size={18} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input type="search" className="input !pr-10" placeholder="חיפוש: מתחרה, מוצר, רופא, בית חולים" value={q} onChange={(e) => setQ(e.target.value)} />
-            </label>
-            <div className="grid grid-cols-2 items-end gap-2 sm:flex sm:flex-wrap sm:items-center">
-              <select className="input col-span-2 !w-full !py-1.5 text-sm sm:!w-auto" value={hospital} onChange={(e) => setHospital(e.target.value)} aria-label="בית חולים">
-                <option value="">כל בתי החולים</option>
-                {(hospitals.data ?? []).filter((h) => all.some((i) => i.hospital_id === h.id)).map((h) => (
-                  <option key={h.id} value={h.id}>
-                    {h.name}
-                  </option>
-                ))}
-              </select>
-              <select className="input col-span-2 !w-full !py-1.5 text-sm sm:!w-auto" value={outcome} onChange={(e) => setOutcome(e.target.value)} aria-label="תוצאה">
-                <option value="">כל התוצאות</option>
-                {Object.entries(OUTCOME_LABELS).map(([k, v]) => (
-                  <option key={k} value={k}>
-                    {v}
-                  </option>
-                ))}
-              </select>
-              <label className="flex flex-col gap-1 text-xs text-slate-500 sm:flex-row sm:items-center">
-                מתאריך <input type="date" className="input !w-full !py-1 text-sm sm:!w-auto" value={from} onChange={(e) => setFrom(e.target.value)} />
-              </label>
-              <label className="flex flex-col gap-1 text-xs text-slate-500 sm:flex-row sm:items-center">
-                עד <input type="date" className="input !w-full !py-1 text-sm sm:!w-auto" value={to} onChange={(e) => setTo(e.target.value)} />
-              </label>
-              <label className="col-span-2 flex items-center gap-1.5 text-sm text-slate-600 sm:col-span-1">
-                <input type="checkbox" className="h-4 w-4" checked={onlyStale} onChange={(e) => setOnlyStale(e.target.checked)} /> ישנים (מעל 90 יום)
-              </label>
-              {(competitor || hospital || outcome || onlyStale || from || to || q) && (
-                <button className="btn-ghost col-span-2 text-xs sm:col-span-1" onClick={() => { setCompetitor(''); setHospital(''); setOutcome(''); setOnlyStale(false); setFrom(''); setTo(''); setQ('') }}>
-                  נקה סינון
-                </button>
-              )}
-            </div>
+          <div className="flex items-center justify-between gap-2 text-sm text-slate-600">
+            <p>
+              {anyFilter ? `${filtered.length} מתוך ${all.length} רישומים` : `${all.length} רישומים`}
+              {competitor && <span className="font-medium text-slate-800"> · {competitor}</span>}
+            </p>
+            {anyFilter && (
+              <button className="btn-ghost text-sm text-brand-600" onClick={clearAll}>
+                <X size={14} /> נקה סינון
+              </button>
+            )}
           </div>
 
-          {filtered.length === 0 ? <EmptyState title="אין רישומים" hint="תעד פעילות של מתחרים מכרטיס רופא, מבית חולים או מכאן" /> : <ul className="space-y-2">{filtered.map(recordCard)}</ul>}
+          {filtered.length === 0 ? <EmptyState title="אין רישומים" hint={anyFilter ? 'אין רישומים שמתאימים לסינון — נסה לנקות אותו' : 'תעד פעילות של מתחרים מכרטיס רופא, מבית חולים או מכאן'} /> : <ul className="space-y-2">{filtered.map(recordCard)}</ul>}
         </TabPanel>
 
         <TabPanel id="contracts">
-          <p className="text-sm text-slate-500">חוזים של מתחרים שמסתיימים ומכרזים שנסגרים — הרגע הנכון להגיע עם הצעה. {isAdmin ? 'מוצגים כל בתי החולים.' : myHospitals?.length ? 'מוצגים בתי החולים שבאחריותך.' : ''}</p>
+          <p className="text-sm text-slate-600">חוזים של מתחרים שמסתיימים ומכרזים שנסגרים — הרגע הנכון להגיע עם הצעה. {isAdmin ? 'מוצגים כל בתי החולים.' : myHospitals?.length ? 'מוצגים בתי החולים שבאחריותך.' : ''}</p>
           {yearAlerts.length === 0 ? (
             <EmptyState title="אין חוזים או מכרזים קרובים" hint='בעריכת רישום, תחת "פרטים נוספים", אפשר להזין מועד סיום חוזה או מכרז' />
           ) : (
             <ul className="space-y-2">
               {yearAlerts.map((a) => (
-                <li key={a.key} className="card flex items-start justify-between gap-3 p-3">
-                  <div className="min-w-0">
-                    <p className="font-semibold text-slate-800">
-                      {a.kind === 'contract' ? 'סיום חוזה' : `מכרז: ${a.intel.tender_name}`} · {a.intel.competitor}
-                      {a.intel.product && <span className="font-normal text-slate-500"> ({a.intel.product})</span>}
+                <li key={a.key} className="card p-3">
+                  <p dir="auto" className="font-semibold text-slate-800">
+                    {a.kind === 'contract' ? 'סיום חוזה' : `מכרז: ${a.intel.tender_name}`} · {a.intel.competitor}
+                    {a.intel.product && <span className="font-normal text-slate-500"> ({a.intel.product})</span>}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {a.intel.hospital?.name ?? 'ללא בית חולים'}
+                    {a.intel.doctor && ` · ${a.intel.doctor.title} ${a.intel.doctor.name}`}
+                  </p>
+                  {a.intel.notes && (
+                    <p dir="auto" className="mt-0.5 line-clamp-2 text-xs text-slate-500">
+                      {a.intel.notes}
                     </p>
-                    <p className="text-xs text-slate-500">
-                      {a.intel.hospital?.name ?? 'ללא בית חולים'}
-                      {a.intel.doctor && ` · ${a.intel.doctor.title} ${a.intel.doctor.name}`}
-                    </p>
-                    {a.intel.notes && <p dir="auto" className="mt-0.5 line-clamp-2 text-xs text-slate-400">{a.intel.notes}</p>}
-                  </div>
-                  <div className="flex shrink-0 flex-col items-end gap-1">
+                  )}
+                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                     <span className={classNames('chip', daysChip(a.days))}>
                       {formatDate(a.date)} · {a.days === 0 ? 'היום' : `בעוד ${a.days} ימים`}
                     </span>
-                    <button className="btn-ghost !px-2 !py-0.5 text-xs" onClick={() => setTaskFor(a.intel)}>
-                      <CheckSquare size={13} /> צור משימה
+                    <button className="btn-ghost text-sm text-brand-600" onClick={() => setTaskFor(a.intel)}>
+                      <CheckSquare size={14} /> צור משימה
                     </button>
                   </div>
                 </li>
@@ -323,7 +393,7 @@ export default function Competitors() {
           )}
           {isAdmin && (
             <div className="flex max-w-md gap-2">
-              <input className="input" dir="auto" placeholder="מתחרה חדש" value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && newName.trim() && void addCompetitor(newName)} />
+              <input className="input" dir="auto" aria-label="שם מתחרה חדש" placeholder="מתחרה חדש" value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && newName.trim() && void addCompetitor(newName)} />
               <button className="btn-primary shrink-0" disabled={!newName.trim() || saveCompetitor.isPending} onClick={() => void addCompetitor(newName)}>
                 <Plus size={16} /> הוסף
               </button>
@@ -341,17 +411,21 @@ export default function Competitors() {
                 return (
                   <li key={c.id}>
                     <Link to={`/competitors/${c.id}`} className={classNames('card block p-4 transition hover:shadow-pop', !c.active && 'opacity-60')}>
-                      <p className="flex items-center gap-2 font-semibold text-slate-800">
+                      <p className="flex flex-wrap items-center gap-2 font-semibold text-slate-800">
                         {c.name}
                         {!c.active && <span className="chip border-slate-200 bg-slate-50 !px-2 !py-0 text-slate-500">לא פעיל</span>}
                         {c.learn_topic_id && <BookOpen size={14} className="text-brand-500" aria-label="יש נושא בלומדה" />}
                       </p>
-                      <p className="text-xs text-slate-500">{c.products || 'ללא מוצרים רשומים'}</p>
-                      <p className="mt-2 text-xs text-slate-500">
+                      <p dir="auto" className="text-xs text-slate-500">{c.products || 'ללא מוצרים רשומים'}</p>
+                      <p className="mt-2 text-xs text-slate-600">
                         {mine.length} רישומים · {hosp.size} בתי חולים
                         {nextEnd?.contract_end && ` · חוזה הקרוב ${formatDate(nextEnd.contract_end)} (${daysUntil(nextEnd.contract_end)} ימים)`}
                       </p>
-                      {c.our_answer && <p dir="auto" className="mt-1.5 line-clamp-2 text-xs text-slate-400">התשובה שלנו: {c.our_answer}</p>}
+                      {c.our_answer && (
+                        <p dir="auto" className="mt-1.5 line-clamp-2 text-xs text-slate-500">
+                          התשובה שלנו: {c.our_answer}
+                        </p>
+                      )}
                     </Link>
                   </li>
                 )

@@ -22,8 +22,9 @@ function AgentCard({ r }: { r: AgentRow }) {
           </p>
         </div>
         {r.attention.length > 0 && (
-          <span className={classNames('chip shrink-0', reds > 0 ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-700')}>
-            <AlertTriangle size={12} /> {r.attention.length}
+          <span className={classNames('chip shrink-0', reds > 0 ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-700')} title="נקודות לתשומת לב">
+            <AlertTriangle size={12} aria-hidden /> {r.attention.length}
+            <span className="sr-only">נקודות לתשומת לב</span>
           </span>
         )}
       </div>
@@ -38,7 +39,7 @@ function AgentCard({ r }: { r: AgentRow }) {
           <DeltaBadge d={change(r.m.meetings_held, r.prev.meetings_held)} />
         </div>
         <div>
-          <p className="text-xs text-slate-500">ניתוחים בבתי החולים שלו</p>
+          <p className="text-xs text-slate-500">ניתוחים בבתי החולים</p>
           <p className="text-2xl font-semibold text-brand-800">{r.m.surgeries_covered}</p>
           <DeltaBadge d={change(r.m.surgeries_covered, r.prev.surgeries_covered)} />
         </div>
@@ -58,14 +59,10 @@ function AgentCard({ r }: { r: AgentRow }) {
       </div>
 
       {r.attention.length > 0 && (
-        <ul className="space-y-0.5 border-t border-slate-100 pt-2 text-xs">
-          {r.attention.slice(0, 3).map((a, i) => (
-            <li key={i} className={a.level === 'red' ? 'text-red-600' : 'text-amber-700'}>
-              ● {a.text}
-            </li>
-          ))}
-          {r.attention.length > 3 && <li className="text-slate-400">ועוד {r.attention.length - 3}…</li>}
-        </ul>
+        <p className={classNames('border-t border-slate-100 pt-2 text-xs', r.attention[0].level === 'red' ? 'text-red-700' : 'text-amber-700')}>
+          ● {r.attention[0].text}
+          {r.attention.length > 1 && <span className="text-slate-500"> · ועוד {r.attention.length - 1}</span>}
+        </p>
       )}
     </Link>
   )
@@ -74,7 +71,7 @@ function AgentCard({ r }: { r: AgentRow }) {
 function AgentsTable({ model }: { model: TeamModel }) {
   const cell = (v: number | string | null, bad = false) => <td className={classNames('p-2.5 text-center', bad && 'font-semibold text-red-600')}>{v ?? '—'}</td>
   return (
-    <div tabIndex={0} className="card overflow-x-auto">
+    <div tabIndex={0} role="region" aria-label="טבלת מדדי הסוכנים, גלילה לצדדים" className="card overflow-x-auto">
       <table className="w-full min-w-[820px] text-sm">
         <thead>
           <tr className="border-b border-slate-200 bg-slate-50 text-right text-xs text-slate-500">
@@ -129,7 +126,7 @@ export function TeamOverview({ model }: { model: TeamModel }) {
 
   return (
     <div className="space-y-5">
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <section aria-label="מדדי הצוות" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <BigNumber label="ניתוחי MAKO" value={kpis.surgeries.value} delta={kpis.surgeries} />
         <BigNumber label="פגישות שהתקיימו" value={kpis.meetings.value} delta={kpis.meetings} />
         <BigNumber label="עמידה ביעדים" value={kpis.hasGoals ? kpis.goals.value : null} suffix="%" delta={kpis.goals} points />
@@ -142,13 +139,13 @@ export function TeamOverview({ model }: { model: TeamModel }) {
           {model.attention.length === 0 ? 'הכול תקין — אין סוכן שדורש תשומת לב' : `דורש תשומת לב (${byAgent.size} סוכנים)`}
         </h2>
         {byAgent.size > 0 && (
-          <ul className="grid gap-x-6 gap-y-2 text-sm md:grid-cols-2">
+          <ul className="grid gap-x-6 gap-y-3 text-sm md:grid-cols-2">
             {[...byAgent.values()].map((e) => (
               <li key={e.id}>
-                <Link to={`/agents/${e.id}`} className="font-medium text-brand-700 hover:underline">
+                <Link to={`/agents/${e.id}`} className="inline-flex min-h-8 items-center font-semibold text-brand-700 hover:underline">
                   {e.name}
                 </Link>
-                <ul className="mr-3">
+                <ul className="mr-3 mt-0.5 space-y-0.5">
                   {e.items.map((it, i) => (
                     <li key={i} className={it.level === 'red' ? 'text-red-600' : 'text-amber-700'}>
                       ● {it.text}
@@ -198,7 +195,7 @@ export function TeamOverview({ model }: { model: TeamModel }) {
       </section>
 
       <details className="group">
-        <summary className="flex cursor-pointer list-none items-center gap-1.5 text-sm font-medium text-brand-700">
+        <summary className="flex min-h-10 cursor-pointer list-none items-center gap-1.5 text-sm font-medium text-brand-700">
           <ChevronDown size={16} className="transition group-open:rotate-180" /> הטבלה המלאה של כל המדדים
         </summary>
         <div className="mt-2">

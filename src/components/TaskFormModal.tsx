@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useDraft } from '../lib/useDraft'
 import { QuickDates } from './QuickDates'
 import { SearchSelect } from './SearchSelect'
-import { Plus, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, Plus, X } from 'lucide-react'
 import { useAgents, useDeleteTask, useDoctors, useHospitals, useSaveTask, type TaskFormData } from '../lib/api'
 import { useAuth } from '../context/AuthProvider'
 import type { TaskRow } from '../lib/types'
@@ -93,8 +93,8 @@ export function TaskFormModal({
             value={d.description}
             onChange={(e) => set({ description: e.target.value })}
           />
-          <p className="mt-1 text-xs text-slate-400">
-            אפשר להכתיב: לחץ על המיקרופון במקלדת. למשל "לשלוח הצעה לשוחט עד יום חמישי, דחוף" — המערכת תזהה תאריך, עדיפות, רופא ובית חולים.
+          <p className="mt-1 text-xs text-slate-500">
+            אפשר להכתיב במיקרופון. למשל "לשלוח הצעה לשוחט עד יום חמישי, דחוף" — המערכת תזהה תאריך, עדיפות, רופא ובית חולים.
           </p>
         </Field>
         {draft.restored && (
@@ -132,8 +132,10 @@ export function TaskFormModal({
           </Field>
         </div>
 
-        <button type="button" className="text-sm font-medium text-brand-600 hover:underline" onClick={() => setMore((m) => !m)} aria-expanded={more}>
-          {more ? '− פחות פרטים' : '+ עוד פרטים (רופא, בית חולים, חזרה, מתאם, שלבים)'}
+        <button type="button" className="flex min-h-[40px] w-full items-center justify-between gap-2 rounded-xl border border-brand-200 bg-white px-3 text-right text-sm font-medium text-brand-700 hover:bg-brand-50" onClick={() => setMore((m) => !m)} aria-expanded={more}>
+          <span>{more ? 'פחות פרטים' : 'עוד פרטים'}</span>
+          {!more && <span className="text-xs font-normal text-slate-500">רופא, בית חולים, חזרה, מתאם, שלבים</span>}
+          {more ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
         {more && (
           <div className="space-y-4 rounded-2xl border border-brand-100 bg-brand-50/30 p-3">
@@ -188,15 +190,17 @@ export function TaskFormModal({
           <ul className="space-y-2">
             {d.subtasks.map((s, i) => (
               <li key={s.id ?? i} className="flex items-center gap-2">
-                <input type="checkbox" className="h-5 w-5" checked={s.is_done} onChange={(e) => setSub(i, { is_done: e.target.checked })} />
+                <input type="checkbox" className="h-5 w-5 shrink-0" aria-label={`שלב ${i + 1} בוצע`} checked={s.is_done} onChange={(e) => setSub(i, { is_done: e.target.checked })} />
                 <input
                   className="input !py-1.5"
                   dir="auto"
                   value={s.text}
+                  aria-label={`שלב ${i + 1}`}
+                  enterKeyHint="next"
                   placeholder="שלב"
                   onChange={(e) => setSub(i, { text: e.target.value })}
                 />
-                <button type="button" className="btn-ghost !px-2 text-slate-400" onClick={() => set({ subtasks: d.subtasks.filter((_, k) => k !== i) })} aria-label="הסר שלב">
+                <button type="button" className="btn-ghost !px-2 text-slate-500" onClick={() => set({ subtasks: d.subtasks.filter((_, k) => k !== i) })} aria-label="הסר שלב">
                   <X size={16} />
                 </button>
               </li>
@@ -211,10 +215,10 @@ export function TaskFormModal({
           </div>
         )}
 
-        {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+        {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
 
-        <div className="flex items-center justify-between gap-2 border-t border-slate-200 pt-4">
-          <div>
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 pt-4">
+          <div className="me-auto">
             {task && (
               <ConfirmButton
                 message="למחוק את המשימה?"
@@ -225,10 +229,10 @@ export function TaskFormModal({
             )}
           </div>
           <div className="flex gap-2">
-            <button className="btn-secondary" onClick={onClose}>
+            <button type="button" className="btn-secondary" onClick={onClose}>
               ביטול
             </button>
-            <button className="btn-primary" onClick={submit} disabled={save.isPending}>
+            <button type="button" className="btn-primary" onClick={submit} disabled={save.isPending}>
               {save.isPending ? 'שומר…' : 'שמירה'}
             </button>
           </div>

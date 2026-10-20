@@ -1,4 +1,6 @@
-import { ChevronDown, LifeBuoy } from 'lucide-react'
+import { useState } from 'react'
+import { ChevronDown, LifeBuoy, Search } from 'lucide-react'
+import { normalizeHe } from '../lib/contactMatch'
 import { useAuth } from '../context/AuthProvider'
 
 type Topic = { title: string; items: string[]; adminOnly?: boolean }
@@ -82,6 +84,11 @@ const TOPICS: Topic[] = [
 /** the guide of the system: short sections that open and close */
 export default function Help() {
   const { isAdmin } = useAuth()
+  const [q, setQ] = useState('')
+  const words = normalizeHe(q).split(' ').filter(Boolean)
+  const visible = TOPICS.filter((t) => !t.adminOnly || isAdmin)
+    .map((t) => ({ ...t, items: words.length ? t.items.filter((x) => words.every((w) => normalizeHe(x + ' ' + t.title).includes(w))) : t.items }))
+    .filter((t) => t.items.length > 0)
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <div>
@@ -91,15 +98,21 @@ export default function Help() {
           </span>
           עזרה ומדריך
         </h1>
-        <p className="text-sm text-slate-500">מה עושים בכל מסך, ומה קל לפספס.</p>
+        <p className="mt-1 text-sm text-slate-600">מה עושים בכל מסך, ומה קל לפספס.</p>
       </div>
-      {TOPICS.filter((t) => !t.adminOnly || isAdmin).map((t, i) => (
-        <details key={t.title} className="card group p-4" open={i === 0}>
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-base font-semibold text-brand-800">
+      <label className="relative block">
+        <span className="sr-only">חיפוש במדריך</span>
+        <Search size={18} aria-hidden className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input type="search" enterKeyHint="search" className="input !pr-10" placeholder="חיפוש במדריך, למשל: סיסמה, גיבוי, משימה…" value={q} onChange={(e) => setQ(e.target.value)} />
+      </label>
+      {visible.length === 0 && <p className="rounded-xl bg-slate-50 px-4 py-6 text-center text-sm text-slate-600">לא נמצא במדריך. נסה מילה אחרת, או פנה למנהל המערכת.</p>}
+      {visible.map((t, i) => (
+        <details key={t.title + (words.length ? '-q' : '')} className="card group px-4 py-1" open={words.length > 0 || i === 0}>
+          <summary className="flex min-h-[48px] cursor-pointer list-none items-center justify-between gap-2 text-base font-semibold text-brand-800">
             {t.title}
-            <ChevronDown size={18} className="transition group-open:rotate-180" />
+            <ChevronDown size={18} aria-hidden className="shrink-0 transition group-open:rotate-180" />
           </summary>
-          <ul className="mt-3 list-disc space-y-2 pr-5 text-sm leading-relaxed text-slate-700">
+          <ul className="mb-3 mt-1 list-disc space-y-2.5 pr-5 text-sm leading-relaxed text-slate-700">
             {t.items.map((x) => (
               <li key={x}>{x}</li>
             ))}

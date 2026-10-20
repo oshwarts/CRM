@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { CalendarPlus, Copy, Download, FileInput, Pencil, Plus, Trash2 } from 'lucide-react'
+import { CalendarPlus, Copy, Download, FileInput, Pencil, Plus, Trash2, X } from 'lucide-react'
 import {
   useDeletePatientScan,
   useImplantFields,
@@ -36,12 +36,62 @@ import {
   todayISO,
 } from '../lib/utils'
 
+/** the date window filters the CT date */
 const WINDOW_LABELS: Record<string, string> = {
-  all: 'כל התאריכים',
-  month: 'החודש הקרוב',
-  week: 'השבוע הקרוב',
+  all: 'הכל',
+  week: 'השבוע',
+  month: 'החודש',
   past: 'עבר',
 }
+
+type Quick = 'week' | 'overdue' | 'noct' | 'nodisk' | 'open' | 'rescan'
+
+/** the alert chips above the list: each one is a one-tap filter for the scans that need attention */
+const QUICKS: { key: Quick; label: string; tone: string; test: (s: PatientScanRow, today: string) => boolean }[] = [
+  {
+    key: 'overdue',
+    label: 'CT עבר, לא נסרק',
+    tone: 'border-red-200 bg-red-50 text-red-700',
+    test: (s, today) => !!s.ct_date && s.ct_date < today && !s.scanned && s.status !== 'cancelled',
+  },
+  {
+    key: 'noct',
+    label: 'ניתוח השבוע, אין CT',
+    tone: 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700',
+    test: (s, today) =>
+      s.status !== 'cancelled' && !!s.surgery_date && s.surgery_date >= today && (daysUntil(s.surgery_date) ?? 99) <= 7 && !s.ct_date,
+  },
+  {
+    key: 'nodisk',
+    label: 'ניתוח השבוע, אין דיסק',
+    tone: 'border-orange-200 bg-orange-50 text-orange-700',
+    test: (s, today) =>
+      s.status !== 'cancelled' &&
+      !!s.surgery_date &&
+      s.surgery_date >= today &&
+      (daysUntil(s.surgery_date) ?? 99) <= 7 &&
+      !!s.ct_date &&
+      !s.disk_collected,
+  },
+  {
+    key: 'week',
+    label: 'CT בשבוע הקרוב',
+    tone: 'border-amber-200 bg-amber-50 text-amber-700',
+    test: (s, today) => !!s.ct_date && s.ct_date >= today && (daysUntil(s.ct_date) ?? 99) <= 7 && !s.scanned,
+  },
+  {
+    key: 'open',
+    label: 'חסר טיפול ל-CT',
+    tone: 'border-sky-200 bg-sky-50 text-sky-700',
+    test: (s) => weekMissing(s).length > 0,
+  },
+  {
+    key: 'rescan',
+    label: 'סריקה חוזרת פתוחה',
+    tone: 'border-rose-200 bg-rose-50 text-rose-700',
+    test: (s) => s.rescan && !s.rescan_done && s.status !== 'cancelled',
+  },
+]
 
 export default function Scans() {
   const scans = usePatientScans()
@@ -60,6 +110,7 @@ export default function Scans() {
   const [q, setQ] = useState('')
   const [hospital, setHospital] = useState(hospitalParam)
   const [status, setStatus] = useState('')
+  const [quick, setQuick] = useState<Quick | ''>('')
   // arriving from a hospital → default to the coming month
   const [window, setWindow] = useState(hospitalParam ? 'month' : 'all')
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -80,6 +131,7 @@ export default function Scans() {
     return (scans.data ?? []).filter((s) => {
       if (hospital && s.hospital_id !== hospital) return false
       if (status && s.status !== status) return false
+      if (quick && !QUICKS.find((x) => x.key === quick)?.test(s, today)) return false
       if (window !== 'all') {
         const c = s.ct_date
         if (!c) return false
@@ -93,33 +145,21 @@ export default function Scans() {
       }
       return true
     })
-  }, [scans.data, hospital, status, q, window, today, monthEnd, weekEnd])
+  }, [scans.data, hospital, status, quick, q, window, today, monthEnd, weekEnd])
 
-  const upcoming = (scans.data ?? []).filter(
-    (s) => s.ct_date && s.ct_date >= today && (daysUntil(s.ct_date) ?? 99) <= 7 && !s.scanned,
-  ).length
-  const overdue = (scans.data ?? []).filter(
-    (s) => s.ct_date && s.ct_date < today && !s.scanned && s.status !== 'cancelled',
-  ).length
-  const noCtSoonCount = (scans.data ?? []).filter(
-    (s) =>
-      s.status !== 'cancelled' &&
-      s.surgery_date &&
-      s.surgery_date >= today &&
-      (daysUntil(s.surgery_date) ?? 99) <= 7 &&
-      !s.ct_date,
-  ).length
-  const noDiskSoonCount = (scans.data ?? []).filter(
-    (s) =>
-      s.status !== 'cancelled' &&
-      s.surgery_date &&
-      s.surgery_date >= today &&
-      (daysUntil(s.surgery_date) ?? 99) <= 7 &&
-      !!s.ct_date &&
-      !s.disk_collected,
-  ).length
-  const weekOpenCount = (scans.data ?? []).filter((s) => weekMissing(s).length > 0).length
-  const rescanOpenCount = (scans.data ?? []).filter((s) => s.rescan && !s.rescan_done && s.status !== 'cancelled').length
+  const quickCounts = useMemo(
+    () => QUICKS.map((x) => ({ ...x, count: (scans.data ?? []).filter((r) => x.test(r, today)).length })),
+    [scans.data, today],
+  )
+  const filtered = !!(q || hospital || status || quick || window !== 'all')
+
+  function clearFilters() {
+    setQ('')
+    setHospital('')
+    setStatus('')
+    setQuick('')
+    setWindow('all')
+  }
 
   const selectedRows = rows.filter((s) => selected.has(s.id))
   const allSelected = rows.length > 0 && selectedRows.length === rows.length
@@ -179,118 +219,133 @@ export default function Scans() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-brand-800 sm:text-3xl">סריקות MAKO</h1>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-slate-500">
             מעקב סריקות CT למטופלי MAKO — כל בתי החולים יחד
           </p>
         </div>
-        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
-          <button className="btn-secondary" onClick={exportCsv} disabled={rows.length === 0}>
-            <Download size={16} />
-            ייצוא CSV
-          </button>
-          <button className="btn-secondary" onClick={() => setShowReferral(true)}>
-            <FileInput size={16} />
-            ייבוא הפנייה
-          </button>
-          <button className="btn-primary order-first col-span-2 sm:order-none sm:col-span-1" onClick={() => setShowAdd(true)}>
+        <div className="flex w-full gap-2 sm:w-auto">
+          <button className="btn-primary flex-1 sm:flex-none" onClick={() => setShowAdd(true)}>
             <Plus size={16} />
             הוסף מטופל
           </button>
+          <button className="btn-secondary flex-1 sm:flex-none" onClick={() => setShowReferral(true)}>
+            <FileInput size={16} />
+            ייבוא הפנייה
+          </button>
+          <button className="btn-secondary !px-3 sm:!px-5" onClick={exportCsv} disabled={rows.length === 0}>
+            <Download size={16} />
+            <span className="sr-only sm:not-sr-only">ייצוא CSV</span>
+          </button>
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <span className="chip border-slate-200 bg-slate-50 text-slate-600">
-          סה״כ {scans.data?.length ?? 0}
-        </span>
-        {upcoming > 0 && (
-          <span className="chip border-amber-200 bg-amber-50 text-amber-700">
-            CT בשבוע הקרוב · {upcoming}
-          </span>
-        )}
-        {overdue > 0 && (
-          <span className="chip border-red-200 bg-red-50 text-red-600">
-            CT עבר וטרם נסרק · {overdue}
-          </span>
-        )}
-        {noCtSoonCount > 0 && (
-          <span className="chip border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700">
-            ניתוח השבוע ללא CT מתואם · {noCtSoonCount}
-          </span>
-        )}
-        {noDiskSoonCount > 0 && (
-          <span className="chip border-orange-200 bg-orange-50 text-orange-700">
-            ניתוח השבוע — דיסק לא הועלה · {noDiskSoonCount}
-          </span>
-        )}
-        {weekOpenCount > 0 && (
-          <span className="chip border-sky-200 bg-sky-50 text-sky-700">
-            CT בשבוע הקרוב — חסר טיפול · {weekOpenCount}
-          </span>
-        )}
-        {rescanOpenCount > 0 && (
-          <span className="chip border-rose-200 bg-rose-50 text-rose-700">
-            סריקות חוזרות פתוחות · {rescanOpenCount}
-          </span>
-        )}
+      <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] sm:flex-wrap [&::-webkit-scrollbar]:hidden" role="group" aria-label="סינון מהיר לפי התראות">
+        <button
+          type="button"
+          aria-pressed={quick === ''}
+          onClick={() => setQuick('')}
+          className={classNames(
+            'chip shrink-0 whitespace-nowrap',
+            quick === '' ? 'border-brand-400 bg-brand-50 text-brand-700 ring-1 ring-brand-400' : 'border-slate-200 bg-white text-slate-600',
+          )}
+        >
+          הכל · {scans.data?.length ?? 0}
+        </button>
+        {quickCounts
+          .filter((x) => x.count > 0 || quick === x.key)
+          .map((x) => (
+            <button
+              key={x.key}
+              type="button"
+              aria-pressed={quick === x.key}
+              onClick={() => setQuick(quick === x.key ? '' : x.key)}
+              className={classNames('chip shrink-0 whitespace-nowrap', x.tone, quick === x.key && 'font-bold ring-2 ring-current')}
+            >
+              {x.label} · {x.count}
+            </button>
+          ))}
       </div>
 
-      {selectedRows.length > 0 && (
-        <div className="card flex flex-wrap items-center gap-2 border-brand-200 bg-brand-50/50 p-3">
-          <span className="text-sm font-medium text-slate-700">{selectedRows.length} נבחרו</span>
-          <button className="btn-secondary" onClick={copySelected}>
-            <Copy size={16} />
-            {copied ? 'הועתק ✓' : 'העתק נתונים'}
-          </button>
-          <button
-            className="btn-secondary"
-            onClick={() => inviteFor(selectedRows)}
-            disabled={!selectedRows.some((s) => s.ct_date || (s.rescan && s.rescan_date))}
-          >
-            <CalendarPlus size={16} />
-            זימון Outlook
-          </button>
-          <button className="btn-ghost" onClick={() => setSelected(new Set())}>נקה בחירה</button>
+      <div className="card space-y-2 p-3 md:flex md:flex-wrap md:items-center md:gap-3 md:space-y-0 md:p-4">
+        <input className="input md:w-64" aria-label="חיפוש" placeholder="חיפוש שם, ת״ז, טלפון, מנתח" value={q} onChange={(e) => setQ(e.target.value)} />
+        <div className="grid grid-cols-2 gap-2 md:contents">
+          <select className="input min-w-0 md:w-52" aria-label="בית חולים" value={hospital} onChange={(e) => setHospital(e.target.value)}>
+            <option value="">כל בתי החולים</option>
+            {hospitals.map(([id, name]) => (
+              <option key={id} value={id}>{name}</option>
+            ))}
+          </select>
+          <select className="input min-w-0 md:w-40" aria-label="סטטוס" value={status} onChange={(e) => setStatus(e.target.value)}>
+            <option value="">כל הסטטוסים</option>
+            {Object.entries(SCAN_STATUS_LABELS).map(([v, l]) => (
+              <option key={v} value={v}>{l}</option>
+            ))}
+          </select>
         </div>
-      )}
-
-      <div className="card grid grid-cols-2 gap-3 p-4 sm:grid-cols-4">
-        <input className="input col-span-2 sm:col-span-1" aria-label="חיפוש" placeholder="חיפוש שם / ת״ז / טלפון / מנתח" value={q} onChange={(e) => setQ(e.target.value)} />
-        <select className="input col-span-2 sm:col-span-1" aria-label="בית חולים" value={hospital} onChange={(e) => setHospital(e.target.value)}>
-          <option value="">כל בתי החולים</option>
-          {hospitals.map(([id, name]) => (
-            <option key={id} value={id}>{name}</option>
-          ))}
-        </select>
-        <select className="input" aria-label="טווח זמן" value={window} onChange={(e) => setWindow(e.target.value)}>
-          {Object.entries(WINDOW_LABELS).map(([v, l]) => (
-            <option key={v} value={v}>{l}</option>
-          ))}
-        </select>
-        <select className="input" aria-label="סטטוס" value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="">כל הסטטוסים</option>
-          {Object.entries(SCAN_STATUS_LABELS).map(([v, l]) => (
-            <option key={v} value={v}>{l}</option>
-          ))}
-        </select>
+        <div className="flex items-center gap-2 md:ms-auto">
+          <span className="shrink-0 text-sm text-slate-500" aria-hidden="true">תאריך CT</span>
+          <div role="group" aria-label="טווח תאריך CT" className="grid flex-1 grid-cols-4 gap-1 rounded-xl bg-slate-100 p-1 md:flex-none">
+            {Object.entries(WINDOW_LABELS).map(([v, l]) => (
+              <button
+                key={v}
+                type="button"
+                aria-pressed={window === v}
+                onClick={() => setWindow(v)}
+                className={classNames(
+                  'min-h-[36px] rounded-lg px-2 text-sm font-medium transition md:px-3',
+                  window === v ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-600 hover:text-slate-800',
+                )}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {scans.isLoading && <Spinner />}
       {scans.error && <ErrorState error={scans.error} />}
       {scans.data && rows.length === 0 && (
-        <EmptyState title="אין סריקות" hint="הוסף מטופל, או שנה את הסינון" />
+        <EmptyState
+          title={filtered ? 'אין סריקות שמתאימות לסינון' : 'אין סריקות'}
+          hint={filtered ? 'נסה לשנות או לנקות את הסינון' : 'הוסף מטופל או ייבא הפנייה'}
+          action={
+            filtered ? (
+              <button className="btn-secondary" onClick={clearFilters}>נקה סינון</button>
+            ) : (
+              <button className="btn-primary" onClick={() => setShowAdd(true)}>
+                <Plus size={16} />
+                הוסף מטופל
+              </button>
+            )
+          }
+        />
       )}
 
       {rows.length > 0 && (
-        <div className="space-y-3 md:hidden">
-          <label className="flex items-center gap-2 px-1 text-sm text-slate-500">
+        <div className="flex items-center justify-between gap-2 px-1 text-sm text-slate-600">
+          <span>
+            {rows.length} מטופלים
+            {filtered && (
+              <button className="me-3 ms-3 inline-flex items-center gap-1 text-brand-600 underline" onClick={clearFilters}>
+                <X size={14} aria-hidden="true" />
+                נקה סינון
+              </button>
+            )}
+          </span>
+          <label className="flex min-h-[32px] items-center gap-2 lg:hidden">
             <input type="checkbox" className="h-5 w-5" checked={allSelected} onChange={toggleAll} />
-            בחר הכל ({rows.length})
+            בחר הכל
           </label>
+        </div>
+      )}
+
+      {rows.length > 0 && (
+        <div className="grid gap-3 md:grid-cols-2 lg:hidden">
           {rows.map((s) => (
             <ScanCard
               key={s.id}
@@ -307,7 +362,7 @@ export default function Scans() {
       )}
 
       {rows.length > 0 && (
-        <div tabIndex={0} className="card relative hidden overflow-x-auto md:block" role="region" aria-label="טבלת הסריקות">
+        <div tabIndex={0} className="card relative hidden overflow-x-auto lg:block" role="region" aria-label="טבלת הסריקות">
           <table className="w-full min-w-[1250px] text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-right text-slate-500">
@@ -417,6 +472,7 @@ export default function Scans() {
                         <button
                           className="btn-ghost !px-2 disabled:opacity-30"
                           title="זימון Outlook (קובץ .ics)"
+                          aria-label={`זימון Outlook: ${s.patient_name}`}
                           disabled={!hasEvents}
                           onClick={() => inviteFor([s])}
                         >
@@ -435,6 +491,36 @@ export default function Scans() {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {selectedRows.length > 0 && (
+        <div
+          role="region"
+          aria-label="פעולות על המטופלים שנבחרו"
+          className="card sticky bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] z-20 space-y-2 border-brand-200 bg-brand-50 p-3 shadow-lg md:bottom-4 md:flex md:items-center md:space-y-0"
+        >
+          <div className="flex items-center justify-between gap-2 md:contents">
+            <span className="text-sm font-semibold text-slate-800 md:me-2">{selectedRows.length} נבחרו</span>
+            <button className="btn-ghost md:order-last" onClick={() => setSelected(new Set())}>
+              <X size={16} aria-hidden="true" />
+              נקה בחירה
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-2 md:flex">
+            <button className="btn-secondary" onClick={copySelected}>
+              <Copy size={16} />
+              {copied ? 'הועתק ✓' : 'העתק נתונים'}
+            </button>
+            <button
+              className="btn-secondary"
+              onClick={() => inviteFor(selectedRows)}
+              disabled={!selectedRows.some((s) => s.ct_date || (s.rescan && s.rescan_date))}
+            >
+              <CalendarPlus size={16} />
+              זימון Outlook
+            </button>
+          </div>
         </div>
       )}
 

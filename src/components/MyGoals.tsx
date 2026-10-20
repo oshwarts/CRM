@@ -13,9 +13,9 @@ export function MyGoals() {
   if (mine.length === 0) return null
   return (
     <div>
-      <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
-        <Target size={12} /> היעדים שלי
-      </p>
+      <h3 className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-brand-700">
+        <Target size={13} aria-hidden /> היעדים שלי
+      </h3>
       <GoalBars goals={mine} data={data} />
     </div>
   )

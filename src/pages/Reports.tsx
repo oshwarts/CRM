@@ -103,46 +103,33 @@ export default function Reports() {
             disabled={rows.length === 0}
           >
             <Download size={16} />
-            ייצוא ל-Excel (CSV)
+            ייצוא CSV
           </button>
         )}
       </div>
 
-      <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
-        <button
-          onClick={() => setView('sales')}
-          className={classNames(
-            'flex items-center gap-1 rounded-lg px-4 py-1.5 text-sm font-medium transition',
-            view === 'sales' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-500 hover:text-slate-700',
-          )}
-        >
-          <BarChart3 size={15} />
-          פעילות ומכירות
-        </button>
-        <button
-          onClick={() => setView('report')}
-          className={classNames(
-            'flex items-center gap-1 rounded-lg px-4 py-1.5 text-sm font-medium transition',
-            view === 'report'
-              ? 'bg-white text-brand-600 shadow-sm'
-              : 'text-slate-500 hover:text-slate-700',
-          )}
-        >
-          <Table2 size={15} />
-          כמויות מקרים
-        </button>
-        <button
-          onClick={() => setView('edit')}
-          className={classNames(
-            'flex items-center gap-1 rounded-lg px-4 py-1.5 text-sm font-medium transition',
-            view === 'edit'
-              ? 'bg-white text-brand-600 shadow-sm'
-              : 'text-slate-500 hover:text-slate-700',
-          )}
-        >
-          <PencilLine size={15} />
-          הוספה ועריכה
-        </button>
+      <div role="tablist" aria-label="תצוגת דוחות" className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1">
+        {(
+          [
+            ['sales', 'פעילות', BarChart3],
+            ['report', 'כמויות', Table2],
+            ['edit', 'עריכה', PencilLine],
+          ] as const
+        ).map(([k, label, Icon]) => (
+          <button
+            key={k}
+            role="tab"
+            aria-selected={view === k}
+            onClick={() => setView(k)}
+            className={classNames(
+              'flex min-h-[40px] items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-sm font-medium transition',
+              view === k ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-500 hover:text-slate-700',
+            )}
+          >
+            <Icon size={15} aria-hidden="true" />
+            {label}
+          </button>
+        ))}
       </div>
 
       {view === 'sales' && <SalesReports />}
@@ -158,7 +145,7 @@ export default function Reports() {
               key={g}
               onClick={() => setGroupBy(g)}
               className={classNames(
-                'rounded-lg px-4 py-1.5 text-sm font-medium transition',
+                'min-h-[36px] rounded-lg px-3 py-1.5 text-sm font-medium transition',
                 groupBy === g
                   ? 'bg-white text-brand-600 shadow-sm'
                   : 'text-slate-500 hover:text-slate-700',
@@ -169,7 +156,8 @@ export default function Reports() {
           ))}
         </div>
         <select
-          className="input max-w-40"
+          aria-label="שנה"
+          className="input !w-auto"
           value={year}
           onChange={(e) => setYear(e.target.value)}
         >
@@ -198,7 +186,32 @@ export default function Reports() {
       )}
 
       {rows.length > 0 && (
-        <div tabIndex={0} className="card overflow-x-auto">
+        <ul className="space-y-2 md:hidden">
+          {rows.map((r) => (
+            <li key={r.label} className="card p-3">
+              <div className="flex items-baseline justify-between gap-3">
+                <span dir="auto" className="min-w-0 break-words font-semibold text-slate-800">{r.label}</span>
+                <span className="shrink-0 text-xl font-semibold text-brand-800">{r.total}</span>
+              </div>
+              <ul className="mt-1.5 space-y-0.5 text-sm text-slate-600">
+                {procedures.filter((p) => r.byProc[p]).map((p) => (
+                  <li key={p} className="flex justify-between gap-3">
+                    <span dir="auto" className="min-w-0 break-words">{p}</span>
+                    <span className="shrink-0 font-medium text-slate-800">{r.byProc[p]}</span>
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ))}
+          <li className="flex items-center justify-between rounded-2xl bg-slate-100 px-3 py-2.5 font-semibold text-slate-700">
+            <span>סה״כ</span>
+            <span className="text-xl text-brand-800">{grand}</span>
+          </li>
+        </ul>
+      )}
+
+      {rows.length > 0 && (
+        <div tabIndex={0} className="card hidden overflow-x-auto md:block" aria-label="טבלת כמויות מקרים">
           <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-slate-500">
