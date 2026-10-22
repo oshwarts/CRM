@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { QuickDates } from './QuickDates'
 import { Link } from 'react-router-dom'
-import { Mail, Plus, Trash2 } from 'lucide-react'
+import { Mail, Plus, Trash2, UserPlus } from 'lucide-react'
 import {
   useAgents,
   useContacts,
@@ -19,6 +19,8 @@ import {
 import { plusDaysISO } from '../lib/utils'
 import { toast } from '../lib/toast'
 import { normalizeHe } from '../lib/contactMatch'
+import type { MentionedDoctor } from '../lib/meetingDoctors'
+import { NewDoctorFromMeeting, UnknownDoctorsHint } from './NewDoctorFromMeeting'
 import {
   Field,
   Modal,
@@ -148,6 +150,18 @@ export function MeetingFormModal({
   )
   const [error, setError] = useState<string | null>(null)
   const [focusTask, setFocusTask] = useState<number | null>(null)
+  // a doctor named in the text who is not in the system: offered, created only when the person fills the small form and confirms
+  const [newDoctor, setNewDoctor] = useState<{ title?: string; name: string } | null>(null)
+  const [dismissed, setDismissed] = useState<ReadonlySet<string>>(new Set())
+  const writtenText = [data.subject, data.summary, data.decisions, data.extraParticipants, data.competitor_notes].join('\n')
+  const hint = (
+    <UnknownDoctorsHint
+      text={writtenText}
+      dismissed={dismissed}
+      onDismiss={(n) => setDismissed((s) => new Set(s).add(n))}
+      onCreate={(m: MentionedDoctor) => setNewDoctor(m)}
+    />
+  )
   // what the form held when it opened - to know whether closing it loses something
   const opened = useRef(JSON.stringify(data))
   const submitting = useRef(false)
@@ -200,6 +214,7 @@ export function MeetingFormModal({
   const hospitalContacts = (contacts.data ?? []).filter((c) => c.hospital_id === data.hospitalId)
 
   return (
+    <>
     <Modal
       open={open}
       onClose={close}
@@ -371,7 +386,11 @@ export function MeetingFormModal({
                 patch({ doctorIds: next, ...(suggested ? { hospitalId: suggested } : {}) })
               }}
             />
+            <button type="button" className="btn-secondary mt-2" onClick={() => setNewDoctor({ name: '' })}>
+              <UserPlus size={16} aria-hidden /> רופא חדש שלא ברשימה
+            </button>
           </Field>
+          {hint}
           <Field label="סוכנים ומנהלים משתתפים">
             <MultiSelectChips
               options={(agents.data ?? []).map((a) => ({
@@ -439,6 +458,7 @@ export function MeetingFormModal({
               onChange={(e) => patch({ summary: e.target.value })}
             />
           </Field>
+          {hint}
           <Field label="החלטות">
             <textarea
               className="input min-h-20"
@@ -558,5 +578,17 @@ export function MeetingFormModal({
       </div>
       </form>
     </Modal>
+    {newDoctor && (
+      <NewDoctorFromMeeting
+        initial={newDoctor}
+        hospitalId={data.hospitalId}
+        onClose={() => setNewDoctor(null)}
+        onCreated={(id) => {
+          setData((d) => ({ ...d, doctorIds: d.doctorIds.includes(id) ? d.doctorIds : [...d.doctorIds, id] }))
+          setNewDoctor(null)
+        }}
+      />
+    )}
+    </>
   )
 }
