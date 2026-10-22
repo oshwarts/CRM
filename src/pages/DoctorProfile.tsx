@@ -35,6 +35,7 @@ import { LinkedTasks, useLinkedTasks } from '../components/LinkedTasks'
 import { cadenceLabel, contactState } from '../lib/cadence'
 import { CompetitorSection } from '../components/CompetitorSection'
 import { InvestigationsSection } from '../components/InvestigationsSection'
+import { DoctorDigest } from '../components/DoctorDigest'
 import { openCount, useInvestigations } from '../lib/investigations'
 import { ContactsSection } from '../components/ContactsSection'
 import { CaseVolumesEditor } from '../components/CaseVolumesEditor'
@@ -253,6 +254,8 @@ export default function DoctorProfile() {
       </div>
 
       {(d.status === 'potential' || d.status === 'lost') && <DoctorPipeline doctor={d} />}
+
+      <DoctorDigest doctorId={d.id} />
 
       <Tabs value={tab} onChange={(v) => (setTab(v), setMoreOpen(false))}>
         {/* a phone: the four everyday tabs and "עוד" (a grid of the rest) instead of twelve tabs that scroll sideways; a wide screen: all of them */}
