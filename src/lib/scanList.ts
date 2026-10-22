@@ -1,5 +1,6 @@
 // What the scans screen shows when it opens: the surgeries of the next one or two weeks, nearest first, and not the old ones that were done.
 import { addDays, format } from 'date-fns'
+import { matchesWords, searchKey, searchWords } from './contactMatch'
 
 export type ScanWindow = 'w1' | 'w2' | 'month' | 'all' | 'past'
 
@@ -13,6 +14,27 @@ const DAYS: Partial<Record<ScanWindow, number>> = { w1: 7, w2: 14, month: 30 }
 export function windowEnd(w: ScanWindow, today: string): string {
   const n = DAYS[w]
   return n ? format(addDays(new Date(`${today}T12:00:00`), n), 'yyyy-MM-dd') : ''
+}
+
+/** what a link to the screen asks for: /scans?hospital=<id>&window=all&highlight=<scanId> */
+export function parseScanParams(params: URLSearchParams): { hospital: string; window: ScanWindow; highlight: string } {
+  const hospital = params.get('hospital') ?? ''
+  const w = params.get('window') ?? ''
+  // from a hospital the screen opens on the coming month; an explicit window (w1 / w2 / month / all / past) wins
+  const window = Object.prototype.hasOwnProperty.call(WINDOW_LABELS, w) ? (w as ScanWindow) : hospital ? 'month' : DEFAULT_WINDOW
+  return { hospital, window, highlight: params.get('highlight') ?? '' }
+}
+
+/** the view that shows a scan a link points at: its hospital, and a window that holds its date (the whole list when it is not in the asked one) */
+export function revealScan(
+  s: { hospital_id: string; surgery_date: string | null; status: string },
+  view: { hospital: string; window: ScanWindow },
+  today: string,
+): { hospital: string; window: ScanWindow } {
+  return {
+    hospital: view.hospital && view.hospital !== s.hospital_id ? '' : view.hospital,
+    window: inWindow(s, view.window, today) ? view.window : 'all',
+  }
 }
 
 type Scan = { surgery_date: string | null; status: string; patient_name?: string }
@@ -35,6 +57,26 @@ export function compareByWindow(w: ScanWindow) {
     const c = a.surgery_date.localeCompare(b.surgery_date)
     return (w === 'past' ? -c : c) || (a.patient_name ?? '').localeCompare(b.patient_name ?? '', 'he')
   }
+}
+
+type Searchable = {
+  patient_name: string
+  patient_id_number: string
+  patient_phone: string
+  surgeon?: { name: string } | null
+  hospital?: { name: string } | null
+}
+
+/**
+ * The search box: every word typed must be found in the patient's name, the surgeon or the hospital (niqqud, quotes and final letters ignored,
+ * like everywhere else in the app), or — for a word of digits — in the ID number or the phone (dashes and spaces in the phone are ignored).
+ */
+export function matchesScanQuery(s: Searchable, q: string): boolean {
+  const words = searchWords(q)
+  if (words.length === 0) return true
+  const text = searchKey(`${s.patient_name} ${s.surgeon?.name ?? ''} ${s.hospital?.name ?? ''}`)
+  const digits = `${s.patient_id_number.replace(/\D/g, '')} ${s.patient_phone.replace(/\D/g, '')}`
+  return words.every((w) => (/^\d+$/.test(w) ? digits.includes(w) : matchesWords([w], text)))
 }
 
 /** a short line under the filters: what the screen is showing */

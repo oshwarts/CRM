@@ -134,7 +134,17 @@ export function useSetHospitalCommercial() {
       const { error } = await supabase.from('hospitals').update(patch).eq('id', id)
       if (error) throw error
     },
-    onSuccess: () => {
+    // the new status shows at once (the select does not jump back until the reload) and returns if the save fails
+    onMutate: async ({ id, ...patch }) => {
+      await qc.cancelQueries({ queryKey: ['map-data'] })
+      const before = qc.getQueryData<MapHospital[]>(['map-data'])
+      if (before) qc.setQueryData<MapHospital[]>(['map-data'], before.map((h) => (h.id === id ? ({ ...h, ...patch } as MapHospital) : h)))
+      return { before }
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.before) qc.setQueryData(['map-data'], ctx.before)
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ['map-data'] })
       qc.invalidateQueries({ queryKey: ['hospitals'] })
     },

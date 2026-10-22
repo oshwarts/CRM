@@ -19,13 +19,32 @@ export function rowFlags(s: PatientScanRow) {
   const ctDays = s.ct_date ? daysUntil(s.ct_date) : null
   return {
     overdueRow: active && ctDays !== null && ctDays < 0 && !s.scanned,
-    soon: ctDays !== null && ctDays >= 0 && ctDays <= 3 && !s.scanned,
+    soon: active && ctDays !== null && ctDays >= 0 && ctDays <= 3 && !s.scanned,
     noCtSoon: active && surgerySoon && !s.ct_date,
     noDiskSoon: active && surgerySoon && !!s.ct_date && !s.disk_collected,
     missing: weekMissing(s),
     rescanKind: rescanAlert(s),
     hasEvents: !!s.ct_date || (s.rescan && !!s.rescan_date),
   }
+}
+
+export type ScanQuick = 'week' | 'overdue' | 'noct' | 'nodisk' | 'open' | 'rescan' | 'postponed' | 'nodate'
+
+const within7 = (date: string | null) => {
+  const n = daysUntil(date)
+  return n !== null && n >= 0 && n <= 7
+}
+
+/** the alert chips above the scans list: who belongs to each one (days are counted from the local day) */
+export const QUICK_TESTS: Record<ScanQuick, (s: PatientScanRow) => boolean> = {
+  overdue: (s) => s.status !== 'cancelled' && (daysUntil(s.ct_date) ?? 0) < 0 && !s.scanned,
+  noct: (s) => s.status !== 'cancelled' && within7(s.surgery_date) && !s.ct_date,
+  nodisk: (s) => s.status !== 'cancelled' && within7(s.surgery_date) && !!s.ct_date && !s.disk_collected,
+  week: (s) => s.status !== 'cancelled' && within7(s.ct_date) && !s.scanned,
+  open: (s) => weekMissing(s).length > 0,
+  rescan: (s) => s.rescan && !s.rescan_done && s.status !== 'cancelled',
+  postponed: (s) => s.status === 'postponed',
+  nodate: (s) => s.status === 'planned' && !s.surgery_date,
 }
 
 export type RescanKind = 'today' | 'soon' | 'overdue' | 'nodate'

@@ -17,6 +17,8 @@ export type Item = {
   to: string
   /** a surgery entered by hand: opens the quick-entry form */
   surgery?: PlannedSurgery
+  /** every entry that was added up into this line (a line can stand for several rows of the same surgeon, hospital, day and type) */
+  group?: PlannedSurgery[]
   /** a task: opens the task form */
   task?: TaskRow
   muted?: boolean

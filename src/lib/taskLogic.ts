@@ -65,3 +65,29 @@ export function taskError(e: unknown, fallback: string): string {
   if (/row-level security|permission denied|not authorized|jwt/i.test(msg)) return 'אין לך הרשאה לבצע את הפעולה הזו'
   return /[א-ת]/.test(msg) ? msg : fallback
 }
+
+/**
+ * A uuid-shaped id that depends only on the text (128 bits from four 32-bit hashes). The "next copy" of a repeating task gets
+ * the id of its source task this way, so completing the same task twice (reopened, a retry, an offline replay) can only ever
+ * name one copy.
+ */
+export function stableUuid(seed: string): string {
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57, h3 = 0x9e3779b9, h4 = 0x85ebca6b
+  for (let i = 0; i < seed.length; i++) {
+    const c = seed.charCodeAt(i)
+    h1 = Math.imul(h1 ^ c, 2654435761)
+    h2 = Math.imul(h2 ^ c, 1597334677)
+    h3 = Math.imul(h3 ^ c, 2246822519)
+    h4 = Math.imul(h4 ^ c, 3266489917)
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909)
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h3 ^ (h3 >>> 13), 3266489909)
+  h3 = Math.imul(h3 ^ (h3 >>> 16), 2246822507) ^ Math.imul(h4 ^ (h4 >>> 13), 3266489909)
+  h4 = Math.imul(h4 ^ (h4 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909)
+  const hex = [h1, h2, h3, h4].map((n) => (n >>> 0).toString(16).padStart(8, '0')).join('')
+  // version 4 / variant bits so that the database accepts it as a uuid
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-${'89ab'[parseInt(hex[16], 16) & 3]}${hex.slice(17, 20)}-${hex.slice(20, 32)}`
+}
+
+/** the id of the copy a repeating task makes when it is completed */
+export const nextCopyId = (sourceId: string) => stableUuid(`next-copy:${sourceId}`)

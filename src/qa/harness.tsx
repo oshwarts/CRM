@@ -59,7 +59,7 @@ const value = {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[params.get('path') ?? '/']}>
+      <MemoryRouter initialEntries={[params.get('path') ?? '/']} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <AuthContext.Provider value={value}>
           <QaBridge />
           <App />

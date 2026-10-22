@@ -12,6 +12,12 @@ export const toMinutes = (hhmm: string) => {
 }
 export const fromMinutes = (n: number) => `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`
 
+/** the next half hour after `now` ("14:30" at 14:12), never past 23:30 */
+export function nextHalfHour(now: Date): string {
+  const m = Math.min(Math.ceil((now.getHours() * 60 + now.getMinutes() + 1) / 30) * 30, 23 * 60 + 30)
+  return fromMinutes(m)
+}
+
 /** the weeks (Sunday first) that cover the month of `anchor`, every week a list of seven days */
 export function monthWeeks(anchor: Date): Date[][] {
   const first = startOfWeek(startOfMonth(anchor), { weekStartsOn: 0 })

@@ -21,7 +21,11 @@ export function ScanStatusModal({ scan, onClose }: { scan: PatientScanRow; onClo
   const [newDate, setNewDate] = useState('')
   const [reason, setReason] = useState('')
 
+  // a surgery that was done has a surgeon (the counts of done surgeries are per surgeon) — as in the edit form
+  const needsSurgeon = choice === 'done' && !scan.surgeon_id
+
   function save() {
+    if (needsSurgeon || patch.isPending) return
     const was = scan.surgery_date ? ` מ-${formatDate(scan.surgery_date)}` : ''
     const stamp = (what: string) => [`${what}${was}`, reason.trim()].filter(Boolean).join(': ')
     // the reason is kept in the notes of the patient, with what happened
@@ -65,6 +69,9 @@ export function ScanStatusModal({ scan, onClose }: { scan: PatientScanRow; onClo
           ))}
         </div>
         <p className="text-xs text-slate-500">{CHOICES.find((c) => c.key === choice)?.hint}</p>
+        {needsSurgeon && (
+          <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">ניתוח שבוצע חייב מנתח — שייך מנתח בעריכת המטופל ואז סמן "בוצע"</p>
+        )}
         {choice === 'postponed' && (
           <Field label="תאריך חדש (לא חובה)">
             <input type="date" className="input" value={newDate} min={scan.surgery_date ?? undefined} onChange={(e) => setNewDate(e.target.value)} />
@@ -79,7 +86,7 @@ export function ScanStatusModal({ scan, onClose }: { scan: PatientScanRow; onClo
           <button type="button" className="btn-secondary" onClick={onClose}>
             ביטול
           </button>
-          <button type="button" className="btn-primary max-sm:flex-1" disabled={patch.isPending} onClick={save}>
+          <button type="button" className="btn-primary max-sm:flex-1" disabled={patch.isPending || needsSurgeon} onClick={save}>
             שמירה
           </button>
         </div>

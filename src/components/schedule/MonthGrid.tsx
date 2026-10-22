@@ -12,8 +12,8 @@ export function MonthGrid({ anchor, items, today, onDay, onItem }: { anchor: Dat
       <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50 text-center text-xs font-medium text-slate-600">
         {DAY_NAMES.map((n) => (
           <div key={n} className="py-1.5">
-            <span className="md:hidden">{n.slice(0, 1)}׳</span>
-            <span className="hidden md:inline">{n}</span>
+            <span className="lg:hidden">{n.slice(0, 1)}׳</span>
+            <span className="hidden lg:inline">{n}</span>
           </div>
         ))}
       </div>
@@ -25,23 +25,23 @@ export function MonthGrid({ anchor, items, today, onDay, onItem }: { anchor: Dat
             const isToday = date === today
             const outside = d.getMonth() !== month
             return (
-              <div key={date} className={classNames('min-h-[3.75rem] min-w-0 border-r border-slate-100 p-0.5 first:border-r-0 md:min-h-[6.5rem] md:p-1', outside && 'bg-slate-50/70')}>
+              <div key={date} className={classNames('min-h-[3.75rem] min-w-0 border-r border-slate-100 p-0.5 first:border-r-0 lg:min-h-[6.5rem] lg:p-1', outside && 'bg-slate-50/70')}>
                 <button
                   type="button"
                   onClick={() => onDay(date)}
-                  className="flex w-full flex-col items-center gap-0.5 rounded-md py-0.5 hover:bg-brand-50 md:items-stretch md:px-1"
+                  className="flex w-full flex-col items-center gap-0.5 rounded-md py-0.5 hover:bg-brand-50 lg:items-stretch lg:px-1"
                   aria-label={`יום ${DAY_NAMES[d.getDay()]} ${format(d, 'dd/MM')}${list.length ? `, ${list.length} אירועים` : ''}`}
                 >
-                  <span className={classNames('grid h-6 min-w-[1.5rem] place-items-center rounded-full px-1 text-xs font-semibold md:self-end', isToday ? 'bg-brand-500 text-white' : outside ? 'text-slate-400' : 'text-slate-800')}>{d.getDate()}</span>
+                  <span className={classNames('grid h-6 min-w-[1.5rem] place-items-center rounded-full px-1 text-xs font-semibold lg:self-end', isToday ? 'bg-brand-500 text-white' : outside ? 'text-slate-400' : 'text-slate-800')}>{d.getDate()}</span>
                   {list.length > 0 && (
-                    <span className="flex flex-wrap justify-center gap-0.5 md:hidden" aria-hidden>
+                    <span className="flex flex-wrap justify-center gap-0.5 lg:hidden" aria-hidden>
                       {list.slice(0, 4).map((it) => (
                         <span key={it.id} className={classNames('h-1.5 w-1.5 rounded-full', it.muted ? 'bg-slate-300' : KINDS[it.kind].dot)} />
                       ))}
                     </span>
                   )}
                 </button>
-                <ul className="hidden space-y-0.5 md:block">
+                <ul className="hidden space-y-0.5 lg:block">
                   {list.slice(0, 3).map((it) => (
                     <li key={it.id}>
                       <button type="button" onClick={() => onItem(it)} className={classNames('block min-h-[24px] w-full truncate rounded border px-1 py-0.5 text-right text-[11px]', it.muted ? 'border-slate-200 bg-slate-50 text-slate-500' : KINDS[it.kind].chip)} title={`${it.time ? `${it.time} ` : ''}${it.title}`}>

@@ -1,12 +1,13 @@
+import { memo } from 'react'
 import { CalendarClock, CalendarPlus, Check, Pencil, Phone, Trash2 } from 'lucide-react'
 import { PendingMark } from './PendingMark'
 import { ConfirmButton } from './ui'
 import { rowFlags } from '../lib/scanAlerts'
 import { implantSummary } from '../lib/scanExport'
-import { useImplantFields } from '../lib/api'
 import {
   SCAN_PROCEDURE_LABELS,
   SCAN_STATUS_LABELS,
+  type ImplantField,
   type PatientScanRow,
 } from '../lib/types'
 import { classNames, daysUntil, formatDate, formatTime } from '../lib/utils'
@@ -31,30 +32,37 @@ function relDays(d: number | null): string {
 }
 
 const ICON_BTN =
-  'inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-600 transition hover:bg-brand-50 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-40'
+  'inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-600 transition hover:bg-brand-50 hover:text-brand-700 disabled:cursor-not-allowed disabled:opacity-40'
 
-export function ScanCard({
+/** what a row / card can ask for; one stable object for the whole list, so a row that did not change is not drawn again */
+export type ScanActions = {
+  toggle: (id: string) => void
+  edit: (s: PatientScanRow) => void
+  /** postponed / cancelled / done: what happened to the surgery */
+  status: (s: PatientScanRow) => void
+  invite: (s: PatientScanRow) => void
+  remove: (s: PatientScanRow) => void
+  patch: (id: string, p: Patch) => void
+}
+
+export const deleteMessage = (name: string) => `למחוק את ${name}? כל פרטי המטופל והמידות יימחקו, והפעולה אינה הפיכה.`
+
+/** `today` is only here so that a card is drawn again when the day changes (the alerts count days from the clock) */
+export const ScanCard = memo(function ScanCard({
   s,
   selected,
-  onToggle,
-  onEdit,
-  onStatus,
-  onInvite,
-  onDelete,
-  onPatch,
+  highlighted,
+  implantRows,
+  actions,
 }: {
   s: PatientScanRow
   selected: boolean
-  onToggle: () => void
-  onEdit: () => void
-  /** postponed / cancelled / done: what happened to the surgery */
-  onStatus: () => void
-  onInvite: () => void
-  onDelete: () => void
-  onPatch: (p: Patch) => void
+  highlighted: boolean
+  implantRows: ImplantField[] | null | undefined
+  today: string
+  actions: ScanActions
 }) {
   const { overdueRow, soon, noCtSoon, noDiskSoon, missing, rescanKind, hasEvents } = rowFlags(s)
-  const implantRows = useImplantFields().data
   const implants = implantSummary(s, implantRows)
   const tone = noCtSoon
     ? 'border-fuchsia-300 bg-fuchsia-50/60'
@@ -78,14 +86,14 @@ export function ScanCard({
   const hasAlerts = noCtSoon || noDiskSoon || missing.length > 0 || s.rescan
 
   return (
-    <article className={classNames('rounded-2xl border p-3 shadow-sm', tone, selected && 'ring-2 ring-brand-400')}>
+    <article id={`scan-${s.id}`} className={classNames('rounded-2xl border p-3 shadow-sm', tone, selected && 'ring-2 ring-brand-400', highlighted && 'ring-4 ring-brand-500')}>
       <div className="flex items-start gap-2">
-        <label className="-my-1 flex h-9 w-8 shrink-0 cursor-pointer items-center justify-center">
+        <label className="-m-1 flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center">
           <input
             type="checkbox"
             className="h-5 w-5"
             checked={selected}
-            onChange={onToggle}
+            onChange={() => actions.toggle(s.id)}
             aria-label={`בחר את ${s.patient_name}`}
           />
         </label>
@@ -176,9 +184,9 @@ export function ScanCard({
               key={key}
               type="button"
               aria-pressed={on}
-              onClick={() => onPatch({ [key]: !on })}
+              onClick={() => actions.patch(s.id, { [key]: !on })}
               className={classNames(
-                'flex min-h-[38px] items-center justify-center gap-1 rounded-xl border px-1 text-[13px] font-medium transition',
+                'flex min-h-[40px] items-center justify-center gap-1 rounded-xl border px-1 text-[13px] font-medium transition',
                 on
                   ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
                   : 'border-slate-300 bg-white text-slate-600 hover:border-brand-300',
@@ -193,27 +201,28 @@ export function ScanCard({
 
       <div className="mt-1.5 flex items-center gap-0.5">
         {s.patient_phone && (
-          <a href={`tel:${s.patient_phone}`} className={ICON_BTN} aria-label={`התקשר ל${s.patient_name}`} title="התקשר">
+          <a href={`tel:${s.patient_phone.replace(/[^\d+]/g, '')}`} className={ICON_BTN} aria-label={`התקשר ל${s.patient_name}`} title="התקשר">
             <Phone size={18} />
           </a>
         )}
-        <button type="button" className={ICON_BTN} disabled={!hasEvents} onClick={onInvite} aria-label={`זימון Outlook: ${s.patient_name}`} title="זימון Outlook">
+        <button type="button" className={ICON_BTN} disabled={!hasEvents} onClick={() => actions.invite(s)} aria-label={`זימון Outlook: ${s.patient_name}`} title="זימון Outlook">
           <CalendarPlus size={18} />
         </button>
-        <button type="button" className={ICON_BTN} onClick={onStatus} aria-label={`נדחה, בוטל או בוצע: ${s.patient_name}`} title="נדחה / בוטל / בוצע">
+        <button type="button" className={ICON_BTN} onClick={() => actions.status(s)} aria-label={`נדחה, בוטל או בוצע: ${s.patient_name}`} title="נדחה / בוטל / בוצע">
           <CalendarClock size={18} />
         </button>
-        <button type="button" className={ICON_BTN} onClick={onEdit} aria-label={`עריכת ${s.patient_name}`} title="עריכה">
+        <button type="button" className={ICON_BTN} onClick={() => actions.edit(s)} aria-label={`עריכת ${s.patient_name}`} title="עריכה">
           <Pencil size={18} />
         </button>
         <ConfirmButton
           className={classNames(ICON_BTN, 'ms-auto text-red-500 hover:text-red-600')}
           label={`מחיקת ${s.patient_name}`}
-          onConfirm={onDelete}
+          message={deleteMessage(s.patient_name)}
+          onConfirm={() => actions.remove(s)}
         >
           <Trash2 size={18} />
         </ConfirmButton>
       </div>
     </article>
   )
-}
+})

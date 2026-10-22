@@ -377,7 +377,12 @@ function HospitalsSettings() {
                   <Pencil size={16} />
                 </button>
                 {isAdmin && (
-                  <ConfirmButton className="btn-ghost !px-2 text-red-600" label={`מחק את ${h.name}`} onConfirm={() => del.mutate(h.id)}>
+                  <ConfirmButton
+                    className="btn-ghost !px-2 text-red-600"
+                    label={`מחק את ${h.name}`}
+                    message={`למחוק את ${h.name}? יימחקו גם שיוך הרופאים, הסוכנים והרובוטים, כמויות המקרים וספירות המתכלים של בית החולים. פגישות, משימות ואנשי קשר יישארו בלי בית חולים. אי אפשר למחוק בית חולים שיש לו סריקות MAKO. הפעולה אינה הפיכה.`}
+                    onConfirm={() => del.mutate(h.id)}
+                  >
                     <Trash2 size={16} />
                   </ConfirmButton>
                 )}

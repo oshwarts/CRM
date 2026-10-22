@@ -3,7 +3,7 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
-import { nextDue } from './taskLogic'
+import { nextCopyId, nextDue, stableUuid } from './taskLogic'
 import { supabase } from './supabase'
 import { syncMeetingIntel } from './meetingIntel'
 import { withParentNames } from './procedures'
@@ -734,8 +734,14 @@ export function useUpsertHospital() {
 export function useDeleteHospital() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (id: string) =>
-      unwrap(await supabase.from('hospitals').delete().eq('id', id)),
+    mutationFn: async (id: string) => {
+      const { data, error } = await supabase.from('hospitals').delete().eq('id', id).select('id')
+      // MAKO scans keep their hospital (on delete restrict) — say so in plain words
+      if ((error as { code?: string } | null)?.code === '23503') throw new Error('אי אפשר למחוק בית חולים שיש לו סריקות MAKO')
+      if (error) throw error
+      // a delete the policy does not allow is not an error for the database: it simply deletes nothing
+      if (!data?.length) throw new Error('אין הרשאה למחוק בית חולים (למנהלים בלבד)')
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['hospitals'] })
       qc.invalidateQueries({ queryKey: ['map-data'] })
@@ -1416,7 +1422,7 @@ export function useDoneScanCounts() {
         if (!procedure_name) continue
         const dateStr = r.surgery_date ?? r.ct_date
         const year = dateStr
-          ? new Date(dateStr).getFullYear()
+          ? Number(dateStr.slice(0, 4))
           : new Date().getFullYear()
         const key = `${r.surgeon_id}|${r.hospital_id}|${procedure_name}|${year}`
         const cur =
@@ -2133,29 +2139,34 @@ type TaskDonePayload = { task: DoneTask; done: boolean; nextId: string; at: stri
 async function execTaskDone({ task, done, nextId, at }: TaskDonePayload): Promise<ExecResult> {
   unwrap(await supabase.from('meeting_tasks').update({ is_done: done, done_at: done ? at : null }).eq('id', task.id))
   if (done && !task.is_done && task.recurrence !== 'none' && task.due_date) {
-    // a repeating task creates the next one (fixed id: sending twice never makes two)
-    unwrap(
-      await supabase.from('meeting_tasks').upsert({
-        id: nextId,
-        description: task.description,
-        notes: task.notes,
-        priority: task.priority,
-        doctor_id: task.doctor_id,
-        hospital_id: task.hospital_id,
-        recurrence: task.recurrence,
-        assignee_id: task.assignee_id,
-        created_by: (await currentUserId()) || task.created_by,
-        due_date: nextDue(task.due_date, task.recurrence),
-        // the next one stays in the same project / area and with the same AMI coordinator
-        project_id: task.project_id ?? null,
-        area_id: task.area_id ?? null,
-        coordinator_contact_id: task.coordinator_contact_id ?? null,
-        coordinator_text: task.coordinator_text ?? '',
-      }),
-    )
-    await supabase.from('task_subtasks').delete().eq('task_id', nextId)
-    if (task.subtasks?.length)
-      unwrap(await supabase.from('task_subtasks').insert(task.subtasks.map((s, i) => ({ task_id: nextId, text: s.text, sort: i }))))
+    // a repeating task creates the next one. The id comes from the source task (nextCopyId): completing it again after a reopen,
+    // a retry or an offline replay finds the copy that is already there and makes no second one
+    const exists = unwrap<{ id: string }[]>(await supabase.from('meeting_tasks').select('id').eq('id', nextId).retry(false)).length > 0
+    if (!exists) {
+      unwrap(
+        await supabase.from('meeting_tasks').upsert({
+          id: nextId,
+          description: task.description,
+          notes: task.notes,
+          priority: task.priority,
+          doctor_id: task.doctor_id,
+          hospital_id: task.hospital_id,
+          recurrence: task.recurrence,
+          assignee_id: task.assignee_id,
+          created_by: (await currentUserId()) || task.created_by,
+          due_date: nextDue(task.due_date, task.recurrence),
+          // the next one stays in the same project / area and with the same AMI coordinator
+          project_id: task.project_id ?? null,
+          area_id: task.area_id ?? null,
+          coordinator_contact_id: task.coordinator_contact_id ?? null,
+          coordinator_text: task.coordinator_text ?? '',
+        }),
+      )
+    }
+    // the steps (not ticked) — only when the copy has none yet, with ids that depend on the copy, so a replay after a cut connection completes them
+    const steps = unwrap<{ id: string }[]>(await supabase.from('task_subtasks').select('id').eq('task_id', nextId).retry(false))
+    if (steps.length === 0 && task.subtasks?.length)
+      unwrap(await supabase.from('task_subtasks').upsert(task.subtasks.map((s, i) => ({ id: stableUuid(`${nextId}:${i}`), task_id: nextId, text: s.text, sort: i }))))
   }
 }
 registerExecutor<TaskDonePayload>('task.done', execTaskDone)
@@ -2181,7 +2192,7 @@ async function setTaskDoneOffline(task: DoneTask & { subtasks?: { text: string }
       subtasks: task.subtasks?.map((s) => ({ text: s.text })),
     },
     done,
-    nextId: newId(),
+    nextId: nextCopyId(task.id),
     at: new Date().toISOString(),
   }
   await runOrQueue(
@@ -2220,10 +2231,20 @@ export function useSetTaskDone() {
   })
 }
 
+function setMeetingTaskDone(taskId: string, done: boolean) {
+  mapMeetingCaches((m) => ({
+    ...m,
+    meeting_tasks: m.meeting_tasks.map((t) => (t.id === taskId ? { ...t, is_done: done, done_at: done ? new Date().toISOString() : null } : t)),
+  }))
+}
+
 export function useToggleMeetingTask() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (task: MeetingTask) => setTaskDoneOffline(task, !task.is_done),
+    // the tick changes at once (online too, not only when queued); a refused write puts it back
+    onMutate: (task) => setMeetingTaskDone(task.id, !task.is_done),
+    onError: (_e, task) => setMeetingTaskDone(task.id, task.is_done),
     onSuccess: () => invalidateTasks(qc),
   })
 }

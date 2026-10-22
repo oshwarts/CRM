@@ -153,4 +153,40 @@ describe('guessTask', () => {
       expect(g('שלום').description).toBe('שלום')
     })
   })
+
+  describe('the real hospital names', () => {
+    const real = [
+      { id: 'shiba', name: 'שיבא – תל השומר', city: 'רמת גן' },
+      { id: 'ichilov', name: 'איכילוב – מרכז רפואי תל אביב', city: 'תל אביב' },
+      { id: 'hadasa1', name: 'הדסה עין כרם', city: 'ירושלים' },
+      { id: 'hadasa2', name: 'הדסה הר הצופים', city: 'ירושלים' },
+      { id: 'assuta1', name: 'אסותא אשדוד', city: 'אשדוד' },
+      { id: 'assuta2', name: 'אסותא תל אביב – רמת החייל', city: 'תל אביב' },
+      { id: 'bil', name: 'בילינסון – מרכז רפואי רבין', city: 'פתח תקווה' },
+      { id: 'rafael', name: 'רפאל', city: 'חיפה' },
+    ]
+    const h = (t: string) => guessTask(t, { today, hospitals: real }).hospital_id
+    it('a word only one hospital has names it (either half of a two-part name)', () => {
+      expect(h('פגישה בשיבא')).toBe('shiba')
+      expect(h('בתל השומר')).toBe('shiba')
+      expect(h('באיכילוב')).toBe('ichilov')
+      expect(h('בבילינסון')).toBe('bil')
+      expect(h('ברבין')).toBe('bil')
+      expect(h('במרכז רפואי רבין')).toBe('bil')
+      expect(h('להתקשר לרפאל מחר')).toBe('rafael')
+      expect(h('בהר הצופים')).toBe('hadasa2')
+      expect(h('בעין כרם')).toBe('hadasa1') // two short words that only this hospital has
+      expect(h('ברמת החייל')).toBe('assuta2')
+    })
+    it('a full name picks the right one among the namesakes', () => {
+      expect(h('בהדסה עין כרם')).toBe('hadasa1')
+      expect(h('בהדסה הר הצופים')).toBe('hadasa2')
+      expect(h('באסותא אשדוד')).toBe('assuta1')
+      expect(h('באסותא רמת החייל')).toBe('assuta2')
+      expect(h('באסותא תל אביב')).toBe('assuta2')
+    })
+    it('a shared word or a city alone picks nobody', () => {
+      for (const t of ['בהדסה', 'באסותא', 'בתל אביב', 'באשדוד', 'בירושלים', 'בפתח תקווה', 'במרכז רפואי', 'בהדסה ירושלים']) expect(h(t)).toBeNull()
+    })
+  })
 })

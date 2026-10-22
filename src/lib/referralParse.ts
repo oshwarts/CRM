@@ -65,6 +65,9 @@ function findSurgeryDate(sources: string[], today: Date): string {
         // no year written: the next time this date comes around
         if (new Date(y, mo - 1, d) < new Date(today.getFullYear(), today.getMonth(), today.getDate())) y += 1
       }
+      // 31/4 or 30/2 is not a day: keep looking
+      const real = new Date(y, mo - 1, d)
+      if (real.getMonth() !== mo - 1 || real.getDate() !== d) continue
       return toIso(y, mo, d)
     }
   }
@@ -261,7 +264,11 @@ export function parseReferral(opts: {
     if (fuzzy) {
       out.surgeon_id = fuzzy.id
       notices.push(`המנתח זוהה לפי השם בראש ההפנייה (${fuzzy.name}) — ודא שזה נכון.`)
-    } else notices.push('המנתח לא זוהה — בחר ידנית.')
+    } else {
+      // a doctor named in the message who is not in the list: never added on its own — the person decides
+      const named = message.match(/(?:ד["״]?ר|דר|פרופ['׳.]?)\s+([֐-׿'׳-]{2,}(?:\s+[֐-׿'׳-]{2,})?)/)?.[1]
+      notices.push(named ? `המנתח לא זוהה — "${named}" לא נמצא ברשימת הרופאים. בחר מנתח קיים, או הוסף אותו קודם במסך הרופאים.` : 'המנתח לא זוהה — בחר ידנית.')
+    }
   }
 
   // ---- notes: anesthesia and CT instructions from the document

@@ -13,6 +13,7 @@ import { EmptyState, ErrorState, Spinner, Tab, TabList, TabPanel, Tabs } from '.
 import { DOCTOR_STATUS_LABELS, MEETING_STATUS_LABELS, SCAN_PROCEDURE_LABELS, SECTOR_LABELS } from '../lib/types'
 import { classNames, daysUntil, formatDate, todayISO } from '../lib/utils'
 import { DAY_NAMES, formatDays } from '../lib/clinics'
+import { heldMeetings, lastMetByDoctor, nextMeeting as findNextMeeting, surgeryList, volumeComparison } from '../lib/hospitalView'
 
 const TABS = ['overview', 'doctors', 'contacts', 'meetings', 'surgeries', 'volumes', 'tasks', 'competitors']
 
@@ -39,15 +40,8 @@ export default function HospitalView() {
     [allMeetings.data, id],
   )
 
-  // last meeting with each doctor (anywhere, not only at this hospital)
-  const lastMetDoctor = useMemo(() => {
-    const m = new Map<string, string>()
-    for (const mt of allMeetings.data ?? []) {
-      if (!mt.meeting_date || mt.meeting_date > today || mt.status === 'cancelled') continue
-      for (const d of mt.meeting_doctors) if (d.doctor && (m.get(d.doctor.id) ?? '') < mt.meeting_date) m.set(d.doctor.id, mt.meeting_date)
-    }
-    return m
-  }, [allMeetings.data, today])
+  // last held meeting with each doctor (anywhere, not only at this hospital)
+  const lastMetDoctor = useMemo(() => lastMetByDoctor(allMeetings.data ?? [], today), [allMeetings.data, today])
 
   // planned (non-MAKO) surgeries and MAKO surgeries from the scans, one list by date — no patient details
   const surgeryRows = useMemo(() => {
@@ -77,33 +71,33 @@ export default function HospitalView() {
 
   if (map.isLoading) return <Spinner />
   if (map.error && !map.data) return <ErrorState error={map.error} />
-  if (!h) return <EmptyState title="בית החולים לא נמצא" />
+  if (!h)
+    return (
+      <EmptyState
+        title="בית החולים לא נמצא"
+        hint="ייתכן שנמחק, או שהקישור שגוי"
+        action={
+          <Link to="/map" className="btn-secondary">
+            לרשימת בתי החולים
+          </Link>
+        }
+      />
+    )
 
   const agents = h.hospital_agents.map((a) => a.agent).filter((a): a is NonNullable<typeof a> => !!a)
   const robotics = h.hospital_robotic_systems.map((r) => r.system?.name).filter((x): x is string => !!x)
   const hasMako = robotics.some((r) => r.toUpperCase().includes('MAKO'))
   const doctors = h.doctor_hospitals.filter((dh) => dh.doctor)
 
-  const pastMeetings = meetings.filter((m) => m.meeting_date && m.meeting_date <= today && m.status !== 'cancelled')
+  const pastMeetings = heldMeetings(meetings, today)
   const lastMeeting = pastMeetings[0]?.meeting_date ?? null
   const daysSince = lastMeeting ? -(daysUntil(lastMeeting) ?? 0) : null
-  const nextMeeting = [...meetings].reverse().find((m) => m.meeting_date && m.meeting_date > today && m.status === 'scheduled') ?? null
-  const upcoming = surgeryRows.filter((s) => s.date >= today && s.status === 'planned')
+  const nextMeeting = findNextMeeting(meetings, today)
+  const { upcoming, shown: shownSurgeries } = surgeryList(surgeryRows, today)
   const in30 = upcoming.filter((s) => (daysUntil(s.date) ?? 99) <= 30).reduce((n, s) => n + s.cases, 0)
 
   // case volumes: the latest year next to the year before
-  const years = [...new Set(h.case_volumes.map((v) => v.year))].sort((a, b) => b - a)
-  const [year, prevYear] = years
-  const volumes = new Map<string, { now: number; prev: number }>()
-  for (const v of h.case_volumes) {
-    if (v.year !== year && v.year !== prevYear) continue
-    const name = v.procedure?.name ?? '—'
-    const cur = volumes.get(name) ?? { now: 0, prev: 0 }
-    if (v.year === year) cur.now += v.count
-    else cur.prev += v.count
-    volumes.set(name, cur)
-  }
-  const volumeRows = [...volumes.entries()].filter(([, v]) => v.now > 0 || v.prev > 0).sort((a, b) => b[1].now - a[1].now)
+  const { year, prevYear, rows: volumeRows } = volumeComparison(h.case_volumes)
 
   return (
     <div className="space-y-3 sm:space-y-5">
@@ -128,7 +122,7 @@ export default function HospitalView() {
                   </span>
                 ))}
                 {agents.map((a) => (
-                  <Link key={a.id} to={`/agents/${a.id}`} className="chip border-slate-200 bg-white text-slate-600 hover:bg-slate-50">
+                  <Link key={a.id} to={`/agents/${a.id}`} className="chip border-slate-200 bg-white text-slate-600 hover:bg-slate-50 max-sm:!min-h-[40px]">
                     <User size={12} /> {a.full_name}
                   </Link>
                 ))}
@@ -140,15 +134,15 @@ export default function HospitalView() {
           <HospitalActions hospital={h} />
 
           <div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-slate-100 pt-2 text-sm sm:pt-4">
-            <Link to={`/map?hospital=${h.id}`} className="inline-flex items-center gap-1 font-medium text-brand-600 hover:underline">
+            <Link to={`/map?hospital=${h.id}`} className="inline-flex min-h-[40px] items-center gap-1 font-medium text-brand-600 hover:underline">
               <MapIcon size={14} /> הצג במפה
             </Link>
             {hasMako && (
               <>
-                <Link to={`/scans?hospital=${h.id}`} className="inline-flex items-center gap-1 font-medium text-brand-600 hover:underline">
+                <Link to={`/scans?hospital=${h.id}`} className="inline-flex min-h-[40px] items-center gap-1 font-medium text-brand-600 hover:underline">
                   <ScanLine size={14} /> סריקות MAKO
                 </Link>
-                <Link to={`/consumables?hospital=${h.id}`} className="inline-flex items-center gap-1 font-medium text-brand-600 hover:underline">
+                <Link to={`/consumables?hospital=${h.id}`} className="inline-flex min-h-[40px] items-center gap-1 font-medium text-brand-600 hover:underline">
                   <Package size={14} /> ספירת מתכלים
                 </Link>
               </>
@@ -168,7 +162,7 @@ export default function HospitalView() {
           warn={daysSince == null || daysSince > 60}
           onClick={() => setTab('meetings')}
         />
-        <Kpi label="ניתוחים ב-30 יום" value={in30} onClick={() => setTab('surgeries')} />
+        <Kpi label="ניתוחים ב-30 הימים הקרובים" value={in30} onClick={() => setTab('surgeries')} />
         <Kpi label="משימות פתוחות" value={linkedTasks.open.length} warn={linkedTasks.open.length > 0} onClick={() => setTab('tasks')} />
       </div>
 
@@ -191,7 +185,7 @@ export default function HospitalView() {
                 <li>
                   פגישה הבאה:{' '}
                   {nextMeeting ? (
-                    <Link to={`/meetings/${nextMeeting.id}`} className="font-medium text-brand-600 hover:underline">
+                    <Link to={`/meetings/${nextMeeting.id}`} className="inline-flex min-h-[40px] items-center font-medium text-brand-600 hover:underline">
                       {formatDate(nextMeeting.meeting_date)} · {nextMeeting.subject || 'פגישה'}
                     </Link>
                   ) : (
@@ -216,11 +210,11 @@ export default function HospitalView() {
                 <p className="text-sm text-slate-400">לא הוזנו כמויות מקרים</p>
               ) : (
                 <ul className="space-y-1 text-sm">
-                  {volumeRows.map(([name, v]) => {
+                  {volumeRows.map((v) => {
                     const diff = prevYear ? v.now - v.prev : 0
                     return (
-                      <li key={name} className="flex items-center justify-between gap-2 text-slate-600">
-                        <span className="min-w-0 truncate">{name}</span>
+                      <li key={v.name} className="flex items-center justify-between gap-2 text-slate-600">
+                        <span className="min-w-0 break-words">{v.name}</span>
                         <span className="shrink-0">
                           <span className="font-medium">{v.now}</span>
                           {prevYear != null && diff !== 0 && (
@@ -292,16 +286,19 @@ export default function HospitalView() {
             <EmptyState title="אין ניתוחים בבית חולים זה" hint="ניתוח חדש — בכפתור 'ניתוח' למעלה" />
           ) : (
             <div className="card divide-y divide-slate-100">
-              {[...upcoming, ...surgeryRows.filter((s) => !upcoming.includes(s)).reverse().slice(0, 20)].map((s) => (
-                <div key={s.key} className={classNames('flex items-start justify-between gap-3 p-3 text-sm', s.status === 'cancelled' && 'opacity-50')}>
+              {shownSurgeries.map((s) => (
+                <div key={s.key} className="flex items-start justify-between gap-3 p-3 text-sm">
                   <div className="min-w-0">
-                    <p className="font-medium text-slate-700">
+                    <p className={classNames('break-words font-medium', s.status === 'cancelled' ? 'text-slate-500 line-through' : 'text-slate-700')}>
                       {s.what}
                       {s.cases > 1 ? ` × ${s.cases}` : ''}
                     </p>
-                    <p className="text-xs text-slate-400">{s.surgeon}</p>
+                    <p className="break-words text-xs text-slate-500">
+                      {s.surgeon}
+                      {s.status === 'cancelled' ? ' · בוטל' : s.status === 'done' ? ' · בוצע' : s.date < today ? ' · טרם עודכן' : ''}
+                    </p>
                   </div>
-                  <span className={classNames('shrink-0 text-xs', s.date >= today ? 'font-medium text-brand-600' : 'text-slate-400')}>
+                  <span className={classNames('shrink-0 text-xs', s.date >= today && s.status === 'planned' ? 'font-medium text-brand-600' : 'text-slate-500')}>
                     {formatDate(s.date)}
                   </span>
                 </div>
@@ -398,7 +395,7 @@ function ClinicSchedule({ doctors }: { doctors: { clinic_days: number[]; clinic_
               {list.map((dh, i) => (
                 <span key={dh.doctor!.id}>
                   {i > 0 && ', '}
-                  <Link to={`/doctors/${dh.doctor!.id}`} className="hover:underline">
+                  <Link to={`/doctors/${dh.doctor!.id}`} className="inline-flex min-h-[40px] items-center hover:underline sm:min-h-[24px]">
                     {dh.doctor!.title} {dh.doctor!.name}
                   </Link>
                   {dh.clinic_hours ? <span className="text-xs text-slate-500" dir="ltr"> {dh.clinic_hours}</span> : null}

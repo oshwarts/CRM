@@ -301,8 +301,9 @@ export default function Tasks() {
     )
   }
 
-  if (tasks.isLoading) return <Spinner />
-  if (tasks.error && !tasks.data) return <ErrorState error={tasks.error} /> // cached data stays visible when only a background refresh failed
+  // the page header stays while the list loads; cached data stays visible when only a background refresh failed
+  const loading = tasks.isLoading
+  const failed = !!tasks.error && !tasks.data
 
   const chip = (active: boolean, label: string, onClick: () => void) => (
     <button
@@ -327,11 +328,11 @@ export default function Tasks() {
             משימות
           </h1>
           <p className="flex flex-wrap gap-x-2 text-sm text-slate-500">
-            <span>{myOpen === 0 ? 'אין משימות פתוחות' : myOpen === 1 ? 'משימה פתוחה אחת' : `${myOpen} משימות פתוחות`}</span>
-            {myOverdue > 0 && <span className="whitespace-nowrap font-medium text-red-600">{myOverdue} באיחור</span>}
+            <span>{loading || failed ? ' ' : myOpen === 0 ? 'אין משימות פתוחות' : myOpen === 1 ? 'משימה פתוחה אחת' : `${myOpen} משימות פתוחות`}</span>
+            {!loading && !failed && myOverdue > 0 && <span className="whitespace-nowrap font-medium text-red-600">{myOverdue} באיחור</span>}
           </p>
         </div>
-        <button className="btn-secondary shrink-0" onClick={() => setAdding(true)}>
+        <button className="btn-secondary shrink-0" onClick={() => setAdding(true)} disabled={loading}>
           <Plus size={16} />
           משימה חדשה
         </button>
@@ -350,10 +351,11 @@ export default function Tasks() {
           aria-label="הוספה מהירה של משימה"
           enterKeyHint="done"
           placeholder="משימה חדשה…"
+          disabled={loading || failed}
           value={quickText}
           onChange={(e) => setQuickText(e.target.value)}
         />
-        <button className="btn-primary shrink-0" disabled={!quickText.trim() || quick.isPending}>
+        <button className="btn-primary shrink-0" disabled={!quickText.trim() || quick.isPending || loading || failed}>
           <Plus size={16} />
           הוסף
         </button>
@@ -409,7 +411,11 @@ export default function Tasks() {
 
       {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
 
-      {list.length === 0 ? (
+      {loading ? (
+        <Spinner />
+      ) : failed ? (
+        <ErrorState error={tasks.error} />
+      ) : list.length === 0 ? (
         <EmptyState
           title={filtered ? 'לא נמצאו משימות' : status === 'done' ? 'עדיין אין משימות שבוצעו' : 'אין משימות להצגה'}
           hint={filtered ? 'נסה לנקות את החיפוש או את הסינון' : status === 'open' ? 'הוסף משימה בשורת ההוספה המהירה למעלה' : undefined}
@@ -444,13 +450,13 @@ export default function Tasks() {
         </>
       )}
 
-      {status === 'open' && counts.done > 0 && (
+      {!loading && !failed && status === 'open' && counts.done > 0 && (
         <button type="button" className="btn-secondary w-full" onClick={() => { setStatus('done'); window.scrollTo({ top: 0 }) }}>
           הצג משימות שבוצעו ({counts.done})
         </button>
       )}
 
-      <AddFab label="משימה חדשה" onClick={() => setAdding(true)} />
+      <AddFab label="משימה חדשה" onClick={() => setAdding(true)} disabled={loading || failed} />
 
       {adding && <TaskFormModal onClose={() => setAdding(false)} defaults={isAdmin && who !== 'me' && who !== 'all' ? { assignee_id: who } : undefined} />}
       {editing && <TaskFormModal task={editing} onClose={() => setEditing(null)} />}

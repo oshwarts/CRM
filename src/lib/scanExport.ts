@@ -92,8 +92,8 @@ export function buildIcs(events: CalEvent[]): string {
   for (const e of events) {
     const day = e.date.replace(/-/g, '')
     out.push('BEGIN:VEVENT', `UID:${e.uid}@ami-crm`, `DTSTAMP:${now}`)
-    if (e.time) {
-      const [h, m] = e.time.slice(0, 5).split(':').map(Number)
+    const [h, m] = (e.time ?? '').slice(0, 5).split(':').map(Number)
+    if (Number.isInteger(h) && Number.isInteger(m)) {
       const start = h * 60 + m
       const end = Math.min(start + (e.durationMin ?? 60), 23 * 60 + 59)
       const hm = (n: number) => `${String(Math.floor(n / 60)).padStart(2, '0')}${String(n % 60).padStart(2, '0')}00`
@@ -124,7 +124,7 @@ export function downloadIcs(events: CalEvent[], filename: string) {
   a.href = url
   a.download = filename
   a.click()
-  URL.revokeObjectURL(url)
+  setTimeout(() => URL.revokeObjectURL(url), 10_000)
 }
 
 export function scanEvents(s: PatientScanRow): CalEvent[] {

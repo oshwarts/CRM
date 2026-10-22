@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import { ConfirmButton, Field, Modal } from './ui'
 import { QuickDates } from './QuickDates'
@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthProvider'
 import { useCanDelete } from '../lib/permissions'
 import { useDeletePlannedSurgery, useSavePlannedSurgery, type PlannedSurgery } from '../lib/plannedSurgeries'
 import { toast } from '../lib/toast'
-import { classNames, todayISO } from '../lib/utils'
+import { classNames, formatDate, todayISO } from '../lib/utils'
 
 type Form = {
   surgery_date: string
@@ -46,11 +46,17 @@ export function PlannedSurgeryModal({ surgery, date, time, hospitalId, onClose }
     company: surgery?.company ?? '',
     notes: surgery?.notes ?? '',
     cases: surgery?.cases ?? 1,
-    agent_id: surgery?.agent_id ?? user?.id ?? '',
+    agent_id: surgery ? (surgery.agent_id ?? '') : (user?.id ?? ''),
   })
+  // the number of surgeries is typed as text so that the field can be emptied and retyped (an empty field counts as 1)
+  const [casesText, setCasesText] = useState(String(surgery?.cases ?? 1))
+  const busy = useRef(false)
   const [tried, setTried] = useState(false)
   const [error, setError] = useState('')
-  const set = (p: Partial<Form>) => setF((x) => ({ ...x, ...p }))
+  const set = (p: Partial<Form>) => {
+    setF((x) => ({ ...x, ...p }))
+    if (p.cases !== undefined) setCasesText(String(p.cases))
+  }
 
   const doctorOptions = useMemo(
     () =>
@@ -73,6 +79,7 @@ export function PlannedSurgeryModal({ surgery, date, time, hospitalId, onClose }
   }
 
   async function submit(another: boolean) {
+    if (busy.current) return // a second press before the screen has re-drawn must not send a second copy
     setError('')
     if (!f.surgery_date) {
       setTried(true)
@@ -83,6 +90,7 @@ export function PlannedSurgeryModal({ surgery, date, time, hospitalId, onClose }
       setError('מלא לפחות סוג ניתוח, רופא או בית חולים')
       return
     }
+    busy.current = true
     try {
       await save.mutateAsync({
         id: surgery?.id,
@@ -94,7 +102,8 @@ export function PlannedSurgeryModal({ surgery, date, time, hospitalId, onClose }
         company: f.company,
         notes: f.notes,
         cases: f.cases,
-        ...(isAdmin && f.agent_id ? { agent_id: f.agent_id } : {}),
+        // only a manager who picked somebody else: otherwise the database fills in the acting user (and an edit keeps the agent it had)
+        ...(isAdmin && f.agent_id && f.agent_id !== (surgery ? surgery.agent_id : user?.id) ? { agent_id: f.agent_id } : {}),
       })
       if (another) {
         toast('הניתוח נוסף — אפשר להמשיך')
@@ -102,7 +111,10 @@ export function PlannedSurgeryModal({ surgery, date, time, hospitalId, onClose }
         setTried(false)
       } else onClose()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'השמירה נכשלה')
+      const msg = e instanceof Error ? e.message : typeof e === 'object' && e && 'message' in e ? String((e as { message: unknown }).message) : ''
+      setError(/permission denied|row-level security/i.test(msg) ? 'אין לך הרשאה לשמור את הניתוח הזה' : msg || 'השמירה נכשלה')
+    } finally {
+      busy.current = false
     }
   }
 
@@ -110,7 +122,16 @@ export function PlannedSurgeryModal({ surgery, date, time, hospitalId, onClose }
 
   return (
     <Modal open onClose={onClose} title={surgery ? 'עריכת ניתוח' : 'ניתוח מתוכנן'} size="lg">
-      <div className="space-y-4">
+      <div
+        className="space-y-4"
+        // Enter in a field saves, as in a form (the search lists handle their own Enter)
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.defaultPrevented && e.target instanceof HTMLInputElement && ['text', 'number', 'date', 'time'].includes(e.target.type)) {
+            e.preventDefault()
+            void submit(false)
+          }
+        }}
+      >
         <p className="rounded-xl bg-brand-50 px-3 py-2 text-sm text-brand-800">ניתוח (או כמה מאותו סוג ביום אחד) בלי סריקה ובלי פרטי מטופל. מופיע בלוז השבועי.</p>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -119,7 +140,7 @@ export function PlannedSurgeryModal({ surgery, date, time, hospitalId, onClose }
             <QuickDates value={f.surgery_date} onPick={(d) => set({ surgery_date: d ?? '' })} clearable={false} />
           </Field>
           <Field label="שעה (לא חובה)">
-            <input type="time" className="input" dir="ltr" inputMode="numeric" value={f.surgery_time} onChange={(e) => set({ surgery_time: e.target.value })} />
+            <input type="time" className="input" dir="ltr" value={f.surgery_time} onChange={(e) => set({ surgery_time: e.target.value })} />
           </Field>
         </div>
 
@@ -133,7 +154,7 @@ export function PlannedSurgeryModal({ surgery, date, time, hospitalId, onClose }
         </div>
 
         <Field label="סוג הניתוח">
-          <input className="input" dir="auto" placeholder="בחר מהרשימה או כתוב סוג ניתוח" value={f.procedure} onChange={(e) => set({ procedure: e.target.value })} />
+          <input className="input" dir="auto" autoComplete="off" enterKeyHint="next" placeholder="בחר מהרשימה או כתוב סוג ניתוח" value={f.procedure} onChange={(e) => set({ procedure: e.target.value })} />
           {procedureChips.length > 0 && (
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               {procedureChips.map((p) => (
@@ -164,8 +185,13 @@ export function PlannedSurgeryModal({ surgery, date, time, hospitalId, onClose }
               max={99}
               inputMode="numeric"
               className="input !w-20 text-center"
-              value={f.cases}
-              onChange={(e) => set({ cases: Math.min(99, Math.max(1, Math.floor(Number(e.target.value)) || 1)) })}
+              value={casesText}
+              aria-label="מספר הניתוחים"
+              onChange={(e) => {
+                setCasesText(e.target.value)
+                setF((x) => ({ ...x, cases: Math.min(99, Math.max(1, Math.floor(Number(e.target.value)) || 1)) }))
+              }}
+              onBlur={() => setCasesText(String(f.cases))}
             />
             <button type="button" className="btn-secondary !px-3" aria-label="יותר" disabled={f.cases >= 99} onClick={() => set({ cases: f.cases + 1 })}>
               +
@@ -184,7 +210,7 @@ export function PlannedSurgeryModal({ surgery, date, time, hospitalId, onClose }
         </Field>
 
         <Field label="חברה / מערכת (לא חובה)">
-          <input className="input" dir="auto" placeholder="למשל: Zimmer, Stryker…" value={f.company} onChange={(e) => set({ company: e.target.value })} />
+          <input className="input" dir="auto" autoComplete="off" enterKeyHint="next" placeholder="למשל: Zimmer, Stryker…" value={f.company} onChange={(e) => set({ company: e.target.value })} />
           {(companies.data ?? []).length > 0 && (
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               {(companies.data ?? []).slice(0, 10).map((c) => (
@@ -205,12 +231,13 @@ export function PlannedSurgeryModal({ surgery, date, time, hospitalId, onClose }
         </Field>
 
         <Field label="הערות (לא חובה)">
-          <input className="input" dir="auto" value={f.notes} onChange={(e) => set({ notes: e.target.value })} />
+          <input className="input" dir="auto" autoComplete="off" value={f.notes} onChange={(e) => set({ notes: e.target.value })} />
         </Field>
 
         {isAdmin && (
           <Field label="הסוכן שמלווה">
             <select className="input" value={f.agent_id} onChange={(e) => set({ agent_id: e.target.value })}>
+              {!f.agent_id && <option value="">ללא סוכן</option>}
               {(agents.data ?? []).map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.full_name || a.email}
@@ -224,7 +251,7 @@ export function PlannedSurgeryModal({ surgery, date, time, hospitalId, onClose }
 
         <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 pt-4">
           {surgery && canDelete(surgery.created_by) && (
-            <ConfirmButton className="btn-ghost text-red-500" message="למחוק את הניתוח מהלוז?" onConfirm={() => del.mutate(surgery.id, { onSuccess: onClose })}>
+            <ConfirmButton className="btn-ghost text-red-500" message={`למחוק מהלוז את הניתוח "${surgery.procedure.trim() || 'ניתוח'}" ב-${formatDate(surgery.surgery_date)}${surgery.cases > 1 ? ` (${surgery.cases} ניתוחים)` : ''}? אי אפשר לשחזר.`} onConfirm={() => del.mutate(surgery.id, { onSuccess: onClose })}>
               <Trash2 size={16} /> מחיקה
             </ConfirmButton>
           )}

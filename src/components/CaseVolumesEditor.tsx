@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Plus, ScanLine, Trash2, X } from 'lucide-react'
 import {
   useCaseVolumes,
@@ -9,7 +9,7 @@ import {
   useUpsertCaseVolume,
 } from '../lib/api'
 import { CURRENT_YEAR, YEAR_OPTIONS } from '../lib/types'
-import { ConfirmButton, EmptyState, Field, Spinner } from './ui'
+import { ConfirmButton, EmptyState, ErrorState, Field, Spinner } from './ui'
 
 type Option = { id: string; label: string }
 
@@ -41,8 +41,11 @@ export function CaseVolumesEditor(props: Props) {
   })
   const [error, setError] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
+  const busy = useRef(false)
 
-  const rows = volumes.data ?? []
+  const rows = useMemo(() => volumes.data ?? [], [volumes.data])
+  // the only doctor / hospital to choose from is chosen
+  const entityId = draft.entityId || (entityOptions.length === 1 ? entityOptions[0].id : '')
 
   const procByName = useMemo(() => {
     const m: Record<string, string> = {}
@@ -101,32 +104,50 @@ export function CaseVolumesEditor(props: Props) {
 
   async function add() {
     setError(null)
-    if (!draft.entityId || !draft.procedure_id) {
+    if (busy.current) return
+    if (!entityId || !draft.procedure_id) {
       setError(`יש לבחור ${entityLabel} והליך`)
       return
     }
+    if (draft.count < 1) {
+      setError('הזן כמות מקרים (1 ומעלה)')
+      return
+    }
+    const doctor_id = isDoctorMode ? props.doctorId! : entityId
+    const hospital_id = isDoctorMode ? entityId : props.hospitalId!
+    const company_id = draft.company_id || null
+    if (rows.some((r) => r.doctor_id === doctor_id && r.hospital_id === hospital_id && r.procedure_id === draft.procedure_id && r.company_id === company_id && r.year === draft.year)) {
+      setError('כבר קיימת רשומה עם אותו רופא / בי״ח / הליך / חברה / שנה — עדכן את הכמות בטבלה')
+      return
+    }
+    busy.current = true
     try {
       await upsert.mutateAsync({
-        doctor_id: isDoctorMode ? props.doctorId! : draft.entityId,
-        hospital_id: isDoctorMode ? draft.entityId : props.hospitalId!,
+        doctor_id,
+        hospital_id,
         procedure_id: draft.procedure_id,
-        company_id: draft.company_id || null,
+        company_id,
         year: draft.year,
         count: draft.count,
       })
       setDraft({ ...draft, procedure_id: '', company_id: '', count: 0 })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'שמירה נכשלה')
+    } finally {
+      busy.current = false
     }
   }
 
   if (volumes.isLoading) return <Spinner />
+  if (volumes.error && !volumes.data) return <ErrorState error={volumes.error} />
 
   type Row = (typeof rows)[number]
-  const saveCount = (r: Row, value: string) => {
-    const count = Math.max(0, Number(value) || 0)
+  const saveCount = (r: Row, input: HTMLInputElement) => {
+    const count = Math.max(0, Math.floor(Number(input.value) || 0))
+    input.value = String(count)
     if (count !== r.count)
-      upsert.mutate({
+      upsert.mutate(
+        {
         id: r.id,
         doctor_id: r.doctor_id,
         hospital_id: r.hospital_id,
@@ -134,10 +155,15 @@ export function CaseVolumesEditor(props: Props) {
         company_id: r.company_id,
         year: r.year,
         count,
-      })
+        },
+        // a refused save puts the old number back
+        { onError: () => (input.value = String(r.count)) },
+      )
   }
-  const nameOf = (r: Row) => (isDoctorMode ? r.hospital?.name : `${r.doctor?.title} ${r.doctor?.name}`)
+  const nameOf = (r: Row) => (isDoctorMode ? r.hospital?.name : [r.doctor?.title, r.doctor?.name].filter(Boolean).join(' ')) || '—'
   const countLabel = (r: Row) => `כמות: ${nameOf(r)} ${r.procedure?.name ?? ''} ${r.year}`
+  const deleteLabel = (r: Row) => `מחיקת כמות: ${nameOf(r)} ${r.procedure?.name ?? ''} ${r.year}`
+  const deleteMessage = (r: Row) => `למחוק את הכמות (${nameOf(r)} · ${r.procedure?.name ?? '—'}${r.company?.name ? ` · ${r.company.name}` : ''} · ${r.year}: ${r.count} מקרים)? הפעולה אינה הפיכה.`
   const showForm = adding || rows.length === 0
 
   return (
@@ -147,7 +173,7 @@ export function CaseVolumesEditor(props: Props) {
           כמות מקרים שנתית לפי {entityLabel} והליך. הסכומים מתאזנים אוטומטית בין הרופא לבית החולים.
         </p>
         {!showForm && (
-          <button className="btn-secondary" onClick={() => setAdding(true)}>
+          <button type="button" className="btn-secondary" onClick={() => setAdding(true)}>
             <Plus size={16} />
             הוספת כמות
           </button>
@@ -170,7 +196,7 @@ export function CaseVolumesEditor(props: Props) {
         <div className="card space-y-3 border-brand-200 p-3 sm:p-4">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-[1.4fr_1.4fr_1fr_.7fr_.7fr]">
             <Field label={entityLabel} className="col-span-2 sm:col-span-1">
-              <select className="input" value={draft.entityId} onChange={(e) => setDraft({ ...draft, entityId: e.target.value })}>
+              <select className="input" value={entityId} onChange={(e) => setDraft({ ...draft, entityId: e.target.value })}>
                 <option value="">בחר…</option>
                 {entityOptions.map((o) => (
                   <option key={o.id} value={o.id}>
@@ -215,7 +241,7 @@ export function CaseVolumesEditor(props: Props) {
                 min={0}
                 className="input text-center"
                 value={draft.count || ''}
-                onChange={(e) => setDraft({ ...draft, count: Math.max(0, Number(e.target.value) || 0) })}
+                onChange={(e) => setDraft({ ...draft, count: Math.max(0, Math.floor(Number(e.target.value) || 0)) })}
               />
             </Field>
           </div>
@@ -227,6 +253,7 @@ export function CaseVolumesEditor(props: Props) {
           <div className="flex justify-end gap-2">
             {rows.length > 0 && (
               <button
+                type="button"
                 className="btn-secondary flex-1 sm:flex-none"
                 onClick={() => {
                   setAdding(false)
@@ -237,7 +264,7 @@ export function CaseVolumesEditor(props: Props) {
                 סגירה
               </button>
             )}
-            <button className="btn-primary flex-1 sm:flex-none" onClick={add} disabled={upsert.isPending}>
+            <button type="button" className="btn-primary flex-1 sm:flex-none" onClick={add} disabled={upsert.isPending}>
               <Plus size={16} />
               הוספה
             </button>
@@ -262,15 +289,17 @@ export function CaseVolumesEditor(props: Props) {
                   </p>
                 </div>
                 <input
+                  key={`${r.id}-${r.count}`}
                   type="number"
                   inputMode="numeric"
                   min={0}
+                  step={1}
                   aria-label={countLabel(r)}
                   className="input !w-20 shrink-0 text-center"
                   defaultValue={r.count}
-                  onBlur={(e) => saveCount(r, e.target.value)}
+                  onBlur={(e) => saveCount(r, e.currentTarget)}
                 />
-                <ConfirmButton className="btn-ghost shrink-0 !px-2.5 text-red-600" onConfirm={() => del.mutate(r.id)}>
+                <ConfirmButton className="btn-ghost shrink-0 !px-2.5 text-red-600" label={deleteLabel(r)} message={deleteMessage(r)} onConfirm={() => del.mutate(r.id)}>
                   <Trash2 size={16} />
                 </ConfirmButton>
               </li>
@@ -300,16 +329,19 @@ export function CaseVolumesEditor(props: Props) {
                     <td className="p-2 text-center text-slate-500">{r.year}</td>
                     <td className="p-2 text-center">
                       <input
+                        key={`${r.id}-${r.count}`}
                         type="number"
+                        inputMode="numeric"
                         min={0}
+                        step={1}
                         aria-label={countLabel(r)}
                         className="input !w-20 py-1 text-center"
                         defaultValue={r.count}
-                        onBlur={(e) => saveCount(r, e.target.value)}
+                        onBlur={(e) => saveCount(r, e.currentTarget)}
                       />
                     </td>
                     <td className="p-2 text-center">
-                      <ConfirmButton className="btn-ghost !px-2 text-red-600" onConfirm={() => del.mutate(r.id)}>
+                      <ConfirmButton className="btn-ghost !px-2 text-red-600" label={deleteLabel(r)} message={deleteMessage(r)} onConfirm={() => del.mutate(r.id)}>
                         <Trash2 size={14} />
                       </ConfirmButton>
                     </td>
@@ -339,7 +371,7 @@ export function CaseVolumesEditor(props: Props) {
                 <span className="text-lg font-semibold text-slate-800" aria-label={`${s.count} ניתוחים`}>
                   {s.count}
                 </span>
-                <button className="btn-secondary" disabled={!s.procedure_id || upsert.isPending} onClick={() => applyScanCount(s)}>
+                <button type="button" className="btn-secondary" disabled={!s.procedure_id || upsert.isPending} onClick={() => applyScanCount(s)}>
                   עדכן כמות
                 </button>
               </li>

@@ -133,7 +133,7 @@ export function ReferralImportModal({
         </p>
 
         {busy && status && file && isImageFile(file) && <p className="text-sm text-slate-500">{status}</p>}
-        {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+        {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
 
         <div className="flex justify-end gap-2 border-t border-slate-200 pt-4">
           <button className="btn-secondary" onClick={onClose}>ביטול</button>

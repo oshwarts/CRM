@@ -282,13 +282,16 @@ main h1:not(.no-accent)::before {
   #management-report,
   #management-report *,
   #agent-evaluation,
-  #agent-evaluation * {
+  #agent-evaluation *,
+  #meeting-print,
+  #meeting-print * {
     visibility: visible !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
   #management-report,
-  #agent-evaluation {
+  #agent-evaluation,
+  #meeting-print {
     position: absolute;
     inset-inline: 0;
     top: 0;

@@ -41,6 +41,25 @@ export function EventSheet({ item, onClose, onEdit }: { item: Item; onClose: () 
             </p>
           )}
         </div>
+        {item.group && item.group.length > 1 && (
+          <div>
+            <p className="mb-1 text-xs font-medium text-slate-600">השורה מורכבת מ-{item.group.length} רשומות — עריכה של אחת מהן:</p>
+            <ul className="space-y-1">
+              {item.group.map((g) => (
+                <li key={g.id}>
+                  <button type="button" className="btn-secondary w-full justify-between" onClick={() => onEdit({ ...item, surgery: g })}>
+                    <span dir="auto">
+                      {g.cases} × {g.procedure || 'ניתוח'}
+                      {g.surgery_time ? ` · ${g.surgery_time.slice(0, 5)}` : ''}
+                      {g.agent ? ` · ${g.agent.full_name}` : ''}
+                    </span>
+                    <Pencil size={14} aria-hidden />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <div className="grid gap-2 sm:grid-cols-2">
           {opensForm ? (
             <button type="button" className="btn-primary" onClick={() => onEdit(item)}>

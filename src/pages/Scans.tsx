@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { CalendarClock, CalendarPlus, Copy, Download, FileInput, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { CalendarPlus, Copy, Download, FileInput, Plus, X } from 'lucide-react'
 import {
   useDeletePatientScan,
   useImplantFields,
@@ -10,17 +10,18 @@ import {
 } from '../lib/api'
 import { ScanFormModal, type ScanDraft } from '../components/ScanFormModal'
 import { ReferralImportModal } from '../components/ReferralImportModal'
-import { ConfirmButton, EmptyState, ErrorState, Spinner } from '../components/ui'
+import { EmptyState, ErrorState, Spinner } from '../components/ui'
 import {
   SCAN_PROCEDURE_LABELS,
   SCAN_STATUS_LABELS,
   type PatientScanRow,
 } from '../lib/types'
-import { rowFlags, weekMissing } from '../lib/scanAlerts'
-import { ScanCard } from '../components/ScanCard'
+import { QUICK_TESTS, type ScanQuick } from '../lib/scanAlerts'
+import { useToday } from '../lib/useToday'
+import { ScanCard, type ScanActions } from '../components/ScanCard'
+import { ScanRow } from '../components/ScanRow'
 import { ScanStatusModal } from '../components/ScanStatusModal'
-import { DEFAULT_WINDOW, WINDOW_LABELS, compareByWindow, inWindow, windowSummary, type ScanWindow } from '../lib/scanList'
-import { MaskedValue } from '../components/MaskedValue'
+import { DEFAULT_WINDOW, WINDOW_LABELS, compareByWindow, inWindow, matchesScanQuery, parseScanParams, revealScan, windowSummary, type ScanWindow } from '../lib/scanList'
 import {
   copyText,
   downloadIcs,
@@ -31,98 +32,77 @@ import {
 import {
   classNames,
   csvCell,
-  daysUntil,
+  csvTextDigits,
   formatDate,
   formatTime,
-  todayISO,
 } from '../lib/utils'
 
-type Quick = 'week' | 'overdue' | 'noct' | 'nodisk' | 'open' | 'rescan' | 'postponed' | 'nodate'
-
-/** the alert chips above the list: each one is a one-tap filter for the scans that need attention */
-const QUICKS: { key: Quick; label: string; tone: string; test: (s: PatientScanRow, today: string) => boolean }[] = [
-  {
-    key: 'overdue',
-    label: 'CT עבר, לא נסרק',
-    tone: 'border-red-200 bg-red-50 text-red-700',
-    test: (s, today) => !!s.ct_date && s.ct_date < today && !s.scanned && s.status !== 'cancelled',
-  },
-  {
-    key: 'noct',
-    label: 'ניתוח השבוע, אין CT',
-    tone: 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700',
-    test: (s, today) =>
-      s.status !== 'cancelled' && !!s.surgery_date && s.surgery_date >= today && (daysUntil(s.surgery_date) ?? 99) <= 7 && !s.ct_date,
-  },
-  {
-    key: 'nodisk',
-    label: 'ניתוח השבוע, אין דיסק',
-    tone: 'border-orange-200 bg-orange-50 text-orange-700',
-    test: (s, today) =>
-      s.status !== 'cancelled' &&
-      !!s.surgery_date &&
-      s.surgery_date >= today &&
-      (daysUntil(s.surgery_date) ?? 99) <= 7 &&
-      !!s.ct_date &&
-      !s.disk_collected,
-  },
-  {
-    key: 'week',
-    label: 'CT בשבוע הקרוב',
-    tone: 'border-amber-200 bg-amber-50 text-amber-700',
-    test: (s, today) => !!s.ct_date && s.ct_date >= today && (daysUntil(s.ct_date) ?? 99) <= 7 && !s.scanned,
-  },
-  {
-    key: 'open',
-    label: 'חסר טיפול ל-CT',
-    tone: 'border-sky-200 bg-sky-50 text-sky-700',
-    test: (s) => weekMissing(s).length > 0,
-  },
-  {
-    key: 'rescan',
-    label: 'סריקה חוזרת פתוחה',
-    tone: 'border-rose-200 bg-rose-50 text-rose-700',
-    test: (s) => s.rescan && !s.rescan_done && s.status !== 'cancelled',
-  },
-  {
-    key: 'postponed',
-    label: 'נדחו',
-    tone: 'border-amber-300 bg-amber-100 text-amber-800',
-    test: (s) => s.status === 'postponed',
-  },
-  {
-    key: 'nodate',
-    label: 'בלי תאריך ניתוח',
-    tone: 'border-slate-300 bg-slate-100 text-slate-700',
-    test: (s) => s.status === 'planned' && !s.surgery_date,
-  },
+/** the alert chips above the list: each one is a one-tap filter for the scans that need attention (who belongs to a chip: QUICK_TESTS) */
+const QUICKS: { key: ScanQuick; label: string; tone: string }[] = [
+  { key: 'overdue', label: 'CT עבר, לא נסרק', tone: 'border-red-200 bg-red-50 text-red-700' },
+  { key: 'noct', label: 'ניתוח השבוע, אין CT', tone: 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700' },
+  { key: 'nodisk', label: 'ניתוח השבוע, אין דיסק', tone: 'border-orange-200 bg-orange-50 text-orange-700' },
+  { key: 'week', label: 'CT בשבוע הקרוב', tone: 'border-amber-200 bg-amber-50 text-amber-700' },
+  { key: 'open', label: 'חסר טיפול ל-CT', tone: 'border-sky-200 bg-sky-50 text-sky-700' },
+  { key: 'rescan', label: 'סריקה חוזרת פתוחה', tone: 'border-rose-200 bg-rose-50 text-rose-700' },
+  { key: 'postponed', label: 'נדחו', tone: 'border-amber-300 bg-amber-100 text-amber-800' },
+  { key: 'nodate', label: 'בלי תאריך ניתוח', tone: 'border-slate-300 bg-slate-100 text-slate-700' },
 ]
+
+/** a long list shows its first page; "show more" adds the next (300 scans drawn at once are a slow screen) */
+const PAGE = 50
+
+function inviteFor(list: PatientScanRow[]) {
+  const events = list.flatMap(scanEvents)
+  if (events.length === 0) return
+  downloadIcs(events, list.length === 1 ? `סריקה-${list[0].patient_name}.ics` : 'סריקות-MAKO.ics')
+}
+
+/** a table on a desktop, cards below it — only the one that shows is built (300 scans twice are a slow screen) */
+const WIDE = '(min-width: 1024px)'
+function useWide() {
+  return useSyncExternalStore(
+    (cb) => {
+      const m = window.matchMedia(WIDE)
+      m.addEventListener('change', cb)
+      return () => m.removeEventListener('change', cb)
+    },
+    () => window.matchMedia(WIDE).matches,
+    () => false,
+  )
+}
 
 export default function Scans() {
   const scans = usePatientScans()
   const makoHospitals = useMakoHospitals()
   const del = useDeletePatientScan()
   const patch = usePatchPatientScan()
+  const wide = useWide()
   const implantRows = useImplantFields().data
 
   const [params] = useSearchParams()
-  const hospitalParam = params.get('hospital') ?? ''
+  const link = useMemo(() => parseScanParams(params), [params])
 
   const [showAdd, setShowAdd] = useState(false)
   const [showReferral, setShowReferral] = useState(false)
   const [prefill, setPrefill] = useState<{ draft: Partial<ScanDraft>; notices: string[] } | null>(null)
   const [editing, setEditing] = useState<PatientScanRow | null>(null)
   const [q, setQ] = useState('')
-  const [hospital, setHospital] = useState(hospitalParam)
+  // the list follows the typing a moment later, so a long list never makes the box lag
+  const dq = useDeferredValue(q)
+  const [hospital, setHospital] = useState(link.hospital)
   const [status, setStatus] = useState('')
-  const [quick, setQuick] = useState<Quick | ''>('')
-  // opens on the surgeries of the next two weeks (from a hospital: the coming month)
-  const [window, setWindow] = useState<ScanWindow>(hospitalParam ? 'month' : DEFAULT_WINDOW)
+  const [quick, setQuick] = useState<ScanQuick | ''>('')
+  // opens on the surgeries of the next two weeks (from a hospital: the coming month; a link may ask for another window)
+  const [window, setWindow] = useState<ScanWindow>(link.window)
+  // a scan a link points at: shown, scrolled to and marked for a few seconds
+  const [highlight, setHighlight] = useState('')
+  const [limit, setLimit] = useState(PAGE)
   const [statusFor, setStatusFor] = useState<PatientScanRow | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [copied, setCopied] = useState(false)
 
-  const today = todayISO()
+  const today = useToday()
 
   const hospitals = useMemo(() => {
     const m = new Map<string, string>()
@@ -136,20 +116,19 @@ export default function Scans() {
       .filter((s) => {
         if (hospital && s.hospital_id !== hospital) return false
         if (status && s.status !== status) return false
-        if (quick && !QUICKS.find((x) => x.key === quick)?.test(s, today)) return false
+        if (quick && !QUICK_TESTS[quick](s)) return false
         // a status or an alert chosen on purpose shows what it is about, wherever its date is; otherwise the window of dates decides
         if (!status && !quick && !inWindow(s, window, today)) return false
-        if (q) {
-          const hay = `${s.patient_name} ${s.patient_id_number} ${s.patient_phone} ${s.surgeon?.name ?? ''}`.toLowerCase()
-          if (!hay.includes(q.toLowerCase())) return false
-        }
+        if (!matchesScanQuery(s, dq)) return false
         return true
       })
       .sort(compareByWindow(window))
-  }, [scans.data, hospital, status, quick, q, window, today])
+  }, [scans.data, hospital, status, quick, dq, window, today])
 
   const quickCounts = useMemo(
-    () => QUICKS.map((x) => ({ ...x, count: (scans.data ?? []).filter((r) => x.test(r, today)).length })),
+    () => QUICKS.map((x) => ({ ...x, count: (scans.data ?? []).filter((r) => QUICK_TESTS[x.key](r)).length })),
+    // (the tests read the clock: a new day, `today`, counts again)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [scans.data, today],
   )
   const filtered = !!(q || hospital || status || quick || window !== DEFAULT_WINDOW)
@@ -160,19 +139,62 @@ export default function Scans() {
     setStatus('')
     setQuick('')
     setWindow(DEFAULT_WINDOW)
+    setHighlight('')
   }
 
+  // another filter starts the list again from its first page
+  useEffect(() => setLimit(PAGE), [hospital, status, quick, dq, window])
+
+  // a link to one scan (?highlight=<id>): the view widens to show it (its hospital, the whole list if its date is outside the window)
+  const linkDone = useRef(false)
+  useEffect(() => {
+    if (linkDone.current || !link.highlight || !scans.data) return
+    linkDone.current = true
+    const s = scans.data.find((x) => x.id === link.highlight)
+    if (!s) return
+    const view = revealScan(s, { hospital: link.hospital, window: link.window }, today)
+    setHospital(view.hospital)
+    setWindow(view.window)
+    setHighlight(s.id)
+  }, [link, scans.data, today])
+
+  // …the page that holds it is opened, it scrolls into view, and the mark goes away after a few seconds
+  useEffect(() => {
+    if (!highlight) return
+    const at = rows.findIndex((s) => s.id === highlight)
+    if (at >= limit) return setLimit(at + 1)
+    const t = setTimeout(() => document.getElementById(`scan-${highlight}`)?.scrollIntoView({ block: 'center' }), 50)
+    const off = setTimeout(() => setHighlight(''), 6000)
+    return () => {
+      clearTimeout(t)
+      clearTimeout(off)
+    }
+  }, [highlight, rows, limit, wide])
+
+  const shown = rows.slice(0, limit)
   const selectedRows = rows.filter((s) => selected.has(s.id))
   const allSelected = rows.length > 0 && selectedRows.length === rows.length
 
-  function toggleOne(id: string) {
-    setSelected((cur) => {
-      const n = new Set(cur)
-      if (n.has(id)) n.delete(id)
-      else n.add(id)
-      return n
-    })
-  }
+  // one stable object for every row, so that a row whose scan did not change is not drawn again
+  const { mutate: patchScan } = patch
+  const { mutate: deleteScan } = del
+  const actions = useMemo<ScanActions>(
+    () => ({
+      toggle: (id) =>
+        setSelected((cur) => {
+          const n = new Set(cur)
+          if (n.has(id)) n.delete(id)
+          else n.add(id)
+          return n
+        }),
+      edit: setEditing,
+      status: setStatusFor,
+      invite: (s) => inviteFor([s]),
+      remove: (s) => deleteScan(s.id),
+      patch: (id, p) => patchScan({ id, patch: p }),
+    }),
+    [patchScan, deleteScan],
+  )
 
   function toggleAll() {
     setSelected(allSelected ? new Set() : new Set(rows.map((s) => s.id)))
@@ -185,13 +207,9 @@ export default function Scans() {
     }
   }
 
-  function inviteFor(list: PatientScanRow[]) {
-    const events = list.flatMap(scanEvents)
-    if (events.length === 0) return
-    downloadIcs(events, list.length === 1 ? `סריקה-${list[0].patient_name}.ics` : 'סריקות-MAKO.ics')
-  }
-
   function exportCsv() {
+    // the file leaves the system with details of patients: say so before it is created
+    if (!globalThis.confirm(`הקובץ יכלול שם, ת״ז, טלפון ותאריך לידה של ${rows.length} מטופלים, וישמר במכשיר. לייצא?`)) return
     const head = [
       'תאריך ניתוח', 'בית חולים', 'שם מלא', 'תז', 'טלפון', 'תאריך לידה', 'קופה', 'ביטוח',
       'מנתח', 'סוג', 'רגל', 'תאריך CT', 'שעת CT', 'מרדים', 'נסרק', 'הועלה דיסק', 'תוכנית מוכנה',
@@ -207,8 +225,9 @@ export default function Scans() {
       s.rescan ? (s.rescan_done ? 'בוצעה' : 'כן') : '', formatDate(s.rescan_date), s.rescan_reason,
       implantSummary(s, implantRows), SCAN_STATUS_LABELS[s.status] ?? s.status, s.notes,
     ])
+    // the ID and the phone (columns 3 and 4) stay text in Excel: a leading zero is not dropped
     const csv = [head, ...body]
-      .map((r) => r.map(csvCell).join(','))
+      .map((r) => r.map((c, i) => (i === 3 || i === 4 ? csvTextDigits(c) : csvCell(c))).join(','))
       .join('\n')
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
@@ -216,7 +235,8 @@ export default function Scans() {
     a.href = url
     a.download = 'סריקות-MAKO.csv'
     a.click()
-    URL.revokeObjectURL(url)
+    // (a phone browser starts the download a moment after the click)
+    setTimeout(() => URL.revokeObjectURL(url), 10_000)
   }
 
   return (
@@ -250,7 +270,7 @@ export default function Scans() {
           aria-pressed={quick === ''}
           onClick={() => setQuick('')}
           className={classNames(
-            'chip shrink-0 whitespace-nowrap',
+            'chip !min-h-[40px] shrink-0 whitespace-nowrap',
             quick === '' ? 'border-brand-400 bg-brand-50 text-brand-700 ring-1 ring-brand-400' : 'border-slate-200 bg-white text-slate-600',
           )}
         >
@@ -264,7 +284,7 @@ export default function Scans() {
               type="button"
               aria-pressed={quick === x.key}
               onClick={() => setQuick(quick === x.key ? '' : x.key)}
-              className={classNames('chip shrink-0 whitespace-nowrap', x.tone, quick === x.key && 'font-bold ring-2 ring-current')}
+              className={classNames('chip !min-h-[40px] shrink-0 whitespace-nowrap', x.tone, quick === x.key && 'font-bold ring-2 ring-current')}
             >
               {x.label} · {x.count}
             </button>
@@ -297,7 +317,7 @@ export default function Scans() {
                 aria-pressed={window === v}
                 onClick={() => setWindow(v)}
                 className={classNames(
-                  'min-h-[36px] rounded-lg px-2 text-sm font-medium transition md:px-3',
+                  'min-h-[40px] rounded-lg px-2 text-sm font-medium transition md:px-3',
                   window === v ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-600 hover:text-slate-800',
                 )}
               >
@@ -309,13 +329,15 @@ export default function Scans() {
       </div>
 
       {scans.isLoading && <Spinner />}
-      {scans.error && <ErrorState error={scans.error} />}
+      {scans.error && !scans.data && <ErrorState error={scans.error} />}
       {scans.data && rows.length === 0 && (
         <EmptyState
-          title={filtered ? 'אין סריקות שמתאימות לסינון' : 'אין סריקות'}
-          hint={filtered ? 'נסה לשנות או לנקות את הסינון' : 'הוסף מטופל או ייבא הפנייה'}
+          title={filtered ? 'אין סריקות שמתאימות לסינון' : scans.data.length > 0 ? 'אין ניתוחים מתוכננים בשבועיים הקרובים' : 'אין סריקות'}
+          hint={filtered ? 'נסה לשנות או לנקות את הסינון' : scans.data.length > 0 ? 'ניתוחים שבוצעו, נדחו או רחוקים יותר מופיעים בטווח "הכל"' : 'הוסף מטופל או ייבא הפנייה'}
           action={
-            filtered ? (
+            !filtered && scans.data.length > 0 ? (
+              <button className="btn-secondary" onClick={() => setWindow('all')}>הצג את כל הסריקות</button>
+            ) : filtered ? (
               <button className="btn-secondary" onClick={clearFilters}>נקה סינון</button>
             ) : (
               <button className="btn-primary" onClick={() => setShowAdd(true)}>
@@ -339,33 +361,23 @@ export default function Scans() {
               </button>
             )}
           </span>
-          <label className="flex min-h-[32px] items-center gap-2 lg:hidden">
+          <label className="flex min-h-[40px] shrink-0 items-center gap-2 whitespace-nowrap lg:hidden">
             <input type="checkbox" className="h-5 w-5" checked={allSelected} onChange={toggleAll} />
             בחר הכל
           </label>
         </div>
       )}
 
-      {rows.length > 0 && (
-        <div className="grid gap-3 md:grid-cols-2 lg:hidden">
-          {rows.map((s) => (
-            <ScanCard
-              key={s.id}
-              s={s}
-              selected={selected.has(s.id)}
-              onToggle={() => toggleOne(s.id)}
-              onEdit={() => setEditing(s)}
-              onStatus={() => setStatusFor(s)}
-              onInvite={() => inviteFor([s])}
-              onDelete={() => del.mutate(s.id)}
-              onPatch={(p) => patch.mutate({ id: s.id, patch: p })}
-            />
+      {rows.length > 0 && !wide && (
+        <div className="grid gap-3 md:grid-cols-2">
+          {shown.map((s) => (
+            <ScanCard key={s.id} s={s} selected={selected.has(s.id)} highlighted={highlight === s.id} implantRows={implantRows} today={today} actions={actions} />
           ))}
         </div>
       )}
 
-      {rows.length > 0 && (
-        <div tabIndex={0} className="card relative hidden overflow-x-auto lg:block" role="region" aria-label="טבלת הסריקות">
+      {rows.length > 0 && wide && (
+        <div tabIndex={0} className="card relative overflow-x-auto" role="region" aria-label="טבלת הסריקות">
           <table className="w-full min-w-[1250px] text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-right text-slate-500">
@@ -378,125 +390,19 @@ export default function Scans() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((s) => {
-                const { overdueRow, soon, noCtSoon, noDiskSoon, missing, rescanKind, hasEvents } = rowFlags(s)
-                return (
-                  <tr
-                    key={s.id}
-                    className={classNames(
-                      'border-b border-slate-100 align-top',
-                      selected.has(s.id) && 'outline outline-1 -outline-offset-1 outline-brand-300',
-                      noCtSoon && 'bg-fuchsia-50/60',
-                      !noCtSoon && noDiskSoon && 'bg-orange-50/60',
-                      !noCtSoon && !noDiskSoon && overdueRow && 'bg-red-50/60',
-                      !noCtSoon && !noDiskSoon && !overdueRow && (rescanKind === 'today' || rescanKind === 'overdue') && 'bg-rose-50/70',
-                      !noCtSoon && !noDiskSoon && !overdueRow && !rescanKind && missing.length > 0 && 'bg-sky-50/60',
-                      !noCtSoon && !noDiskSoon && !overdueRow && !rescanKind && missing.length === 0 && soon && 'bg-amber-50/60',
-                    )}
-                  >
-                    <td className="p-2">
-                      <input type="checkbox" className="h-4 w-4" checked={selected.has(s.id)} onChange={() => toggleOne(s.id)} aria-label={`בחר את ${s.patient_name}`} />
-                    </td>
-                    <td className="whitespace-nowrap p-2 text-slate-500">
-                      {formatDate(s.surgery_date)}
-                      {noCtSoon && (
-                        <span
-                          title="ניתוח בשבוע הקרוב — אין תאריך CT מתואם"
-                          className="mr-1 chip border-fuchsia-200 bg-fuchsia-100 text-fuchsia-700"
-                        >
-                          אין CT
-                        </span>
-                      )}
-                      {!noCtSoon && noDiskSoon && (
-                        <span
-                          title="ניתוח בשבוע הקרוב — הדיסק לא הועלה"
-                          className="mr-1 chip border-orange-200 bg-orange-100 text-orange-700"
-                        >
-                          אין דיסק
-                        </span>
-                      )}
-                    </td>
-                    <td className="whitespace-nowrap p-2 text-slate-700">{s.hospital?.name}</td>
-                    <td className="whitespace-nowrap p-2 font-medium text-slate-800">{s.patient_name}</td>
-                    <td className="whitespace-nowrap p-2 text-slate-500">
-                      <MaskedValue value={s.patient_id_number} />
-                    </td>
-                    <td className="whitespace-nowrap p-2 text-slate-500" dir="ltr">{s.patient_phone}</td>
-                    <td className="whitespace-nowrap p-2 text-slate-500">{s.health_fund}</td>
-                    <td className="whitespace-nowrap p-2 text-slate-600">{s.surgeon ? `${s.surgeon.title} ${s.surgeon.name}` : '—'}</td>
-                    <td className="whitespace-nowrap p-2 text-slate-600">{SCAN_PROCEDURE_LABELS[s.procedure_type]}</td>
-                    <td className="whitespace-nowrap p-2 text-slate-600">{s.side || '—'}</td>
-                    <td className="p-2 text-slate-600">
-                      <div className="whitespace-nowrap">
-                        {s.ct_date ? `${formatDate(s.ct_date)}${s.ct_time ? ` ${formatTime(s.ct_time)}` : ''}` : '—'}
-                      </div>
-                      {missing.length > 0 && (
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          {missing.map((m) => (
-                            <span key={m} className="chip border-sky-200 bg-sky-100 text-sky-700">{m}</span>
-                          ))}
-                        </div>
-                      )}
-                      {s.rescan && (
-                        <div
-                          title={s.rescan_reason || undefined}
-                          className={classNames(
-                            'chip mt-1 whitespace-nowrap',
-                            s.rescan_done
-                              ? 'border-slate-200 bg-slate-50 text-slate-500'
-                              : 'border-rose-200 bg-rose-100 text-rose-700',
-                          )}
-                        >
-                          {s.rescan_done ? 'סריקה חוזרת בוצעה' : `סריקה חוזרת ${s.rescan_date ? formatDate(s.rescan_date) : '— ללא תאריך'}`}
-                        </div>
-                      )}
-                    </td>
-                    <td className="max-w-[160px] p-2 text-xs text-slate-500">{s.anaesthesia_note || '—'}</td>
-                    <td className="p-2 text-center">
-                      <input type="checkbox" className="h-4 w-4" aria-label={`${s.patient_name}: נסרק`} checked={s.scanned}
-                        onChange={(e) => patch.mutate({ id: s.id, patch: { scanned: e.target.checked } })} />
-                    </td>
-                    <td className="p-2 text-center">
-                      <input type="checkbox" className="h-4 w-4" aria-label={`${s.patient_name}: הועלה דיסק`} checked={s.disk_collected}
-                        onChange={(e) => patch.mutate({ id: s.id, patch: { disk_collected: e.target.checked } })} />
-                    </td>
-                    <td className="p-2 text-center">
-                      <input type="checkbox" className="h-4 w-4" aria-label={`${s.patient_name}: תוכנית מוכנה`} checked={s.plan_ready}
-                        onChange={(e) => patch.mutate({ id: s.id, patch: { plan_ready: e.target.checked } })} />
-                    </td>
-                    <td className="max-w-[180px] p-2 text-xs text-slate-500">{implantSummary(s, implantRows) || '—'}</td>
-                    <td className="whitespace-nowrap p-2">
-                      <span className={classNames('chip', s.status === 'postponed' ? 'border-amber-300 bg-amber-100 text-amber-800' : s.status === 'cancelled' ? 'border-red-200 bg-red-50 text-red-600' : 'border-slate-200 bg-slate-50 text-slate-600')}>
-                        {SCAN_STATUS_LABELS[s.status]}
-                      </span>
-                    </td>
-                    <td className="whitespace-nowrap p-2">
-                      <div className="flex gap-1">
-                        <button
-                          className="btn-ghost !px-2 disabled:opacity-30"
-                          title="זימון Outlook (קובץ .ics)"
-                          aria-label={`זימון Outlook: ${s.patient_name}`}
-                          disabled={!hasEvents}
-                          onClick={() => inviteFor([s])}
-                        >
-                          <CalendarPlus size={14} />
-                        </button>
-                        <button className="btn-ghost !px-2" onClick={() => setStatusFor(s)} aria-label={`נדחה, בוטל או בוצע: ${s.patient_name}`} title="נדחה / בוטל / בוצע">
-                          <CalendarClock size={14} />
-                        </button>
-                        <button className="btn-ghost !px-2" onClick={() => setEditing(s)} aria-label="עריכה" title="עריכה">
-                          <Pencil size={14} />
-                        </button>
-                        <ConfirmButton className="btn-ghost !px-2 text-red-500" onConfirm={() => del.mutate(s.id)}>
-                          <Trash2 size={14} />
-                        </ConfirmButton>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
+              {shown.map((s) => (
+                <ScanRow key={s.id} s={s} selected={selected.has(s.id)} highlighted={highlight === s.id} implantRows={implantRows} today={today} actions={actions} />
+              ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {rows.length > shown.length && (
+        <div className="flex justify-center">
+          <button type="button" className="btn-secondary" onClick={() => setLimit((l) => l + PAGE)}>
+            הצג עוד ({rows.length - shown.length})
+          </button>
         </div>
       )}
 

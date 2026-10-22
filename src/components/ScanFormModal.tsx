@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import {
   useDoctors,
   useImplantFields,
@@ -15,7 +15,6 @@ import {
 import { Field, Modal } from './ui'
 import { implantFieldsOf, optionsForField } from '../lib/implants'
 import { ImportContactButton } from './ImportContactButton'
-
 export type ScanDraft = {
   hospital_id: string
   surgery_date: string
@@ -100,18 +99,30 @@ export function ScanFormModal({
 
   const implantFields = useMemo(() => implantFieldsOf(d.procedure_type, fieldRows.data), [d.procedure_type, fieldRows.data])
 
-  function fail(e: typeof fieldErr) {
-    setFieldErr(e)
-    setError('יש להשלים את השדות המסומנים')
+  // what was on the form when it opened: closing with typed changes asks first (Escape / a tap outside must not lose a patient's details)
+  const [opened] = useState(() => JSON.stringify(d))
+  function close() {
+    if (JSON.stringify(d) === opened || window.confirm('לסגור בלי לשמור? מה שהוקלד יימחק.')) onClose()
   }
 
+  // a ref, not `save.isPending`: two taps in the same instant both see "not saving yet" until the screen redraws
+  const sending = useRef(false)
+
   async function submit() {
+    if (sending.current) return
     setError(null)
-    setFieldErr({})
-    if (!d.hospital_id) return fail({ hospital: 'בחר בית חולים' })
-    if (!d.patient_name.trim()) return fail({ name: 'הזן שם מטופל' })
-    if (d.status === 'done' && !d.surgeon_id)
-      return fail({ surgeon: 'ניתוח שבוצע — יש לשייך מנתח' })
+    const errs: typeof fieldErr = {}
+    if (!d.hospital_id) errs.hospital = 'בחר בית חולים'
+    if (!d.patient_name.trim()) errs.name = 'הזן שם מטופל'
+    if (d.status === 'done' && !d.surgeon_id) errs.surgeon = 'ניתוח שבוצע — יש לשייך מנתח'
+    setFieldErr(errs)
+    if (Object.keys(errs).length > 0) {
+      setError('יש להשלים את השדות המסומנים')
+      // the first missing field gets the cursor (on a phone it may be far above the save button)
+      setTimeout(() => document.querySelector<HTMLElement>('[role="dialog"] [aria-invalid="true"]')?.focus(), 60)
+      return
+    }
+    sending.current = true
     try {
       await save.mutateAsync({
         id: scan?.id,
@@ -143,14 +154,24 @@ export function ScanFormModal({
       })
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'שמירה נכשלה')
+      const msg = err instanceof Error ? err.message : typeof err === 'object' && err && 'message' in err ? String((err as { message: unknown }).message) : ''
+      setError(/אין חיבור/.test(msg) ? 'אין חיבור לרשת — המטופל לא נשמר. נסה שוב כשהחיבור חוזר.' : /status_check/.test(msg) ? 'הסטטוס "נדחה" עוד לא פעיל במסד הנתונים — בחר סטטוס אחר ופנה למנהל המערכת.' : msg ? `השמירה נכשלה: ${msg}` : 'השמירה נכשלה')
+    } finally {
+      sending.current = false
     }
   }
 
   const check = 'flex min-h-[40px] items-center gap-2 text-sm'
 
   return (
-    <Modal open onClose={onClose} title={scan ? 'עריכת מטופל' : 'הוספת מטופל'} size="xl">
+    <Modal open onClose={close} title={scan ? 'עריכת מטופל' : 'הוספת מטופל'} size="xl">
+      <form
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault()
+          void submit()
+        }}
+      >
       <div className="space-y-5">
         {notices && notices.length > 0 && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
@@ -339,9 +360,10 @@ export function ScanFormModal({
         <p role="alert" className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
       )}
       <div className="mt-5 flex justify-end gap-2 border-t border-slate-200 pt-4">
-        <button className="btn-secondary" onClick={onClose}>ביטול</button>
-        <button className="btn-primary" onClick={submit} disabled={save.isPending}>{save.isPending ? 'שומר…' : 'שמירה'}</button>
+        <button type="button" className="btn-secondary" onClick={close}>ביטול</button>
+        <button type="submit" className="btn-primary" disabled={save.isPending}>{save.isPending ? 'שומר…' : 'שמירה'}</button>
       </div>
+      </form>
     </Modal>
   )
 }

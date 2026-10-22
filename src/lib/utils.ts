@@ -47,3 +47,12 @@ export function csvCell(v: unknown): string {
   if (typeof v !== 'number' && /^[=+\-@\t\r]/.test(s) && !/^[+-]?\d+([.,]\d+)?$/.test(s)) s = `'${s}`
   return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
 }
+
+/**
+ * An ID or a phone number that Excel must keep as text (it would drop the leading zero of 037372901). Written as ="037372901":
+ * only for a string of digits, dashes and spaces (a phone may start with +), which cannot be a formula. Anything else goes through csvCell.
+ */
+export function csvTextDigits(v: unknown): string {
+  const s = String(v ?? '').trim()
+  return /^\+?[\d\- ]*\d[\d\- ]*$/.test(s) ? `="${s}"` : csvCell(v)
+}

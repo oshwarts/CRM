@@ -25,6 +25,11 @@ let overflowBefore = ''
 export function useDialog(open: boolean, onClose: () => void, box: RefObject<HTMLElement | null>) {
   const closeRef = useRef(onClose)
   closeRef.current = onClose
+  // what had the focus before the dialog opened — noted while rendering, i.e. BEFORE a child's autoFocus runs (in the effect it would
+  // already be a field inside the dialog, and closing could not give the focus back to the button that opened it)
+  const openerRef = useRef<HTMLElement | null>(null)
+  if (open && openerRef.current === null) openerRef.current = document.activeElement as HTMLElement | null
+  if (!open) openerRef.current = null
 
   useEffect(() => {
     if (!open) return
@@ -34,7 +39,7 @@ export function useDialog(open: boolean, onClose: () => void, box: RefObject<HTM
       document.body.style.overflow = 'hidden'
     }
     openModals.push(token)
-    const before = document.activeElement as HTMLElement | null
+    const before = openerRef.current
     if (box.current && !box.current.contains(document.activeElement)) box.current.focus({ preventScroll: true })
     const onKey = (e: KeyboardEvent) => {
       if (openModals[openModals.length - 1] !== token) return
@@ -240,10 +245,12 @@ export function ErrorState({ error }: { error: unknown }) {
       : typeof error === 'object' && error && 'message' in error
         ? String((error as { message: unknown }).message)
         : ''
+  // a dropped connection is not something to show as "TypeError: Failed to fetch"
+  const offline = /failed to fetch|networkerror|network request failed|load failed|fetch failed/i.test(real)
   return (
     <div role="alert" className="space-y-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-      <p>שגיאה בטעינת הנתונים. אם זה חוזר, רענן את האפליקציה כדי לקבל את הגרסה האחרונה.</p>
-      {real && (
+      <p>{offline ? 'אין חיבור לשרת כרגע. בדוק את הרשת ונסה שוב — מה שכבר נטען נשמר במכשיר.' : 'שגיאה בטעינת הנתונים. אם זה חוזר, רענן את האפליקציה כדי לקבל את הגרסה האחרונה.'}</p>
+      {real && !offline && (
         <p dir="auto" className="text-xs text-red-500">
           {real}
         </p>

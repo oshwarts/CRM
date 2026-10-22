@@ -127,10 +127,10 @@ export function TimeGrid({
                       }}
                       title={`${it.time} ${KINDS[it.kind].label}: ${it.title}${it.sub ? ` — ${it.sub}` : ''}`}
                     >
-                      <span className="block truncate font-semibold">
+                      <span className={classNames('block font-semibold [overflow-wrap:anywhere]', dur >= 45 ? 'line-clamp-2' : 'truncate')}>
                         <span dir="ltr">{it.time}</span> {it.title}
                       </span>
-                      {dur >= 45 && it.sub && <span className="block truncate opacity-80">{it.sub}</span>}
+                      {dur >= 60 && it.sub && <span className="block truncate opacity-80">{it.sub}</span>}
                     </button>
                   )
                 })}

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useDraft } from '../lib/useDraft'
 import { QuickDates } from './QuickDates'
 import { SearchSelect } from './SearchSelect'
@@ -67,6 +67,10 @@ export function TaskFormModal({
   const guess = useTaskGuess(task ? '' : d.description) // suggestions only for a new task
   const set = (p: Partial<TaskFormData>) => setD((x) => ({ ...x, ...p }))
 
+  // focus the text field after the dialog has noted which button opened it (React's autoFocus runs earlier and would hide the opener,
+  // so that closing the dialog could not give the focus back to it)
+  const descRef = useRef<HTMLTextAreaElement>(null)
+  useEffect(() => descRef.current?.focus({ preventScroll: true }), [])
   const sending = useRef(false) // a second tap before the screen has re-rendered must not create a second task
   async function submit() {
     if (sending.current) return
@@ -94,7 +98,7 @@ export function TaskFormModal({
           <textarea
             className="input min-h-20"
             dir="auto"
-            autoFocus
+            ref={descRef}
             placeholder="מה צריך לעשות?"
             value={d.description}
             onChange={(e) => set({ description: e.target.value })}

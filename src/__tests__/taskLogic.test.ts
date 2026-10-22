@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bucketOf, compareOpen, dueLabel, nextDue, taskError } from '../lib/taskLogic'
+import { bucketOf, compareOpen, dueLabel, nextCopyId, nextDue, stableUuid, taskError } from '../lib/taskLogic'
 
 // Tuesday 2026-10-20, a quarter past midnight: the local day must be used (not UTC)
 const now = new Date(2026, 9, 20, 0, 15)
@@ -78,5 +78,24 @@ describe('taskError', () => {
     expect(taskError(new Error('הרשומה נמחקה על ידי משתמש אחר'), 'x')).toBe('הרשומה נמחקה על ידי משתמש אחר')
     expect(taskError({ message: 'duplicate key value' }, 'השמירה נכשלה')).toBe('השמירה נכשלה')
     expect(taskError(undefined, 'השמירה נכשלה')).toBe('השמירה נכשלה')
+  })
+})
+
+describe('nextCopyId (completing a repeating task twice must name the same copy)', () => {
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+  it('is a valid uuid and always the same for the same source task', () => {
+    const src = '2836e130-541f-43e5-8874-76a2d960d583'
+    expect(nextCopyId(src)).toMatch(UUID)
+    expect(nextCopyId(src)).toBe(nextCopyId(src)) // reopen + complete again, a retry, an offline replay
+    expect(nextCopyId(src)).not.toBe(src)
+  })
+  it('differs between source tasks, and the chain (copy of the copy) differs too', () => {
+    const ids = new Set<string>()
+    for (let i = 0; i < 2000; i++) ids.add(nextCopyId(`task-${i}`))
+    expect(ids.size).toBe(2000)
+    expect(nextCopyId(nextCopyId('a'))).not.toBe(nextCopyId('a'))
+  })
+  it('stableUuid is valid for any text, including Hebrew and an empty one', () => {
+    for (const t of ['', 'x', 'שלום עולם 🚀', 'a'.repeat(500)]) expect(stableUuid(t)).toMatch(UUID)
   })
 })

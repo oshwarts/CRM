@@ -67,18 +67,8 @@ export function useSavePlannedSurgery() {
       const res = id ? await db.from('planned_surgeries').update(payload).eq('id', id) : await db.from('planned_surgeries').insert(payload)
       if (res.error) throw res.error
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
-  })
-}
-
-export function useSetSurgeryStatus() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: PlannedSurgery['status'] }) => {
-      const { error } = await db.from('planned_surgeries').update({ status }).eq('id', id)
-      if (error) throw error
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+    // reloads in the background: the form closes at once, even on a slow connection
+    onSuccess: () => void qc.invalidateQueries({ queryKey: KEY }),
   })
 }
 
@@ -89,6 +79,7 @@ export function useDeletePlannedSurgery() {
       const { error } = await db.from('planned_surgeries').delete().eq('id', id)
       if (error) throw error
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+    // reloads in the background: the form closes at once, even on a slow connection
+    onSuccess: () => void qc.invalidateQueries({ queryKey: KEY }),
   })
 }

@@ -23,6 +23,7 @@ import { LinkedTasks } from '../components/LinkedTasks'
 import { CompetitorSection } from '../components/CompetitorSection'
 import { ErrorState, Spinner } from '../components/ui'
 import { DOCTOR_STATUS_LABELS, SECTOR_LABELS } from '../lib/types'
+import { matchesWords, searchKey, searchWords } from '../lib/contactMatch'
 
 function pinIcon(active: boolean, count: number, base?: string) {
   const color = active ? '#00326d' : (base ?? (count > 0 ? '#1863dc' : '#94a3b8'))
@@ -47,15 +48,6 @@ function km(a: [number, number], b: [number, number]) {
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a[0])) * Math.cos(rad(b[0])) * Math.sin(dLng / 2) ** 2
   return 6371 * 2 * Math.asin(Math.sqrt(h))
 }
-
-// ignore case, quotes / geresh marks, dots and dashes so "הדסה עין-כרם" matches "הדסה עין כרם"
-const normalize = (s: string) =>
-  s
-    .toLowerCase()
-    .replace(/["'`.׳״‘’“”]/g, '')
-    .replace(/[-־]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
 
 // flies to the selected hospital, or fits the search results, or shows all of Israel
 function MapFocus({
@@ -153,13 +145,13 @@ export default function MapPage({ embedded, pinColor }: { embedded?: boolean; pi
   }, [distances, map.data])
 
   const filtered = useMemo(() => {
-    const q = normalize(query)
+    const words = searchWords(query)
     const list = (map.data ?? []).filter(
       (h) =>
         (!orgFilter || h.organization?.name === orgFilter) &&
         (!robotFilter || h.hospital_robotic_systems.some((r) => r.system?.name === robotFilter)) &&
         (!mine || !hasMine || isMine(h)) &&
-        (!q || normalize(`${h.name} ${h.city}`).includes(q)),
+        (!words.length || matchesWords(words, searchKey(`${h.name} ${h.city}`))),
     )
     return pos ? [...list].sort((a, b) => (distances.get(a.id) ?? 1e9) - (distances.get(b.id) ?? 1e9)) : list
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -267,7 +259,12 @@ export default function MapPage({ embedded, pinColor }: { embedded?: boolean; pi
             <Navigation size={13} /> מצא בית חולים קרוב אליי
           </button>
         )}
-        {geo === 'denied' && !nearest && <span className="text-xs text-slate-400">אפשר מיקום בדפדפן כדי להתחיל מהקרוב אליך</span>}
+        {geo === 'denied' && !nearest && <span className="text-xs text-slate-500">אפשר מיקום בדפדפן כדי להתחיל מהקרוב אליך</span>}
+        {filtered.length > withCoords.length && (
+          <span className="text-xs text-amber-700">
+            {filtered.length - withCoords.length === 1 ? 'בית חולים אחד' : `${filtered.length - withCoords.length} בתי חולים`} ללא מיקום — ברשימה, לא על המפה
+          </span>
+        )}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
@@ -275,7 +272,8 @@ export default function MapPage({ embedded, pinColor }: { embedded?: boolean; pi
           <MapContainer
             center={[31.6, 34.95]}
             zoom={8}
-            style={{ height: '100%', width: '100%' }}
+            // the colour behind the tiles: shows (in the theme's colour) while they load or when there is no connection
+            style={{ height: '100%', width: '100%', background: 'rgb(var(--slate-200))' }}
             scrollWheelZoom
           >
             <TileLayer
@@ -315,6 +313,11 @@ export default function MapPage({ embedded, pinColor }: { embedded?: boolean; pi
             </>
           ) : (
             <div className="space-y-2">
+              {selectedId && (
+                <p role="alert" className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                  בית החולים שביקשת לא נמצא (אולי נמחק). אפשר לבחור מהרשימה.
+                </p>
+              )}
               <p className="text-sm font-medium text-slate-600">
                 בתי חולים ({filtered.length})
               </p>
@@ -353,7 +356,8 @@ export default function MapPage({ embedded, pinColor }: { embedded?: boolean; pi
                   </span>
                   <span className="shrink-0 text-xs text-slate-400">
                     {distances.has(h.id) ? `${(distances.get(h.id) as number).toFixed(1)} ק״מ · ` : ''}
-                    {h.doctor_hospitals.length} רופאים
+                    {h.lat == null || h.lng == null ? <span className="text-amber-700">ללא מיקום · </span> : null}
+                    {h.doctor_hospitals.length === 1 ? 'רופא אחד' : `${h.doctor_hospitals.length} רופאים`}
                   </span>
                 </button>
               ))}
@@ -405,6 +409,9 @@ function HospitalPanel({ hospital }: { hospital: MapHospital }) {
             ? ` · ${SECTOR_LABELS[hospital.sector] ?? hospital.sector}`
             : ''}
         </p>
+        {(hospital.lat == null || hospital.lng == null) && (
+          <p className="mt-1 text-xs text-amber-700">אין מיקום לבית החולים, לכן הוא לא מופיע על המפה (אפשר להוסיף בהגדרות). הניווט לפי השם.</p>
+        )}
         <Link to={`/hospitals/${hospital.id}`} className="mt-1 inline-block text-sm font-medium text-brand-600 hover:underline">
           לכרטיס בית החולים המלא →
         </Link>

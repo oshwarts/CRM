@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useState } from 'react'
+import { lazy, Suspense, useMemo, useState, useSyncExternalStore } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { AlertTriangle, Building2, Download, CalendarDays, Navigation, Phone, Scissors, Search, SlidersHorizontal, User } from 'lucide-react'
 import { useMapData, useMeetings, usePatientScans } from '../lib/api'
@@ -6,6 +6,7 @@ import { usePlannedSurgeries } from '../lib/plannedSurgeries'
 import { buildHospitalRows, NO_VISIT_DAYS, STATUS_CHIP, STATUS_LABELS, STATUS_ORDER, STATUS_PIN, useSetHospitalCommercial, type CommercialStatus, type HospitalRow, type Warning } from '../lib/hospitalStats'
 import { usePersisted } from '../lib/usePersisted'
 import { downloadCsv } from '../lib/csv'
+import { matchesWords, searchKey, searchWords } from '../lib/contactMatch'
 import { useAuth } from '../context/AuthProvider'
 import { classNames, formatDate, todayISO } from '../lib/utils'
 import { EmptyState, ErrorState, Spinner, Tab, TabList, TabPanel, Tabs } from '../components/ui'
@@ -16,9 +17,21 @@ import { PlannedSurgeryModal } from '../components/PlannedSurgeryModal'
 const MapPage = lazy(() => import('./MapPage'))
 
 type Filters = { q: string; status: '' | CommercialStatus; org: string; robot: string; agent: string; warn: '' | 'any' | Warning['key']; mine: boolean; sort: string }
-const NO_FILTERS: Filters = { q: '', status: '', org: '', robot: '', agent: '', warn: '', mine: false, sort: 'name' }
+/** the table on a wide screen, cards on the phone: only one of them is drawn (100 hospitals twice is heavy) */
+const WIDE = '(min-width: 768px)'
+function useWide() {
+  return useSyncExternalStore(
+    (cb) => {
+      const m = window.matchMedia(WIDE)
+      m.addEventListener('change', cb)
+      return () => m.removeEventListener('change', cb)
+    },
+    () => window.matchMedia(WIDE).matches,
+    () => false,
+  )
+}
 
-const norm = (s: string) => s.toLowerCase().replace(/["'`.׳״‘’“”]/g, '').replace(/[-־]/g, ' ').replace(/\s+/g, ' ').trim()
+const NO_FILTERS: Filters = { q: '', status: '', org: '', robot: '', agent: '', warn: '', mine: false, sort: 'name' }
 
 const SORTS: Record<string, { label: string; cmp: (a: HospitalRow, b: HospitalRow) => number }> = {
   name: { label: 'שם', cmp: (a, b) => a.h.name.localeCompare(b.h.name, 'he') },
@@ -34,7 +47,7 @@ function StatusSelect({ row }: { row: HospitalRow }) {
   const set = useSetHospitalCommercial()
   return (
     <select
-      className={classNames('min-h-8 max-w-full shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium', STATUS_CHIP[row.status])}
+      className={classNames('min-h-10 max-w-full shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium sm:min-h-8', STATUS_CHIP[row.status])}
       value={row.status}
       aria-label={`סטטוס מסחרי של ${row.h.name}`}
       title={row.suggested ? 'הסטטוס מוצע לפי הרובוטים — בחירה שומרת אותו' : undefined}
@@ -98,7 +111,7 @@ function lastText(row: HospitalRow) {
   if (row.daysSince === null) return <span className="text-slate-400">—</span>
   return (
     <span className={classNames(row.daysSince > NO_VISIT_DAYS && 'font-semibold text-amber-700')} title={row.lastMeeting ? formatDate(row.lastMeeting) : undefined}>
-      {row.daysSince === 0 ? 'היום' : `לפני ${row.daysSince} ימים`}
+      {row.daysSince === 0 ? 'היום' : row.daysSince === 1 ? 'אתמול' : `לפני ${row.daysSince} ימים`}
     </span>
   )
 }
@@ -109,10 +122,11 @@ export default function Hospitals() {
   const meetings = useMeetings()
   const scans = usePatientScans()
   const planned = usePlannedSurgeries()
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
   const [params] = useSearchParams()
   const [tab, setTab] = useState(params.get('hospital') ? 'map' : 'list')
   const [f, setF] = usePersisted<Filters>('hospitals.filters', NO_FILTERS)
+  const wide = useWide()
   const [modal, setModal] = useState<{ kind: 'meeting' | 'surgery'; hospitalId: string } | null>(null)
   // on the phone the four selects hide behind one "filter" button (open from the start when one is active)
   const [panel, setPanel] = useState(() => !!(f.status || f.org || f.robot || f.agent))
@@ -146,7 +160,7 @@ export default function Hospitals() {
   )
 
   const shown = useMemo(() => {
-    const words = norm(f.q).split(' ').filter(Boolean)
+    const words = searchWords(f.q)
     const list = rows.filter(
       (r) =>
         (!f.status || r.status === f.status) &&
@@ -155,13 +169,24 @@ export default function Hospitals() {
         (!f.agent || r.agents.some((a) => a.id === f.agent)) &&
         (!f.mine || r.agents.some((a) => a.id === user?.id)) &&
         (!f.warn || (f.warn === 'any' ? r.warnings.length > 0 : r.warnings.some((w) => w.key === f.warn))) &&
-        (!words.length || words.every((w) => norm(`${r.h.name} ${r.h.city} ${r.h.organization?.name ?? ''}`).includes(w))),
+        (!words.length || matchesWords(words, searchKey(`${r.h.name} ${r.h.city} ${r.h.organization?.name ?? ''}`))),
     )
     return [...list].sort((SORTS[f.sort] ?? SORTS.name).cmp)
   }, [rows, f, user?.id])
 
   if (map.isLoading) return <Spinner />
   if (map.error && !map.data) return <ErrorState error={map.error} />
+  if (rows.length === 0)
+    return (
+      <div className="space-y-4">
+        <h1 className="text-2xl font-semibold text-brand-800 sm:text-3xl">בתי חולים</h1>
+        <EmptyState
+          title="עדיין לא הוגדרו בתי חולים"
+          hint={isAdmin ? 'מוסיפים בית חולים בהגדרות — עם שם, עיר ומיקום, והוא יופיע כאן וגם על המפה' : 'בתי החולים מוגדרים על ידי המנהל'}
+          action={isAdmin ? <Link to="/settings" className="btn-primary">להגדרות בתי החולים</Link> : undefined}
+        />
+      </div>
+    )
 
   /** the list as shown (filters and sort applied) as a file for Excel */
   const exportCsv = () =>
@@ -197,7 +222,7 @@ export default function Hospitals() {
       onClick={onClick}
       aria-pressed={active}
       className={classNames(
-        'chip',
+        'chip min-h-10',
         active
           ? 'border-brand-500 bg-brand-600 text-white'
           : warn && value > 0
@@ -251,7 +276,7 @@ export default function Hospitals() {
                 <SlidersHorizontal size={15} /> סינון
                 {activeSelects > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-brand-600 px-1 text-xs text-white">{activeSelects}</span>}
               </button>
-              <select className="input min-w-0 flex-1 sm:!w-auto sm:flex-none" value={f.sort} aria-label="מיון" onChange={(e) => set({ sort: e.target.value })}>
+              <select className="input min-w-[9rem] flex-1 sm:!w-auto sm:flex-none" value={f.sort} aria-label="מיון" onChange={(e) => set({ sort: e.target.value })}>
                 {Object.entries(SORTS).map(([k, s]) => (
                   <option key={k} value={k}>
                     מיון: {s.label}
@@ -259,11 +284,11 @@ export default function Hospitals() {
                 ))}
               </select>
               {hasMine && (
-                <button type="button" aria-pressed={f.mine} onClick={() => set({ mine: !f.mine })} className={classNames('chip', f.mine ? 'border-brand-500 bg-brand-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50')}>
+                <button type="button" aria-pressed={f.mine} onClick={() => set({ mine: !f.mine })} className={classNames('chip min-h-10 sm:min-h-0', f.mine ? 'border-brand-500 bg-brand-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50')}>
                   <User size={13} /> בתי החולים שלי
                 </button>
               )}
-              <div className={classNames('grid-cols-2 gap-2 sm:flex sm:flex-wrap', panel ? 'grid w-full' : 'hidden')}>
+              <div className={classNames('grid-cols-2 gap-2 sm:flex sm:w-full sm:flex-wrap', panel ? 'grid w-full' : 'hidden')}>
               <select className="input !w-full sm:!w-auto" value={f.status} aria-label="סטטוס מסחרי" onChange={(e) => set({ status: e.target.value as Filters['status'] })}>
                 <option value="">כל הסטטוסים</option>
                 {STATUS_ORDER.map((s) => (
@@ -298,7 +323,8 @@ export default function Hospitals() {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="flex items-center gap-3 text-sm text-slate-500">
                 <span>
-                  {shown.length} בתי חולים{filtered ? ` מתוך ${rows.length}` : ''}
+                  {shown.length === 1 ? 'בית חולים אחד' : `${shown.length} בתי חולים`}
+                  {filtered ? ` מתוך ${rows.length}` : ''}
                 </span>
                 {filtered && (
                   <button type="button" className="text-sm font-medium text-brand-600 underline" onClick={() => setF({ ...NO_FILTERS, sort: f.sort })}>
@@ -316,7 +342,8 @@ export default function Hospitals() {
             ) : (
               <>
                 {/* desktop: a table */}
-                <div tabIndex={0} className="card hidden overflow-x-auto md:block">
+                {wide ? (
+                <div tabIndex={0} role="region" aria-label="טבלת בתי החולים" className="card overflow-x-auto">
                   <table className="w-full min-w-[860px] text-sm">
                     <thead>
                       <tr className="border-b border-slate-200 bg-slate-50 text-right text-xs text-slate-500">
@@ -365,13 +392,14 @@ export default function Hospitals() {
                   </table>
                 </div>
 
-                {/* phone: cards */}
-                <ul className="space-y-2.5 md:hidden">
+                ) : (
+                /* phone: cards */
+                <ul className="space-y-2.5">
                   {shown.map((r) => (
                     <li key={r.h.id} className="card space-y-2.5 p-3.5">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <Link to={`/hospitals/${r.h.id}`} className="flex min-h-8 items-start gap-1.5 py-1 text-base font-semibold leading-snug text-brand-800">
+                          <Link to={`/hospitals/${r.h.id}`} className="flex min-h-10 items-start gap-1.5 py-2 text-base font-semibold leading-snug text-brand-800">
                             <Building2 size={15} className="mt-1 shrink-0" /> <span className="break-words">{r.h.name}</span>
                           </Link>
                           <p className="text-xs text-slate-500">{[r.h.city, r.h.organization?.name].filter(Boolean).join(' · ')}</p>
@@ -407,6 +435,7 @@ export default function Hospitals() {
                     </li>
                   ))}
                 </ul>
+                )}
               </>
             )}
             {counts.attention > 0 && (

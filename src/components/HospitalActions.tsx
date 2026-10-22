@@ -12,7 +12,8 @@ type NavHospital = Pick<Hospital, 'name' | 'city' | 'address' | 'lat' | 'lng'>
 /** Waze and Google Maps links — by coordinates when the hospital has them, otherwise by name and city */
 export function hospitalNavLinks(h: NavHospital) {
   const hasCoords = h.lat != null && h.lng != null
-  const place = [h.name, h.address, h.city].filter(Boolean).join(' ')
+  // the city is left out when the name already says it ("אסותא אשדוד")
+  const place = [h.name, h.address, h.city && !h.name.includes(h.city) ? h.city : ''].filter(Boolean).join(' ')
   return {
     waze: hasCoords
       ? `https://waze.com/ul?ll=${h.lat},${h.lng}&navigate=yes`
