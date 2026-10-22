@@ -26,7 +26,7 @@ export const NAV = [
   { to: '/doctors', label: 'רופאים', short: 'רופאים', icon: Stethoscope, end: false },
   { to: '/tasks', label: 'משימות', short: 'משימות', icon: ListChecks, end: false },
   { to: '/projects', label: 'פרויקטים', short: 'פרויקטים', icon: FolderKanban, end: false },
-  { to: '/schedule', label: 'לוז שבועי', short: 'לוז', icon: CalendarRange, end: false },
+  { to: '/schedule', label: 'לוז', short: 'לוז', icon: CalendarRange, end: false },
   { to: '/meetings', label: 'פגישות', short: 'פגישות', icon: CalendarDays, end: false },
   { to: '/map', label: 'בתי חולים', short: 'בתי חולים', icon: MapIcon, end: false },
   { to: '/scans', label: 'סריקות MAKO', short: 'סריקות', icon: ScanLine, end: false },

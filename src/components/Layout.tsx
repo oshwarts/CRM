@@ -40,7 +40,7 @@ const TABS = ['/', '/doctors', '/tasks', '/schedule']
 // scroll position of each visited page, so that going back returns to the same place
 const scrollOf = new Map<string, number>()
 
-const VERSION = 'v132 · הליכים בתוך הליכים ובקשת הליך חדש, ימי מרפאה (ציבורי ופרטי עם כתובת), הצעות לשיפור המערכת'
+const VERSION = 'v133 · לוז כמו Outlook: יומי, שבועי וחודשי, יצירה בלחיצה על שעה פנויה, משימות ביומן והוספה ל-Outlook'
 
 export function Layout() {
   const { profile, signOut, impersonating, isDeveloper } = useAuth()

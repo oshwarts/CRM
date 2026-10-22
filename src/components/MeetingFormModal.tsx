@@ -34,6 +34,9 @@ type Props = {
   meeting?: MeetingWithRelations
   defaultDoctorId?: string
   defaultHospitalId?: string
+  /** a new meeting that starts from a free hour of the calendar */
+  defaultDate?: string
+  defaultTime?: string
 }
 
 function initial(
@@ -41,11 +44,13 @@ function initial(
   agentId: string | undefined,
   defaultDoctorId: string | undefined,
   defaultHospitalId?: string,
+  defaultDate?: string,
+  defaultTime?: string,
 ): MeetingFormData {
   return {
     subject: meeting?.subject ?? '',
-    meeting_date: meeting?.meeting_date ?? null,
-    meeting_time: meeting?.meeting_time?.slice(0, 5) ?? null,
+    meeting_date: meeting?.meeting_date ?? defaultDate ?? null,
+    meeting_time: meeting?.meeting_time?.slice(0, 5) ?? defaultTime ?? null,
     location: meeting?.location ?? '',
     responsible_agent_id: meeting?.responsible_agent_id ?? agentId ?? null,
     status: meeting?.status ?? 'scheduled',
@@ -123,6 +128,8 @@ export function MeetingFormModal({
   meeting,
   defaultDoctorId,
   defaultHospitalId,
+  defaultDate,
+  defaultTime,
 }: Props) {
   const isEdit = !!meeting
   const { user } = useAuth()
@@ -136,7 +143,7 @@ export function MeetingFormModal({
 
   const [tab, setTab] = useState('general')
   const [data, setData] = useState<MeetingFormData>(() =>
-    initial(meeting, user?.id, defaultDoctorId, defaultHospitalId),
+    initial(meeting, user?.id, defaultDoctorId, defaultHospitalId, defaultDate, defaultTime),
   )
   const [error, setError] = useState<string | null>(null)
   const [focusTask, setFocusTask] = useState<number | null>(null)
