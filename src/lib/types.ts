@@ -13,6 +13,8 @@ export type CompetitorIntel = Tables<'competitor_intel'>
 export type CompetitorIntelRow = CompetitorIntel & {
   doctor: Pick<Doctor, 'id' | 'name' | 'title'> | null
   hospital: Pick<Hospital, 'id' | 'name'> | null
+  /** the meeting this record was written in (its competitor activity) */
+  meeting?: { id: string; subject: string } | null
 }
 export type Competitor = Tables<'competitors'>
 export type AuditEntry = Tables<'audit_log'>

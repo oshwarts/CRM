@@ -5,6 +5,7 @@ import {
 } from '@tanstack/react-query'
 import { nextDue } from './taskLogic'
 import { supabase } from './supabase'
+import { syncMeetingIntel } from './meetingIntel'
 import { withParentNames } from './procedures'
 import { fileHash } from './docDuplicates'
 import { useAuth } from '../context/AuthProvider'
@@ -575,6 +576,8 @@ export type MeetingFormData = {
   agentIds: string[]
   extraParticipants: string
   competitor_notes: string
+  /** the competitor the meeting text is about (undefined = not touched: the record keeps its competitor) */
+  competitorId?: string | null
   tasks: { id?: string; description: string; is_done: boolean; due_date: string | null }[]
 }
 
@@ -1912,7 +1915,7 @@ export function useDeleteTask() {
 
 /* ============================ Competitor activity ============================ */
 
-const INTEL_SELECT = '*, doctor:doctors(id, name, title), hospital:hospitals(id, name)'
+const INTEL_SELECT = '*, doctor:doctors(id, name, title), hospital:hospitals(id, name), meeting:meetings(id, subject)'
 
 export function useCompetitorIntel() {
   return useQuery({
@@ -2528,6 +2531,7 @@ async function execMeetingSave(p: MeetingSavePayload): Promise<ExecResult> {
     if (Object.keys(patch).length) result = await mergePatch('meetings', p.id, patch, p.base)
   }
   await saveMeetingChildren(p.id, p.data, p.baseTaskIds, p.baseJoins ?? null)
+  await syncMeetingIntel(p.id, p.data)
   return result
 }
 registerExecutor<MeetingSavePayload>('meeting.save', execMeetingSave)

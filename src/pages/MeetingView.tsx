@@ -16,6 +16,7 @@ import {
   User,
 } from 'lucide-react'
 import {
+  useCompetitorIntel,
   useDeleteMeeting,
   useDoctorMeetings,
   useMeeting,
@@ -35,6 +36,9 @@ export default function MeetingView() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const meeting = useMeeting(id)
+  const intel = useCompetitorIntel()
+  // the record of this meeting on the competitors side (the competitor it is about)
+  const competitorRecord = (intel.data ?? []).find((i) => i.meeting_id === id)
   const toggleTask = useToggleMeetingTask()
   const deleteMeeting = useDeleteMeeting()
   const canDelete = useCanDelete()
@@ -291,6 +295,13 @@ ${mail.body}`)) ? 'הסיכום הועתק.' : 'ההעתקה נכשלה.')}
         {m.competitor_notes && (
           <section aria-label="פעילות מתחרים" className="rounded-xl bg-amber-50 p-3">
             <h2 className="mb-1 text-sm font-semibold text-slate-700">פעילות מתחרים</h2>
+            {competitorRecord?.competitor_id && (
+              <p className="mb-1 text-sm">
+                <Link to={`/competitors/${competitorRecord.competitor_id}`} className="inline-flex min-h-[32px] items-center font-medium text-brand-700 hover:underline">
+                  {competitorRecord.competitor || 'כרטיס המתחרה'} ← לכרטיס המתחרה
+                </Link>
+              </p>
+            )}
             <p className="whitespace-pre-wrap break-words text-base leading-relaxed text-slate-800 sm:text-sm">{m.competitor_notes}</p>
           </section>
         )}

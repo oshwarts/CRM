@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Camera, CheckSquare, ChevronDown, Pencil, Plus, Swords, X } from 'lucide-react'
 import {
   shrinkImage,
@@ -324,6 +325,11 @@ export function IntelFormModal({
 export function IntelChips({ i }: { i: CompetitorIntelRow }) {
   return (
     <span className="mt-1 flex flex-wrap gap-1.5">
+      {i.meeting && (
+        <Link to={`/meetings/${i.meeting.id}`} className="chip inline-flex min-h-[28px] items-center border-sky-200 bg-sky-50 !px-2 !py-0 text-sky-700 hover:underline">
+          מהפגישה: <span dir="auto" className="ms-1 max-w-[14rem] truncate">{i.meeting.subject}</span>
+        </Link>
+      )}
       {i.outcome !== 'open' && (
         <span className={classNames('chip !px-2 !py-0', OUTCOME_TONE[i.outcome])}>
           {OUTCOME_LABELS[i.outcome]}

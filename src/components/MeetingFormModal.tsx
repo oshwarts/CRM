@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom'
 import { Mail, Plus, Trash2, UserPlus } from 'lucide-react'
 import {
   useAgents,
+  useCompetitorIntel,
+  useCompetitors,
   useContacts,
   useCreateMeeting,
   useDoctors,
@@ -71,6 +73,7 @@ function initial(
       : [],
     extraParticipants: meeting?.extra_participants ?? '',
     competitor_notes: meeting?.competitor_notes ?? '',
+    competitorId: undefined, // not touched: the record of the meeting keeps its competitor
     contactIds: meeting
       ? meeting.meeting_contacts.map((c) => c.contact?.id).filter((x): x is string => !!x)
       : [],
@@ -140,6 +143,10 @@ export function MeetingFormModal({
   const doctors = useDoctors()
   const hospitals = useHospitals()
   const contacts = useContacts()
+  const competitors = useCompetitors()
+  const intel = useCompetitorIntel()
+  // the competitor the record of this meeting is tied to now (until the person picks another)
+  const linkedCompetitor = (meeting ? (intel.data ?? []).find((i) => i.meeting_id === meeting.id)?.competitor_id : null) ?? ''
   const createMeeting = useCreateMeeting()
   const updateMeeting = useUpdateMeeting(meeting?.id ?? '', meeting)
   const saving = createMeeting.isPending || updateMeeting.isPending
@@ -468,6 +475,19 @@ export function MeetingFormModal({
             />
           </Field>
           <Field label="פעילות מתחרים (אם עלתה בפגישה)">
+            <select
+              className="input mb-2"
+              aria-label="איזה מתחרה"
+              value={data.competitorId === undefined ? linkedCompetitor : (data.competitorId ?? '')}
+              onChange={(e) => patch({ competitorId: e.target.value || null })}
+            >
+              <option value="">איזה מתחרה? (לא חובה)</option>
+              {(competitors.data ?? []).map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
             <textarea
               className="input min-h-16"
               dir="auto"
