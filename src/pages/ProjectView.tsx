@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { AlertTriangle, ArrowDown, Copy, Search, X, ArrowUp, Building2, CalendarDays, Clock, GripVertical, Mail, Pencil, Phone, Plus, Trash2, User, Users } from 'lucide-react'
+import { AlertTriangle, ArrowDown, Check, Copy, Search, X, ArrowUp, Building2, CalendarDays, Clock, GripVertical, Mail, Pencil, Phone, Plus, Trash2, User, Users } from 'lucide-react'
 import { useTasks } from '../lib/api'
 import { useDeleteArea, useDeleteProject, useProjectUpdates, useProjects, useMoveTask, useReorderAreas, useSaveArea, useSetAreaContact, useSetTaskStatus, useSetTasksContact } from '../lib/projectsApi'
 import { PROJECT_STATUS, STATUS_ORDER, TASK_STATUS, isOverdue, projectStats } from '../lib/projects'
@@ -38,7 +38,19 @@ function TaskLine({ t, onOpen, showArea, onStatus, selected, onSelect, last }: {
           <input type="checkbox" className="h-5 w-5" checked={!!selected} onChange={onSelect} aria-label={`בחר משימה: ${t.description}`} />
         </label>
       )}
-      <span className={classNames('mt-2 h-2.5 w-2.5 shrink-0 rounded-full', st.dot)} aria-hidden="true" />
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={t.status === 'done'}
+        aria-label={t.status === 'done' ? `החזר לפתוחה: ${t.description}` : `סמן כבוצעה: ${t.description}`}
+        title={t.status === 'done' ? 'החזר לפתוחה' : 'סמן כבוצעה'}
+        onClick={() => onStatus(t.status === 'done' ? 'todo' : 'done')}
+        className="-my-1 grid h-11 w-11 shrink-0 place-items-center rounded-full"
+      >
+        <span className={classNames('grid h-6 w-6 place-items-center rounded-full border-2 transition', t.status === 'done' ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-slate-300 bg-white')}>
+          {t.status === 'done' && <Check size={14} aria-hidden="true" />}
+        </span>
+      </button>
       <div className="flex min-w-0 flex-1 flex-col items-start gap-1 sm:flex-row sm:gap-2">
       <div className="block w-full min-w-0 sm:flex-1">
       <button className="block min-h-8 w-full min-w-0 text-right" onClick={onOpen}>
