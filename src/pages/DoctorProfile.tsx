@@ -34,6 +34,8 @@ import { SurgicalCourseSection } from '../components/SurgicalCourse'
 import { LinkedTasks, useLinkedTasks } from '../components/LinkedTasks'
 import { cadenceLabel, contactState } from '../lib/cadence'
 import { CompetitorSection } from '../components/CompetitorSection'
+import { InvestigationsSection } from '../components/InvestigationsSection'
+import { openCount, useInvestigations } from '../lib/investigations'
 import { ContactsSection } from '../components/ContactsSection'
 import { CaseVolumesEditor } from '../components/CaseVolumesEditor'
 import { EquipmentPlanEditor } from '../components/EquipmentPlanEditor'
@@ -88,6 +90,7 @@ const MORE_TABS = [
   { id: 'preop', label: 'תכנון טרום־ניתוחי' },
   { id: 'course', label: 'מהלך ניתוחי' },
   { id: 'competitors', label: 'מתחרים' },
+  { id: 'investigations', label: 'תחקירים' },
 ]
 
 export default function DoctorProfile() {
@@ -100,6 +103,8 @@ export default function DoctorProfile() {
   const deleteDoctor = useDeleteDoctor()
   const canDelete = useCanDelete()
   const linkedTasks = useLinkedTasks({ doctorId: id })
+  const investigations = useInvestigations(id)
+  const openInvestigations = openCount(investigations.data)
   const allProcedures = useProcedures()
   const procedureName = (p: { id: string; name: string }) => allProcedures.data?.find((x) => x.id === p.id)?.name ?? p.name
 
@@ -255,7 +260,7 @@ export default function DoctorProfile() {
           <TabList>
             {PRIMARY_TABS.map((t) => (
               <Tab key={t.id} id={t.id}>
-                {t.id === 'meetings' ? `${t.label} (${meetings.data?.length ?? 0})` : t.id === 'tasks' ? `${t.label} (${linkedTasks.open.length})` : t.label}
+                {t.id === 'meetings' ? `${t.label} (${meetings.data?.length ?? 0})` : t.id === 'tasks' ? `${t.label} (${linkedTasks.open.length})` : t.id === 'investigations' && openInvestigations > 0 ? `${t.label} (${openInvestigations})` : t.label}
               </Tab>
             ))}
             <button
@@ -295,7 +300,7 @@ export default function DoctorProfile() {
           <TabList>
             {[...PRIMARY_TABS, ...MORE_TABS].map((t) => (
               <Tab key={t.id} id={t.id}>
-                {t.id === 'meetings' ? `${t.label} (${meetings.data?.length ?? 0})` : t.id === 'tasks' ? `${t.label} (${linkedTasks.open.length})` : t.label}
+                {t.id === 'meetings' ? `${t.label} (${meetings.data?.length ?? 0})` : t.id === 'tasks' ? `${t.label} (${linkedTasks.open.length})` : t.id === 'investigations' && openInvestigations > 0 ? `${t.label} (${openInvestigations})` : t.label}
               </Tab>
             ))}
           </TabList>
@@ -401,6 +406,10 @@ export default function DoctorProfile() {
 
         <TabPanel id="contacts">
           <ContactsSection doctorId={d.id} />
+        </TabPanel>
+
+        <TabPanel id="investigations">
+          <InvestigationsSection doctorId={d.id} />
         </TabPanel>
 
         <TabPanel id="competitors">
