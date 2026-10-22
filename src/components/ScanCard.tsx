@@ -1,4 +1,4 @@
-import { CalendarPlus, Check, Pencil, Phone, Trash2 } from 'lucide-react'
+import { CalendarClock, CalendarPlus, Check, Pencil, Phone, Trash2 } from 'lucide-react'
 import { PendingMark } from './PendingMark'
 import { ConfirmButton } from './ui'
 import { rowFlags } from '../lib/scanAlerts'
@@ -38,6 +38,7 @@ export function ScanCard({
   selected,
   onToggle,
   onEdit,
+  onStatus,
   onInvite,
   onDelete,
   onPatch,
@@ -46,6 +47,8 @@ export function ScanCard({
   selected: boolean
   onToggle: () => void
   onEdit: () => void
+  /** postponed / cancelled / done: what happened to the surgery */
+  onStatus: () => void
   onInvite: () => void
   onDelete: () => void
   onPatch: (p: Patch) => void
@@ -98,7 +101,9 @@ export function ScanCard({
                   ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                   : s.status === 'cancelled'
                     ? 'border-red-200 bg-red-50 text-red-600'
-                    : 'border-slate-200 bg-white/70 text-slate-600',
+                    : s.status === 'postponed'
+                      ? 'border-amber-300 bg-amber-100 text-amber-800'
+                      : 'border-slate-200 bg-white/70 text-slate-600',
               )}
             >
               {SCAN_STATUS_LABELS[s.status]}
@@ -155,6 +160,11 @@ export function ScanCard({
         </div>
       )}
 
+      {(s.status === 'postponed' || s.status === 'cancelled') && s.notes && (
+        <p dir="auto" className="mt-2 text-xs font-medium text-slate-700 [overflow-wrap:anywhere]">
+          {s.notes.split('\n')[0]}
+        </p>
+      )}
       {implants && <p className="mt-2 text-xs text-slate-500 [overflow-wrap:anywhere]">{implants}</p>}
       {s.anaesthesia_note && <p className="mt-1 text-xs text-slate-500 [overflow-wrap:anywhere]">מרדים: {s.anaesthesia_note}</p>}
 
@@ -189,6 +199,9 @@ export function ScanCard({
         )}
         <button type="button" className={ICON_BTN} disabled={!hasEvents} onClick={onInvite} aria-label={`זימון Outlook: ${s.patient_name}`} title="זימון Outlook">
           <CalendarPlus size={18} />
+        </button>
+        <button type="button" className={ICON_BTN} onClick={onStatus} aria-label={`נדחה, בוטל או בוצע: ${s.patient_name}`} title="נדחה / בוטל / בוצע">
+          <CalendarClock size={18} />
         </button>
         <button type="button" className={ICON_BTN} onClick={onEdit} aria-label={`עריכת ${s.patient_name}`} title="עריכה">
           <Pencil size={18} />

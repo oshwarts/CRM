@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { CalendarPlus, Copy, Download, FileInput, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { CalendarClock, CalendarPlus, Copy, Download, FileInput, Pencil, Plus, Trash2, X } from 'lucide-react'
 import {
   useDeletePatientScan,
   useImplantFields,
@@ -18,6 +18,8 @@ import {
 } from '../lib/types'
 import { rowFlags, weekMissing } from '../lib/scanAlerts'
 import { ScanCard } from '../components/ScanCard'
+import { ScanStatusModal } from '../components/ScanStatusModal'
+import { DEFAULT_WINDOW, WINDOW_LABELS, compareByWindow, inWindow, windowSummary, type ScanWindow } from '../lib/scanList'
 import { MaskedValue } from '../components/MaskedValue'
 import {
   copyText,
@@ -32,19 +34,10 @@ import {
   daysUntil,
   formatDate,
   formatTime,
-  plusDaysISO,
   todayISO,
 } from '../lib/utils'
 
-/** the date window filters the CT date */
-const WINDOW_LABELS: Record<string, string> = {
-  all: 'הכל',
-  week: 'השבוע',
-  month: 'החודש',
-  past: 'עבר',
-}
-
-type Quick = 'week' | 'overdue' | 'noct' | 'nodisk' | 'open' | 'rescan'
+type Quick = 'week' | 'overdue' | 'noct' | 'nodisk' | 'open' | 'rescan' | 'postponed' | 'nodate'
 
 /** the alert chips above the list: each one is a one-tap filter for the scans that need attention */
 const QUICKS: { key: Quick; label: string; tone: string; test: (s: PatientScanRow, today: string) => boolean }[] = [
@@ -91,6 +84,18 @@ const QUICKS: { key: Quick; label: string; tone: string; test: (s: PatientScanRo
     tone: 'border-rose-200 bg-rose-50 text-rose-700',
     test: (s) => s.rescan && !s.rescan_done && s.status !== 'cancelled',
   },
+  {
+    key: 'postponed',
+    label: 'נדחו',
+    tone: 'border-amber-300 bg-amber-100 text-amber-800',
+    test: (s) => s.status === 'postponed',
+  },
+  {
+    key: 'nodate',
+    label: 'בלי תאריך ניתוח',
+    tone: 'border-slate-300 bg-slate-100 text-slate-700',
+    test: (s) => s.status === 'planned' && !s.surgery_date,
+  },
 ]
 
 export default function Scans() {
@@ -111,14 +116,13 @@ export default function Scans() {
   const [hospital, setHospital] = useState(hospitalParam)
   const [status, setStatus] = useState('')
   const [quick, setQuick] = useState<Quick | ''>('')
-  // arriving from a hospital → default to the coming month
-  const [window, setWindow] = useState(hospitalParam ? 'month' : 'all')
+  // opens on the surgeries of the next two weeks (from a hospital: the coming month)
+  const [window, setWindow] = useState<ScanWindow>(hospitalParam ? 'month' : DEFAULT_WINDOW)
+  const [statusFor, setStatusFor] = useState<PatientScanRow | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [copied, setCopied] = useState(false)
 
   const today = todayISO()
-  const monthEnd = plusDaysISO(30)
-  const weekEnd = plusDaysISO(7)
 
   const hospitals = useMemo(() => {
     const m = new Map<string, string>()
@@ -128,37 +132,34 @@ export default function Scans() {
   }, [scans.data, makoHospitals.data])
 
   const rows = useMemo(() => {
-    return (scans.data ?? []).filter((s) => {
-      if (hospital && s.hospital_id !== hospital) return false
-      if (status && s.status !== status) return false
-      if (quick && !QUICKS.find((x) => x.key === quick)?.test(s, today)) return false
-      if (window !== 'all') {
-        const c = s.ct_date
-        if (!c) return false
-        if (window === 'month' && !(c >= today && c <= monthEnd)) return false
-        if (window === 'week' && !(c >= today && c <= weekEnd)) return false
-        if (window === 'past' && !(c < today)) return false
-      }
-      if (q) {
-        const hay = `${s.patient_name} ${s.patient_id_number} ${s.patient_phone} ${s.surgeon?.name ?? ''}`.toLowerCase()
-        if (!hay.includes(q.toLowerCase())) return false
-      }
-      return true
-    })
-  }, [scans.data, hospital, status, quick, q, window, today, monthEnd, weekEnd])
+    return (scans.data ?? [])
+      .filter((s) => {
+        if (hospital && s.hospital_id !== hospital) return false
+        if (status && s.status !== status) return false
+        if (quick && !QUICKS.find((x) => x.key === quick)?.test(s, today)) return false
+        // a status or an alert chosen on purpose shows what it is about, wherever its date is; otherwise the window of dates decides
+        if (!status && !quick && !inWindow(s, window, today)) return false
+        if (q) {
+          const hay = `${s.patient_name} ${s.patient_id_number} ${s.patient_phone} ${s.surgeon?.name ?? ''}`.toLowerCase()
+          if (!hay.includes(q.toLowerCase())) return false
+        }
+        return true
+      })
+      .sort(compareByWindow(window))
+  }, [scans.data, hospital, status, quick, q, window, today])
 
   const quickCounts = useMemo(
     () => QUICKS.map((x) => ({ ...x, count: (scans.data ?? []).filter((r) => x.test(r, today)).length })),
     [scans.data, today],
   )
-  const filtered = !!(q || hospital || status || quick || window !== 'all')
+  const filtered = !!(q || hospital || status || quick || window !== DEFAULT_WINDOW)
 
   function clearFilters() {
     setQ('')
     setHospital('')
     setStatus('')
     setQuick('')
-    setWindow('all')
+    setWindow(DEFAULT_WINDOW)
   }
 
   const selectedRows = rows.filter((s) => selected.has(s.id))
@@ -287,9 +288,9 @@ export default function Scans() {
           </select>
         </div>
         <div className="flex items-center gap-2 md:ms-auto">
-          <span className="shrink-0 text-sm text-slate-500" aria-hidden="true">תאריך CT</span>
-          <div role="group" aria-label="טווח תאריך CT" className="grid flex-1 grid-cols-4 gap-1 rounded-xl bg-slate-100 p-1 md:flex-none">
-            {Object.entries(WINDOW_LABELS).map(([v, l]) => (
+          <span className="shrink-0 text-sm text-slate-500" aria-hidden="true">ניתוח</span>
+          <div role="group" aria-label="טווח תאריך הניתוח" className="grid flex-1 grid-cols-5 gap-1 rounded-xl bg-slate-100 p-1 md:flex-none">
+            {(Object.entries(WINDOW_LABELS) as [ScanWindow, string][]).map(([v, l]) => (
               <button
                 key={v}
                 type="button"
@@ -330,6 +331,7 @@ export default function Scans() {
         <div className="flex items-center justify-between gap-2 px-1 text-sm text-slate-600">
           <span>
             {rows.length} מטופלים
+            {!status && !quick && <span className="text-slate-500"> · {windowSummary(window, today)}</span>}
             {filtered && (
               <button className="me-3 ms-3 inline-flex items-center gap-1 text-brand-600 underline" onClick={clearFilters}>
                 <X size={14} aria-hidden="true" />
@@ -353,6 +355,7 @@ export default function Scans() {
               selected={selected.has(s.id)}
               onToggle={() => toggleOne(s.id)}
               onEdit={() => setEditing(s)}
+              onStatus={() => setStatusFor(s)}
               onInvite={() => inviteFor([s])}
               onDelete={() => del.mutate(s.id)}
               onPatch={(p) => patch.mutate({ id: s.id, patch: p })}
@@ -463,7 +466,7 @@ export default function Scans() {
                     </td>
                     <td className="max-w-[180px] p-2 text-xs text-slate-500">{implantSummary(s, implantRows) || '—'}</td>
                     <td className="whitespace-nowrap p-2">
-                      <span className="chip border-slate-200 bg-slate-50 text-slate-600">
+                      <span className={classNames('chip', s.status === 'postponed' ? 'border-amber-300 bg-amber-100 text-amber-800' : s.status === 'cancelled' ? 'border-red-200 bg-red-50 text-red-600' : 'border-slate-200 bg-slate-50 text-slate-600')}>
                         {SCAN_STATUS_LABELS[s.status]}
                       </span>
                     </td>
@@ -477,6 +480,9 @@ export default function Scans() {
                           onClick={() => inviteFor([s])}
                         >
                           <CalendarPlus size={14} />
+                        </button>
+                        <button className="btn-ghost !px-2" onClick={() => setStatusFor(s)} aria-label={`נדחה, בוטל או בוצע: ${s.patient_name}`} title="נדחה / בוטל / בוצע">
+                          <CalendarClock size={14} />
                         </button>
                         <button className="btn-ghost !px-2" onClick={() => setEditing(s)} aria-label="עריכה" title="עריכה">
                           <Pencil size={14} />
@@ -538,6 +544,7 @@ export default function Scans() {
         <ScanFormModal initial={prefill.draft} notices={prefill.notices} onClose={() => setPrefill(null)} />
       )}
       {editing && <ScanFormModal scan={editing} onClose={() => setEditing(null)} />}
+      {statusFor && <ScanStatusModal scan={statusFor} onClose={() => setStatusFor(null)} />}
     </div>
   )
 }

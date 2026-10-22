@@ -84,6 +84,7 @@ export const SCAN_PROCEDURE_LABELS: Record<string, string> = {
 export const SCAN_STATUS_LABELS: Record<string, string> = {
   planned: 'מתוכנן',
   done: 'בוצע',
+  postponed: 'נדחה',
   cancelled: 'בוטל',
 }
 
