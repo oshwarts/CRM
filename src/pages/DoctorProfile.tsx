@@ -336,10 +336,10 @@ export default function DoctorProfile() {
                   <p className="mt-1 break-words text-sm text-slate-500">
                     {[h.hospital?.city, h.role_at_hospital, SECTOR_LABELS[h.sector] ?? h.sector].filter(Boolean).join(' · ')}
                   </p>
-                  {h.clinic_days.length > 0 && (
+                  {(h.clinic_days ?? []).length > 0 && (
                     <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-brand-700">
                       <CalendarDays size={14} className="shrink-0" aria-hidden />
-                      <span>מרפאה: {formatDays(h.clinic_days)}</span>
+                      <span>מרפאה: {formatDays(h.clinic_days ?? [])}</span>
                       {h.clinic_hours && <span dir="ltr">{h.clinic_hours}</span>}
                       {h.clinic_note && <span dir="auto" className="text-slate-500">{h.clinic_note}</span>}
                     </p>
