@@ -57,3 +57,29 @@ describe('doctor digest', () => {
     expect(d.stages.list).toEqual([{ stage: 'הדגמה', previous: 'ליד', date: '2026-10-10' }])
   })
 })
+
+describe('roster of all doctors', () => {
+  it('puts the doctors with the most warnings first and uses only the data of each doctor', async () => {
+    const { buildRoster } = await import('../lib/doctorDigest')
+    const doctors = [
+      { id: 'a', name: 'אבי', title: 'דוקטור', status: 'client' },
+      { id: 'b', name: 'בני', title: 'דוקטור', status: 'client' },
+    ]
+    const rows = buildRoster(
+      {
+        today: '2026-10-22',
+        doctors,
+        meetings: [{ ...meeting('m1', '2026-10-20'), doctorIds: ['a'] }],
+        scans: [],
+        investigations: [],
+        stages: [],
+        tasks: [{ is_done: false, due_date: '2026-10-01', doctor_id: 'a' }],
+      },
+      'month',
+    )
+    expect(rows.map((r) => r.doctor.id)).toEqual(['a', 'b']) // a: a late task (1 warning); b: never met (1 warning) -> by name
+    expect(rows[0].digest.meetings.count).toBe(1)
+    expect(rows[1].digest.meetings.count).toBe(0)
+    expect(rows[1].digest.alerts[0].text).toContain('עדיין לא הייתה פגישה')
+  })
+})

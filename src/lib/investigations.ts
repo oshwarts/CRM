@@ -125,3 +125,11 @@ export async function openInvestigationFile(i: Pick<Investigation, 'file_path'>)
   else window.location.href = data.signedUrl
   return null
 }
+
+/** the investigations of all doctors (the summary of all doctors) */
+export function useAllInvestigations() {
+  return useQuery({
+    queryKey: ['investigations', 'all'],
+    queryFn: async () => ok<Investigation[]>(await raw.from('doctor_investigations').select('*').order('event_date', { ascending: false }).limit(5000)),
+  })
+}

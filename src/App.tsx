@@ -14,6 +14,7 @@ import SetPassword from './pages/SetPassword'
 const load = {
   Doctors: () => import('./pages/Doctors'),
   DoctorProfile: () => import('./pages/DoctorProfile'),
+  DoctorsDigest: () => import('./pages/DoctorsDigest'),
   Meetings: () => import('./pages/Meetings'),
   MeetingView: () => import('./pages/MeetingView'),
   Hospitals: () => import('./pages/Hospitals'),
@@ -41,6 +42,7 @@ const load = {
 }
 const Doctors = lazy(load.Doctors)
 const DoctorProfile = lazy(load.DoctorProfile)
+const DoctorsDigest = lazy(load.DoctorsDigest)
 const Meetings = lazy(load.Meetings)
 const MeetingView = lazy(load.MeetingView)
 const Hospitals = lazy(load.Hospitals)
@@ -115,6 +117,7 @@ export default function App() {
         <Route path="/now" element={<Page><Now /></Page>} />
         <Route path="/help" element={<Page><Help /></Page>} />
         <Route path="/doctors" element={<Page><Doctors /></Page>} />
+        <Route path="/doctors/digest" element={<Page><DoctorsDigest /></Page>} />
         <Route path="/doctors/:id" element={<Page><DoctorProfile /></Page>} />
         <Route path="/meetings" element={<Page><Meetings /></Page>} />
         <Route path="/meetings/:id" element={<Page><MeetingView /></Page>} />

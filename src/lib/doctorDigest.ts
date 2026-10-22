@@ -109,3 +109,47 @@ export function buildDigest(input: DigestInput, period: DigestPeriod): Digest {
     alerts,
   }
 }
+
+export type RosterInput = {
+  today: string
+  doctors: { id: string; name: string; title: string; status: string }[]
+  meetings: (MeetingIn & { doctorIds: string[] })[]
+  scans: ScanIn[]
+  investigations: (InvestigationIn & { doctor_id: string })[]
+  stages: (StageIn & { doctor_id: string })[]
+  tasks: (TaskIn & { doctor_id: string | null })[]
+}
+
+export type RosterRow = { doctor: RosterInput['doctors'][number]; digest: Digest; warnings: number }
+
+const groupBy = <T,>(rows: T[], keys: (r: T) => (string | null | undefined)[]) => {
+  const m = new Map<string, T[]>()
+  for (const r of rows) for (const k of keys(r)) if (k) (m.get(k) ?? m.set(k, []).get(k)!).push(r)
+  return m
+}
+
+/** the digest of every doctor, most things to look at first (rows are grouped by doctor once, not searched for each doctor) */
+export function buildRoster(input: RosterInput, period: DigestPeriod): RosterRow[] {
+  const meetings = groupBy(input.meetings, (m) => m.doctorIds)
+  const scans = groupBy(input.scans, (s) => [s.surgeon_id])
+  const investigations = groupBy(input.investigations, (i) => [i.doctor_id])
+  const stages = groupBy(input.stages, (s) => [s.doctor_id])
+  const tasks = groupBy(input.tasks, (t) => [t.doctor_id])
+  return input.doctors
+    .map((doctor) => {
+      const digest = buildDigest(
+        {
+          doctorId: doctor.id,
+          today: input.today,
+          meetings: meetings.get(doctor.id) ?? [],
+          scans: scans.get(doctor.id) ?? [],
+          investigations: investigations.get(doctor.id) ?? [],
+          stages: stages.get(doctor.id) ?? [],
+          tasks: tasks.get(doctor.id) ?? [],
+        },
+        period,
+      )
+      return { doctor, digest, warnings: digest.alerts.filter((a) => a.level === 'warn').length }
+    })
+    .sort((a, b) => b.warnings - a.warnings || a.doctor.name.localeCompare(b.doctor.name, 'he'))
+}

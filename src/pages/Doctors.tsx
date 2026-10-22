@@ -546,6 +546,9 @@ export default function Doctors() {
           <p className="hidden text-sm text-slate-500 sm:block">מי צריך קשר עכשיו, קצב הקשר, ניתוחים, נאמנות והמשפך של הפוטנציאליים</p>
         </div>
         <div className="flex gap-2">
+          <Link to="/doctors/digest" className="btn-secondary !px-3 sm:!px-4">
+            מה חדש
+          </Link>
           <button className="btn-secondary !px-3 sm:!px-4" onClick={() => setShowImport(true)}>
             <BookUser size={16} /> <span className="hidden sm:inline">ייבוא איש קשר</span>
             <span className="sm:hidden">ייבוא</span>
