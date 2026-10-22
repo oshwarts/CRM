@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Flame, ListChecks, Plus, Repeat, User } from 'lucide-react'
 import { useSetTaskDone, useTasks } from '../lib/api'
 import { useAuth } from '../context/AuthProvider'
+import { ErrorState } from './ui'
 import { TaskFormModal } from './TaskFormModal'
 import type { TaskRow } from '../lib/types'
 import { classNames, daysUntil, formatDate } from '../lib/utils'
@@ -17,7 +18,7 @@ export function useLinkedTasks(opts: { doctorId?: string; hospitalId?: string })
 
 export function LinkedTasks({ doctorId, hospitalId }: { doctorId?: string; hospitalId?: string }) {
   const { user, isAdmin } = useAuth()
-  const { list, open, isLoading } = useLinkedTasks({ doctorId, hospitalId })
+  const { list, open, isLoading, error, data } = useLinkedTasks({ doctorId, hospitalId })
   const setDone = useSetTaskDone()
   const [showDone, setShowDone] = useState(false)
   const [adding, setAdding] = useState(false)
@@ -37,7 +38,9 @@ export function LinkedTasks({ doctorId, hospitalId }: { doctorId?: string; hospi
         </button>
       </div>
 
-      {isLoading ? null : shown.length === 0 ? (
+      {isLoading ? null : error && !data ? (
+        <ErrorState error={error} />
+      ) : shown.length === 0 ? (
         <p className="text-sm text-slate-500">אין משימות פתוחות</p>
       ) : (
         <ul className="divide-y divide-slate-100 rounded-lg border border-slate-100">
@@ -90,7 +93,7 @@ export function LinkedTasks({ doctorId, hospitalId }: { doctorId?: string; hospi
       )}
 
       {done.length > 0 && (
-        <button type="button" className="min-h-[40px] text-sm text-slate-500 hover:underline" aria-expanded={showDone} onClick={() => setShowDone((v) => !v)}>
+        <button type="button" className="btn-secondary w-full" aria-expanded={showDone} onClick={() => setShowDone((v) => !v)}>
           {showDone ? 'הסתר משימות שבוצעו' : `הצג משימות שבוצעו (${done.length})`}
         </button>
       )}

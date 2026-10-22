@@ -9,6 +9,7 @@ import { ProjectTaskModal } from '../components/ProjectTaskModal'
 import { ProjectUpdates } from '../components/ProjectUpdates'
 import { ContactPickerModal } from '../components/ContactPickerModal'
 import { normalizeHe } from '../lib/contactMatch'
+import { AddFab } from '../components/AddFab'
 import { ConfirmButton, EmptyState, ErrorState, Spinner, Tab, TabList, TabPanel, Tabs } from '../components/ui'
 import type { ProjectWithRelations, TaskRow } from '../lib/types'
 import { classNames, daysUntil, formatDate } from '../lib/utils'
@@ -764,6 +765,8 @@ export default function ProjectView() {
         />
       )}
       {editing && <ProjectFormModal project={project} onClose={() => setEditing(false)} />}
+      {(tab === 'areas' || tab === 'board') && picked.size === 0 && !taskModal && <AddFab label="משימה חדשה" onClick={() => setTaskModal({ areaId: null })} />}
+
       {taskModal && <ProjectTaskModal project={project} areas={areas} task={taskModal.task} defaultAreaId={taskModal.areaId} onClose={() => setTaskModal(null)} />}
     </div>
   )

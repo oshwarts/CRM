@@ -13,6 +13,7 @@ import {
 } from '../lib/api'
 import { useAuth } from '../context/AuthProvider'
 import { TaskFormModal } from '../components/TaskFormModal'
+import { AddFab } from '../components/AddFab'
 import { useTaskGuess } from '../components/TaskSuggestions'
 import { PendingMark } from '../components/PendingMark'
 import { EmptyState, ErrorState, Spinner } from '../components/ui'
@@ -82,6 +83,18 @@ export default function Tasks() {
     ...b,
     items: openList.filter((t) => bucketOf(t.due_date) === b.key).sort(compareOpen), // urgent first, then by date
   })).filter((g) => g.items.length)
+
+  // how many tasks each status holds for the person whose tasks are shown (the numbers on the status buttons)
+  const counts = useMemo(() => {
+    let open = 0
+    let done = 0
+    for (const t of tasks.data ?? []) {
+      if (!isAdmin || who === 'me' ? t.assignee_id !== user?.id : who !== 'all' && t.assignee_id !== who) continue
+      if (t.is_done) done++
+      else open++
+    }
+    return { open, done }
+  }, [tasks.data, who, isAdmin, user?.id])
 
   const mine = (tasks.data ?? []).filter((t) => !t.is_done && t.assignee_id === user?.id)
   const filtered = q.trim() !== '' || urgentOnly
@@ -375,10 +388,21 @@ export default function Tasks() {
           </select>
         )}
  
+        <div role="radiogroup" aria-label="אילו משימות להציג" className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1">
+          {([['open', 'פתוחות', counts.open], ['done', 'בוצעו', counts.done], ['all', 'הכול', counts.open + counts.done]] as const).map(([k, label, n]) => (
+            <button
+              key={k}
+              type="button"
+              role="radio"
+              aria-checked={status === k}
+              onClick={() => setStatus(k)}
+              className={classNames('min-h-[44px] rounded-lg px-2 text-sm font-medium transition', status === k ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-600 hover:text-slate-800')}
+            >
+              {label} <span className="text-xs text-slate-500">{n}</span>
+            </button>
+          ))}
+        </div>
         <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
-          {chip(status === 'open', 'פתוחות', () => setStatus('open'))}
-          {chip(status === 'done', 'בוצעו', () => setStatus('done'))}
-          {chip(status === 'all', 'הכול', () => setStatus('all'))}
           {chip(urgentOnly, 'דחוף בלבד', () => setUrgentOnly((v) => !v))}
        </div>
       </div>
@@ -419,6 +443,14 @@ export default function Tasks() {
           )}
         </>
       )}
+
+      {status === 'open' && counts.done > 0 && (
+        <button type="button" className="btn-secondary w-full" onClick={() => { setStatus('done'); window.scrollTo({ top: 0 }) }}>
+          הצג משימות שבוצעו ({counts.done})
+        </button>
+      )}
+
+      <AddFab label="משימה חדשה" onClick={() => setAdding(true)} />
 
       {adding && <TaskFormModal onClose={() => setAdding(false)} defaults={isAdmin && who !== 'me' && who !== 'all' ? { assignee_id: who } : undefined} />}
       {editing && <TaskFormModal task={editing} onClose={() => setEditing(null)} />}
