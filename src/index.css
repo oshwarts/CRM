@@ -53,6 +53,9 @@
 /* a slightly larger base size: every rem-based size in the app grows with it */
 html {
   font-size: 17px;
+  /* a focused field scrolls clear of the sticky save row / the bottom bar and the top bar */
+  scroll-padding-bottom: 9rem;
+  scroll-padding-top: 4.5rem;
 }
 html[data-size='compact'] {
   font-size: 15px;
@@ -138,8 +141,8 @@ body {
   [class*='btn-'][class*='!px-'] {
     min-width: 40px;
   }
-  main a[href]:not([class*='btn']):not(.card):not(.chip):not([class^='p']):not([class*=' p']):not(p a),
-  main button:not([class*='btn']):not(.chip):not([class^='p']):not([class*=' p']) {
+  main a[href]:not([class*='btn']):not(.card):not(.chip):not([class^='p']):not([class*=' p']):not([class*='min-h-']):not(p a),
+  main button:not([class*='btn']):not(.chip):not([class^='p']):not([class*=' p']):not([class*='min-h-']) {
     min-height: 26px;
   }
   main button.chip,
@@ -166,8 +169,8 @@ body {
     }
   }
   @media (max-width: 767px) {
-    main a[href]:not([class*='btn']):not(.card):not(.chip):not([class^='p']):not([class*=' p']):not(p a),
-    main button:not([class*='btn']):not(.chip):not([class^='p']):not([class*=' p']) {
+    main a[href]:not([class*='btn']):not(.card):not(.chip):not([class^='p']):not([class*=' p']):not([class*='min-h-']):not(p a),
+    main button:not([class*='btn']):not(.chip):not([class^='p']):not([class*=' p']):not([class*='min-h-']) {
       min-height: 32px;
     }
     main button.chip,

@@ -3,6 +3,7 @@
 //   await __qa.smoke(['/', '/doctors', '/tasks'])   → one row per screen: overflow, bad texts, console errors, unnamed controls …
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { queryClient } from '../lib/queryClient'
 
 export type SmokeRow = {
   path: string
@@ -123,6 +124,9 @@ export function QaBridge() {
       await new Promise((r) => setTimeout(r, 50))
     }
     window.__qa.go = go
+    window.__qa.resetQuery = async (key) => {
+      await queryClient.resetQueries({ queryKey: key })
+    }
     window.__qa.smoke = async (paths, opts = {}) => {
       const rows: SmokeRow[] = []
       for (const p of paths) {

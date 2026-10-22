@@ -8,14 +8,28 @@ export type MatchHospital = { id: string; name: string; city: string }
 const TITLE_WORDS = new Set(['דר', 'דוקטור', 'פרופ', 'פרופסור', 'ד', 'מר', 'גברת', 'dr', 'prof'])
 const STOP_WORDS = new Set(['של', 'ה', 'בית', 'חולים', 'מרכז', 'רפואי', 'הרפואי', 'מחלקת', 'מחלקה', 'את', 'עם'])
 
-/** ignore case, quotes / geresh, dots; dashes become spaces */
+/** ignore case, niqqud / cantillation marks, quotes / geresh, dots; dashes become spaces */
 export function normalizeHe(s: string): string {
   return s
     .toLowerCase()
+    .replace(/[֑-ׇ]/g, '')
     .replace(/["'`.׳״‘’“”]/g, '')
     .replace(/[-־–—_,()/\\]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+const FINALS: Record<string, string> = { ך: 'כ', ם: 'מ', ן: 'נ', ף: 'פ', ץ: 'צ' }
+/** the form used for searching: normalizeHe, and final letters as the regular ones (so a half-typed word still matches) */
+export const searchKey = (s: string) => normalizeHe(s).replace(/[ךםןףץ]/g, (c) => FINALS[c])
+/** the words of a search box */
+export const searchWords = (q: string) => searchKey(q).split(' ').filter(Boolean)
+
+/** one-letter prefixes of Hebrew words: "בשיבא" (in Sheba), "לירושלים", "והדר" */
+const PREFIX_LETTERS = 'והבכלמ'
+/** does the (already searchKey-ed) text contain every search word — as written, or without a one-letter prefix? */
+export function matchesWords(words: string[], hay: string): boolean {
+  return words.every((w) => hay.includes(w) || (w.length >= 4 && PREFIX_LETTERS.includes(w[0]) && hay.includes(w.slice(1))))
 }
 
 const tokens = (s: string) => normalizeHe(s).split(' ').filter(Boolean)
@@ -170,4 +184,46 @@ export function suggest(
     doctorMatches: dm,
     hospitalMatches: hm,
   }
+}
+
+/** the last 9 digits of a phone number: 050-1234567, +972-50-123-4567 and 972501234567 are the same number */
+export function phoneKey(raw: string): string {
+  const digits = (raw ?? '').replace(/\D/g, '')
+  return digits.length >= 7 ? digits.slice(-9) : ''
+}
+
+export type DuplicateDoctor<T> = { doctor: T; reason: 'phone' | 'email' | 'name' | 'similar' }
+
+/**
+ * Doctors that may be the same person as the one being added: the same phone number or e-mail, the same name
+ * (titles and word order ignored) or a name that contains the other (at least two words). "phone", "email" and "name" are
+ * strong matches, "similar" only a hint.
+ */
+export function findDuplicateDoctors<T extends { id: string; name: string; phone: string; email: string }>(
+  input: { name: string; phone: string; email: string },
+  doctors: T[],
+  excludeId?: string,
+): DuplicateDoctor<T>[] {
+  const pk = phoneKey(input.phone)
+  const mail = input.email.trim().toLowerCase()
+  const words = nameTokens(input.name).map(searchKey)
+  const mine = new Set(words)
+  const out: DuplicateDoctor<T>[] = []
+  for (const d of doctors) {
+    if (d.id === excludeId) continue
+    let reason: DuplicateDoctor<T>['reason'] | null = null
+    if (pk && phoneKey(d.phone) === pk) reason = 'phone'
+    else if (mail && (d.email ?? '').trim().toLowerCase() === mail) reason = 'email'
+    else if (words.length) {
+      const theirs = new Set(nameTokens(d.name).map(searchKey))
+      if (theirs.size) {
+        const common = [...mine].filter((w) => theirs.has(w)).length
+        if (common === mine.size && common === theirs.size) reason = 'name'
+        else if (common >= 2 && (common === mine.size || common === theirs.size)) reason = 'similar'
+      }
+    }
+    if (reason) out.push({ doctor: d, reason })
+  }
+  const rank = { phone: 0, email: 1, name: 2, similar: 3 }
+  return out.sort((a, b) => rank[a.reason] - rank[b.reason])
 }

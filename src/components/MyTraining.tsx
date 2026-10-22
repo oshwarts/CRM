@@ -33,7 +33,7 @@ export function MyTraining() {
           <li key={sc.key} className="text-sm">
             <div className="flex items-center justify-between gap-2">
               <span className="font-medium text-slate-800">{sc.title}</span>
-              <span className={classNames('text-xs', st.complete ? 'text-emerald-600' : 'text-slate-500')}>
+              <span className={classNames('text-xs', st.complete ? 'text-emerald-700' : 'text-slate-600')}>
                 {st.complete ? 'הושלם' : `${st.doneCount}/${st.total} שלבים`}
               </span>
             </div>

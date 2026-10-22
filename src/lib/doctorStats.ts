@@ -35,14 +35,16 @@ export type DoctorRow = {
   companies: string[]
   contact: ContactState
   daysSince: number | null
-  /** due: past the cadence · stale: no cadence and not met for STALE_DAYS · soon: due within a week */
+  /** days since the last meeting that took place — or, when there was none, since the doctor was added */
+  idleDays: number
+  /** due: past the cadence · stale: no cadence and no contact for STALE_DAYS · soon: due within a week · always '' for a doctor who is not relevant */
   need: Need
   surgeries: number
   loyalty: '' | 'loyal' | 'leaning' | 'open'
   missing: string[]
 }
 
-const daysBetween = (a: string, b: string) => Math.round((new Date(`${b}T12:00:00`).getTime() - new Date(`${a}T12:00:00`).getTime()) / 86_400_000)
+export const daysBetween = (a: string, b: string) => Math.round((new Date(`${b}T12:00:00`).getTime() - new Date(`${a}T12:00:00`).getTime()) / 86_400_000)
 
 export function buildDoctorRows(input: {
   doctors: DoctorListItem[]
@@ -69,10 +71,12 @@ export function buildDoctorRows(input: {
   return input.doctors.map((d) => {
     const contact = contactState(d, input.meetings)
     const daysSince = contact.lastDate ? daysBetween(contact.lastDate, today) : null
+    // never met: the clock starts when the doctor was added (as in the contact rhythm), so a doctor added yesterday is not "stale"
+    const idleDays = daysBetween(contact.lastDate ?? d.created_at.slice(0, 10), today)
     let need: Need = ''
-    if (!contact.nextMeeting) {
+    if (!contact.nextMeeting && d.status !== 'lost') {
       if (contact.status === 'due') need = 'due'
-      else if (contact.status === 'none' && (daysSince === null || daysSince >= STALE_DAYS)) need = 'stale'
+      else if (contact.status === 'none' && idleDays >= STALE_DAYS) need = 'stale'
       else if (contact.status === 'soon') need = 'soon'
     }
     const missing: string[] = []
@@ -86,6 +90,7 @@ export function buildDoctorRows(input: {
       companies: d.doctor_companies.map((c) => input.companyNames.get(c.company_id)).filter((x): x is string => !!x),
       contact,
       daysSince,
+      idleDays,
       need,
       surgeries: surgeries.get(d.id) ?? 0,
       loyalty: loyalty.get(d.id) ?? '',
@@ -94,7 +99,7 @@ export function buildDoctorRows(input: {
   })
 }
 
-/** a quick change of the status or the contact rhythm of a doctor, straight from the list */
+/** a quick change of the status or the contact rhythm of a doctor, straight from the list; the list shows the change at once and takes it back if the save fails */
 export function usePatchDoctor() {
   const qc = useQueryClient()
   return useMutation({
@@ -102,10 +107,25 @@ export function usePatchDoctor() {
       const { error } = await supabase.from('doctors').update(patch).eq('id', id)
       if (error) throw error
     },
-    onSuccess: () => {
+    onMutate: async ({ id, ...patch }) => {
+      await qc.cancelQueries({ queryKey: ['doctors'] })
+      const before = qc.getQueryData<DoctorListItem[]>(['doctors'])
+      if (before) qc.setQueryData<DoctorListItem[]>(['doctors'], before.map((d) => (d.id === id ? { ...d, ...patch } : d)))
+      return { before }
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.before) qc.setQueryData(['doctors'], ctx.before)
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ['doctors'] })
       qc.invalidateQueries({ queryKey: ['doctor'] })
       qc.invalidateQueries({ queryKey: ['pipeline-doctors'] })
     },
   })
+}
+
+/** the titles offered in the doctor form: the standard ones, plus the doctor's own when it is something else ('ד״ר', 'פרופ׳') — so that editing never shows (or saves) another title */
+export function titleOptions(current: string | null | undefined, standard: readonly string[]): string[] {
+  const c = (current ?? '').trim()
+  return c && !standard.includes(c) ? [c, ...standard] : [...standard]
 }

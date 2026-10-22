@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowDown, ArrowUp, ListChecks, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import {
   useCreateCourse,
@@ -92,7 +92,7 @@ function Checklist({ course }: { course: Course }) {
               )}
             </h3>
             {st.items.length === 0 ? (
-              <p className="px-3 py-2 text-sm text-slate-300">—</p>
+              <p className="px-3 py-2 text-sm text-slate-500">אין שורות בשלב הזה</p>
             ) : (
               <ul className="divide-y divide-slate-100">
                 {st.items.map((it) => (
@@ -108,7 +108,7 @@ function Checklist({ course }: { course: Course }) {
                         dir="auto"
                         className={classNames(
                           'whitespace-pre-wrap text-[15px] leading-relaxed',
-                          checked.has(it.id) ? 'text-slate-300 line-through' : 'text-slate-800',
+                          checked.has(it.id) ? 'text-slate-500 line-through' : 'text-slate-800',
                         )}
                       >
                         {it.text}
@@ -143,11 +143,14 @@ function Editor({
     course.stages.map((s) => ({ title: s.title, items: s.items.map((i) => i.text) })),
   )
   const [error, setError] = useState('')
+  const busy = useRef(false) // a second tap before the screen re-renders must not save twice
 
   const setStage = (i: number, p: Partial<CourseDraft[number]>) =>
     setDraft((d) => d.map((s, x) => (x === i ? { ...s, ...p } : s)))
 
   async function submit() {
+    if (busy.current) return
+    busy.current = true
     setError('')
     try {
       await save.mutateAsync({ courseId: course.id, draft })
@@ -159,6 +162,8 @@ function Editor({
       onSaved()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'השמירה נכשלה')
+    } finally {
+      busy.current = false
     }
   }
 
@@ -283,7 +288,7 @@ export function SurgicalCourseSection({ doctorId }: { doctorId: string }) {
         <label className="block min-w-48 flex-1">
           <span className="label">הוספת מהלך ניתוחי לפרוצדורה</span>
           <select className="input" value={pick} onChange={(e) => setPick(e.target.value)} disabled={free.length === 0}>
-            {free.length === 0 && <option value="">כל הפרוצדורות כבר מוגדרות</option>}
+            {free.length === 0 && <option value="">{(procedures.data ?? []).length === 0 ? 'אין פרוצדורות במערכת' : 'כל הפרוצדורות כבר מוגדרות'}</option>}
             {free.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -315,11 +320,16 @@ export function SurgicalCourseSection({ doctorId }: { doctorId: string }) {
             </h2>
             <div className="flex gap-1">
               {editingId !== c.id && (
-                <button className="btn-ghost !px-2" onClick={() => setEditingId(c.id)} aria-label="עריכה">
+                <button className="btn-ghost !px-2" onClick={() => setEditingId(c.id)} aria-label={`עריכת המהלך: ${c.procedure?.name ?? 'פרוצדורה'}`}>
                   <Pencil size={16} />
                 </button>
               )}
-              <ConfirmButton className="btn-ghost !px-2 text-red-500" onConfirm={() => del.mutate(c.id)}>
+              <ConfirmButton
+                className="btn-ghost !px-2 text-red-600"
+                label={`מחיקת המהלך: ${c.procedure?.name ?? 'פרוצדורה'}`}
+                message={`למחוק את המהלך הניתוחי "${c.procedure?.name ?? 'פרוצדורה'}" של הרופא? כל השלבים והשורות שהוזנו יימחקו.`}
+                onConfirm={() => del.mutate(c.id)}
+              >
                 <Trash2 size={16} />
               </ConfirmButton>
             </div>

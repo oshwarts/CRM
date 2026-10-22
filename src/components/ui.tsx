@@ -7,6 +7,7 @@ import {
   useId,
   useRef,
   type ReactNode,
+  type RefObject,
 } from 'react'
 import { classNames } from '../lib/utils'
 
@@ -14,6 +15,56 @@ import { classNames } from '../lib/utils'
 
 /** the dialogs that are open now, the last one is on top (only it answers Escape and Tab) */
 const openModals: object[] = []
+/** the page's own overflow, saved when the first dialog opens and given back when the last one closes (dialogs may close in any order) */
+let overflowBefore = ''
+
+/**
+ * What every dialog needs: the page behind does not scroll, keyboard focus moves into the box (unless a field inside already took it),
+ * Tab stays inside, Escape closes the top-most dialog, and focus returns to where it was. Used by Modal and by the shell's own dialogs.
+ */
+export function useDialog(open: boolean, onClose: () => void, box: RefObject<HTMLElement | null>) {
+  const closeRef = useRef(onClose)
+  closeRef.current = onClose
+
+  useEffect(() => {
+    if (!open) return
+    const token = {}
+    if (openModals.length === 0) {
+      overflowBefore = document.body.style.overflow
+      document.body.style.overflow = 'hidden'
+    }
+    openModals.push(token)
+    const before = document.activeElement as HTMLElement | null
+    if (box.current && !box.current.contains(document.activeElement)) box.current.focus({ preventScroll: true })
+    const onKey = (e: KeyboardEvent) => {
+      if (openModals[openModals.length - 1] !== token) return
+      if (e.key === 'Escape') {
+        closeRef.current()
+        return
+      }
+      if (e.key !== 'Tab' || !box.current) return
+      const items = [...box.current.querySelectorAll<HTMLElement>('a[href],button:not([disabled]),input:not([disabled]):not([type=hidden]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')].filter((el) => el.getClientRects().length > 0)
+      if (items.length === 0) return
+      const first = items[0]
+      const last = items[items.length - 1]
+      const active = document.activeElement
+      if (e.shiftKey && (active === first || active === box.current)) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && (active === last || !box.current.contains(active))) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      openModals.splice(openModals.indexOf(token), 1)
+      if (openModals.length === 0) document.body.style.overflow = overflowBefore
+      if (before && document.contains(before)) before.focus({ preventScroll: true })
+    }
+  }, [open, box])
+}
 
 export function Modal({
   open,
@@ -30,46 +81,7 @@ export function Modal({
 }) {
   const titleId = useId()
   const box = useRef<HTMLDivElement>(null)
-  const closeRef = useRef(onClose)
-  closeRef.current = onClose
-
-  useEffect(() => {
-    if (!open) return
-    const token = {}
-    openModals.push(token)
-    const before = document.activeElement as HTMLElement | null
-    // the page behind does not scroll while a dialog is open; keyboard focus moves into the dialog and comes back when it closes
-    const prevOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    box.current?.focus({ preventScroll: true })
-    const onKey = (e: KeyboardEvent) => {
-      if (openModals[openModals.length - 1] !== token) return
-      if (e.key === 'Escape') {
-        closeRef.current()
-        return
-      }
-      if (e.key !== 'Tab' || !box.current) return
-      const items = [...box.current.querySelectorAll<HTMLElement>('a[href],button:not([disabled]),input:not([disabled]):not([type=hidden]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')].filter((el) => el.offsetParent !== null)
-      if (items.length === 0) return
-      const first = items[0]
-      const last = items[items.length - 1]
-      const active = document.activeElement
-      if (e.shiftKey && (active === first || active === box.current)) {
-        e.preventDefault()
-        last.focus()
-      } else if (!e.shiftKey && active === last) {
-        e.preventDefault()
-        first.focus()
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('keydown', onKey)
-      openModals.splice(openModals.indexOf(token), 1)
-      document.body.style.overflow = prevOverflow
-      if (before && document.contains(before)) before.focus({ preventScroll: true })
-    }
-  }, [open])
+  useDialog(open, onClose, box)
 
   if (!open) return null
   const maxW = { md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' }[size]
@@ -133,7 +145,23 @@ export function TabList({ children }: { children: ReactNode }) {
     if (box && el && box.scrollWidth > box.clientWidth) el.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
   }, [ctx?.value])
   return (
-    <div ref={ref} role="tablist" className="mb-4 flex flex-nowrap gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1 [scrollbar-width:none] sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden">
+    <div
+      ref={ref}
+      role="tablist"
+      className="mb-4 flex flex-nowrap gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1 [scrollbar-width:none] sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden"
+      // arrow keys move between the tabs (in a right-to-left page the right arrow is the previous one), Home / End jump to the ends
+      onKeyDown={(e) => {
+        const tabs = [...e.currentTarget.querySelectorAll<HTMLElement>('[role="tab"]')]
+        const at = tabs.indexOf(document.activeElement as HTMLElement)
+        if (at < 0 || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return
+        const rtl = getComputedStyle(e.currentTarget).direction === 'rtl'
+        const step = e.key === 'ArrowRight' ? (rtl ? -1 : 1) : e.key === 'ArrowLeft' ? (rtl ? 1 : -1) : 0
+        const next = e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 : (at + step + tabs.length) % tabs.length
+        e.preventDefault()
+        tabs[next].focus()
+        tabs[next].click()
+      }}
+    >
       {children}
     </div>
   )
@@ -163,7 +191,7 @@ export function Tab({ id, children }: { id: string; children: ReactNode }) {
 export function TabPanel({ id, children }: { id: string; children: ReactNode }) {
   const ctx = useContext(TabsCtx)!
   if (ctx.value !== id) return null
-  return <div className="space-y-4">{children}</div>
+  return <div role="tabpanel" className="space-y-4">{children}</div>
 }
 
 /* ---------------- Misc ---------------- */
@@ -180,8 +208,8 @@ export function Spinner({ label }: { label?: string }) {
       </div>
     )
   return (
-    <div className="flex items-center justify-center gap-3 p-10 text-slate-500">
-      <span className="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-brand-500" />
+    <div role="status" className="flex items-center justify-center gap-3 p-10 text-slate-500">
+      <span aria-hidden className="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-brand-500" />
       {label}
     </div>
   )
@@ -213,7 +241,7 @@ export function ErrorState({ error }: { error: unknown }) {
         ? String((error as { message: unknown }).message)
         : ''
   return (
-    <div className="space-y-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+    <div role="alert" className="space-y-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
       <p>שגיאה בטעינת הנתונים. אם זה חוזר, רענן את האפליקציה כדי לקבל את הגרסה האחרונה.</p>
       {real && (
         <p dir="auto" className="text-xs text-red-500">
@@ -250,6 +278,14 @@ export function Field({
     const c = controls[0]
     if (controls.length === 1 && c.type !== 'checkbox' && c.type !== 'radio') {
       if (!c.hasAttribute('aria-label') && !c.hasAttribute('aria-labelledby') && !(c.labels && c.labels.length)) c.setAttribute('aria-labelledby', id)
+      // the message under the field is read with it
+      if (error) {
+        c.setAttribute('aria-invalid', 'true')
+        c.setAttribute('aria-describedby', `${id}-error`)
+      } else if (c.getAttribute('aria-describedby') === `${id}-error`) {
+        c.removeAttribute('aria-invalid')
+        c.removeAttribute('aria-describedby')
+      }
     } else if (!root.hasAttribute('role')) {
       root.setAttribute('role', 'group')
       root.setAttribute('aria-labelledby', id)
@@ -260,7 +296,7 @@ export function Field({
       <span id={id} className="label">{label}</span>
       {children}
       {error && (
-        <p role="alert" className="mt-1 text-xs font-medium text-red-600">
+        <p id={`${id}-error`} role="alert" className="mt-1 text-xs font-medium text-red-600">
           {error}
         </p>
       )}
@@ -290,7 +326,7 @@ export function MultiSelectChips<T extends { id: string }>({
             aria-pressed={on}
             onClick={() => onToggle(o.id)}
             className={classNames(
-              'chip',
+              'chip max-sm:!min-h-10',
               on
                 ? 'border-brand-300 bg-brand-50 text-brand-700'
                 : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300',

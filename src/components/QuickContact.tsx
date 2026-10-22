@@ -1,19 +1,31 @@
 import { Mail, MessageCircle, Navigation, Phone } from 'lucide-react'
 import { classNames } from '../lib/utils'
 
-/** Israeli numbers for wa.me: 0521234567 → 972521234567 */
+/** the number without an extension: "03-5551234 שלוחה 5" → "03-5551234" */
+const mainNumber = (raw: string) => raw.split(/ext|x|שלוחה|שלו['׳]/i)[0]
+
+/** Israeli numbers for wa.me: 0521234567 → 972521234567 (also +972 (0)52…, 00972…, a number with an extension) */
 export function whatsappNumber(raw: string): string {
-  const digits = raw.replace(/\D/g, '')
+  let digits = mainNumber(raw).replace(/\D/g, '')
+  if (digits.startsWith('00')) digits = digits.slice(2)
+  if (digits.startsWith('9720')) digits = `972${digits.slice(4)}`
   if (digits.startsWith('972')) return digits
   if (digits.startsWith('0')) return `972${digits.slice(1)}`
   return digits
 }
 
+/** the value of a tel: link: digits (and a leading +) of the main number only — spaces, brackets and an extension are dropped */
+export function telHref(raw: string): string {
+  const main = mainNumber(raw).trim()
+  const digits = main.replace(/\D/g, '')
+  return digits ? `tel:${main.startsWith('+') ? '+' : ''}${digits}` : ''
+}
+
 /** big one-tap buttons: call, WhatsApp, e-mail, navigate — only the ones that have the data */
 export function QuickContact({ phone, email, place, className }: { phone?: string | null; email?: string | null; place?: string | null; className?: string }) {
   const items = [
-    phone && { key: 'call', href: `tel:${phone}`, label: 'שיחה', icon: Phone, external: false },
-    phone && { key: 'wa', href: `https://wa.me/${whatsappNumber(phone)}`, label: 'וואטסאפ', icon: MessageCircle, external: true },
+    telHref(phone ?? '') && { key: 'call', href: telHref(phone ?? ''), label: 'שיחה', icon: Phone, external: false },
+    whatsappNumber(phone ?? '').length >= 7 && { key: 'wa', href: `https://wa.me/${whatsappNumber(phone ?? '')}`, label: 'וואטסאפ', icon: MessageCircle, external: true },
     email && { key: 'mail', href: `mailto:${email}`, label: 'מייל', icon: Mail, external: false },
     place && { key: 'nav', href: `https://waze.com/ul?q=${encodeURIComponent(place)}&navigate=yes`, label: 'ניווט', icon: Navigation, external: true },
   ].filter((x): x is { key: string; href: string; label: string; icon: typeof Phone; external: boolean } => !!x)

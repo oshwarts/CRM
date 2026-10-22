@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useDraft } from '../lib/useDraft'
 import { QuickDates } from './QuickDates'
 import { SearchSelect } from './SearchSelect'
@@ -9,6 +9,7 @@ import type { TaskRow } from '../lib/types'
 import { ConfirmButton, Field, Modal } from './ui'
 import { TaskSuggestions, useTaskGuess } from './TaskSuggestions'
 import { CoordinatorField } from './CoordinatorField'
+import { taskError } from '../lib/taskLogic'
 
 const emptyForm = (assignee: string | null): TaskFormData => ({
   description: '',
@@ -66,15 +67,20 @@ export function TaskFormModal({
   const guess = useTaskGuess(task ? '' : d.description) // suggestions only for a new task
   const set = (p: Partial<TaskFormData>) => setD((x) => ({ ...x, ...p }))
 
+  const sending = useRef(false) // a second tap before the screen has re-rendered must not create a second task
   async function submit() {
+    if (sending.current) return
     setError('')
     if (!d.description.trim()) return setTriedSave(true)
+    sending.current = true
     try {
       await save.mutateAsync(d)
       draft.clear()
       onClose()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'השמירה נכשלה')
+      setError(taskError(e, 'השמירה נכשלה'))
+    } finally {
+      sending.current = false
     }
   }
 
@@ -221,8 +227,8 @@ export function TaskFormModal({
           <div className="me-auto">
             {task && (
               <ConfirmButton
-                message="למחוק את המשימה?"
-                onConfirm={() => del.mutate(task.id, { onSuccess: onClose, onError: (e) => setError(e instanceof Error ? e.message : 'המחיקה נכשלה') })}
+                message={`למחוק את המשימה "${task.description.length > 40 ? `${task.description.slice(0, 40)}…` : task.description}"${task.subtasks.length ? ` ואת ${task.subtasks.length} השלבים שלה` : ''}? הפעולה אינה הפיכה.`}
+                onConfirm={() => del.mutate(task.id, { onSuccess: onClose, onError: (e) => setError(taskError(e, 'המחיקה נכשלה')) })}
               >
                 מחיקה
               </ConfirmButton>

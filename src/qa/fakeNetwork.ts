@@ -16,6 +16,10 @@ export type QaApi = {
   setOnline: (online: boolean) => void
   /** make every write fail with this message (null = succeed again) */
   failWrites: (message: string | null) => void
+  /** reads never answer (true) — the LOADING state of a screen that has no data yet; false = answer again */
+  hangReads: (hang: boolean) => void
+  /** (set by the harness) throw away the data of a query and fetch it again: with the failing/hanging network this gives the ERROR / LOADING state with no cached data, e.g. __qa.resetQuery(['meetings']) */
+  resetQuery?: (key: unknown[]) => Promise<void>
   /** (set by the harness) open a screen by in-app navigation */
   go?: (path: string) => Promise<void>
   /** (set by the harness) measure screens: overflow, bad texts, console errors, unnamed controls … — see smoke.tsx */
@@ -32,10 +36,12 @@ export function installFakeNetwork(opts: { offline?: boolean; slow?: boolean } =
   const realFetch = window.fetch.bind(window)
   let writeError: string | null = null
   let online = !opts.offline
+  let hang = false
 
   const qa: QaApi = {
     requests: [],
-    handlers: {},
+    // the offline outbox reads the sub-steps of a task before it saves them: nothing there yet
+    handlers: { 'GET /rest/v1/task_subtasks': () => [] },
     reset: () => {
       qa.requests.length = 0
     },
@@ -45,6 +51,9 @@ export function installFakeNetwork(opts: { offline?: boolean; slow?: boolean } =
     },
     failWrites: (m) => {
       writeError = m
+    },
+    hangReads: (h) => {
+      hang = h
     },
   }
   window.__qa = qa
@@ -75,6 +84,7 @@ export function installFakeNetwork(opts: { offline?: boolean; slow?: boolean } =
 
     // reads: a dropped connection (the cached / seeded data stays on the screen)
     if (method === 'GET' || method === 'HEAD') {
+      if (hang) await new Promise(() => undefined)
       if (!online) throw new TypeError('Failed to fetch')
       const key = `GET ${u.pathname}`
       const h = qa.handlers[key]

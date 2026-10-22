@@ -2,8 +2,9 @@ import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { CalendarDays, CheckSquare, ScanLine, StickyNote } from 'lucide-react'
 import { useMeetings, usePatientScans, useTasks } from '../lib/api'
-import { SCAN_PROCEDURE_LABELS } from '../lib/types'
-import { classNames, formatDate } from '../lib/utils'
+import { MEETING_STATUS_LABELS, SCAN_PROCEDURE_LABELS } from '../lib/types'
+import { localDay } from '../lib/localDay'
+import { classNames, formatDate, todayISO } from '../lib/utils'
 import { Spinner } from './ui'
 
 type Ev = { key: string; date: string; kind: 'meeting' | 'task' | 'scan'; title: string; sub: string; to: string; done: boolean }
@@ -21,11 +22,11 @@ export function DoctorTimeline({ doctorId }: { doctorId: string }) {
     const out: Ev[] = []
     for (const m of meetings.data ?? []) {
       if (!m.meeting_date || !m.meeting_doctors.some((d) => d.doctor?.id === doctorId)) continue
-      out.push({ key: `m${m.id}`, date: m.meeting_date, kind: 'meeting', title: m.subject || 'פגישה', sub: [m.hospital?.name, m.summary ? m.summary.slice(0, 120) : ''].filter(Boolean).join(' · '), to: `/meetings/${m.id}?doctor=${doctorId}`, done: m.status === 'done' })
+      out.push({ key: `m${m.id}`, date: m.meeting_date, kind: 'meeting', title: m.subject || 'פגישה', sub: [m.status === 'done' ? '' : MEETING_STATUS_LABELS[m.status], m.hospital?.name, m.summary ? m.summary.slice(0, 120) : ''].filter(Boolean).join(' · '), to: `/meetings/${m.id}?doctor=${doctorId}`, done: m.status === 'done' })
     }
     for (const t of tasks.data ?? []) {
       if (t.doctor_id !== doctorId) continue
-      const date = t.is_done && t.done_at ? t.done_at.slice(0, 10) : (t.due_date ?? t.created_at.slice(0, 10))
+      const date = (t.is_done && localDay(t.done_at)) || t.due_date || localDay(t.created_at) || todayISO()
       out.push({ key: `t${t.id}`, date, kind: 'task', title: t.description, sub: t.is_done ? 'משימה שבוצעה' : t.due_date ? `משימה פתוחה, יעד ${formatDate(t.due_date)}` : 'משימה פתוחה', to: '/tasks', done: t.is_done })
     }
     for (const s of scans.data ?? []) {

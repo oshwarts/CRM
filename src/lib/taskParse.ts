@@ -1,7 +1,7 @@
 // Understands a task written (or dictated) in free Hebrew: finds the due date, urgency, repetition, the doctor
 // and the hospital. Rule-based and local — nothing is sent anywhere. The user always sees what was found
 // before it is applied.
-import { addDays, endOfMonth, format } from 'date-fns'
+import { addDays, addMonths, endOfMonth, format } from 'date-fns'
 import { normalizeHe } from './contactMatch'
 
 export type TaskGuess = {
@@ -45,7 +45,8 @@ function dayMonth(today: Date, d: number, m: number, y?: number): Date | null {
   return dt
 }
 
-const NUMERIC_DATE = /\s(עד\s+|ב-?|ל-?)?(\d{1,2})([./])(\d{1,2})(?:[./](\d{2,4}))?\s/
+// d/m or d.m.y; a quantity such as "1/2 קילו" is not a date
+const NUMERIC_DATE = /\s(עד\s+|ב-?|ל-?)?(\d{1,2})([./])(\d{1,2})(?:[./](\d{2,4}))?\s(?!(?:קילו|קג|ק״ג|מטר|מטרים|ס״מ|סמ|ליטר|שעה|שעות|דקות|גרם|אחוז|כוס|כוסות|מ״ל|מל|ימים|יום)(?:\s|$))/
 
 /** is there a real numeric date in the text (valid day/month, and not a bare "2.5" decimal)? */
 function numericDate(text: string, today: Date): boolean {
@@ -56,12 +57,13 @@ function numericDate(text: string, today: Date): boolean {
 }
 
 const STOP = new Set(['מרכז', 'רפואי', 'בית', 'חולים', 'מרפאה', 'המרכז', 'הרפואי', 'ד״ר', 'דר', 'פרופ', 'פרופסור', 'דוקטור', 'של', 'את', 'עם', 'אל'])
+const TITLES = new Set(['דר', 'פרופ', 'פרופסור', 'דוקטור'])
 const PREFIX = 'ובלמהכש'
 
 /** the words of a text as a set, each also without a one-letter prefix (בבילינסון → בילינסון) */
 function wordSet(text: string): Set<string> {
   const out = new Set<string>()
-  for (const w of normalizeHe(text).split(' ').filter(Boolean)) {
+  for (const w of normalizeHe(text.replace(/[!?:;()]/g, ' ')).split(' ').filter(Boolean)) {
     out.add(w)
     if (w.length > 3 && PREFIX.includes(w[0])) out.add(w.slice(1))
     if (w.length > 4 && w.startsWith('וב')) out.add(w.slice(2))
@@ -71,7 +73,7 @@ function wordSet(text: string): Set<string> {
 
 export function guessTask(
   raw: string,
-  ctx: { today?: Date; doctors?: { id: string; name: string; title?: string }[]; hospitals?: { id: string; name: string }[] } = {},
+  ctx: { today?: Date; doctors?: { id: string; name: string; title?: string }[]; hospitals?: { id: string; name: string; city?: string | null }[] } = {},
 ): TaskGuess {
   const today = ctx.today ?? new Date()
   // punctuation (comma, colon …) becomes a space so the patterns below can rely on whitespace between words
@@ -87,13 +89,22 @@ export function guessTask(
 
   /* ---- repetition ---- */
   let recurrence: TaskGuess['recurrence'] = null
-  if (take(/\s(?:כל|בכל)\s+שבוע\s|\sשבועי(?:ת)?\s/)) recurrence = 'weekly'
-  else if (take(/\s(?:כל|בכל)\s+חודש\s|\sחודשי(?:ת)?\s/)) recurrence = 'monthly'
+  let weeklyDay: number | null = null // "every Sunday" repeats weekly and is also the first due date
+  const every = take(new RegExp(`\\s(?:כל|בכל)\\s+(?:יום\\s+)?(${Object.keys(WEEKDAYS).join('|')}|[א-ו][׳'])\\s`))
+  if (every) {
+    recurrence = 'weekly'
+    weeklyDay = /[׳']$/.test(every[1]) ? LETTER_DAY[every[1][0]] : WEEKDAYS[every[1]]
+  } else if (take(/\s(?:(?:כל|בכל|מדי)\s+שבוע|פעם\s+בשבוע)\s|\sשבועי(?:ת)?\s/)) recurrence = 'weekly'
+  else if (take(/\s(?:(?:כל|בכל|מדי)\s+חודש|פעם\s+בחודש)\s|\sחודשי(?:ת)?\s/)) recurrence = 'monthly'
   if (recurrence) found.push({ kind: 'repeat', label: recurrence === 'weekly' ? 'חוזרת כל שבוע' : 'חוזרת כל חודש' })
 
   /* ---- urgency ---- */
   let priority: TaskGuess['priority'] = null
-  if (take(/\s(?:בדחיפות|דחוף|דחופה|דחופים|מיידי|מיידית|עדיפות\s+גבוהה|בהקדם\s+האפשרי)\s/)) {
+  const urgentRe = /\s(?:בדחיפות|דחוף|דחופה|דחופים|מיידי|מיידית|עדיפות\s+גבוהה|בהקדם\s+האפשרי)(?:\s+מאוד)?\s/
+  const um = rest.match(urgentRe)
+  // "לא דחוף" (not urgent) must not become urgent
+  if (um && um.index !== undefined && !/\sלא$/.test(rest.slice(0, um.index))) {
+    take(urgentRe)
     priority = 'urgent'
     found.push({ kind: 'priority', label: 'דחוף' })
   }
@@ -102,34 +113,39 @@ export function guessTask(
   let due: Date | null = null
   let m: RegExpMatchArray | null
 
-  if ((m = take(new RegExp(`\\s(?:עד\\s+)?(?:[בל]-?)?(?:ה-?)?(\\d{1,2})\\s*[בל]?-?\\s*(${MONTH_RE})(?:\\s+(\\d{4}))?\\s`)))) {
+  if ((m = take(new RegExp(`\\s(?:עד\\s+)?(?:[בל]?יום\\s+)?(?:[בל]-?)?(?:ה-?)?(\\d{1,2})\\s*[בל]?-?\\s*(${MONTH_RE})(?:\\s+(\\d{4}))?\\s`)))) {
     due = dayMonth(today, Number(m[1]), MONTHS[m[2]], m[3] ? Number(m[3]) : undefined)
   } else if (numericDate(rest, today)) {
     // 5/12, 5.12.26, "עד 5.12" — but not a decimal quantity like "2.5 מטר" (a bare d.m needs a "by / on" word or a year)
     const nm = take(NUMERIC_DATE)!
     due = dayMonth(today, Number(nm[2]), Number(nm[4]), nm[5] ? Number(nm[5]) : undefined)
-  } else if (take(/\sמחרתיים\s/)) due = addDays(today, 2)
-  else if (take(/\sמחר\s/)) due = addDays(today, 1)
+  } else if (take(/\s(?:עד\s+)?ל?מחרתיים\s/)) due = addDays(today, 2)
+  else if (take(/\s(?:עד\s+)?ל?מחר\s/)) due = addDays(today, 1)
   else if (take(/\s(?:עד\s+)?היום\s/)) due = today
-  else if ((m = take(/\sבעוד\s+(\d+|יומיים|שבועיים|שלושה|שלוש|ארבעה|ארבע|חמישה|חמש)\s*(ימים|יום|שבועות|שבוע|חודשים|חודש)?\s/))) {
-    const word: Record<string, number> = { יומיים: 2, שבועיים: 2, שלושה: 3, שלוש: 3, ארבעה: 4, ארבע: 4, חמישה: 5, חמש: 5 }
+  else if ((m = take(/\sבעוד\s+(\d+|יומיים|שבועיים|חודשיים|שלושה|שלוש|ארבעה|ארבע|חמישה|חמש)\s*(ימים|יום|שבועות|שבוע|חודשים|חודש)?\s/))) {
+    const word: Record<string, number> = { יומיים: 2, שבועיים: 2, חודשיים: 2, שלושה: 3, שלוש: 3, ארבעה: 4, ארבע: 4, חמישה: 5, חמש: 5 }
     const n = /^\d+$/.test(m[1]) ? Number(m[1]) : word[m[1]]
-    const unit = m[2] ?? (m[1] === 'שבועיים' ? 'שבועות' : 'ימים')
-    due = addDays(today, /שבוע|שבועות/.test(unit) ? n * 7 : /חודש/.test(unit) ? n * 30 : n)
+    const unit = m[2] ?? (m[1] === 'שבועיים' ? 'שבועות' : m[1] === 'חודשיים' ? 'חודשים' : 'ימים')
+    due = /חודש/.test(unit) ? addMonths(today, n) : addDays(today, /שבוע|שבועות/.test(unit) ? n * 7 : n)
   } else if (take(/\sבעוד\s+שבוע\s/)) due = addDays(today, 7)
-  else if (take(/\sבעוד\s+חודש\s/)) due = addDays(today, 30)
+  else if (take(/\sבעוד\s+חודש\s/)) due = addMonths(today, 1)
   else if (take(/\s(?:עד\s+)?סוף\s+החודש\s/)) due = endOfMonth(today)
   else if (take(/\s(?:עד\s+)?סוף\s+השבוע\s/)) due = nextWeekday(addDays(today, -1), 4) // the coming Thursday
   else {
     // "יום חמישי", "ביום ה׳", "בחמישי", optionally "בשבוע הבא"
-    const weekdayRe = new RegExp(`\\s(?:עד\\s+)?(?:(?:[בל])?יום\\s+(${Object.keys(WEEKDAYS).join('|')}|[א-ו][׳'])|ב(ראשון|חמישי|שישי|רביעי|שלישי|שבת))(\\s+ב?שבוע\\s+הבא)?\\s`)
+    // (a bare day name such as "חמישי" is a weekday only when "next week" follows — "שני" and "שלישי" are also ordinals)
+    const names = Object.keys(WEEKDAYS).join('|')
+    const weekdayRe = new RegExp(
+      `\\s(?:עד\\s+)?(?:(?:[בל])?יום\\s+(${names}|[א-ו][׳'])|ב(ראשון|חמישי|שישי|רביעי|שלישי|שבת)|[בל]?(${names})(?=\\s+ב?שבוע\\s+הבא\\s))(?:\\s+הבא)?(\\s+ב?שבוע\\s+הבא)?\\s`,
+    )
     if ((m = take(weekdayRe))) {
-      const name = m[1] ?? m[2]
+      const name = m[1] ?? m[2] ?? m[3]
       const wd = /[׳']$/.test(name) ? LETTER_DAY[name[0]] : WEEKDAYS[name]
       // "next week" = that day of the coming Sunday-to-Saturday week
-      due = m[3] ? addDays(today, 7 - today.getDay() + wd) : nextWeekday(today, wd)
+      due = m[4] ? addDays(today, 7 - today.getDay() + wd) : nextWeekday(today, wd)
     } else if (take(/\s(?:ב)?שבוע\s+הבא\s/)) due = addDays(today, 7)
   }
+  if (!due && weeklyDay !== null) due = nextWeekday(today, weeklyDay)
   if (due) found.push({ kind: 'date', label: dateLabel(due) })
 
   /* ---- doctor and hospital (by name, with or without a title; one-letter prefixes allowed) ---- */
@@ -143,8 +159,11 @@ export function guessTask(
   })
   let doc = full.length === 1 ? full[0] : null
   if (!doc && full.length === 0) {
-    // only the family name was said: accept it when it points at a single doctor
-    const bySurname = docs.filter((d) => docTokens(d.name).some((t) => t.length >= 4 && words.has(t)))
+    // only one name was said: accept it when it points at a single doctor. A short name (כהן, לוי) counts after a title ("ד״ר כהן")
+    const spoken = normalizeHe(raw).split(' ')
+    const isTitle = (w: string) => TITLES.has(w) || (w.length > 2 && PREFIX.includes(w[0]) && TITLES.has(w.slice(1))) // "לד״ר"
+    const titled = new Set(spoken.filter((_, i) => i > 0 && isTitle(spoken[i - 1])))
+    const bySurname = docs.filter((d) => docTokens(d.name).some((t) => words.has(t) && (t.length >= 4 || titled.has(t))))
     if (bySurname.length === 1) doc = bySurname[0]
   }
   if (doc) {
@@ -153,21 +172,33 @@ export function guessTask(
   }
 
   let hospital_id: string | null = null
-  const hospitalVariants = (ctx.hospitals ?? []).map((h) => ({
-    h,
-    variants: h.name.split(/[–—-]/).map((v) => normalizeHe(v).split(' ').filter((t) => t.length >= 2 && !STOP.has(t))),
-  }))
-  // how many hospitals each word belongs to: a word that belongs to one hospital alone is enough to name it ("אסותא")
+  const tokensOf = (v: string) => normalizeHe(v).split(' ').filter((t) => t.length >= 2 && !STOP.has(t))
+  const hospitalVariants = (ctx.hospitals ?? []).map((h) => {
+    const city = new Set(tokensOf(h.city ?? ''))
+    return {
+      h,
+      city,
+      // a part of the name that is only the name of the city ("מרכז רפואי תל אביב") does not name the hospital: several share the city
+      variants: h.name
+        .split(/[–—-]/)
+        .map(tokensOf)
+        .filter((v) => v.length > 0 && !(city.size > 0 && v.every((t) => city.has(t)))),
+    }
+  })
+  // how many hospitals each word belongs to: a word that belongs to one hospital alone is enough to name it ("אסותא אשדוד" → "אשדוד" is a city, "איכילוב" is not)
   const owners = new Map<string, number>()
   for (const { variants } of hospitalVariants) for (const t of new Set(variants.flat())) owners.set(t, (owners.get(t) ?? 0) + 1)
-  for (const { h, variants } of hospitalVariants) {
-    const whole = variants.some((v) => v.length > 0 && v.join('').length >= 4 && v.every((t) => words.has(t)))
-    const unique = variants.some((v) => v.some((t) => t.length >= 4 && words.has(t) && owners.get(t) === 1))
-    if (whole || unique) {
-      hospital_id = h.id
-      found.push({ kind: 'hospital', label: h.name })
-      break
-    }
+  const named = hospitalVariants.filter(({ variants, city }) => {
+    const whole = variants.some((v) => v.join('').length >= 4 && v.every((t) => words.has(t)))
+    // words only this hospital has (never its city): one long word, or two short ones together ("עין כרם")
+    const mine = new Set(variants.flat().filter((t) => words.has(t) && owners.get(t) === 1 && !city.has(t)))
+    const unique = [...mine].some((t) => t.length >= 4) || [...mine].join('').length >= 6
+    return whole || unique
+  })
+  // two hospitals fit ("הדסה", "אסותא"): ask nobody to guess — the user picks in the form
+  if (named.length === 1) {
+    hospital_id = named[0].h.id
+    found.push({ kind: 'hospital', label: named[0].h.name })
   }
 
   const description = rest

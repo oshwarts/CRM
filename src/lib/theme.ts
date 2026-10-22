@@ -74,3 +74,24 @@ export function useTextSize(): [TextSize, (v: TextSize) => void] {
     },
   ]
 }
+
+/** mounted once in the shell: the screen follows the device when it switches between light and dark (evening) and follows a change made in another tab */
+export function useThemeSync() {
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const onDevice = () => applyTheme()
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === KEY) applyTheme()
+      if (e.key === SIZE_KEY) {
+        const v = e.newValue
+        applyTextSize(v === 'compact' || v === 'large' ? v : 'regular')
+      }
+    }
+    mq.addEventListener('change', onDevice)
+    window.addEventListener('storage', onStorage)
+    return () => {
+      mq.removeEventListener('change', onDevice)
+      window.removeEventListener('storage', onStorage)
+    }
+  }, [])
+}

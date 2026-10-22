@@ -1,6 +1,7 @@
 // The funnel of potential doctors: the stages (edited by the managers), the stage and next step of a doctor, and the history of the stages.
 // Tables pipeline_stages / doctor_stage_history (migration 064) are newer than the generated types, so this module uses an untyped view of the client.
 import { useMemo } from 'react'
+import { format } from 'date-fns'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { supabase } from './supabase'
@@ -134,7 +135,7 @@ export function useStageSince() {
       const { data, error } = await db.from('doctor_stage_history').select('doctor_id, stage, changed_at').order('changed_at', { ascending: false }).limit(5000)
       if (error) throw error
       const m = new Map<string, { stage: string; since: string }>()
-      for (const r of (data ?? []) as { doctor_id: string; stage: string; changed_at: string }[]) if (!m.has(r.doctor_id)) m.set(r.doctor_id, { stage: r.stage, since: r.changed_at.slice(0, 10) })
+      for (const r of (data ?? []) as { doctor_id: string; stage: string; changed_at: string }[]) if (!m.has(r.doctor_id)) m.set(r.doctor_id, { stage: r.stage, since: format(new Date(r.changed_at), 'yyyy-MM-dd') }) // the local day, not the UTC one
       return m
     },
   })

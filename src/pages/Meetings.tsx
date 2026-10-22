@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { usePersisted } from '../lib/usePersisted'
 import { useCanDelete } from '../lib/permissions'
 import { PendingMark } from '../components/PendingMark'
+import { usePendingRecords } from '../lib/outbox'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
   Building2,
@@ -20,6 +21,7 @@ import {
 } from 'lucide-react'
 import {
   useDeleteMeeting,
+  useHospitals,
   useMeetings,
   useToggleMeetingTask,
 } from '../lib/api'
@@ -34,8 +36,12 @@ import { MeetingStatusChip } from '../components/MeetingBits'
 import type { MeetingWithRelations } from '../lib/types'
 import { classNames, formatDate, formatTime, isOverdue, todayISO } from '../lib/utils'
 import { normalizeHe } from '../lib/contactMatch'
+import { inTab, sortMeetings, type MeetingTab } from '../lib/meetingList'
 
-type FilterKey = 'all' | 'upcoming' | 'past' | 'followup'
+type FilterKey = MeetingTab
+
+/** cards drawn at a time: 300 cards with their tasks make the phone crawl */
+const PAGE = 40
 
 /** the date of a meeting as a small calendar tile: day and month, tinted when it is today or already past */
 function DateTile({ date, status }: { date: string | null; status: string }) {
@@ -54,20 +60,6 @@ function DateTile({ date, status }: { date: string | null; status: string }) {
   )
 }
 
-/** does this meeting belong to the tab */
-function inTab(m: MeetingWithRelations, key: FilterKey, today: string): boolean {
-  switch (key) {
-    case 'upcoming':
-      return (m.meeting_date ?? '') >= today && m.status === 'scheduled'
-    case 'past':
-      return (m.meeting_date ?? '') < today || m.status === 'done'
-    case 'followup':
-      return !!m.next_followup_date && m.status !== 'done' && m.status !== 'cancelled'
-    default:
-      return true
-  }
-}
-
 /** doctors in the meeting as one short line: names, and how many other people took part */
 function peopleLine(m: MeetingWithRelations): string {
   const doctors = m.meeting_doctors.flatMap((d) => (d.doctor ? [`${d.doctor.title} ${d.doctor.name}`] : []))
@@ -84,6 +76,9 @@ export default function Meetings() {
   const deleteMeeting = useDeleteMeeting()
   const canDelete = useCanDelete()
   const toggleTask = useToggleMeetingTask()
+  const hospitals = useHospitals()
+  const pendingRecords = usePendingRecords()
+  const pendingKey = [...pendingRecords.keys()].join(',') // a stable value for the memo below (the Map is new on every render)
 
   const [filter, setFilter] = usePersisted<FilterKey>('meetings.filter', 'all')
   const [showAdd, setShowAdd] = useState(false)
@@ -96,6 +91,8 @@ export default function Meetings() {
   const [openTasks, setOpenTasks] = useState<Record<string, boolean>>({})
   const [from, setFrom] = usePersisted('meetings.from', '')
   const [to, setTo] = usePersisted('meetings.to', '')
+  // how many cards are drawn; starts again from the first page when the filters change
+  const [paging, setPaging] = useState({ key: '', n: PAGE })
 
   const today = todayISO() // local date: toISOString() is UTC, a day behind in Israel between midnight and 2-3 AM
 
@@ -112,8 +109,10 @@ export default function Meetings() {
   const hospitalOptions = useMemo(() => {
     const m = new Map<string, string>()
     for (const mt of meetings.data ?? []) if (mt.hospital) m.set(mt.hospital.id, mt.hospital.name)
+    // a hospital opened from a link may have no meeting yet: it must still be a visible choice of the select
+    if (hospitalId && !m.has(hospitalId)) m.set(hospitalId, (hospitals.data ?? []).find((h) => h.id === hospitalId)?.name ?? 'בית חולים')
     return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1], 'he'))
-  }, [meetings.data])
+  }, [meetings.data, hospitals.data, hospitalId])
 
   const filtered = useMemo(() => {
     const list = meetings.data ?? []
@@ -149,22 +148,12 @@ export default function Meetings() {
       })
     }
 
-    // newest meeting first by default; meetings without a date go last
-    const dir = -1
-    return [...out].sort((a, b) => {
-      if (!a.meeting_date && !b.meeting_date) return 0
-      if (!a.meeting_date) return 1
-      if (!b.meeting_date) return -1
-      return (
-        dir *
-        (a.meeting_date.localeCompare(b.meeting_date) ||
-          (a.meeting_time ?? '').localeCompare(b.meeting_time ?? '') ||
-          a.created_at.localeCompare(b.created_at))
-      )
-    })
-  }, [meetings.data, filter, today, q, hospitalId, doctorId, from, to])
+    return sortMeetings(out, filter, new Set(pendingKey ? pendingKey.split(',') : []))
+  }, [meetings.data, filter, today, q, hospitalId, doctorId, from, to, pendingKey])
 
 
+  const filterKey = [filter, q, hospitalId, doctorId, from, to].join('|')
+  const shown = paging.key === filterKey ? paging.n : PAGE
   const hasSearch = !!(q || hospitalId || doctorId || from || to)
   const advancedCount = [hospitalId, doctorId, from, to].filter(Boolean).length
 
@@ -198,7 +187,7 @@ export default function Meetings() {
             onClick={() => setFilter(t.key)}
             aria-pressed={filter === t.key}
             className={classNames(
-              'flex min-h-9 items-center justify-center gap-1 rounded-full px-1 py-1.5 text-sm font-medium transition sm:px-4',
+              'flex min-h-10 items-center justify-center gap-1 rounded-full px-1 py-1.5 text-sm font-medium transition sm:px-4',
               filter === t.key
                 ? 'bg-white text-brand-700 shadow-sm'
                 : 'text-slate-600 hover:text-brand-700',
@@ -295,12 +284,27 @@ export default function Meetings() {
         </div>
       </div>
 
+      {(deleteMeeting.error || toggleTask.error) && (
+        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+          {(() => {
+            const e = deleteMeeting.error ?? toggleTask.error
+            const why = e instanceof Error ? e.message : typeof e === 'object' && e && 'message' in e ? String((e as { message: unknown }).message) : ''
+            return why || 'הפעולה נכשלה'
+          })()}
+        </p>
+      )}
+
       {meetings.isLoading && <Spinner />}
-      {meetings.error && <ErrorState error={meetings.error} />}
+      {meetings.error && !meetings.data && <ErrorState error={meetings.error} />}
+      {meetings.error && meetings.data && (
+        <p role="status" className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          לא הצלחנו לרענן — מוצגים הנתונים האחרונים שנשמרו.
+        </p>
+      )}
       {meetings.data && filtered.length === 0 && (
         <EmptyState
           title="אין פגישות להצגה"
-          hint={hasSearch ? 'נסה לשנות או לנקות את החיפוש' : filter !== 'all' ? 'אין פגישות בלשונית הזו' : undefined}
+          hint={hasSearch ? 'נסה לשנות או לנקות את החיפוש' : filter !== 'all' ? 'אין פגישות בלשונית הזו' : 'עוד לא נוספו פגישות. אפשר לתעד פגישה שהתקיימה או לתזמן את הבאה.'}
           action={
             !hasSearch ? (
               <button className="btn-primary" onClick={() => setShowAdd(true)}>
@@ -311,8 +315,8 @@ export default function Meetings() {
         />
       )}
 
-      <ul className="space-y-3">
-        {filtered.map((m) => {
+      <ul className="grid gap-3 xl:grid-cols-2">
+        {filtered.slice(0, shown).map((m) => {
           const people = peopleLine(m)
           const place = [m.location, m.responsible_agent?.full_name].filter(Boolean).join(' · ')
           const doneTasks = m.meeting_tasks.filter((t) => t.is_done).length
@@ -323,17 +327,22 @@ export default function Meetings() {
               <div className="flex items-start gap-3">
                 <DateTile date={m.meeting_date} status={m.status} />
                 <div className="min-w-0 flex-1">
-                  <h2 className="line-clamp-2 break-words text-base font-semibold leading-snug text-brand-800">
-                    <Link
-                      to={`/meetings/${m.id}`}
-                      className="hover:text-brand-600 hover:underline after:absolute after:inset-0 after:rounded-2xl after:content-['']"
-                    >
-                      {m.subject || 'פגישה'}
-                    </Link>{' '}
+                  <h2 className="break-words text-base font-semibold leading-snug text-brand-800">
+                    <span className="line-clamp-2" title={m.subject}>
+                      <Link
+                        to={`/meetings/${m.id}`}
+                        className="!inline hover:text-brand-600 hover:underline after:absolute after:inset-0 after:rounded-2xl after:content-['']"
+                      >
+                        {m.subject || 'פגישה'}
+                      </Link>
+                    </span>
                     <PendingMark id={m.id} />
                   </h2>
                   <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-600">
                     <MeetingStatusChip status={m.status} />
+                    {m.status === 'scheduled' && !!m.meeting_date && m.meeting_date < today && (
+                      <span className="chip border-red-200 bg-red-50 !px-2 !py-0.5 text-red-700">המועד עבר</span>
+                    )}
                     {m.meeting_time && <span className="tabular-nums">{formatTime(m.meeting_time)}</span>}
                     {m.hospital && (
                       <span className="inline-flex min-w-0 items-center gap-1 font-medium">
@@ -405,7 +414,7 @@ export default function Meetings() {
                   {m.meeting_tasks.length > 0 && (
                     <button
                       type="button"
-                      className="inline-flex min-h-8 items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-200"
+                      className="inline-flex min-h-10 items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-200"
                       onClick={() => setOpenTasks((o) => ({ ...o, [m.id]: !o[m.id] }))}
                       aria-expanded={tasksOpen}
                     >
@@ -418,17 +427,21 @@ export default function Meetings() {
                 <div className="flex shrink-0 items-center">
                   <Link
                     to={`/meetings/${m.id}?mail=1`}
-                    className="btn-ghost !min-h-9 !px-2"
+                    className="btn-ghost !min-h-10 !min-w-10 !px-2"
                     title="שלח סיכום פגישה במייל"
                     aria-label="שלח סיכום פגישה במייל"
                   >
                     <Mail size={16} />
                   </Link>
-                  <button className="btn-ghost !min-h-9 !px-2" onClick={() => setEditing(m)} aria-label="עריכה" title="עריכה">
+                  <button className="btn-ghost !min-h-10 !min-w-10 !px-2" onClick={() => setEditing(m)} aria-label="עריכה" title="עריכה">
                     <Pencil size={16} />
                   </button>
-                  {canDelete(m.created_by) && (
-                    <ConfirmButton className="btn-ghost !min-h-9 !px-2 text-red-600" onConfirm={() => deleteMeeting.mutate(m.id)}>
+                  {canDelete(m.created_by) && !pendingRecords.has(m.id) && (
+                    <ConfirmButton
+                      className="btn-ghost !min-h-10 !min-w-10 !px-2 text-red-600"
+                      message={`למחוק את הפגישה "${m.subject || 'פגישה'}"?${m.meeting_tasks.length ? ` גם ${m.meeting_tasks.length} משימות של הפגישה יימחקו.` : ''} הפעולה אינה הפיכה.`}
+                      onConfirm={() => deleteMeeting.mutate(m.id)}
+                    >
                       <Trash2 size={16} />
                     </ConfirmButton>
                   )}
@@ -438,6 +451,14 @@ export default function Meetings() {
           )
         })}
       </ul>
+
+      {filtered.length > shown && (
+        <div className="flex justify-center">
+          <button className="btn-secondary" onClick={() => setPaging({ key: filterKey, n: shown + PAGE })}>
+            הצג עוד ({filtered.length - shown})
+          </button>
+        </div>
+      )}
 
       {showAdd && (
         <MeetingFormModal open={showAdd} onClose={() => setShowAdd(false)} />

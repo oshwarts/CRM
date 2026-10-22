@@ -30,7 +30,7 @@ export function TaskSuggestions({ guess, onApply }: { guess: TaskGuess | null; o
           </span>
         )
       })}
-      <button type="button" className="mr-auto rounded-lg bg-[#1863dc] hover:bg-[#1352b8]" onClick={() => onApply(guess)}>
+      <button type="button" className="btn-primary mr-auto !px-3 text-xs" onClick={() => onApply(guess)}>
         החל על הטופס
       </button>
     </div>

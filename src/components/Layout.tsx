@@ -32,6 +32,8 @@ import { useLiveUpdates } from '../lib/liveUpdates'
 import { useErrorLog } from '../lib/errorLog'
 import { ErrorBoundary } from './ErrorBoundary'
 import { useIdleLogout } from '../lib/idleLogout'
+import { useThemeSync } from '../lib/theme'
+import { useDialog } from './ui'
 
 
 // the four destinations next to the "+" button on a phone
@@ -40,9 +42,18 @@ const TABS = ['/', '/doctors', '/tasks', '/schedule']
 // scroll position of each visited page, so that going back returns to the same place
 const scrollOf = new Map<string, number>()
 
-const VERSION = 'v133 · לוז כמו Outlook: יומי, שבועי וחודשי, יצירה בלחיצה על שעה פנויה, משימות ביומן והוספה ל-Outlook'
+const VERSION = 'v132 · הליכים בתוך הליכים ובקשת הליך חדש, ימי מרפאה (ציבורי ופרטי עם כתובת), הצעות לשיפור המערכת'
 
+// a failure of the shell itself (not of one screen) also ends in a message with a way out, never in a blank page
 export function Layout() {
+  return (
+    <ErrorBoundary version={VERSION}>
+      <Shell />
+    </ErrorBoundary>
+  )
+}
+
+function Shell() {
   const { profile, signOut, impersonating, isDeveloper } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -55,11 +66,27 @@ export function Layout() {
   const [accountOpen, setAccountOpen] = useLocalSetting<boolean>('menu.account', false)
   const [openGroups, setOpenGroups] = useLocalSetting<string[]>('menu.open', [])
   const navType = useNavigationType()
+  const drawerBox = useRef<HTMLElement>(null)
+  const idleBox = useRef<HTMLDivElement>(null)
   const tasks = useTasks()
   const { user } = useAuth()
   // other people's changes appear by themselves, and an error on this screen is recorded for the managers
   useLiveUpdates(!!user)
   useErrorLog(VERSION, !!user)
+  useThemeSync()
+  // the app has been running for a while, so the "reload once for a new version" guards are cleared: the next deploy may reload again
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try {
+        sessionStorage.removeItem('ami.reloadedForChunk')
+        sessionStorage.removeItem('ami.reloadedForUpdate')
+      } catch {
+        // no storage
+      }
+    }, 15_000)
+    return () => clearTimeout(t)
+  }, [])
+  const hasPrevious = () => (typeof window.history.state?.idx === 'number' ? window.history.state.idx > 0 : location.key !== 'default')
   const todayStr = todayISO() // local date (UTC is a day behind in Israel after midnight)
   // overdue tasks of mine: a small red-pink counter next to "tasks"
   const pendingSignups = usePendingSignups().data?.length ?? 0
@@ -96,22 +123,23 @@ export function Layout() {
   // the tab and the screen reader say where we are: the title of the page, kept in step with its main heading
   useEffect(() => {
     const main = document.querySelector('main')
-    let queued = false
+    let queued: ReturnType<typeof setTimeout> | undefined
     const set = () => {
-      queued = false
+      queued = undefined
       const h = main?.querySelector('h1')?.textContent?.trim()
       document.title = h ? `${h} · AMI CRM` : 'AMI CRM'
     }
     set()
     if (!main) return
     const obs = new MutationObserver(() => {
-      if (!queued) {
-        queued = true
-        requestAnimationFrame(set)
-      }
+      // a short wait lets a burst of changes finish; (not requestAnimationFrame: it does not run while the tab is hidden)
+      queued ??= setTimeout(set, 30)
     })
     obs.observe(main, { childList: true, subtree: true, characterData: true })
-    return () => obs.disconnect()
+    return () => {
+      obs.disconnect()
+      clearTimeout(queued)
+    }
   }, [location.pathname])
 
 
@@ -129,6 +157,8 @@ export function Layout() {
 
   // a device nobody touches for hours signs itself out (after a question a minute before)
   const idle = useIdleLogout(!!user, () => void handleSignOut())
+  useDialog(drawer, () => setDrawer(false), drawerBox)
+  useDialog(idle.warning > 0, idle.stay, idleBox)
 
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     classNames(
@@ -152,7 +182,7 @@ export function Layout() {
           </button>
           <DeveloperSwitcher />
           <ThemeToggle />
-          <p className="text-center text-[10px] text-slate-400">{VERSION}</p>
+          <p className="text-center text-[10px] text-slate-500">{VERSION}</p>
         </div>
       )}
       <div className="flex items-center gap-1">
@@ -169,7 +199,7 @@ export function Layout() {
           </span>
           <span className="min-w-0 leading-tight">
             <span className="block truncate text-xs font-medium text-slate-700">{profile?.full_name || profile?.email || 'הפרופיל שלי'}</span>
-            <span className="block truncate text-[11px] text-slate-400">{profile?.role === 'admin' ? 'מנהל' : 'סוכן'}</span>
+            <span className="block truncate text-[11px] text-slate-500">{profile?.role === 'admin' ? 'מנהל' : 'סוכן'}</span>
           </span>
         </button>
         <RefreshButton />
@@ -192,22 +222,28 @@ export function Layout() {
 
   const brand = <BrandLogo size="md" />
 
-  const renderItem = ({ to, label, icon: Icon, end }: (typeof NAV)[number]) => (
-    <NavLink key={to} to={to} end={end} className={navLinkClass}>
-      <Icon size={18} />
-      {label}
-      {to === '/tasks' && overdue > 0 && (
-        <span className="mr-auto rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-white" title="משימות באיחור">
-          {overdue}
-        </span>
-      )}
-      {to === '/users' && pendingSignups > 0 && (
-        <span className="mr-auto rounded-full bg-amber-500 px-2 py-0.5 text-xs font-semibold text-white" title="משתמשים שממתינים לאישור">
-          {pendingSignups}
-        </span>
-      )}
-    </NavLink>
-  )
+  // the counters next to a page: my overdue tasks, people waiting for approval
+  const badgeOf = (to: string) =>
+    to === '/tasks' && overdue > 0
+      ? { n: overdue, cls: 'bg-accent', title: 'משימות באיחור' }
+      : to === '/users' && pendingSignups > 0
+        ? { n: pendingSignups, cls: 'bg-amber-700', title: 'משתמשים שממתינים לאישור' }
+        : null
+
+  const renderItem = ({ to, label, icon: Icon, end }: (typeof NAV)[number]) => {
+    const badge = badgeOf(to)
+    return (
+      <NavLink key={to} to={to} end={end} className={navLinkClass}>
+        <Icon size={18} aria-hidden />
+        {label}
+        {badge && (
+          <span className={classNames('mr-auto rounded-full px-2 py-0.5 text-xs font-semibold text-white', badge.cls)} title={badge.title} aria-label={`${badge.title}: ${badge.n}`}>
+            {badge.n}
+          </span>
+        )}
+      </NavLink>
+    )
+  }
 
   // the menu: home, then my favourites (in my order), then the rest in folding groups (the group of the open page opens by itself)
   const renderNav = () => {
@@ -225,7 +261,7 @@ export function Layout() {
           </div>
           <div className="space-y-0.5">
             {favItems.map(renderItem)}
-            {favItems.length === 0 && <p className="px-3 py-2 text-xs text-slate-400">אין מועדפים — "התאמת התפריט" מאפשרת לבחור את הדפים שחשובים לך</p>}
+            {favItems.length === 0 && <p className="px-3 py-2 text-xs text-slate-500">אין מועדפים — "התאמת התפריט" מאפשרת לבחור את הדפים שחשובים לך</p>}
           </div>
         </div>
         {groups.map((g) => {
@@ -233,18 +269,27 @@ export function Layout() {
           if (items.length === 0) return null
           const hasActive = items.some((n) => location.pathname === n.to || (n.to !== '/' && location.pathname.startsWith(n.to + '/')))
           const open = hasActive || openGroups.includes(g.id)
+          // a folded group still shows that something inside it needs attention
+          const attention = open ? 0 : items.reduce((n, it) => n + (badgeOf(it.to)?.n ?? 0), 0)
           return (
             <div key={g.id} className="pt-3">
               <button
                 type="button"
-                className="flex w-full items-center justify-between rounded-lg px-3 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-100"
+                className="flex min-h-[36px] w-full items-center justify-between gap-2 rounded-lg px-3 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-100"
                 aria-expanded={open}
                 onClick={() => setOpenGroups((o) => (o.includes(g.id) ? o.filter((x) => x !== g.id) : [...o, g.id]))}
               >
-                <span>
-                  {g.title} <span className="font-normal text-slate-400">({items.length})</span>
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="truncate">
+                    {g.title} <span className="font-normal text-slate-500">({items.length})</span>
+                  </span>
+                  {attention > 0 && (
+                    <span className="rounded-full bg-accent px-1.5 text-[11px] font-semibold leading-4 text-white" aria-label={`דורשים תשומת לב: ${attention}`}>
+                      {attention}
+                    </span>
+                  )}
                 </span>
-                <ChevronDown size={14} className={classNames('transition', open && 'rotate-180')} />
+                <ChevronDown size={14} aria-hidden className={classNames('shrink-0 transition', open && 'rotate-180')} />
               </button>
               {open && <div className="mt-1 space-y-0.5">{items.map(renderItem)}</div>}
             </div>
@@ -266,7 +311,7 @@ export function Layout() {
   )
 
   return (
-    <div className="flex min-h-full" style={impersonating ? ({ '--banner': '2rem' } as React.CSSProperties) : undefined}>
+    <div className="flex min-h-full" style={impersonating ? ({ '--banner': '2.5rem' } as React.CSSProperties) : undefined}>
       <a href="#main-content" className="sr-only z-[100] rounded-lg bg-white text-sm font-medium text-brand-700 shadow-pop focus:not-sr-only focus:fixed focus:right-3 focus:top-3 focus:px-4 focus:py-2">
         דלג לתוכן הראשי
       </a>
@@ -305,10 +350,10 @@ export function Layout() {
       {drawer && (
         <div className="fixed inset-0 z-40 md:hidden">
           <div className="absolute inset-0 bg-slate-900/40" onClick={() => setDrawer(false)} />
-          <aside className="absolute bottom-0 right-0 top-[var(--banner,0px)] flex w-72 max-w-[85%] flex-col bg-white pt-[env(safe-area-inset-top)] shadow-xl">
+          <aside ref={drawerBox} role="dialog" aria-modal="true" aria-label="תפריט" tabIndex={-1} className="absolute bottom-0 right-0 top-[var(--banner,0px)] flex w-72 max-w-[85%] flex-col bg-white pt-[env(safe-area-inset-top)] shadow-xl outline-none">
             <div className="flex items-center justify-between px-4 py-4">
               {brand}
-              <button className="btn-ghost !px-2" onClick={() => setDrawer(false)} aria-label="סגור">
+              <button className="btn-ghost !px-2" onClick={() => setDrawer(false)} aria-label="סגור את התפריט">
                 <X size={20} />
               </button>
             </div>
@@ -319,13 +364,14 @@ export function Layout() {
       )}
 
       <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 overflow-x-clip outline-none">
-        <div className="mx-auto max-w-6xl px-3 pb-[calc(env(safe-area-inset-bottom)+5rem)] pt-[calc(env(safe-area-inset-top)+4.5rem+var(--banner,0px))] md:px-6 md:pb-6 md:pt-[calc(1.5rem+var(--banner,0px))]">
+        <div className="mx-auto max-w-6xl px-3 pb-[calc(env(safe-area-inset-bottom)+5rem+var(--offline-h,0px))] pt-[calc(env(safe-area-inset-top)+4.5rem+var(--banner,0px))] md:px-6 md:pb-[calc(1.5rem+var(--offline-h,0px))] md:pt-[calc(1.5rem+var(--banner,0px))]">
           {location.pathname !== '/' && (
             <button
               type="button"
               className="mb-3 inline-flex min-h-[40px] items-center gap-1.5 rounded-lg px-2 py-1 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-700"
               // the page before this one; when the app was opened straight on this page there is none, so go home
-              onClick={() => ((window.history.state?.idx ?? 0) > 0 ? navigate(-1) : navigate('/'))}
+              // (the first entry of the history is called "default"; a browser keeps its position in history.state.idx)
+              onClick={() => (hasPrevious() ? navigate(-1) : navigate('/'))}
             >
               <ArrowRight size={16} />
               חזרה
@@ -338,10 +384,10 @@ export function Layout() {
       </main>
       {idle.warning > 0 && (
         <div className="fixed inset-0 z-[95] grid place-items-center bg-slate-900/50 p-4" role="alertdialog" aria-modal="true" aria-label="עדיין כאן?">
-          <div className="w-full max-w-sm space-y-3 rounded-2xl bg-white p-5 text-center shadow-pop">
+          <div ref={idleBox} tabIndex={-1} className="w-full max-w-sm space-y-3 rounded-2xl bg-white p-5 text-center shadow-pop outline-none">
             <h2 className="text-lg font-semibold text-brand-800">עדיין כאן?</h2>
             <p className="text-sm text-slate-600">לא נגעת במסך זמן רב. להגנה על פרטי המטופלים תתבצע התנתקות אוטומטית בעוד {idle.warning} שניות.</p>
-            <button className="btn-primary w-full" onClick={idle.stay}>
+            <button className="btn-primary w-full" autoFocus onClick={idle.stay}>
               כן, אני כאן
             </button>
           </div>

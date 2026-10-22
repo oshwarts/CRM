@@ -32,13 +32,13 @@ export function LinkedTasks({ doctorId, hospitalId }: { doctorId?: string; hospi
         <p className="flex items-center gap-1 text-xs font-medium uppercase text-slate-400">
           <ListChecks size={12} /> משימות ({open.length})
         </p>
-        <button className="text-sm font-medium text-brand-600 hover:underline" onClick={() => setAdding(true)}>
-          <Plus size={14} className="inline" /> משימה
+        <button type="button" className="inline-flex min-h-[40px] items-center gap-1 px-2 text-sm font-medium text-brand-600 hover:underline" onClick={() => setAdding(true)}>
+          <Plus size={14} aria-hidden /> משימה
         </button>
       </div>
 
       {isLoading ? null : shown.length === 0 ? (
-        <p className="text-sm text-slate-400">אין משימות פתוחות</p>
+        <p className="text-sm text-slate-500">אין משימות פתוחות</p>
       ) : (
         <ul className="divide-y divide-slate-100 rounded-lg border border-slate-100">
           {shown.map((t) => {
@@ -46,14 +46,16 @@ export function LinkedTasks({ doctorId, hospitalId }: { doctorId?: string; hospi
             const subs = t.subtasks.length
             return (
               <li key={t.id} className="flex items-start gap-3 px-3 py-2">
-                <input
-                  type="checkbox"
-                  className="mt-0.5 h-5 w-5 shrink-0 cursor-pointer accent-emerald-600"
-                  checked={t.is_done}
-                  onChange={(e) => setDone.mutate({ task: t, done: e.target.checked })}
-                  aria-label="סמן כבוצע"
-                />
-                <button className="min-w-0 flex-1 text-right" onClick={() => setEditing(t)}>
+                <label className="-my-2 -ms-2 grid h-11 w-11 shrink-0 cursor-pointer place-items-center">
+                  <input
+                    type="checkbox"
+                    className="h-5 w-5 cursor-pointer accent-emerald-600"
+                    checked={t.is_done}
+                    onChange={(e) => setDone.mutate({ task: t, done: e.target.checked })}
+                    aria-label={`סמן כבוצע: ${t.description}`}
+                  />
+                </label>
+                <button type="button" className="min-h-[40px] min-w-0 flex-1 py-0.5 text-right" onClick={() => setEditing(t)}>
                   <span dir="auto" className={classNames('block whitespace-pre-line break-words text-sm', t.is_done ? 'text-slate-400 line-through' : 'text-slate-800')}>
                     {t.description}
                   </span>
@@ -75,7 +77,7 @@ export function LinkedTasks({ doctorId, hospitalId }: { doctorId?: string; hospi
                       </span>
                     )}
                     {isAdmin && t.assignee && t.assignee.id !== user?.id && (
-                      <span className="inline-flex items-center gap-0.5 text-violet-600">
+                      <span className="inline-flex items-center gap-0.5 text-violet-700">
                         <User size={11} /> {t.assignee.full_name}
                       </span>
                     )}
@@ -88,7 +90,7 @@ export function LinkedTasks({ doctorId, hospitalId }: { doctorId?: string; hospi
       )}
 
       {done.length > 0 && (
-        <button className="text-xs text-slate-400 hover:underline" onClick={() => setShowDone((v) => !v)}>
+        <button type="button" className="min-h-[40px] text-sm text-slate-500 hover:underline" aria-expanded={showDone} onClick={() => setShowDone((v) => !v)}>
           {showDone ? 'הסתר משימות שבוצעו' : `הצג משימות שבוצעו (${done.length})`}
         </button>
       )}

@@ -5,6 +5,9 @@ import { useSetTaskDone, useTasks } from '../lib/api'
 import { useAuth } from '../context/AuthProvider'
 import { TaskFormModal } from './TaskFormModal'
 import { classNames, daysUntil, formatDate } from '../lib/utils'
+import { toast } from '../lib/toast'
+import { OFFLINE_MESSAGE } from '../lib/offline'
+import { failText } from '../lib/homeLogic'
 
 /** my tasks that need attention: overdue, due in the next 3 days, or urgent */
 export function HomeTasks({ embedded = false }: { embedded?: boolean }) {
@@ -19,7 +22,8 @@ export function HomeTasks({ embedded = false }: { embedded?: boolean }) {
       const d = daysUntil(t.due_date)
       return t.priority === 'urgent' || (d !== null && d <= 3)
     })
-    .sort((a, b) => (daysUntil(a.due_date) ?? 99) - (daysUntil(b.due_date) ?? 99))
+    // overdue first, then by date; an urgent task without a date comes right after today's (not behind everything)
+    .sort((a, b) => (daysUntil(a.due_date) ?? 0.5) - (daysUntil(b.due_date) ?? 0.5))
   const overdue = attention.filter((t) => (daysUntil(t.due_date) ?? 0) < 0).length
 
   return (
@@ -31,16 +35,24 @@ export function HomeTasks({ embedded = false }: { embedded?: boolean }) {
           {overdue > 0 && <span className="chip whitespace-nowrap border-red-200 bg-red-50 !px-2 !py-0 text-xs text-red-600">{overdue} באיחור</span>}
         </h3>
         <div className="flex items-center gap-4">
-          <button className="inline-flex min-h-[32px] items-center whitespace-nowrap text-sm font-medium text-brand-600 hover:underline" onClick={() => setAdding(true)}>
+          <button className="inline-flex min-h-[40px] items-center whitespace-nowrap text-sm font-medium text-brand-600 hover:underline" onClick={() => setAdding(true)}>
             + משימה
           </button>
-          <Link to="/tasks" className="inline-flex min-h-[32px] items-center whitespace-nowrap text-sm font-medium text-brand-600 hover:underline">
-            כל המשימות ({mine.length}) ←
+          <Link to="/tasks" className="inline-flex min-h-[40px] items-center whitespace-nowrap text-sm font-medium text-brand-600 hover:underline">
+            כל המשימות{tasks.data ? ` (${mine.length})` : ''} ←
           </Link>
         </div>
       </div>
 
-      {attention.length === 0 ? (
+      {tasks.isLoading ? (
+        <p role="status" className="text-sm text-slate-600">
+          טוען…
+        </p>
+      ) : tasks.error && !tasks.data ? (
+        <p role="alert" className="text-sm text-red-700">
+          לא הצלחנו לטעון את המשימות. נסה לרענן.
+        </p>
+      ) : attention.length === 0 ? (
         <p className="text-sm text-slate-600">
           {mine.length ? 'אין משימות דחופות או לימים הקרובים.' : 'אין משימות פתוחות.'}
         </p>
@@ -55,7 +67,9 @@ export function HomeTasks({ embedded = false }: { embedded?: boolean }) {
                     type="checkbox"
                     className="h-6 w-6 cursor-pointer accent-emerald-600"
                     checked={false}
-                    onChange={() => setDone.mutate({ task: t, done: true })}
+                    onChange={() =>
+                      setDone.mutate({ task: t, done: true }, { onError: (e) => toast(failText(e, 'סימון המשימה', OFFLINE_MESSAGE), { kind: 'error' }) })
+                    }
                     aria-label={`סמן כבוצע: ${t.description}`}
                   />
                 </label>
@@ -78,7 +92,11 @@ export function HomeTasks({ embedded = false }: { embedded?: boolean }) {
           })}
         </ul>
       )}
-      {attention.length > 6 && <p className="mt-1 text-xs text-slate-600">ועוד {attention.length - 6}…</p>}
+      {attention.length > 6 && (
+        <Link to="/tasks" className="mt-1 flex min-h-[40px] items-center text-sm font-medium text-brand-600 hover:underline">
+          ועוד {attention.length - 6} — לכל המשימות ←
+        </Link>
+      )}
       {adding && <TaskFormModal onClose={() => setAdding(false)} />}
     </section>
   )

@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { CalendarDays, CheckSquare, ScanLine, Scissors, Stethoscope, X } from 'lucide-react'
 import { MeetingFormModal } from './MeetingFormModal'
 import { TaskFormModal } from './TaskFormModal'
 import { ScanFormModal } from './ScanFormModal'
 import { DoctorFormModal } from './DoctorFormModal'
 import { PlannedSurgeryModal } from './PlannedSurgeryModal'
+import { useDialog } from './ui'
 
 type Kind = 'meeting' | 'task' | 'surgery' | 'scan' | 'doctor'
 
@@ -19,6 +20,9 @@ const OPTIONS: { kind: Kind; label: string; hint: string; icon: React.ReactNode 
 /** the "+" menu: create the common things from any page */
 export function QuickCreate({ onClose }: { onClose: () => void }) {
   const [kind, setKind] = useState<Kind | null>(null)
+  const box = useRef<HTMLDivElement>(null)
+  // Escape, focus and scroll lock while the menu itself is open (the forms that follow are dialogs of their own)
+  useDialog(kind === null, onClose, box)
   if (kind === 'meeting') return <MeetingFormModal open onClose={onClose} />
   if (kind === 'task') return <TaskFormModal onClose={onClose} />
   if (kind === 'surgery') return <PlannedSurgeryModal onClose={onClose} />
@@ -26,10 +30,10 @@ export function QuickCreate({ onClose }: { onClose: () => void }) {
   if (kind === 'doctor') return <DoctorFormModal open onClose={onClose} />
   return (
     <div className="fixed inset-0 z-[65] flex items-end justify-center bg-slate-900/50 p-3 backdrop-blur-sm sm:items-center" onClick={onClose} role="dialog" aria-modal="true" aria-label="חדש">
-      <div className="w-full max-w-sm rounded-3xl bg-white p-4 shadow-pop" onClick={(e) => e.stopPropagation()}>
+      <div ref={box} tabIndex={-1} className="w-full max-w-sm rounded-3xl bg-white p-4 shadow-pop outline-none" onClick={(e) => e.stopPropagation()}>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-brand-800">מה להוסיף?</h2>
-          <button className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100" onClick={onClose} aria-label="סגור">
+          <button className="grid h-10 w-10 place-items-center rounded-full text-slate-400 hover:bg-slate-100" onClick={onClose} aria-label="סגור">
             <X size={18} />
           </button>
         </div>

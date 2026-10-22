@@ -3,6 +3,7 @@ import { Check, ChevronDown, Flag, ListPlus, RotateCcw, XCircle } from 'lucide-r
 import { useSetDoctorPipeline, useStageHistory, usePipelineStages, useStuckThresholds } from '../lib/pipeline'
 import { toast } from '../lib/toast'
 import { classNames, daysUntil, formatDate, isOverdue, todayISO } from '../lib/utils'
+import { localDay } from '../lib/localDay'
 import { QuickDates } from './QuickDates'
 import { TaskFormModal } from './TaskFormModal'
 import { LOST_REASONS, stuckDaysOf } from '../lib/pipelineStats'
@@ -29,7 +30,7 @@ export function DoctorPipeline({ doctor }: { doctor: { id: string; pipeline_stag
   const idx = names.indexOf(current)
   const dirty = step !== (doctor.next_step ?? '') || date !== (doctor.next_step_date ?? '')
   // since when he is in this stage: the latest change that put him there
-  const enteredOn = (history.data ?? []).find((h) => h.stage === current)?.changed_at.slice(0, 10) ?? null
+  const enteredOn = localDay((history.data ?? []).find((h) => h.stage === current)?.changed_at)
   const daysIn = enteredOn ? -(daysUntil(enteredOn) ?? 0) : null
   const overdue = isOverdue(doctor.next_step_date)
   const hint = stages.find((x) => x.name === current)?.suggested_step ?? ''
@@ -162,7 +163,7 @@ export function DoctorPipeline({ doctor }: { doctor: { id: string; pipeline_stag
               </button>
             ))}
           </div>
-          <input className="input" dir="auto" placeholder="או כתוב סיבה" value={reason} onChange={(e) => setReason(e.target.value)} />
+          <input className="input" dir="auto" aria-label="סיבה אחרת" placeholder="או כתוב סיבה" value={reason} onChange={(e) => setReason(e.target.value)} />
           <div className="flex justify-end gap-2">
             <button type="button" className="btn-secondary" onClick={() => setClosing(false)}>
               ביטול
@@ -201,7 +202,7 @@ export function DoctorPipeline({ doctor }: { doctor: { id: string; pipeline_stag
             <ul className="mt-2 space-y-1 text-sm text-slate-600">
               {(history.data ?? []).map((h) => (
                 <li key={h.id}>
-                  <span className="text-xs text-slate-400">{formatDate(h.changed_at.slice(0, 10))}</span> · {h.previous_stage ? `${h.previous_stage} ← ` : ''}
+                  <span className="text-xs text-slate-400">{formatDate(localDay(h.changed_at))}</span> · {h.previous_stage ? `${h.previous_stage} ← ` : ''}
                   <span className="font-medium text-slate-800">{h.stage || 'ללא שלב'}</span>
                   {h.by?.full_name ? <span className="text-xs text-slate-400"> · {h.by.full_name}</span> : null}
                 </li>

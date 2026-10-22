@@ -6,7 +6,10 @@ export function useLocalSetting<T>(key: string, initial: T): [T, (v: T | ((prev:
   const [value, setValue] = useState<T>(() => {
     try {
       const raw = localStorage.getItem(full)
-      return raw === null ? initial : (JSON.parse(raw) as T)
+      if (raw === null) return initial
+      const saved = JSON.parse(raw) as unknown
+      // a value of another kind (an old or damaged entry) must not reach the code that expects the initial's kind
+      return typeof saved === typeof initial && Array.isArray(saved) === Array.isArray(initial) && saved !== null ? (saved as T) : initial
     } catch {
       return initial
     }

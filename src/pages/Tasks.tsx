@@ -1,5 +1,5 @@
 import { SwipeToComplete } from '../components/SwipeToComplete'
-import { useMemo, useState } from 'react'
+import { useDeferredValue, useMemo, useRef, useState } from 'react'
 import { toast } from '../lib/toast'
 import { Link } from 'react-router-dom'
 import { Building2, CalendarDays, ChevronDown, ChevronLeft, Flame, ListChecks, Pencil, Plus, Repeat, Search, Stethoscope, User } from 'lucide-react'
@@ -18,34 +18,16 @@ import { PendingMark } from '../components/PendingMark'
 import { EmptyState, ErrorState, Spinner } from '../components/ui'
 import { normalizeHe } from '../lib/contactMatch'
 import type { TaskRow } from '../lib/types'
-import { classNames, daysUntil, formatDate } from '../lib/utils'
+import { classNames, formatDate } from '../lib/utils'
+import { bucketOf, compareOpen, daysFrom, dueLabel, taskError, type Bucket } from '../lib/taskLogic'
 
-type Bucket = 'overdue' | 'today' | 'week' | 'later' | 'none'
 const BUCKETS: { key: Bucket; label: string; tone: string }[] = [
   { key: 'overdue', label: 'באיחור', tone: 'text-red-600' },
-  { key: 'today', label: 'להיום', tone: 'text-amber-600' },
+  { key: 'today', label: 'להיום', tone: 'text-amber-700' },
   { key: 'week', label: 'בשבוע הקרוב', tone: 'text-slate-800' },
   { key: 'later', label: 'מאוחר יותר', tone: 'text-slate-800' },
   { key: 'none', label: 'ללא תאריך', tone: 'text-slate-500' },
 ]
-
-function bucketOf(t: TaskRow): Bucket {
-  const d = daysUntil(t.due_date)
-  if (d === null) return 'none'
-  if (d < 0) return 'overdue'
-  if (d === 0) return 'today'
-  if (d <= 7) return 'week'
-  return 'later'
-}
-
-function dueLabel(due: string | null) {
-  const d = daysUntil(due)
-  if (d === null) return ''
-  if (d === 0) return 'היום'
-  if (d === 1) return 'מחר'
-  if (d === -1) return 'אתמול'
-  return formatDate(due)
-}
 
 export default function Tasks() {
   const { user, isAdmin } = useAuth()
@@ -55,6 +37,7 @@ export default function Tasks() {
   const toggleSub = useToggleSubtask()
   const addSub = useAddSubtask()
   const quick = useSaveTask()
+  const quickSending = useRef(false) // two Enter presses before the screen re-renders must add one task
 
   const [who, setWho] = useState('me') // admin: me | all | <agent id>
   const [status, setStatus] = useState<'open' | 'done' | 'all'>('open')
@@ -68,9 +51,9 @@ export default function Tasks() {
   const [subText, setSubText] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
 
-  const words = normalizeHe(q).split(' ').filter(Boolean)
-
+  const dq = useDeferredValue(q) // typing stays smooth while a long list is re-filtered
   const list = useMemo(() => {
+    const words = normalizeHe(dq).split(' ').filter(Boolean)
     return (tasks.data ?? []).filter((t) => {
       if (!isAdmin || who === 'me') {
         if (t.assignee_id !== user?.id) return false
@@ -80,7 +63,7 @@ export default function Tasks() {
       if (urgentOnly && t.priority !== 'urgent') return false
       if (words.length) {
         const hay = normalizeHe(
-          [t.description, t.notes, t.doctor?.name, t.hospital?.name, t.coordinator?.name, t.coordinator_text, t.meeting?.subject, t.assignee?.full_name, ...t.subtasks.map((s) => s.text)]
+          [t.description, t.notes, t.doctor?.name, t.hospital?.name, t.coordinator?.name, t.coordinator_text, t.meeting?.subject, t.project?.name, t.area?.name, t.waiting_for, t.assignee?.full_name, ...t.subtasks.map((s) => s.text)]
             .filter(Boolean)
             .join(' '),
         )
@@ -88,8 +71,7 @@ export default function Tasks() {
       }
       return true
     })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tasks.data, who, status, urgentOnly, q, isAdmin, user?.id])
+  }, [tasks.data, who, status, urgentOnly, dq, isAdmin, user?.id])
 
   const openList = list.filter((t) => !t.is_done)
   const doneList = list
@@ -98,21 +80,22 @@ export default function Tasks() {
 
   const groups = BUCKETS.map((b) => ({
     ...b,
-    items: openList
-      .filter((t) => bucketOf(t) === b.key)
-      // urgent first, then by date
-      .sort((a, c) => Number(c.priority === 'urgent') - Number(a.priority === 'urgent')),
+    items: openList.filter((t) => bucketOf(t.due_date) === b.key).sort(compareOpen), // urgent first, then by date
   })).filter((g) => g.items.length)
 
-  const myOpen = (tasks.data ?? []).filter((t) => !t.is_done && t.assignee_id === user?.id).length
+  const mine = (tasks.data ?? []).filter((t) => !t.is_done && t.assignee_id === user?.id)
+  const filtered = q.trim() !== '' || urgentOnly
+  const myOpen = mine.length
+  const myOverdue = mine.filter((t) => bucketOf(t.due_date) === 'overdue').length
 
   function fail(e: unknown) {
-    setError(e instanceof Error ? e.message : 'הפעולה נכשלה')
+    setError(taskError(e, 'הפעולה נכשלה'))
   }
 
   function addQuick() {
     const text = quickText.trim()
-    if (!text) return
+    if (!text || quickSending.current) return
+    quickSending.current = true
     setError('')
     quick.mutate(
       {
@@ -127,11 +110,12 @@ export default function Tasks() {
         assignee_id: isAdmin && who !== 'me' && who !== 'all' ? who : (user?.id ?? null),
         subtasks: [],
       },
-      { onSuccess: () => setQuickText(''), onError: fail },
+      { onSuccess: () => setQuickText(''), onError: fail, onSettled: () => (quickSending.current = false) },
     )
   }
 
   function markDone(t: TaskRow, done: boolean) {
+    setError('')
     setDone.mutate(
       { task: t, done },
       {
@@ -147,7 +131,7 @@ export default function Tasks() {
     const total = t.subtasks.length
     const done = t.subtasks.filter((s) => s.is_done).length
     const expanded = open.has(t.id)
-    const due = daysUntil(t.due_date)
+    const due = daysFrom(t.due_date)
     return (
       <li key={t.id}>
         <SwipeToComplete disabled={t.is_done} onComplete={() => markDone(t, true)}>
@@ -159,7 +143,7 @@ export default function Tasks() {
               className="h-6 w-6 cursor-pointer accent-emerald-600"
               checked={t.is_done}
               onChange={(e) => markDone(t, e.target.checked)}
-              aria-label="סמן כבוצע"
+              aria-label={`${t.is_done ? 'פתח מחדש' : 'סמן כבוצע'}: ${t.description.slice(0, 60)}`}
             />
           </label>
           <div className="min-w-0 flex-1">
@@ -196,7 +180,7 @@ export default function Tasks() {
                 </span>
               )}
               {t.doctor && (
-                <Link to={`/doctors/${t.doctor.id}`} className="chip border-brand-200 bg-brand-50 !px-2 !py-0 text-brand-700 hover:underline">
+                <Link to={`/doctors/${t.doctor.id}`} className="chip border-brand-200 bg-brand-50 !px-2 !py-0 text-brand-700 hover:underline max-sm:!min-h-10">
                   <Stethoscope size={12} /> {t.doctor.name}
                 </Link>
               )}
@@ -206,7 +190,7 @@ export default function Tasks() {
                 </span>
               )}
               {t.project && (
-                <Link to={`/projects/${t.project.id}`} className="chip border-violet-200 bg-violet-50 !px-2 !py-0 text-violet-700 hover:underline">
+                <Link to={`/projects/${t.project.id}`} className="chip border-violet-200 bg-violet-50 !px-2 !py-0 text-violet-700 hover:underline max-sm:!min-h-10">
                   פרויקט: {t.project.name}
                   {t.area ? ` · ${t.area.name}` : ''}
                 </Link>
@@ -214,7 +198,7 @@ export default function Tasks() {
               {t.status === 'blocked' && !t.is_done && <span className="chip border-red-200 bg-red-50 !px-2 !py-0 text-red-600">תקוע</span>}
               {t.waiting_for && !t.is_done && <span className="chip border-amber-200 bg-amber-50 !px-2 !py-0 text-amber-700">ממתין ל: {t.waiting_for}</span>}
               {t.meeting && (
-                <Link to={`/meetings/${t.meeting.id}`} className="chip border-slate-200 bg-slate-50 !px-2 !py-0 text-slate-600 hover:underline">
+                <Link to={`/meetings/${t.meeting.id}`} className="chip border-slate-200 bg-slate-50 !px-2 !py-0 text-slate-600 hover:underline max-sm:!min-h-10">
                   פגישה: {t.meeting.subject}
                 </Link>
               )}
@@ -224,7 +208,7 @@ export default function Tasks() {
                 </span>
               )}
               <PendingMark id={t.id} />
-              {t.is_done && t.done_at && <span className="text-slate-400">בוצע {formatDate(t.done_at.slice(0, 10))}</span>}
+              {t.is_done && t.done_at && <span className="text-slate-400">בוצע {formatDate(t.done_at)}</span>}
             </div>
           </div>
           <div className="flex shrink-0 items-center">
@@ -313,7 +297,7 @@ export default function Tasks() {
       onClick={onClick}
       aria-pressed={active}
       className={classNames(
-        'chip shrink-0 !py-1.5 transition',
+        'chip shrink-0 !py-1.5 transition max-sm:!min-h-10',
         active ? 'border-brand-500 bg-brand-500 text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
       )}
     >
@@ -329,8 +313,9 @@ export default function Tasks() {
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#00326d] text-white"><ListChecks size={20} /></span>
             משימות
           </h1>
-          <p className="text-sm text-slate-500">
-            {myOpen} משימות פתוחות שלי
+          <p className="flex flex-wrap gap-x-2 text-sm text-slate-500">
+            <span>{myOpen === 0 ? 'אין משימות פתוחות' : myOpen === 1 ? 'משימה פתוחה אחת' : `${myOpen} משימות פתוחות`}</span>
+            {myOverdue > 0 && <span className="whitespace-nowrap font-medium text-red-600">{myOverdue} באיחור</span>}
           </p>
         </div>
         <button className="btn-secondary shrink-0" onClick={() => setAdding(true)}>
@@ -351,7 +336,7 @@ export default function Tasks() {
           dir="auto"
           aria-label="הוספה מהירה של משימה"
           enterKeyHint="done"
-          placeholder="משימה חדשה — כתוב ולחץ הוסף"
+          placeholder="משימה חדשה…"
           value={quickText}
           onChange={(e) => setQuickText(e.target.value)}
         />
@@ -402,8 +387,15 @@ export default function Tasks() {
 
       {list.length === 0 ? (
         <EmptyState
-          title={status === 'done' ? 'עדיין אין משימות שבוצעו' : 'אין משימות להצגה'}
-          hint={status === 'open' ? 'הוסף משימה בשורת ההוספה המהירה למעלה' : undefined}
+          title={filtered ? 'לא נמצאו משימות' : status === 'done' ? 'עדיין אין משימות שבוצעו' : 'אין משימות להצגה'}
+          hint={filtered ? 'נסה לנקות את החיפוש או את הסינון' : status === 'open' ? 'הוסף משימה בשורת ההוספה המהירה למעלה' : undefined}
+          action={
+            filtered ? (
+              <button className="btn-secondary" onClick={() => { setQ(''); setUrgentOnly(false); setStatus('open') }}>
+                נקה סינון
+              </button>
+            ) : undefined
+          }
         />
       ) : (
         <>

@@ -15,7 +15,7 @@ import {
   pickFromDevice,
   type Candidate,
 } from '../lib/contactImport'
-import { stripTitle, suggest, type Destination } from '../lib/contactMatch'
+import { findDuplicateDoctors, stripTitle, suggest, type Destination } from '../lib/contactMatch'
 import { CONTACT_ROLES, DOCTOR_STATUS_LABELS } from '../lib/types'
 import { classNames } from '../lib/utils'
 import { Modal } from './ui'
@@ -28,7 +28,7 @@ const DEST_LABEL: Record<Destination, string> = {
   free_contact: 'איש קשר כללי (ללא שיוך)',
 }
 
-const digits = (s: string) => s.replace(/\D/g, '')
+const digits = (s: string | null | undefined) => (s ?? '').replace(/\D/g, '')
 
 export function SmartContactImport({ onClose }: { onClose: () => void }) {
   const doctors = useDoctors()
@@ -60,7 +60,7 @@ export function SmartContactImport({ onClose }: { onClose: () => void }) {
   const [done, setDone] = useState('')
   const [error, setError] = useState('')
 
-  const docList = doctors.data ?? []
+  const docList = useMemo(() => doctors.data ?? [], [doctors.data])
   const hospList = hospitals.data ?? []
 
   function choose(c: Candidate, tel: string, mail: string) {
@@ -121,11 +121,15 @@ export function SmartContactImport({ onClose }: { onClose: () => void }) {
     return c ? `המספר כבר שמור באיש הקשר "${c.name}"` : ''
   }, [phone, docList, contacts.data])
 
+  // saving as a NEW doctor is only done when the person chose it, and it says so: the doctors that look the same are shown first
+  const sameDoctors = useMemo(() => (dest === 'new_doctor' ? findDuplicateDoctors({ name: stripTitle(name), phone, email }, docList) : []), [dest, name, phone, email, docList])
+
   async function save() {
     setError('')
     try {
       if (dest === 'doctor_update') {
         if (!doctorId) return setError('בחר רופא')
+        if (!(setPhoneOn && phone) && !(setEmailOn && email)) return setError('סמן מה לעדכן: טלפון או אימייל')
         await patchDoctor.mutateAsync({
           id: doctorId,
           phone: setPhoneOn && phone ? phone : undefined,
@@ -155,7 +159,7 @@ export function SmartContactImport({ onClose }: { onClose: () => void }) {
           pipeline_stage: '',
           next_step: '',
           next_step_date: null,
-      contact_cadence_days: null,
+          contact_cadence_days: null,
           companyIds: [],
           procedureIds: [],
           roboticSystemIds: [],
@@ -342,6 +346,12 @@ export function SmartContactImport({ onClose }: { onClose: () => void }) {
                   {roleInput}
                 </>)}
                 {option('new_doctor', <>
+                  <p className="text-sm font-medium text-slate-700">ייווצר רופא חדש בשם "{stripTitle(name).trim() || '…'}".</p>
+                  {sameDoctors.length > 0 && (
+                    <p role="status" className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                      כבר יש במערכת: {sameDoctors.slice(0, 3).map((x) => `${x.doctor.title} ${x.doctor.name}`).join(', ')}. אם זה אותו רופא — בחר "עדכון הטלפון / המייל של רופא קיים".
+                    </p>
+                  )}
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className="block">
                       <span className="label">סטטוס</span>
@@ -367,7 +377,7 @@ export function SmartContactImport({ onClose }: { onClose: () => void }) {
                 onClick={save}
                 disabled={patchDoctor.isPending || upsertContact.isPending || createDoctor.isPending}
               >
-                שמירה
+                {dest === 'new_doctor' ? 'צור רופא חדש' : 'שמירה'}
               </button>
             </div>
           </>

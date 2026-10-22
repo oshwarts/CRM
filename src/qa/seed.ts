@@ -55,7 +55,7 @@ export const mkDoctor = (id: string, name: string, status: 'client' | 'potential
 export const mkTask = (id: string, description: string, due: string | null, o: Record<string, unknown> = {}) => ({
   id, description, notes: '', due_date: due, priority: 'normal', doctor_id: null, hospital_id: null, recurrence: 'none', assignee_id: 'u-me', created_by: 'u-me',
   is_done: false, done_at: null, status: 'open', subtasks: [], doctor: null, hospital: null, assignee: { id: 'u-me', full_name: 'מנהל בדיקה' }, project: null, area: null,
-  contact: null, meeting: null, coordinator: null, coordinator_text: '', waiting_for: '', project_id: null, meeting_id: null, created_at: ts(-5), updated_at: ts(-5), ...o,
+  contact: null, meeting: null, coordinator: null, coordinator_text: '', external_owner: '', waiting_for: '', project_id: null, meeting_id: null, created_at: ts(-5), updated_at: ts(-5), ...o,
 })
 
 export const mkMeeting = (id: string, subject: string, date: string, status: 'scheduled' | 'done' | 'cancelled' | 'needs_followup', o: Record<string, unknown> = {}) => ({

@@ -24,15 +24,16 @@ export function EquipmentPlanEditor({
   const del = useDeleteDoctorEquipment(doctorId)
   const [viewing, setViewing] = useState<EquipmentItemWithCompany | null>(null)
 
+  const rows = equipment.data
   const rowsByProcedure = useMemo(() => {
-    const m = new Map<string, typeof equipment.data>()
-    for (const r of equipment.data ?? []) {
+    const m = new Map<string, typeof rows>()
+    for (const r of rows ?? []) {
       const arr = m.get(r.procedure_id) ?? []
       arr.push(r)
       m.set(r.procedure_id, arr)
     }
     return m
-  }, [equipment.data])
+  }, [rows])
 
   if (equipment.isLoading) return <Spinner />
 
@@ -125,7 +126,7 @@ function ProcedureEquipment({
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1 text-sm">
                   {r.item ? (
-                    <button className="break-words text-right font-medium text-slate-800 hover:text-brand-600 hover:underline" onClick={() => onView(r.item as EquipmentItemWithCompany)}>
+                    <button type="button" className="min-h-[40px] break-words text-right font-medium text-slate-800 hover:text-brand-600 hover:underline" onClick={() => onView(r.item as EquipmentItemWithCompany)}>
                       {r.item.name}
                     </button>
                   ) : null}
@@ -133,13 +134,18 @@ function ProcedureEquipment({
                     {[
                       r.item?.catalog_number,
                       r.item?.company?.name,
-                      r.item && r.item.parts?.length > 0 ? `${r.item.parts.length} מק״טים` : r.item && itemImages(r.item).length > 0 ? 'יש תמונה' : '',
+                      r.item && r.item.parts?.length > 0 ? (r.item.parts.length === 1 ? 'מק״ט אחד' : `${r.item.parts.length} מק״טים`) : r.item && itemImages(r.item).length > 0 ? 'יש תמונה' : '',
                     ]
                       .filter(Boolean)
                       .join(' · ')}
                   </p>
                 </div>
-                <ConfirmButton className="btn-ghost shrink-0 !px-2.5 text-red-600" onConfirm={() => onDelete(r.id)}>
+                <ConfirmButton
+                  className="btn-ghost shrink-0 !px-2.5 text-red-600"
+                  label={`הסרת ${r.item?.name ?? 'הפריט'} מהתוכנית`}
+                  message={`להסיר את "${r.item?.name ?? 'הפריט'}" מתוכנית הציוד של ההליך "${procedure.name}"?`}
+                  onConfirm={() => onDelete(r.id)}
+                >
                   <Trash2 size={16} />
                 </ConfirmButton>
               </div>
@@ -147,13 +153,20 @@ function ProcedureEquipment({
                 <label className="flex items-center gap-2 text-sm text-slate-600">
                   כמות לניתוח
                   <input
+                    key={`${r.id}-${r.qty_per_case}`}
                     type="number"
                     inputMode="numeric"
+                    enterKeyHint="done"
                     min={1}
+                    max={999}
                     className="input !w-16 py-1 text-center"
                     defaultValue={r.qty_per_case}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') e.currentTarget.blur()
+                    }}
                     onBlur={(e) => {
-                      const qty = Math.max(1, Number(e.target.value) || 1)
+                      const qty = Math.min(999, Math.max(1, Math.round(Number(e.target.value)) || 1))
+                      e.target.value = String(qty)
                       if (qty !== r.qty_per_case)
                         onUpdate({
                           id: r.id,
@@ -165,7 +178,7 @@ function ProcedureEquipment({
                     }}
                   />
                 </label>
-                <label className="flex min-h-9 cursor-pointer items-center gap-2 text-sm text-slate-600">
+                <label className="flex min-h-[40px] cursor-pointer items-center gap-2 text-sm text-slate-600">
                   <input
                     type="checkbox"
                     className="h-5 w-5"

@@ -1,9 +1,12 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { FlaskConical } from 'lucide-react'
 import { useAuth } from '../context/AuthProvider'
 import { useSwitchableUsers } from '../lib/api'
 import { supabase } from '../lib/supabase'
 import { queryClient } from '../lib/queryClient'
+
+/** the message of an error — also of the plain error objects the database client returns (not Error instances) */
+const msgOf = (e: unknown, fallback: string) => (typeof e === 'object' && e && 'message' in e && String((e as { message: unknown }).message)) || fallback
 
 /** developer account only: switch to an existing user to see and try the system exactly as that user does */
 export function DeveloperSwitcher() {
@@ -11,6 +14,7 @@ export function DeveloperSwitcher() {
   const users = useSwitchableUsers()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const selectId = useId()
   if (!isDeveloper) return null
 
   async function change(id: string) {
@@ -19,17 +23,17 @@ export function DeveloperSwitcher() {
     try {
       await switchUser(id || null)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'ההחלפה נכשלה')
+      setError(msgOf(e, 'ההחלפה נכשלה'))
       setBusy(false)
     }
   }
 
   return (
     <div className="mb-2 rounded-lg border border-amber-200 bg-amber-50 p-2">
-      <label className="flex items-center gap-1 text-[11px] font-medium text-amber-800">
+      <label htmlFor={selectId} className="flex items-center gap-1 text-[11px] font-medium text-amber-800">
         <FlaskConical size={12} /> מצב מפתח — עבור למשתמש
       </label>
-      <select className="input mt-1 !py-1 text-xs" value={impersonating?.id ?? ''} disabled={busy} onChange={(e) => void change(e.target.value)}>
+      <select id={selectId} className="input mt-1 min-h-[40px] !py-1 text-xs" value={impersonating?.id ?? ''} disabled={busy} onChange={(e) => void change(e.target.value)}>
         <option value="">אני ({realProfile?.full_name || realProfile?.email})</option>
         <optgroup label="משתמשי בדיקה (פיקטיביים)">
           {(users.data ?? [])
@@ -50,7 +54,11 @@ export function DeveloperSwitcher() {
             ))}
         </optgroup>
       </select>
-      {error && <p className="mt-1 text-[11px] text-red-600">{error}</p>}
+      {error && (
+        <p role="alert" className="mt-1 text-[11px] text-red-600">
+          {error}
+        </p>
+      )}
     </div>
   )
 }
@@ -71,12 +79,12 @@ export function DeveloperBar() {
   if (!impersonating) return null
   return (
     <div
-      className={`fixed inset-x-0 top-0 z-[60] flex h-8 items-center gap-2 px-3 text-xs font-medium text-white shadow ${
+      className={`fixed inset-x-0 top-0 z-[60] flex h-10 items-center gap-2 ps-3 text-xs font-medium text-white shadow ${
         // red while acting as a real colleague (the changes are real); amber for the fictitious test users
-        impersonating.is_test ? 'bg-[#d98e0a]' : 'bg-[#c7403a]'
+        impersonating.is_test ? 'bg-[#a35f00]' : 'bg-[#c7403a]'
       }`}
     >
-      <FlaskConical size={14} className="shrink-0" />
+      <FlaskConical size={14} aria-hidden className="shrink-0" />
       {/* on a phone only the name fits: the explanation is for wider screens */}
       <span className="min-w-0 flex-1 truncate">
         {impersonating.is_test ? 'מצב מפתח: ' : 'פועל כ-'}
@@ -87,7 +95,7 @@ export function DeveloperBar() {
       </span>
       {impersonating.is_test && (
         <button
-          className="shrink-0 rounded bg-white/20 px-2 py-0.5 hover:bg-white/30 disabled:opacity-50"
+          className="h-full shrink-0 bg-white/20 px-3 hover:bg-white/30 disabled:opacity-50"
           disabled={busy}
           onClick={async () => {
             setBusy(true)
@@ -95,7 +103,7 @@ export function DeveloperBar() {
             try {
               await resetTestUser(impersonating.id)
             } catch (e) {
-              setError(e instanceof Error ? e.message : 'האיפוס נכשל')
+              setError(msgOf(e, 'האיפוס נכשל'))
             }
             setBusy(false)
           }}
@@ -104,7 +112,7 @@ export function DeveloperBar() {
         </button>
       )}
       <button
-        className="shrink-0 rounded bg-white/20 px-2 py-0.5 hover:bg-white/30 disabled:opacity-50"
+        className="h-full shrink-0 bg-white/20 px-3 hover:bg-white/30 disabled:opacity-50"
         disabled={busy}
         onClick={async () => {
           setBusy(true)
@@ -112,14 +120,18 @@ export function DeveloperBar() {
           try {
             await switchUser(null)
           } catch (e) {
-            setError(e instanceof Error ? e.message : 'נכשל')
+            setError(msgOf(e, 'נכשל'))
             setBusy(false)
           }
         }}
       >
         חזרה אליי
       </button>
-      {error && <span className="truncate text-amber-50">{error}</span>}
+      {error && (
+        <span role="alert" className="max-w-[40%] truncate pe-2 text-amber-50">
+          {error}
+        </span>
+      )}
     </div>
   )
 }

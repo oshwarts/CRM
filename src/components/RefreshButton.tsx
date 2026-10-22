@@ -3,6 +3,7 @@ import { useIsFetching, useQueryClient } from '@tanstack/react-query'
 import { RefreshCw } from 'lucide-react'
 import { classNames } from '../lib/utils'
 import { newVersionAvailable, useOnline } from '../lib/offline'
+import { drain, outboxSize } from '../lib/outbox'
 
 /** pulls the latest data from the server (what other agents added or changed) and loads a new app version if there is one */
 export function RefreshButton({ label = false }: { label?: boolean }) {
@@ -20,6 +21,8 @@ export function RefreshButton({ label = false }: { label?: boolean }) {
         window.location.reload()
         return
       }
+      // changes of this device that wait to be sent go first: reloading now would put the old values back on the screen
+      if (outboxSize() > 0) await drain()
       await qc.invalidateQueries()
       setDoneAt(new Date())
     } finally {

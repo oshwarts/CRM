@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { QuickDates } from './QuickDates'
 import { Link } from 'react-router-dom'
 import { Mail, Plus, Trash2 } from 'lucide-react'
@@ -17,6 +17,7 @@ import {
   type MeetingWithRelations,
 } from '../lib/types'
 import { plusDaysISO } from '../lib/utils'
+import { toast } from '../lib/toast'
 import { normalizeHe } from '../lib/contactMatch'
 import {
   Field,
@@ -83,7 +84,7 @@ function initial(
 }
 
 const chipBtn =
-  'rounded-full border border-brand-200 bg-white px-3 py-1 text-xs font-medium text-brand-700 transition hover:bg-brand-50'
+  'rounded-full border border-brand-200 bg-white px-3 py-1 text-xs font-medium text-brand-700 transition hover:bg-brand-50 max-sm:!min-h-10'
 
 /** pick doctors: the chosen ones stay on top, the rest are found by typing (a long list of chips is not scannable on a phone) */
 function DoctorPicker({
@@ -138,7 +139,7 @@ export function MeetingFormModal({
   const hospitals = useHospitals()
   const contacts = useContacts()
   const createMeeting = useCreateMeeting()
-  const updateMeeting = useUpdateMeeting(meeting?.id ?? '')
+  const updateMeeting = useUpdateMeeting(meeting?.id ?? '', meeting)
   const saving = createMeeting.isPending || updateMeeting.isPending
 
   const [tab, setTab] = useState('general')
@@ -147,6 +148,15 @@ export function MeetingFormModal({
   )
   const [error, setError] = useState<string | null>(null)
   const [focusTask, setFocusTask] = useState<number | null>(null)
+  // what the form held when it opened - to know whether closing it loses something
+  const opened = useRef(JSON.stringify(data))
+  const submitting = useRef(false)
+  const subjectRef = useRef<HTMLInputElement>(null)
+  const dirty = JSON.stringify(data) !== opened.current
+  function close() {
+    if (dirty && !window.confirm('לסגור בלי לשמור? מה שהזנת יאבד.')) return
+    onClose()
+  }
 
   function patch(p: Partial<MeetingFormData>) {
     setData((d) => ({ ...d, ...p }))
@@ -156,20 +166,34 @@ export function MeetingFormModal({
   }
 
   const [triedSave, setTriedSave] = useState(false)
+  // a task row with a date, a tick or an existing task whose text was wiped would otherwise vanish silently
+  const badTask = data.tasks.findIndex((t) => !t.description.trim() && (t.id || t.due_date || t.is_done))
 
   async function submit() {
+    if (submitting.current) return
     setError(null)
     if (!data.subject.trim()) {
       setTab('general')
       setTriedSave(true)
+      setTimeout(() => subjectRef.current?.focus(), 0)
       return
     }
+    if (badTask >= 0) {
+      setTab('content')
+      setTriedSave(true)
+      return
+    }
+    submitting.current = true
     try {
-      if (isEdit) await updateMeeting.mutateAsync(data)
-      else await createMeeting.mutateAsync(data)
+      const clean = { ...data, subject: data.subject.trim(), location: data.location.trim() }
+      if (isEdit) await updateMeeting.mutateAsync(clean)
+      else await createMeeting.mutateAsync(clean)
+      toast(isEdit ? 'הפגישה עודכנה' : 'הפגישה נוספה')
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'שמירה נכשלה')
+      setError(err instanceof Error ? err.message : typeof err === 'object' && err && 'message' in err ? String((err as { message: unknown }).message) : 'שמירה נכשלה')
+    } finally {
+      submitting.current = false
     }
   }
 
@@ -178,10 +202,17 @@ export function MeetingFormModal({
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={close}
       title={isEdit ? 'עריכת פגישה' : 'הוספת פגישה חדשה'}
       size="xl"
     >
+      <form
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault()
+          void submit()
+        }}
+      >
       <Tabs value={tab} onChange={setTab}>
         <TabList>
           <Tab id="general">פרטים כלליים</Tab>
@@ -201,13 +232,15 @@ export function MeetingFormModal({
               error={triedSave && !data.subject.trim() ? 'יש להזין נושא לפגישה' : undefined}
             >
               <input
+                ref={subjectRef}
                 className="input"
                 value={data.subject}
                 onChange={(e) => patch({ subject: e.target.value })}
                 placeholder="הזן נושא הפגישה"
-                enterKeyHint="next"
+                enterKeyHint="done"
                 autoComplete="off"
                 required
+                aria-invalid={triedSave && !data.subject.trim()}
               />
             </Field>
             <Field label="תאריך" className="col-span-2 min-w-0 sm:col-span-1">
@@ -310,7 +343,7 @@ export function MeetingFormModal({
                 {data.next_followup_date && (
                   <button
                     type="button"
-                    className="rounded-full px-3 py-1 text-xs text-slate-600 hover:bg-slate-100"
+                    className="rounded-full px-3 py-1 text-xs text-slate-600 hover:bg-slate-100 max-sm:!min-h-10"
                     onClick={() => patch({ next_followup_date: null })}
                   >
                     נקה
@@ -440,7 +473,18 @@ export function MeetingFormModal({
                       dir="auto"
                       placeholder="תיאור המשימה"
                       aria-label={`תיאור משימה ${i + 1}`}
+                      aria-invalid={triedSave && i === badTask}
                       autoFocus={focusTask === i}
+                      enterKeyHint="next"
+                      onKeyDown={(e) => {
+                        // Enter in a task adds the next one instead of saving the whole meeting
+                        if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                          e.preventDefault()
+                          if (!t.description.trim()) return
+                          setFocusTask(data.tasks.length)
+                          patch({ tasks: [...data.tasks, { description: '', is_done: false, due_date: null }] })
+                        }
+                      }}
                       value={t.description}
                       onChange={(e) => patchTask(i, { description: e.target.value })}
                     />
@@ -454,6 +498,11 @@ export function MeetingFormModal({
                       <Trash2 size={16} />
                     </button>
                   </div>
+                  {triedSave && i === badTask && (
+                    <p role="alert" className="mt-1 ps-9 text-xs font-medium text-red-600">
+                      יש להזין תיאור למשימה או להסיר אותה
+                    </p>
+                  )}
                   <label className="mt-1.5 flex items-center gap-2 ps-9 text-xs text-slate-600">
                     <span className="shrink-0">תאריך יעד</span>
                     <input
@@ -485,7 +534,7 @@ export function MeetingFormModal({
 
       {isEdit && meeting && (
         <p className="mt-3 flex flex-wrap items-center gap-x-2 text-sm text-slate-600">
-          <Link to={`/meetings/${meeting.id}?mail=1`} className="inline-flex min-h-8 items-center gap-1 font-medium text-brand-700 hover:underline">
+          <Link to={`/meetings/${meeting.id}?mail=1`} className="inline-flex min-h-10 items-center gap-1 font-medium text-brand-700 hover:underline">
             <Mail size={14} />
             שלח סיכום במייל
           </Link>
@@ -500,13 +549,14 @@ export function MeetingFormModal({
       )}
 
       <div className="mt-5 flex items-center justify-end gap-2 border-t border-slate-200 pt-4">
-        <button className="btn-secondary max-sm:flex-1" onClick={onClose}>
+        <button type="button" className="btn-secondary max-sm:flex-1" onClick={close}>
           ביטול
         </button>
-        <button className="btn-primary max-sm:flex-[2]" onClick={submit} disabled={saving}>
+        <button type="submit" className="btn-primary max-sm:flex-[2]" disabled={saving}>
           {saving ? 'שומר…' : 'שמירה'}
         </button>
       </div>
+      </form>
     </Modal>
   )
 }

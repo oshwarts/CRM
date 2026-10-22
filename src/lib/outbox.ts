@@ -3,6 +3,7 @@ import { supabase } from './supabase'
 import { actingUserId } from './actingAs'
 import { openDb, OFFLINE_MESSAGE } from './offline'
 import { queryClient } from './queryClient'
+import { toast } from './toast'
 
 /* ---------- offline writes: the outbox ----------
    A small set of safe actions can be done without a network. Each one is stored here (IndexedDB) with the screen
@@ -121,9 +122,18 @@ export async function enqueue(op: NewOp, extra: Partial<Op> = {}): Promise<void>
   })
 }
 
-/** runs the action now when online; queues it (and updates the screen via `optimistic`) when offline or the network fails */
+/**
+ * true when an unsent change of this account already touches one of these records. A new change must then wait in line behind it:
+ * sent at once it would reach the server first — an edit of a record whose creation is still queued finds nothing to edit, and an
+ * older queued value would later overwrite a newer one.
+ */
+export function waitsBehindQueued(recordIds: string[], list: Op[] = ops): boolean {
+  return list.some((o) => (!userId || o.userId === userId) && (o.state === 'pending' || o.state === 'failed') && o.recordIds.some((r) => recordIds.includes(r)))
+}
+
+/** runs the action now when online; queues it (and updates the screen via `optimistic`) when offline, when the network fails, or when an earlier change of the same record is still waiting */
 export async function runOrQueue(op: NewOp, direct: () => Promise<ExecResult>, optimistic: () => void): Promise<void> {
-  if (navigator.onLine) {
+  if (navigator.onLine && !waitsBehindQueued(op.recordIds, await read())) {
     try {
       const r = await direct()
       // someone else changed the same field meanwhile: keep it for the user to decide
@@ -135,7 +145,8 @@ export async function runOrQueue(op: NewOp, direct: () => Promise<ExecResult>, o
   }
   await enqueue(op)
   optimistic()
-  scheduleDrain(8000)
+  // online (waiting behind an earlier change): send soon; offline / network failure: try again in a few seconds
+  scheduleDrain(navigator.onLine ? 400 : 8000)
 }
 
 let drainTimer: ReturnType<typeof setTimeout> | null = null
@@ -144,8 +155,14 @@ function scheduleDrain(ms: number) {
   drainTimer = setTimeout(() => void drain(), ms)
 }
 
+let drainAgain = false
 export async function drain(): Promise<void> {
-  if (!navigator.onLine || draining) return
+  if (!navigator.onLine) return
+  // a change queued while a round is running is picked up by one more round right after it
+  if (draining) {
+    drainAgain = true
+    return
+  }
   const run = async () => {
     draining = true
     refreshSnapshot()
@@ -154,7 +171,12 @@ export async function drain(): Promise<void> {
       await reload()
       userId = await realUserId()
       if (!userId) return
-      for (const op of ops.filter((o) => o.userId === userId && o.state === 'pending')) {
+      const blocked = new Set<string>() // records whose earlier change failed: what follows waits for the person's decision
+      for (const op of ops.filter((o) => o.userId === userId && (o.state === 'pending' || o.state === 'failed'))) {
+        if (op.state === 'failed' || op.recordIds.some((r) => blocked.has(r))) {
+          op.recordIds.forEach((r) => blocked.add(r))
+          continue
+        }
         const exec = executors.get(op.kind)
         try {
           if (!exec) throw new Error('פעולה לא מוכרת')
@@ -177,6 +199,10 @@ export async function drain(): Promise<void> {
       refreshSnapshot()
       // only now reload the data, so the screen shows what the server really has
       if (touched) void queryClient.invalidateQueries()
+      if (drainAgain) {
+        drainAgain = false
+        scheduleDrain(400)
+      }
     }
   }
   if (typeof navigator !== 'undefined' && 'locks' in navigator) await navigator.locks.request('ami-outbox', run)
@@ -198,15 +224,31 @@ export async function discardOp(id: string) {
   void queryClient.invalidateQueries()
 }
 
+/** conflicts being resolved right now: a second tap on the button must not send the same change twice */
+const resolving = new Set<string>()
+
 /** the user's decision for each field in conflict: keep the server's value or write his own */
 export async function resolveConflict(id: string, choices: Record<string, 'server' | 'mine'>) {
   const op = ops.find((o) => o.id === id)
-  if (!op || !op.target || !op.conflicts) return
+  if (!op || !op.target || !op.conflicts || resolving.has(id)) return
+  resolving.add(id)
+  try {
+    await applyChoices(op, choices)
+  } finally {
+    resolving.delete(id)
+  }
+}
+
+async function applyChoices(op: Op, choices: Record<string, 'server' | 'mine'>) {
+  if (!op.target || !op.conflicts) return
+  const id = op.id
   const patch: Record<string, unknown> = {}
   for (const c of op.conflicts) if (choices[c.field] === 'mine') patch[c.field] = c.mine
   if (Object.keys(patch).length) {
     const { error } = await supabase.from(op.target.table as 'meetings').update(patch as never).eq('id', op.target.id)
     if (error) {
+      // no connection: the choice stays open, nothing is lost
+      if (isNetworkError(error)) return void toast('אין חיבור לרשת — הבחירה לא נשמרה, נסה שוב כשהחיבור יחזור', { kind: 'error' })
       await mutate(() => {
         ops = ops.map((o) => (o.id === id ? { ...o, state: 'failed' as const, error: error.message } : o))
       })
@@ -262,6 +304,7 @@ export async function mergePatch(
     .from(table as 'meetings')
     .select(fields.join(','))
     .eq('id', id)
+    .retry(false) // a dropped connection must queue the change at once, not after the library's ~7 s of retries
     .maybeSingle()
   if (error) throw error
   if (!server) throw new Error('הרשומה נמחקה על ידי משתמש אחר')

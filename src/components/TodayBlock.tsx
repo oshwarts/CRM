@@ -2,18 +2,19 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, CalendarDays, Clock, FolderKanban, Scissors, Stethoscope, Sun } from 'lucide-react'
 import { useDoctors, useFavorites, useMeetings, usePatientScans, useTasks } from '../lib/api'
+import { ErrorState } from './ui'
 import { useProjects } from '../lib/projectsApi'
 import { projectStats } from '../lib/projects'
 import { useAuth } from '../context/AuthProvider'
 import { contactState, cadenceLabel } from '../lib/cadence'
 import { SCAN_PROCEDURE_LABELS } from '../lib/types'
-import { classNames, daysUntil, formatDate, formatTime, plusDaysISO, todayISO } from '../lib/utils'
+import { classNames, daysUntil, formatDate, formatTime, plusDaysISO } from '../lib/utils'
+import { useToday } from '../lib/useToday'
+import { inDaysLabel, lateByLabel, meetingsOnDays } from '../lib/homeLogic'
 import { HomeTasks } from './HomeTasks'
 import { MyGoals } from './MyGoals'
 import { MyTraining } from './MyTraining'
 import { MeetingFormModal } from './MeetingFormModal'
-
-const dayWord = (iso: string) => (iso === todayISO() ? 'היום' : 'מחר')
 
 /** "My day": surgeries and meetings of today and tomorrow, my tasks, and the doctors I should get back to */
 export function TodayBlock() {
@@ -26,8 +27,9 @@ export function TodayBlock() {
   const allTasks = useTasks()
   const [scheduleFor, setScheduleFor] = useState<string | null>(null)
 
-  const today = todayISO()
+  const today = useToday()
   const tomorrow = plusDaysISO(1)
+  const dayWord = (iso: string) => (iso === today ? 'היום' : 'מחר')
 
   const surgeries = useMemo(
     () =>
@@ -37,28 +39,16 @@ export function TodayBlock() {
     [scans.data, today, tomorrow],
   )
 
-  const todaysMeetings = useMemo(
-    () =>
-      (meetings.data ?? [])
-        .filter(
-          (m) =>
-            m.meeting_date &&
-            (m.meeting_date === today || m.meeting_date === tomorrow) &&
-            m.status !== 'cancelled' &&
-            (m.responsible_agent_id === user?.id || m.meeting_agents.some((a) => a.agent?.id === user?.id)),
-        )
-        .sort((a, b) => `${a.meeting_date}${a.meeting_time ?? ''}`.localeCompare(`${b.meeting_date}${b.meeting_time ?? ''}`)),
-    [meetings.data, user?.id, today, tomorrow],
-  )
+  // the same "mine" as the number in the hero (an unowned meeting is everybody's)
+  const todaysMeetings = useMemo(() => meetingsOnDays(meetings.data ?? [], [today, tomorrow], user?.id), [meetings.data, user?.id, today, tomorrow])
 
-  const toContact = useMemo(() => {
-    const fav = new Set(favorites.data ?? [])
-    return (doctors.data ?? [])
-      .filter((d) => fav.has(d.id) && d.contact_cadence_days)
-      .map((d) => ({ d, st: contactState(d, meetings.data ?? []) }))
-      .filter((x) => x.st.status === 'due' || x.st.status === 'soon')
-      .sort((a, b) => (a.st.daysToDue ?? 0) - (b.st.daysToDue ?? 0))
-  }, [doctors.data, favorites.data, meetings.data])
+  // (not memoised: contactState reads the clock, and only the few favourites with a cadence are computed)
+  const favIds = new Set(favorites.data ?? [])
+  const toContact = (doctors.data ?? [])
+    .filter((d) => favIds.has(d.id) && d.contact_cadence_days)
+    .map((d) => ({ d, st: contactState(d, meetings.data ?? []) }))
+    .filter((x) => x.st.status === 'due' || x.st.status === 'soon')
+    .sort((a, b) => (a.st.daysToDue ?? 0) - (b.st.daysToDue ?? 0))
 
   // active projects that have something stuck or late
   const projectAlerts = useMemo(
@@ -74,13 +64,15 @@ export function TodayBlock() {
   const sub = 'mb-1 flex items-center gap-1.5 text-sm font-semibold text-brand-700'
 
   return (
-    <section className="card space-y-4 p-4 sm:p-5">
+    <section id="home-today" className="card scroll-mt-20 space-y-4 p-4 sm:p-5">
       <h2 className="flex items-center gap-2.5 text-lg font-semibold text-brand-800">
         <span className="grid h-8 w-8 place-items-center rounded-lg bg-amber-50 text-amber-500">
           <Sun size={18} aria-hidden />
         </span>
         היום שלי
       </h2>
+
+      {[scans, meetings, doctors, favorites].some((q) => q.error && !q.data) && <ErrorState error={[scans, meetings, doctors, favorites].find((q) => q.error && !q.data)?.error} />}
 
       {surgeries.length > 0 && (
         <div>
@@ -148,7 +140,7 @@ export function TodayBlock() {
                   <span className="flex items-center gap-2 text-xs">
                     {stats.blocked.length > 0 && (
                       <span className="inline-flex items-center gap-1 text-red-600">
-                        <AlertTriangle size={12} aria-hidden /> {stats.blocked.length} תקועות
+                        <AlertTriangle size={12} aria-hidden /> {stats.blocked.length} {stats.blocked.length === 1 ? 'תקועה' : 'תקועות'}
                       </span>
                     )}
                     {stats.overdue.length > 0 && <span className="text-amber-700">{stats.overdue.length} באיחור</span>}
@@ -174,7 +166,7 @@ export function TodayBlock() {
           <ul className="divide-y divide-slate-100">
             {toContact.slice(0, 6).map(({ d, st }) => (
               <li key={d.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2 text-sm">
-                <Link to={`/doctors/${d.id}`} className="min-w-0 flex-1 basis-40 hover:underline">
+                <Link to={`/doctors/${d.id}`} className="flex min-h-[44px] min-w-0 flex-1 basis-40 flex-col justify-center hover:underline">
                   <span className="font-medium text-slate-800">
                     {d.title} {d.name}
                   </span>
@@ -186,7 +178,7 @@ export function TodayBlock() {
                 <div className="flex items-center gap-2">
                   <span className={classNames('text-xs', st.status === 'due' ? 'font-medium text-red-600' : 'text-amber-700')}>
                     <Clock size={12} aria-hidden className="ml-0.5 inline" />
-                    {st.status === 'due' ? `באיחור ${Math.abs(daysUntil(st.dueDate) ?? 0)} ימים` : `בעוד ${st.daysToDue} ימים`}
+                    {st.status === 'due' ? lateByLabel(Math.abs(daysUntil(st.dueDate) ?? 0)) : inDaysLabel(st.daysToDue ?? 0)}
                   </span>
                   <button className="btn-secondary !px-3 !py-1 text-xs" onClick={() => setScheduleFor(d.id)} aria-label={`קבע פגישה עם ${d.title} ${d.name}`}>
                     קבע פגישה

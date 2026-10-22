@@ -1,8 +1,9 @@
-import { useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { useCanDelete } from '../lib/permissions'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   Building2,
+  ChevronDown,
   CalendarDays,
   CheckSquare,
   Heart,
@@ -69,6 +70,26 @@ function HeaderFact({ label, tone, children }: { label: string; tone?: 'warn' | 
   )
 }
 
+/** "היום" / "אתמול" / "לפני N ימים" */
+const daysAgo = (n: number) => (n <= 0 ? 'היום' : n === 1 ? 'אתמול' : `לפני ${n} ימים`)
+
+const PRIMARY_TABS = [
+  { id: 'timeline', label: 'ציר זמן' },
+  { id: 'meetings', label: 'פגישות' },
+  { id: 'tasks', label: 'משימות' },
+]
+const MORE_TABS = [
+  { id: 'details', label: 'פרטים' },
+  { id: 'contacts', label: 'אנשי קשר' },
+  { id: 'hospitals', label: 'בתי חולים ומרפאות' },
+  { id: 'procedures', label: 'הליכים' },
+  { id: 'volumes', label: 'כמויות' },
+  { id: 'equipment', label: 'ציוד' },
+  { id: 'preop', label: 'תכנון טרום־ניתוחי' },
+  { id: 'course', label: 'מהלך ניתוחי' },
+  { id: 'competitors', label: 'מתחרים' },
+]
+
 export default function DoctorProfile() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -83,27 +104,37 @@ export default function DoctorProfile() {
   const procedureName = (p: { id: string; name: string }) => allProcedures.data?.find((x) => x.id === p.id)?.name ?? p.name
 
   const [tab, setTab] = useState('timeline')
+  const [moreOpen, setMoreOpen] = useState(false) // phone: the rarely used tabs behind "עוד"
   const [editing, setEditing] = useState(false)
   const [addMeeting, setAddMeeting] = useState(false)
   const [addTask, setAddTask] = useState(false)
   const [picking, setPicking] = useState(false)
 
   if (doctor.isLoading) return <Spinner />
-  if (doctor.error && !doctor.data) return <ErrorState error={doctor.error} /> // cached data stays visible when only a background refresh failed
-  if (!doctor.data) return <EmptyState title="הרופא לא נמצא" />
+  // an id that is not a valid uuid is answered by the database with an error: for the person it is the same "not found"
+  const badId = (doctor.error as { code?: string } | null)?.code === '22P02'
+  if (doctor.error && !doctor.data && !badId) return <ErrorState error={doctor.error} /> // cached data stays visible when only a background refresh failed
+  if (!doctor.data)
+    return (
+      <EmptyState
+        title="הרופא לא נמצא"
+        hint="ייתכן שהוא נמחק או שהקישור שגוי"
+        action={
+          <Link to="/doctors" className="btn-primary">
+            לרשימת הרופאים
+          </Link>
+        }
+      />
+    )
 
   const d = doctor.data
   const isFav = (favorites.data ?? []).includes(d.id)
-  const sortedMeetingDates = (meetings.data ?? [])
-    .map((m) => m.meeting_date)
-    .filter((x): x is string => !!x)
-    .sort()
-  const lastMeetingDate =
-    sortedMeetingDates[sortedMeetingDates.length - 1] ?? null
-  const daysSince =
-    lastMeetingDate != null ? -(daysUntil(lastMeetingDate) ?? 0) : null
   const contact = contactState(d, meetings.data ?? [])
+  const moreInTab = MORE_TABS.some((t) => t.id === tab)
   const firstHospital = d.doctor_hospitals[0]?.hospital
+  // the last meeting that already took place (not a booked one, not a cancelled one)
+  const lastMeetingDate = contact.lastDate
+  const daysSince = lastMeetingDate != null ? -(daysUntil(lastMeetingDate) ?? 0) : null
 
   return (
     <div className="space-y-4 sm:space-y-5">
@@ -135,6 +166,7 @@ export default function DoctorProfile() {
               title={isFav ? 'הסר מהמועדפים' : 'הוסף למועדפים'}
               aria-label={isFav ? 'הסר מהמועדפים' : 'הוסף למועדפים'}
               aria-pressed={isFav}
+              disabled={toggleFav.isPending}
               onClick={() => toggleFav.mutate({ doctorId: d.id, isFavorite: isFav })}
             >
               <Heart size={18} fill={isFav ? 'currentColor' : 'none'} />
@@ -164,7 +196,7 @@ export default function DoctorProfile() {
               </HeaderFact>
             )}
             <HeaderFact label="פעילות אחרונה" tone={daysSince != null && daysSince > 90 ? 'warn' : undefined}>
-              {lastMeetingDate ? `${formatDate(lastMeetingDate)} (לפני ${daysSince} ימים)` : 'אין פגישות'}
+              {lastMeetingDate ? `${formatDate(lastMeetingDate)} (${daysAgo(daysSince ?? 0)})` : 'עוד לא הייתה פגישה'}
             </HeaderFact>
             {d.contact_cadence_days && (
               <HeaderFact label="קצב קשר" tone={contact.status === 'due' ? 'bad' : contact.status === 'soon' ? 'warn' : undefined}>
@@ -202,7 +234,7 @@ export default function DoctorProfile() {
               {canDelete(d.created_by) && (
                 <ConfirmButton
                   className="btn-ghost !text-red-600"
-                  message={`למחוק את ${d.name}? כל הפגישות והתכנונים המשויכים יימחקו.`}
+                  message={`למחוק את ${d.name}? יימחקו גם התכנון הטרום־ניתוחי, תוכנית הציוד, המהלך הניתוחי, הכמויות, המרפאות הפרטיות והשיוך לפגישות. הפגישות, המשימות, אנשי הקשר והסריקות יישארו (בלי הרופא). אי אפשר לבטל.`}
                   label={`מחיקת ${d.name}`}
                   onConfirm={() => deleteDoctor.mutate(d.id, { onSuccess: () => navigate('/doctors') })}
                 >
@@ -217,21 +249,57 @@ export default function DoctorProfile() {
 
       {(d.status === 'potential' || d.status === 'lost') && <DoctorPipeline doctor={d} />}
 
-      <Tabs value={tab} onChange={setTab}>
-        <TabList>
-          <Tab id="timeline">ציר זמן</Tab>
-          <Tab id="meetings">פגישות ({meetings.data?.length ?? 0})</Tab>
-          <Tab id="tasks">משימות ({linkedTasks.open.length})</Tab>
-          <Tab id="details">פרטים</Tab>
-          <Tab id="contacts">אנשי קשר</Tab>
-          <Tab id="hospitals">בתי חולים ומרפאות</Tab>
-          <Tab id="procedures">הליכים</Tab>
-          <Tab id="volumes">כמויות</Tab>
-          <Tab id="equipment">ציוד</Tab>
-          <Tab id="preop">תכנון טרום־ניתוחי</Tab>
-          <Tab id="course">מהלך ניתוחי</Tab>
-          <Tab id="competitors">מתחרים</Tab>
-        </TabList>
+      <Tabs value={tab} onChange={(v) => (setTab(v), setMoreOpen(false))}>
+        {/* a phone: the four everyday tabs and "עוד" (a grid of the rest) instead of twelve tabs that scroll sideways; a wide screen: all of them */}
+        <div className="sm:hidden [&_[role=tab]]:!px-2">
+          <TabList>
+            {PRIMARY_TABS.map((t) => (
+              <Tab key={t.id} id={t.id}>
+                {t.id === 'meetings' ? `${t.label} (${meetings.data?.length ?? 0})` : t.id === 'tasks' ? `${t.label} (${linkedTasks.open.length})` : t.label}
+              </Tab>
+            ))}
+            <button
+              type="button"
+              aria-haspopup="true"
+              aria-expanded={moreOpen}
+              onClick={() => setMoreOpen((v) => !v)}
+              className={classNames(
+                'inline-flex min-h-[40px] flex-1 shrink-0 items-center justify-center gap-0.5 whitespace-nowrap rounded-lg px-2 py-2 text-sm font-medium transition',
+                moreInTab ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-500 hover:text-slate-700',
+              )}
+            >
+              {moreInTab ? MORE_TABS.find((t) => t.id === tab)?.label : 'עוד'}
+              <ChevronDown size={14} aria-hidden className={classNames('transition', moreOpen && 'rotate-180')} />
+            </button>
+          </TabList>
+          {moreOpen && (
+            <div role="group" aria-label="עוד לשוניות" className="-mt-2 mb-4 grid grid-cols-2 gap-2" onKeyDown={(e) => e.key === 'Escape' && setMoreOpen(false)}>
+              {MORE_TABS.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  aria-current={tab === t.id ? 'true' : undefined}
+                  onClick={() => (setTab(t.id), setMoreOpen(false))}
+                  className={classNames(
+                    'min-h-[44px] rounded-xl border px-3 py-2 text-sm font-medium',
+                    tab === t.id ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-slate-200 bg-white text-slate-700',
+                  )}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="hidden sm:block">
+          <TabList>
+            {[...PRIMARY_TABS, ...MORE_TABS].map((t) => (
+              <Tab key={t.id} id={t.id}>
+                {t.id === 'meetings' ? `${t.label} (${meetings.data?.length ?? 0})` : t.id === 'tasks' ? `${t.label} (${linkedTasks.open.length})` : t.label}
+              </Tab>
+            ))}
+          </TabList>
+        </div>
 
         <TabPanel id="timeline">
           <DoctorTimeline doctorId={d.id} />
@@ -256,7 +324,7 @@ export default function DoctorProfile() {
 
         <TabPanel id="hospitals">
           {d.doctor_hospitals.length === 0 ? (
-            <EmptyState title="לא שויכו בתי חולים" />
+            <EmptyState title="לא שויכו בתי חולים" hint="אפשר לשייך בעריכת פרטי הרופא" />
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
               {d.doctor_hospitals.map((h) => (
@@ -432,6 +500,7 @@ function PreopSection({
   const savePlan = useSavePreopPlan(doctorId)
   const deletePlan = useDeletePreopPlan(doctorId)
   const [draft, setDraft] = useState<PlanDraft | null>(null)
+  const busy = useRef(false) // a second tap before the screen re-renders must not save twice
 
   const procList = procedures.data ?? []
 
@@ -440,12 +509,15 @@ function PreopSection({
     schema,
     procedureId: procList.find((p) => p.planning_template === schema.id)?.id ?? null,
   }))
+  // one plan per kind of surgery: a kind that already has a plan cannot be chosen for a new one (edit that plan instead)
+  const usedProcedureIds = new Set(plans.map((pl) => pl.procedure_id))
+  const freeChoices = choices.filter((c) => c.procedureId && !usedProcedureIds.has(c.procedureId))
 
   const schemaOfProc = (procId: string | null) =>
     schemaFor(procList.find((p) => p.id === procId)?.planning_template)
 
   function startNew() {
-    const first = choices.find((c) => c.procedureId)
+    const first = freeChoices[0]
     setDraft({
       procedure_id: first?.procedureId ?? null,
       surgeon_preferences: '',
@@ -456,8 +528,22 @@ function PreopSection({
   }
 
   async function persist(d: PlanDraft) {
-    await savePlan.mutateAsync(d)
-    setDraft(null)
+    if (busy.current) return
+    busy.current = true
+    try {
+      // only what was filled in: a field set back to "not set" is dropped, the notes are trimmed
+      const plan_data: Record<string, unknown> = {}
+      for (const [k, v] of Object.entries(d.plan_data)) {
+        const val = typeof v === 'string' ? v.trim() : v
+        if (val !== '' && val !== null && val !== undefined) plan_data[k] = val
+      }
+      await savePlan.mutateAsync({ ...d, plan_data, surgeon_preferences: d.surgeon_preferences.trim(), surgical_approach: d.surgical_approach.trim(), required_equipment: d.required_equipment.trim() })
+      setDraft(null)
+    } catch {
+      // the failure is shown by the global toast; the draft stays so that nothing typed is lost
+    } finally {
+      busy.current = false
+    }
   }
 
   return (
@@ -466,7 +552,7 @@ function PreopSection({
         <p className="min-w-0 flex-1 basis-48 text-sm text-slate-500">
           תוכנית נפרדת לכל ניתוח: ברך מלאה, ירך או יוני.
         </p>
-        <button className="btn-secondary" onClick={startNew} disabled={!!draft && !draft.id}>
+        <button className="btn-secondary" onClick={startNew} disabled={(!!draft && !draft.id) || freeChoices.length === 0} title={freeChoices.length === 0 && !draft ? 'יש כבר תוכנית לכל סוגי הניתוח' : undefined}>
           <Plus size={16} />
           תוכנית חדשה
         </button>
@@ -482,6 +568,7 @@ function PreopSection({
             key={plan.id}
             value={draft}
             choices={choices}
+            usedProcedureIds={usedProcedureIds}
             schema={schemaOfProc(draft.procedure_id)}
             onChange={setDraft}
             onCancel={() => setDraft(null)}
@@ -511,6 +598,7 @@ function PreopSection({
         <PreopForm
           value={draft}
           choices={choices}
+          usedProcedureIds={usedProcedureIds}
           schema={schemaOfProc(draft.procedure_id)}
           onChange={setDraft}
           onCancel={() => setDraft(null)}
@@ -547,6 +635,8 @@ function PlanCard({
           </button>
           <ConfirmButton
             className="btn-ghost !px-2.5 text-red-600"
+            label={`מחיקת התוכנית: ${plan.procedure?.name ?? 'הליך כללי'}`}
+            message={`למחוק את התוכנית הטרום־ניתוחית "${plan.procedure?.name ?? 'הליך כללי'}"? כל מה שהוזן בה יימחק.`}
             onConfirm={onDelete}
           >
             <Trash2 size={16} />
@@ -585,6 +675,7 @@ function PreopRow({ label, value }: { label: string; value: string }) {
 function PreopForm({
   value,
   choices,
+  usedProcedureIds,
   schema,
   onChange,
   onCancel,
@@ -593,6 +684,7 @@ function PreopForm({
 }: {
   value: PlanDraft
   choices: { schema: PreopSchema; procedureId: string | null }[]
+  usedProcedureIds: Set<string | null>
   schema: PreopSchema | null
   onChange: (v: PlanDraft) => void
   onCancel: () => void
@@ -617,7 +709,7 @@ function PreopForm({
                 key={s.id}
                 type="button"
                 aria-pressed={schema?.id === s.id}
-                disabled={!procedureId}
+                disabled={!procedureId || (isNew && usedProcedureIds.has(procedureId))}
                 onClick={() => pick(procedureId)}
                 className={
                   'min-h-[44px] rounded-xl border px-2 py-2.5 text-sm font-semibold transition disabled:opacity-40 ' +
@@ -638,11 +730,20 @@ function PreopForm({
       )}
 
       {schema ? (
-        <PreopPlanForm
-          schema={schema}
-          values={value.plan_data}
-          onChange={(pd) => onChange({ ...value, plan_data: pd })}
-        />
+        <>
+          <PreopPlanForm
+            schema={schema}
+            values={value.plan_data}
+            onChange={(pd) => onChange({ ...value, plan_data: pd })}
+          />
+          <Field label="ציוד נדרש לניתוח (הערה חופשית)">
+            <textarea
+              className="input min-h-16"
+              value={value.required_equipment}
+              onChange={(e) => onChange({ ...value, required_equipment: e.target.value })}
+            />
+          </Field>
+        </>
       ) : (
         <>
           <Field label="העדפות מנתח">
@@ -679,7 +780,7 @@ function PreopForm({
         <button type="button" className="btn-secondary flex-1 sm:flex-none" onClick={onCancel}>
           ביטול
         </button>
-        <button type="button" className="btn-primary flex-1 sm:flex-none" onClick={onSave} disabled={saving}>
+        <button type="button" className="btn-primary flex-1 sm:flex-none" onClick={onSave} disabled={saving || (isNew && !value.procedure_id)}>
           {saving ? 'שומר…' : 'שמירה'}
         </button>
       </StickyActions>

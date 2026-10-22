@@ -1,8 +1,9 @@
-import { useRef, useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
+import { AlertTriangle, Plus, Trash2 } from 'lucide-react'
 import {
   useCompanies,
   useCreateDoctor,
+  useDoctors,
   useHospitals,
   useProceduresRaw,
   useRoboticSystems,
@@ -25,7 +26,9 @@ import {
   Tabs,
 } from './ui'
 import { ImportContactButton } from './ImportContactButton'
-import { CADENCE_LABELS } from '../lib/cadence'
+import { CADENCE_LABELS, cadenceLabel } from '../lib/cadence'
+import { findDuplicateDoctors, stripTitle } from '../lib/contactMatch'
+import { titleOptions } from '../lib/doctorStats'
 import { DayPicker } from './DayPicker'
 import { ProcedureRequestModal } from './ProcedureRequestModal'
 import { procedureGroups } from '../lib/procedures'
@@ -81,6 +84,12 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
   const [data, setData] = useState<DoctorFormData>(() => initialData(doctor))
   const [error, setError] = useState<string | null>(null)
   const nameRef = useRef<HTMLInputElement>(null)
+  const phoneRef = useRef<HTMLInputElement>(null)
+  const emailRef = useRef<HTMLInputElement>(null)
+  /** a second click on Save while the first is still being written must not write twice */
+  const busy = useRef(false)
+  /** the person saw "a doctor like this exists" and pressed Save again */
+  const [ackDup, setAckDup] = useState(false)
 
   const { names: stageNames } = usePipelineStages()
   const companies = useCompanies()
@@ -95,8 +104,20 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
   const saving = createDoctor.isPending || updateDoctor.isPending
 
   function patch(p: Partial<DoctorFormData>) {
+    if ('name' in p || 'phone' in p || 'email' in p) {
+      setAckDup(false)
+      setError(null)
+    }
     setData((d) => ({ ...d, ...p }))
   }
+
+  // adding: is there a doctor like this one already? (the same phone / e-mail / name) — asked before a second copy is created
+  const allDoctors = useDoctors()
+  const dups = useMemo(
+    () => (isEdit || data.name.trim().length < 2 ? [] : findDuplicateDoctors(data, allDoctors.data ?? [])),
+    [isEdit, data, allDoctors.data],
+  )
+  const strongDup = dups.some((x) => x.reason !== 'similar')
 
   function toggleId(list: 'companyIds' | 'roboticSystemIds', id: string) {
     setData((d) => ({
@@ -117,22 +138,35 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
   }
 
   const [triedSave, setTriedSave] = useState(false)
+  // a phone / e-mail that is wrong is refused; one that was already saved like that (and not touched now) does not block the save
+  const phoneError = data.phone.trim() !== base.phone.trim() && data.phone.trim() && data.phone.replace(/\D/g, '').length < 7 ? 'מספר הטלפון קצר מדי' : undefined
+  const emailError = data.email.trim() !== base.email.trim() && data.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim()) ? 'כתובת המייל לא תקינה' : undefined
 
   async function submit() {
+    if (busy.current) return
     setError(null)
-    if (!data.name.trim()) {
+    if (!data.name.trim() || phoneError || emailError) {
       setTab('general')
       setTriedSave(true)
-      // the name field is on the first tab: bring the cursor back to it
-      setTimeout(() => nameRef.current?.focus(), 0)
+      // the fields are on the first tab: bring the cursor back to the first one that is wrong
+      setTimeout(() => (!data.name.trim() ? nameRef : phoneError ? phoneRef : emailRef).current?.focus(), 0)
       return
     }
+    if (strongDup && !ackDup) {
+      setAckDup(true)
+      setError('כבר יש רופא כזה במערכת. לחיצה נוספת על "שמירה" תיצור רופא חדש בכל זאת.')
+      return
+    }
+    busy.current = true
     try {
-      if (isEdit) await updateDoctor.mutateAsync(data)
-      else await createDoctor.mutateAsync(data)
+      const clean = { ...data, name: data.name.replace(/\s+/g, ' ').trim(), position: data.position.trim(), phone: data.phone.trim(), email: data.email.trim() }
+      if (isEdit) await updateDoctor.mutateAsync(clean)
+      else await createDoctor.mutateAsync(clean)
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'שמירה נכשלה')
+    } finally {
+      busy.current = false
     }
   }
 
@@ -180,7 +214,7 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
                   value={data.title}
                   onChange={(e) => patch({ title: e.target.value })}
                 >
-                  {TITLES.map((t) => (
+                  {titleOptions(base.title, TITLES).map((t) => (
                     <option key={t}>{t}</option>
                   ))}
                 </select>
@@ -208,8 +242,9 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
                   placeholder="לדוגמה: מנהל מחלקת אורתופדיה"
                 />
               </Field>
-              <Field label="טלפון" className="col-span-2 sm:col-span-1">
+              <Field label="טלפון" className="col-span-2 sm:col-span-1" error={triedSave ? phoneError : undefined}>
                 <input
+                  ref={phoneRef}
                   dir="ltr"
                   type="tel"
                   inputMode="tel"
@@ -220,8 +255,9 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
                   placeholder="הזן מספר טלפון"
                 />
               </Field>
-              <Field label="אימייל" className="col-span-2 sm:col-span-1">
+              <Field label="אימייל" className="col-span-2 sm:col-span-1" error={triedSave ? emailError : undefined}>
                 <input
+                  ref={emailRef}
                   dir="ltr"
                   type="email"
                   inputMode="email"
@@ -232,11 +268,28 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
                   onChange={(e) => patch({ email: e.target.value })}
                 />
               </Field>
+              {dups.length > 0 && (
+                <div role="status" className={`col-span-2 rounded-lg border px-3 py-2 text-sm ${ackDup ? 'border-red-200 bg-red-50 text-red-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                  <p className="mb-1 flex items-center gap-1.5 font-semibold">
+                    <AlertTriangle size={14} className="shrink-0" />
+                    {ackDup ? 'לחיצה נוספת על "שמירה" תיצור רופא חדש בכל זאת' : strongDup ? 'כבר יש רופא כזה במערכת — אולי זה אותו רופא?' : 'יש במערכת רופא עם שם דומה'}
+                  </p>
+                  <ul className="space-y-0.5 text-xs">
+                    {dups.slice(0, 3).map(({ doctor: x, reason }) => (
+                      <li key={x.id} dir="auto">
+                        {x.title} {x.name}
+                        {x.phone && ` · ${x.phone}`}
+                        {` — ${reason === 'phone' ? 'אותו טלפון' : reason === 'email' ? 'אותו מייל' : reason === 'name' ? 'אותו שם' : 'שם דומה'}`}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <div className="col-span-2">
                 <ImportContactButton
                   onPick={(c) =>
                     patch({
-                      name: data.name || c.name,
+                      name: data.name || stripTitle(c.name),
                       phone: c.phone || data.phone,
                       email: c.email || data.email,
                     })
@@ -279,6 +332,7 @@ export function DoctorFormModal({ open, onClose, doctor }: Props) {
                   onChange={(e) => patch({ contact_cadence_days: e.target.value ? Number(e.target.value) : null })}
                 >
                   <option value="">ללא (לא נעקב)</option>
+                  {data.contact_cadence_days && !(data.contact_cadence_days in CADENCE_LABELS) && <option value={data.contact_cadence_days}>{cadenceLabel(data.contact_cadence_days)}</option>}
                   {Object.entries(CADENCE_LABELS).map(([days, label]) => (
                     <option key={days} value={days}>
                       {label}

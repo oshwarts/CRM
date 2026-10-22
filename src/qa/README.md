@@ -25,6 +25,7 @@ Theme / size are the normal app settings: `localStorage.setItem('ami.theme','dar
   an answered read: `__qa.handlers['GET /rest/v1/doctors'] = () => [...]`.
 * `__qa.failWrites('some message')` makes every write fail (error paths); `__qa.failWrites(null)` heals. `__qa.setOnline(false|true)` goes offline/online
   with the window events (outbox, banner). `__qa.reset()` clears the recorded requests.
+* **Loading / error states with no data:** `__qa.hangReads(true)` then `await __qa.resetQuery(['meetings'])` → the screen's LOADING state; `hangReads(false)` + `resetQuery` → the ERROR state (the failing network, no cached data).
 * Storage (`/storage/v1`), functions (`/functions/v1`) and rpc answer success with empty bodies.
 
 ## Data
@@ -37,3 +38,8 @@ Real sign-in / password flows, real Supabase data, e-mail, OCR. For database beh
 on project `ajgmbytiuidjeiaklxdc` **inside `begin; … rollback;`** only (never leave data changed).
 
 See `RUBRIC.md` for how a page is scored.
+
+## Shell extras
+* Every tab has its own IndexedDB / BroadcastChannel (`isolate.ts`): the outbox of one tab never shows in another. A reload of the same tab keeps it.
+* The outbox drains in the harness (the fake account is signed in). Reads the executors need: `__qa.handlers['GET /rest/v1/meeting_tasks'] = () => [...]`.
+* `?shell=1` adds the shell data (`pages/shell.seed.ts`): waiting sign-ups, test users, contacts, a customised menu layout. `&as=test|real` (role=developer) = acting as another user.
