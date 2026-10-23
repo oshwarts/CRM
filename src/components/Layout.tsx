@@ -42,7 +42,7 @@ const TABS = ['/', '/doctors', '/tasks', '/schedule']
 // scroll position of each visited page, so that going back returns to the same place
 const scrollOf = new Map<string, number>()
 
-const VERSION = 'v145 · מתכלים MAKO בטלפון: תחזית מלאי ככרטיסים בלי גלילה לצדדים, כפתור חוסרים בלבד גדול יותר'
+const VERSION = 'v146 · מתכלים MAKO: בית החולים שנבחר כברירת מחדל הוא הקרוב למיקום שלך'
 
 // a failure of the shell itself (not of one screen) also ends in a message with a way out, never in a blank page
 export function Layout() {

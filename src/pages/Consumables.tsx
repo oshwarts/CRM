@@ -9,6 +9,7 @@ import {
   useConsumableItems,
   useConsumableMinimums,
   useDeleteConsumableCount,
+  useHospitals,
   useMakoHospitals,
   useSaveConsumableCount,
 } from '../lib/api'
@@ -27,6 +28,7 @@ import {
 import { buildMailto, buildOutlookWebUrl } from '../lib/mail'
 import { copyText } from '../lib/scanExport'
 import { classNames, formatDate, todayISO } from '../lib/utils'
+import { nearestTo, useUserPosition } from '../lib/geo'
 
 const toInt = (v: string | undefined): number | null => {
   if (v === undefined || v.trim() === '') return null
@@ -60,10 +62,19 @@ export default function Consumables() {
   const mins = useConsumableMinimums(hospitalId)
   const counts = useConsumableCounts(hospitalId)
 
-  // default to the first MAKO hospital
+  // default: the MAKO hospital nearest to where the person is; without a location, the first one
+  const allHospitals = useHospitals() // the coordinates are on the full rows
+  const coords = useMemo(() => new Map((allHospitals.data ?? []).map((h) => [h.id, h])), [allHospitals.data])
+  const geo = useUserPosition(!hospitalId)
+  const [nearKm, setNearKm] = useState<number | null>(null)
   useEffect(() => {
-    if (!hospitalId && hospitals.data?.length) setHospitalId(hospitals.data[0].id)
-  }, [hospitalId, hospitals.data])
+    const list = hospitals.data
+    if (!list?.length || hospitalId) return
+    if (geo.state === 'asking') return // waiting for the location (it gives up after a few seconds)
+    const near = geo.pos ? nearestTo(geo.pos, list.map((h) => ({ id: h.id, lat: coords.get(h.id)?.lat ?? null, lng: coords.get(h.id)?.lng ?? null }))) : null
+    setHospitalId((near?.item ?? list[0]).id)
+    setNearKm(near ? near.km : null)
+  }, [hospitalId, hospitals.data, coords, geo.state, geo.pos])
 
   const overrides = useMemo(
     () => new Map((mins.data ?? []).map((m) => [m.item_id, m.min_qty])),
@@ -87,6 +98,7 @@ export default function Consumables() {
     initKey.current = null
     setViewId(null)
     setNotice('')
+    setNearKm(null)
     setHospitalId(id)
     setParams(id ? { hospital: id } : {}, { replace: true })
   }
@@ -206,6 +218,7 @@ export default function Consumables() {
                   <option key={h.id} value={h.id}>{h.name}</option>
                 ))}
               </select>
+              {nearKm !== null && <span className="mt-1 block text-xs text-slate-500">נבחר בית החולים הקרוב אליך (כ-{Math.max(1, Math.round(nearKm))} ק״מ). אפשר לבחור אחר.</span>}
             </label>
             <div className="grid grid-cols-2 gap-3 sm:contents">
               <label className="block min-w-0">
