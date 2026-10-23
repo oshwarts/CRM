@@ -23,6 +23,7 @@ import { GlobalSearch } from './GlobalSearch'
 import { QuickCreate } from './QuickCreate'
 import { ThemeToggle } from './ThemeToggle'
 import { usePendingSignups, useTasks } from '../lib/api'
+import { useActivityState } from '../lib/activityApi'
 import { NAV } from '../lib/navItems'
 import { useMenu } from '../lib/useMenu'
 import { clearOutbox, drain, outboxSize } from '../lib/outbox'
@@ -42,7 +43,7 @@ const TABS = ['/', '/doctors', '/tasks', '/schedule']
 // scroll position of each visited page, so that going back returns to the same place
 const scrollOf = new Map<string, number>()
 
-const VERSION = 'v146 · מתכלים MAKO: בית החולים שנבחר כברירת מחדל הוא הקרוב למיקום שלך'
+const VERSION = 'v147 · מה קורה במחלקה: פיד עדכונים של פגישות, סיכומים, תחקירים ושינויים, סיכום השבוע, ומונה עדכונים חדשים בתפריט'
 
 // a failure of the shell itself (not of one screen) also ends in a message with a way out, never in a blank page
 export function Layout() {
@@ -90,6 +91,7 @@ function Shell() {
   const todayStr = todayISO() // local date (UTC is a day behind in Israel after midnight)
   // overdue tasks of mine: a small red-pink counter next to "tasks"
   const pendingSignups = usePendingSignups().data?.length ?? 0
+  const newActivity = useActivityState().unread.length
   const overdue = (tasks.data ?? []).filter((t) => !t.is_done && t.status !== 'done' && t.assignee_id === user?.id && !!t.due_date && t.due_date < todayStr).length
 
   // Ctrl/Cmd+K opens the search from anywhere
@@ -226,7 +228,9 @@ function Shell() {
   const badgeOf = (to: string) =>
     to === '/tasks' && overdue > 0
       ? { n: overdue, cls: 'bg-accent', title: 'משימות באיחור' }
-      : to === '/users' && pendingSignups > 0
+      : to === '/activity' && newActivity > 0
+        ? { n: newActivity, cls: 'bg-sky-700', title: 'עדכונים חדשים במחלקה' }
+        : to === '/users' && pendingSignups > 0
         ? { n: pendingSignups, cls: 'bg-amber-700', title: 'משתמשים שממתינים לאישור' }
         : null
 

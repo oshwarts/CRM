@@ -7,6 +7,7 @@ import {
   CalendarRange,
   FolderKanban,
   GraduationCap,
+  Activity,
   Workflow,
   LifeBuoy,
   Home,
@@ -23,6 +24,7 @@ import {
 // every page of the menu; the grouping and the favourites are in menuConfig and the per-device settings
 export const NAV = [
   { to: '/', label: 'דף הבית', short: 'בית', icon: Home, end: true },
+  { to: '/activity', label: 'מה קורה במחלקה', short: 'במחלקה', icon: Activity, end: false },
   { to: '/now', label: 'דחוף עכשיו', short: 'עכשיו', icon: AlertTriangle, end: false },
   { to: '/doctors', label: 'רופאים', short: 'רופאים', icon: Stethoscope, end: false },
   { to: '/tasks', label: 'משימות', short: 'משימות', icon: ListChecks, end: false },

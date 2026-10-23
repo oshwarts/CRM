@@ -5,7 +5,7 @@ export type MenuGroup = { id: string; title: string; paths: string[] }
 export const MENU_SETTING_KEY = 'menu.layout'
 
 export const DEFAULT_GROUPS: MenuGroup[] = [
-  { id: 'daily', title: 'יומיומי', paths: ['/now', '/tasks', '/schedule', '/meetings', '/scans'] },
+  { id: 'daily', title: 'יומיומי', paths: ['/now', '/activity', '/tasks', '/schedule', '/meetings', '/scans'] },
   { id: 'doctors', title: 'רופאים', paths: ['/doctors', '/competitors'] },
   { id: 'work', title: 'עבודה וידע', paths: ['/projects', '/processes', '/map', '/info', '/learn', '/consumables', '/reports', '/help'] },
   { id: 'admin', title: 'ניהול', paths: ['/agents', '/users', '/settings'] },
