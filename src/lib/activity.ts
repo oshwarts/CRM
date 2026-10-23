@@ -56,7 +56,7 @@ export function buildFeed(i: FeedInput): ActivityItem[] {
       id: `m-${m.id}`,
       kind: later ? 'meeting_summary' : 'meeting',
       at: later ? m.updated_at : m.created_at,
-      title: m.subject,
+      title: m.subject.trim() || 'פגישה ללא נושא',
       summary: text,
       to: `/meetings/${m.id}`,
       actorId: m.created_by,
@@ -66,9 +66,9 @@ export function buildFeed(i: FeedInput): ActivityItem[] {
     })
   }
   for (const v of i.investigations) {
-    out.push({ id: `i-${v.id}`, kind: 'investigation_open', at: v.created_at, title: v.title, summary: clip(v.problem), to: '/investigations', actorId: v.created_by, actorName: who(v.created_by), doctors: v.doctors, hospital: v.hospital?.name ?? '' })
+    out.push({ id: `i-${v.id}`, kind: 'investigation_open', at: v.created_at, title: v.title.trim() || 'תחקיר ללא כותרת', summary: clip(v.problem), to: '/investigations', actorId: v.created_by, actorName: who(v.created_by), doctors: v.doctors, hospital: v.hospital?.name ?? '' })
     if (v.status === 'closed' && v.closed_on) {
-      out.push({ id: `ic-${v.id}`, kind: 'investigation_closed', at: `${v.closed_on}T12:00:00`, title: v.title, summary: '', to: '/investigations', actorId: v.closed_by, actorName: who(v.closed_by), doctors: v.doctors, hospital: v.hospital?.name ?? '' })
+      out.push({ id: `ic-${v.id}`, kind: 'investigation_closed', at: `${v.closed_on}T12:00:00`, title: v.title.trim() || 'תחקיר ללא כותרת', summary: '', to: '/investigations', actorId: v.closed_by, actorName: who(v.closed_by), doctors: v.doctors, hospital: v.hospital?.name ?? '' })
     }
   }
   for (const d of i.doctors) {

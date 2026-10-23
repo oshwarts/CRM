@@ -66,18 +66,18 @@ export default function Activity() {
               {timeOf(it.at) && ` · ${timeOf(it.at)}`}
               {isNew && <span className="ms-1.5 rounded-full bg-sky-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">חדש</span>}
             </p>
-            <Link to={it.to} className="inline-flex min-h-[32px] items-center font-semibold text-brand-700 hover:underline">
+            <Link to={it.to} className="inline-flex min-h-[40px] items-center font-semibold text-brand-700 hover:underline">
               <span dir="auto" className="[overflow-wrap:anywhere]">{it.title}</span>
             </Link>
             {it.summary && <p dir="auto" className="text-sm text-slate-600 [overflow-wrap:anywhere]">{it.summary}</p>}
             {(it.doctors.length > 0 || it.hospital) && (
               <p className="mt-1 flex flex-wrap gap-1.5 text-xs">
                 {it.doctors.slice(0, 4).map((d) => (
-                  <Link key={d.id} to={`/doctors/${d.id}`} className="inline-flex min-h-[28px] items-center rounded-full border border-brand-200 bg-brand-50 px-2.5 text-brand-800 hover:underline">
+                  <Link key={d.id} to={`/doctors/${d.id}`} className="inline-flex min-h-[36px] items-center rounded-full border border-brand-200 bg-brand-50 px-3 text-brand-800 hover:underline">
                     <span dir="auto">{d.name}</span>
                   </Link>
                 ))}
-                {it.hospital && <span className="inline-flex min-h-[28px] items-center rounded-full border border-slate-200 px-2.5 text-slate-600">{it.hospital}</span>}
+                {it.hospital && <span className="inline-flex min-h-[36px] items-center rounded-full border border-slate-200 px-3 text-slate-600">{it.hospital}</span>}
               </p>
             )}
           </div>
@@ -117,7 +117,7 @@ export default function Activity() {
             </p>
           </>
         )}
-        <p className="mt-1 text-xs"><Link to="/investigations" className="text-brand-700 hover:underline">לכל התחקירים</Link></p>
+        <p className="mt-1 text-xs"><Link to="/investigations" className="inline-flex min-h-[40px] items-center text-brand-700 hover:underline">לכל התחקירים</Link></p>
       </section>
 
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-sky-50 px-3 py-2 text-sm">
@@ -141,7 +141,7 @@ export default function Activity() {
               </label>
             ))}
           </div>
-          <p className="mt-1 text-xs text-slate-500">ההגדרה נשמרת במכשיר הזה. עדכונים שיצרת בעצמך לא נספרים כחדשים.</p>
+          <p className="mt-1 text-xs text-slate-500">ההגדרה נשמרת בחשבון שלך, בכל מכשיר. עדכונים שיצרת בעצמך לא נספרים כחדשים.</p>
         </fieldset>
       )}
 

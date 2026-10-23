@@ -62,3 +62,10 @@ describe('the week', () => {
     expect(w.hospitals[0]).toEqual({ name: 'שיבא', count: 2 })
   })
 })
+
+describe('titles', () => {
+  it('an item always has a title to read and to open (a link without text cannot be used)', () => {
+    const f = buildFeed({ ...base, meetings: [meeting('a', { subject: '  ' })] })
+    expect(f[0].title).toBe('פגישה ללא נושא')
+  })
+})
