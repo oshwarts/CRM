@@ -549,6 +549,9 @@ export default function Doctors() {
           <Link to="/doctors/digest" className="btn-secondary !px-3 sm:!px-4">
             מה חדש
           </Link>
+          <Link to="/investigations" className="btn-secondary !px-3 sm:!px-4">
+            תחקירים
+          </Link>
           <button className="btn-secondary !px-3 sm:!px-4" onClick={() => setShowImport(true)}>
             <BookUser size={16} /> <span className="hidden sm:inline">ייבוא איש קשר</span>
             <span className="sm:hidden">ייבוא</span>

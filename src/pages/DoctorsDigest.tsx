@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, ArrowRight } from 'lucide-react'
 import { useDoctors, useMeetings, usePatientScans, useTasks } from '../lib/api'
-import { useAllInvestigations } from '../lib/investigations'
+import { useInvestigations } from '../lib/investigations'
 import { useStageHistoryAll } from '../lib/pipeline'
 import { buildRoster, PERIOD_LABELS, type DigestPeriod } from '../lib/doctorDigest'
 import { matchesWords, searchWords, searchKey } from '../lib/contactMatch'
@@ -19,7 +19,7 @@ export default function DoctorsDigest() {
   const doctors = useDoctors()
   const meetings = useMeetings()
   const scans = usePatientScans()
-  const investigations = useAllInvestigations()
+  const investigations = useInvestigations()
   const stages = useStageHistoryAll()
   const tasks = useTasks()
   const [period, setPeriod] = useState<DigestPeriod>('quarter')
@@ -35,7 +35,7 @@ export default function DoctorsDigest() {
           doctors: (doctors.data ?? []).filter((d) => d.status !== 'lost'),
           meetings: (meetings.data ?? []).map((m) => ({ ...m, doctorIds: m.meeting_doctors.map((x) => x.doctor?.id).filter((x): x is string => !!x) })),
           scans: scans.data ?? [],
-          investigations: investigations.data ?? [],
+          investigations: (investigations.data ?? []).flatMap((i) => i.doctors.map((d) => ({ ...i, doctor_id: d.id }))),
           stages: stages.data ?? [],
           tasks: tasks.data ?? [],
         },
