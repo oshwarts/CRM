@@ -7,6 +7,8 @@ import { useAuth } from '../context/AuthProvider'
 import { EmptyState, Spinner, Tab, TabList, TabPanel, Tabs } from '../components/ui'
 import { GoalBars } from '../components/GoalBars'
 import { TrainingMatrix } from '../components/TrainingMatrix'
+import { ProcessCard, ProcessSuggestions } from '../components/ProcessPanels'
+import { useProcesses } from '../lib/processes'
 import { ManagementReport } from '../components/team/ManagementReport'
 import { TeamOverview } from '../components/team/TeamOverview'
 import { PeriodControls } from '../components/team/PeriodControls'
@@ -88,6 +90,7 @@ export default function Agents() {
           <Tab id="overview">סקירה</Tab>
           <Tab id="goals">יעדים</Tab>
           <Tab id="training">הכשרות</Tab>
+          <Tab id="processes">תהליכים</Tab>
           <Tab id="report">דוח להנהלה</Tab>
         </TabList>
 
@@ -96,8 +99,28 @@ export default function Agents() {
         <TabPanel id="training">
           <TrainingMatrix />
         </TabPanel>
+        <TabPanel id="processes">
+          <AgentsProcesses />
+        </TabPanel>
         <TabPanel id="report">{loading || !model ? <Spinner /> : <ManagementReport model={model} />}</TabPanel>
       </Tabs>
+    </div>
+  )
+}
+
+/** the processes of the agents (onboarding, training, leaving) with what is late; the app suggests starting one when an agent joins or leaves */
+function AgentsProcesses() {
+  const processes = useProcesses()
+  const open = (processes.data ?? []).filter((p) => p.status === 'open' && p.subject_agent_id)
+  return (
+    <div className="space-y-3">
+      <ProcessSuggestions />
+      {open.length === 0 ? (
+        <p className="text-sm text-slate-500">אין תהליכים פעילים של סוכנים. <Link to="/processes" className="font-medium text-brand-700 hover:underline">לתהליכים</Link></p>
+      ) : (
+        <ul className="grid gap-2 lg:grid-cols-2">{open.map((p) => <ProcessCard key={p.id} p={p} />)}</ul>
+      )}
+      <Link to="/processes" className="btn-secondary inline-flex">כל התהליכים והתבניות</Link>
     </div>
   )
 }

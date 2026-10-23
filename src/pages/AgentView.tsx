@@ -20,6 +20,7 @@ import { useAuth } from '../context/AuthProvider'
 import { GoalFormModal } from '../components/GoalFormModal'
 import { GoalBars } from '../components/GoalBars'
 import { TrainingPanel } from '../components/TrainingPanel'
+import { AgentProcesses } from '../components/ProcessPanels'
 import { LearnSummary } from '../components/LearnSummary'
 import { REVIEW_KINDS, ReviewFormModal } from '../components/ReviewFormModal'
 import { TaskFormModal } from '../components/TaskFormModal'
@@ -360,6 +361,9 @@ export default function AgentView() {
             )}
           </div>
           <div className="mt-8 border-t border-slate-200 pt-5">
+            <SectionHead title="תהליכים" />
+            <AgentProcesses agentId={id} />
+            <div className="mt-6" />
             <SectionHead title="הכשרות" />
             <TrainingPanel agentId={id} />
             <div className="mt-3">

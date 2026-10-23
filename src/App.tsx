@@ -16,6 +16,8 @@ const load = {
   DoctorProfile: () => import('./pages/DoctorProfile'),
   DoctorsDigest: () => import('./pages/DoctorsDigest'),
   Investigations: () => import('./pages/Investigations'),
+  Processes: () => import('./pages/Processes'),
+  ProcessView: () => import('./pages/ProcessView'),
   Meetings: () => import('./pages/Meetings'),
   MeetingView: () => import('./pages/MeetingView'),
   Hospitals: () => import('./pages/Hospitals'),
@@ -45,6 +47,8 @@ const Doctors = lazy(load.Doctors)
 const DoctorProfile = lazy(load.DoctorProfile)
 const DoctorsDigest = lazy(load.DoctorsDigest)
 const Investigations = lazy(load.Investigations)
+const Processes = lazy(load.Processes)
+const ProcessView = lazy(load.ProcessView)
 const Meetings = lazy(load.Meetings)
 const MeetingView = lazy(load.MeetingView)
 const Hospitals = lazy(load.Hospitals)
@@ -119,6 +123,8 @@ export default function App() {
         <Route path="/now" element={<Page><Now /></Page>} />
         <Route path="/help" element={<Page><Help /></Page>} />
         <Route path="/doctors" element={<Page><Doctors /></Page>} />
+        <Route path="/processes" element={<Page><Processes /></Page>} />
+        <Route path="/processes/:id" element={<Page><ProcessView /></Page>} />
         <Route path="/investigations" element={<Page><Investigations /></Page>} />
         <Route path="/doctors/digest" element={<Page><DoctorsDigest /></Page>} />
         <Route path="/doctors/:id" element={<Page><DoctorProfile /></Page>} />
