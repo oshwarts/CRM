@@ -263,7 +263,7 @@ export default function Consumables() {
                 aria-pressed={onlyShortActive}
                 onClick={() => setOnlyShort((v) => !v)}
                 className={classNames(
-                  'chip',
+                  'chip !min-h-[44px]',
                   onlyShortActive ? 'border-red-400 bg-red-600 text-white' : 'border-red-300 bg-white text-red-700',
                 )}
               >

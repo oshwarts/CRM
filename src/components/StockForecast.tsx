@@ -102,7 +102,29 @@ export function StockForecast({ hospitalId, lastCount, minOf }: { hospitalId: st
               {needed.length} פריטים ידרשו הזמנה · {needed.reduce((s, r) => s + r.order, 0)} יחידות
             </p>
           )}
-          <div tabIndex={0} className="overflow-x-auto">
+          {/* a phone: one card per item instead of a seven-column table that scrolls sideways */}
+          <ul className="space-y-2 sm:hidden" aria-label="תחזית מלאי לפי פריט">
+            {[...result.rows].sort((a, b) => b.order - a.order).map((r) => (
+              <li key={r.item.id} className={classNames('rounded-xl border p-3', r.order > 0 ? 'border-red-200 bg-red-50/50' : 'border-slate-200 bg-white')}>
+                <div className="flex items-start justify-between gap-2">
+                  <div dir="ltr" className="min-w-0 text-left [overflow-wrap:anywhere]">
+                    <p className="font-medium text-slate-800">{r.item.name}</p>
+                    {r.item.catalog_number && <p className="text-xs text-slate-500">{r.item.catalog_number}</p>}
+                  </div>
+                  {r.order > 0 ? <span className="shrink-0 rounded-lg bg-red-100 px-2.5 py-1 text-sm font-bold text-red-700">להזמין {r.order}</span> : <span className="shrink-0 text-sm text-emerald-600">✓ מספיק</span>}
+                </div>
+                <dl className="mt-2 grid grid-cols-5 gap-1 text-center">
+                  {([['נספר', r.counted ?? '—'], ['נצרך', num(r.usedSince)], ['מתוכנן', num(r.planned)], ['צפוי', r.projected === null ? '—' : num(r.projected)], ['מינימום', r.min]] as const).map(([k, v]) => (
+                    <div key={k} className="rounded-lg bg-white/70 py-1">
+                      <dt className="text-[11px] text-slate-500">{k}</dt>
+                      <dd dir="ltr" className={classNames('text-sm font-medium', k === 'צפוי' && r.projected !== null && r.projected < 0 ? 'text-red-600' : 'text-slate-800')}>{v}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </li>
+            ))}
+          </ul>
+          <div tabIndex={0} className="hidden overflow-x-auto sm:block">
             <table className="w-full min-w-[520px] text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-right text-xs text-slate-500">
