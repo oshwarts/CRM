@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   AlertTriangle,
@@ -36,6 +36,9 @@ import { ScanFormModal, type ScanDraft } from '../components/ScanFormModal'
 import { PlannedSurgeryModal } from '../components/PlannedSurgeryModal'
 import { classNames, daysUntil, formatDate, isOverdue, plusDaysISO, todayISO } from '../lib/utils'
 import { useToday } from '../lib/useToday'
+import { useLocalSetting } from '../lib/useLocalSetting'
+import { useStageHistoryAll, useStuckThresholds } from '../lib/pipeline'
+import { stageSinceMap, stuckPotentials } from '../lib/pipelineStats'
 import {
   agoLabel,
   countWord,
@@ -74,7 +77,7 @@ const RESCAN_LABEL: Record<RescanKind, string> = {
 }
 
 /** one number of the top strip: tinted by what it means, links to the section below (a column of number + label on the phone) */
-function Kpi({ href, icon, value, label, tone }: { href: string; icon: React.ReactNode; value: number | null; label: string; tone: 'blue' | 'red' | 'amber' | 'green' }) {
+function Kpi({ href, icon, value, label, tone, onGo }: { href: string; icon: React.ReactNode; value: number | null; label: string; tone: 'blue' | 'red' | 'amber' | 'green'; onGo?: () => void }) {
   const has = (value ?? 0) > 0
   const tones = {
     blue: 'bg-brand-50 text-brand-700',
@@ -109,7 +112,7 @@ function Kpi({ href, icon, value, label, tone }: { href: string; icon: React.Rea
   )
   // a page link goes through the router (a plain <a href="/tasks"> reloads the whole app); "#…" jumps inside this page
   return href.startsWith('#') ? (
-    <a href={href} className={cls}>
+    <a href={href} className={cls} onClick={onGo ? (e) => (e.preventDefault(), onGo()) : undefined}>
       {body}
     </a>
   ) : (
@@ -227,6 +230,82 @@ function More({ shown, total }: { shown: number; total: number }) {
   )
 }
 
+/** true on a phone (the home page shows four tabs there instead of one long page) */
+function useIsPhone() {
+  const query = '(max-width: 639px)'
+  const [phone, setPhone] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches)
+  useEffect(() => {
+    const m = window.matchMedia(query)
+    const on = () => setPhone(m.matches)
+    m.addEventListener('change', on)
+    return () => m.removeEventListener('change', on)
+  }, [])
+  return phone
+}
+
+type HomeTab = 'today' | 'follow' | 'scans' | 'doctors'
+
+/** a section of the home page folded to one line (a title and what is in it); on the phone it is the content of a tab, always open */
+function HomeSection({
+  id,
+  icon,
+  title,
+  summary,
+  alert,
+  to,
+  linkLabel,
+  open,
+  onToggle,
+  phone,
+  className,
+  children,
+}: {
+  id: string
+  icon: React.ReactNode
+  title: string
+  summary: string
+  alert?: boolean
+  to?: string
+  linkLabel?: string
+  open: boolean
+  onToggle: () => void
+  phone: boolean
+  className?: string
+  children: React.ReactNode
+}) {
+  const shown = phone || open
+  return (
+    <section id={id} className={classNames('card scroll-mt-20 p-4 sm:p-5', className)}>
+      {phone ? (
+        <SectionTitle icon={icon} title={title} to={to} linkLabel={linkLabel} />
+      ) : (
+        <h2 className="text-base font-semibold text-brand-800 sm:text-lg">
+          <button type="button" aria-expanded={shown} aria-controls={`${id}-body`} onClick={onToggle} className="flex min-h-[44px] w-full items-center justify-between gap-3 text-start">
+            <span className="flex min-w-0 items-center gap-2.5">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#00326d] text-white">{icon}</span>
+              <span className="min-w-0">
+                <span className="block">{title}</span>
+                <span className={classNames('block text-sm font-normal', alert ? 'text-red-600' : 'text-slate-500')}>{summary}</span>
+              </span>
+            </span>
+            <ChevronDown size={18} aria-hidden className={classNames('shrink-0 text-slate-500 transition', shown && 'rotate-180')} />
+          </button>
+        </h2>
+      )}
+      {shown && (
+        <div id={`${id}-body`} className={phone ? '' : 'mt-3'}>
+          {!phone && to && (
+            <Link to={to} className="mb-2 inline-flex min-h-[40px] items-center text-sm font-medium text-brand-600 hover:underline">
+              {linkLabel ?? 'הכול'} ←
+            </Link>
+          )}
+          {children}
+        </div>
+      )}
+    </section>
+  )
+}
+
 export default function Home() {
   const { user, profile, isAdmin } = useAuth()
   const pendingSignups = usePendingSignups().data ?? []
@@ -252,7 +331,12 @@ export default function Home() {
   const [addSurgery, setAddSurgery] = useState(false)
   const [importReferral, setImportReferral] = useState(false)
   const [scanPrefill, setScanPrefill] = useState<{ draft: Partial<ScanDraft>; notices: string[] } | null>(null)
-  const [allPotential, setAllPotential] = useState(false)
+  const phone = useIsPhone()
+  const [showAllFav, setShowAllFav] = useState(false)
+  const [tab, setTab] = useState<HomeTab>('today') // each visit starts on today
+  const [openIds, setOpenIds] = useLocalSetting<string[]>('home.open', [])
+  const stageHistory = useStageHistoryAll()
+  const stuckThresholds = useStuckThresholds()
   const [pickerOpen, setPickerOpen] = useState(false)
   const pickerRef = useRef<HTMLDetailsElement>(null)
 
@@ -300,6 +384,8 @@ export default function Home() {
   const favSet = useMemo(() => new Set(favorites.data ?? []), [favorites.data])
   const favDoctors = useMemo(() => allDoctors.filter((d) => favSet.has(d.id)), [allDoctors, favSet])
   const potentialDoctors = allDoctors.filter((d) => d.status === 'potential')
+  // of the potential doctors only the ones that need a push (no stage, no next step, a late step, too long in one stage)
+  const stuckDoctors = useMemo(() => stuckPotentials(potentialDoctors, stageSinceMap(stageHistory.data ?? []), stuckThresholds), [potentialDoctors, stageHistory.data, stuckThresholds])
 
   // per doctor: last meeting that took place, the next scheduled meeting, and the follow-up date recorded on the latest meeting
   const meetingInfoByDoctor = useMemo(() => buildMeetingInfo(meetings.data ?? [], today), [meetings.data, today])
@@ -349,6 +435,82 @@ export default function Home() {
   const dateLabel = useMemo(() => new Intl.DateTimeFormat('he-IL', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(`${today}T12:00:00`)), [today])
   const heroSecondary = 'btn flex-col !gap-1 !rounded-2xl border border-white/40 bg-white/10 !px-1 !py-2 text-xs text-white hover:bg-white/20 sm:flex-row sm:!gap-2 sm:!rounded-full sm:!px-5 sm:text-sm'
 
+  const show = (t: HomeTab) => (tab === t ? '' : 'max-sm:hidden')
+  const toggleOpen = (id: string) => setOpenIds((o) => (o.includes(id) ? o.filter((x) => x !== id) : [...o, id]))
+  /** a number of the top strip leads to its section: it opens it (or, on the phone, switches to its tab) */
+  const go = (t: HomeTab, id: string) => {
+    setTab(t)
+    if (!openIds.includes(id)) setOpenIds([...openIds, id])
+    setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+  }
+
+  // what each section says on its folded line
+  const favNeed = favFollow.filter((f) => f.status === 'none' || f.status === 'overdue')
+  const favLater = favFollow.filter((f) => f.status !== 'none' && f.status !== 'overdue')
+  const followOverdue = followups.filter((m) => isOverdue(m.next_followup_date))
+  const followLater = followups.filter((m) => !isOverdue(m.next_followup_date))
+  const meetingsNeed = reminders.missed.length + favNeed.length + followOverdue.length
+  const scansNeed = scanAlerts.rescans.length + scanAlerts.weekOpen.length + scanAlerts.overdue.length
+  const meetingsEmpty = followups.length === 0 && reminders.soon.length === 0 && reminders.missed.length === 0 && favFollow.length === 0
+  const scansEmpty = !!scans.data && scans.data.length === 0
+
+  const capped = <T,>(list: T[], max: number) => list.slice(0, max)
+  const moreLink = (n: number, max: number, to: string, label: string) =>
+    n > max ? (
+      <Link to={to} className="mt-1 flex min-h-[40px] items-center text-sm font-medium text-brand-600 hover:underline">
+        ועוד {n - max} — {label} ←
+      </Link>
+    ) : null
+
+  const favRow = ({ d, info, nextDate, isFollowup, status }: (typeof favFollow)[number]) => {
+    const chip = status === 'none' ? 'לא תואמה פגישה הבאה' : `${isFollowup ? 'מעקב' : 'פגישה'}: ${formatDate(nextDate)}${status === 'overdue' ? ' · באיחור' : ''}`
+    const chipClass = {
+      overdue: 'border-red-200 bg-red-50 text-red-600',
+      none: 'border-amber-200 bg-amber-50 text-amber-700',
+      soon: 'border-sky-200 bg-sky-50 text-sky-700',
+      later: 'border-slate-200 bg-white text-slate-600',
+    }[status]
+    return (
+      <li key={d.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 py-2">
+        <Link to={`/doctors/${d.id}`} className="flex min-h-[44px] min-w-0 flex-1 basis-full flex-col justify-center hover:underline sm:basis-48">
+          <p dir="auto" className="truncate text-sm font-medium text-slate-700">
+            {d.title} {d.name}
+          </p>
+          <p className="truncate text-xs text-slate-600">
+            {info?.last ? `פגישה אחרונה ${formatDate(info.last)} (${agoLabel(-(daysUntil(info.last) ?? 0))})` : 'עדיין לא התקיימו פגישות'}
+          </p>
+        </Link>
+        <span className="flex flex-wrap items-center gap-2">
+          <span className={classNames('chip', chipClass)}>{chip}</span>
+          {(status === 'none' || status === 'overdue') && (
+            <button className="btn-secondary !px-3 !py-1 text-xs" onClick={() => setScheduleFor(d.id)} aria-label={`קבע פגישה עם ${d.title} ${d.name}`}>
+              קבע פגישה
+            </button>
+          )}
+        </span>
+      </li>
+    )
+  }
+  const followRow = (m: (typeof followups)[number]) => {
+    const overdue = isOverdue(m.next_followup_date)
+    return (
+      <li key={m.id}>
+        <Link to={`/meetings/${m.id}`} className="flex min-h-[44px] flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-lg px-1 py-2 hover:bg-slate-50">
+          <div className="min-w-0 flex-1 basis-40">
+            <p dir="auto" className="line-clamp-2 break-words text-sm font-medium text-slate-700">{m.subject || 'פגישה'}</p>
+            <p dir="auto" className="line-clamp-2 break-words text-xs text-slate-600">
+              {m.meeting_doctors.map((d) => d.doctor && `${d.doctor.title} ${d.doctor.name}`).filter(Boolean).join(', ') || '—'}
+            </p>
+          </div>
+          <span className={classNames('chip shrink-0', overdue ? 'border-red-200 bg-red-50 text-red-600' : 'border-amber-200 bg-amber-50 text-amber-700')}>
+            {overdue ? 'באיחור · ' : ''}
+            {formatDate(m.next_followup_date)}
+          </span>
+        </Link>
+      </li>
+    )
+  }
+
   return (
     <div className="space-y-5 sm:space-y-6">
       <div className="space-y-3 sm:space-y-4">
@@ -392,15 +554,15 @@ export default function Home() {
           </div>
         </div>
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4">
-          <Kpi href="#home-today" icon={<CalendarDays size={20} />} value={heroLoading ? null : meetingsToday} label="פגישות היום" tone="blue" />
+          <Kpi href="#home-today" onGo={() => go('today', 'home-today')} icon={<CalendarDays size={20} />} value={heroLoading ? null : meetingsToday} label="פגישות היום" tone="blue" />
           <Kpi href="/tasks" icon={<AlertTriangle size={20} />} value={heroLoading ? null : overdueTasks} label="משימות באיחור" tone="red" />
-          <Kpi href="#home-scans" icon={<ScanLine size={20} />} value={scans.data ? scanAlerts.upcoming.length : null} label="CT בשבוע הקרוב" tone="amber" />
-          <Kpi href={favFollow.length > 0 ? '#home-fav-follow' : '#home-favorites'} icon={<Stethoscope size={20} />} value={favorites.data && doctors.data && meetings.data ? toFollow : null} label="רופאים לחזרה" tone="amber" />
+          <Kpi href="#home-scans" onGo={() => go('scans', 'home-scans')} icon={<ScanLine size={20} />} value={scans.data ? scanAlerts.upcoming.length : null} label="CT בשבוע הקרוב" tone="amber" />
+          <Kpi href={favFollow.length > 0 ? '#home-meetings' : '#home-favorites'} onGo={() => (favFollow.length > 0 ? go('follow', 'home-meetings') : go('doctors', 'home-favorites'))} icon={<Stethoscope size={20} />} value={favorites.data && doctors.data && meetings.data ? toFollow : null} label="רופאים לחזרה" tone="amber" />
         </div>
       </div>
 
       {isAdmin && pendingSignups.length > 0 && (
-        <Link to="/users" className="card flex items-center gap-3 border-amber-300 bg-amber-50 p-3.5 text-amber-900 transition hover:shadow-pop">
+        <Link to="/users" className={classNames('card flex items-center gap-3 border-amber-300 bg-amber-50 p-3.5 text-amber-900 transition hover:shadow-pop', show('today'))}>
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-100 text-amber-700">
             <UserPlus size={20} aria-hidden />
           </span>
@@ -415,11 +577,42 @@ export default function Home() {
         </Link>
       )}
 
-      <TodayBlock />
+      {/* a phone: four tabs instead of one long page */}
+      <div role="tablist" aria-label="חלקי דף הבית" className="grid grid-cols-4 gap-1 rounded-xl bg-slate-100 p-1 sm:hidden">
+        {(
+          [
+            ['today', 'היום', 0],
+            ['follow', 'מעקב', meetingsNeed],
+            ['scans', 'סריקות', scansNeed],
+            ['doctors', 'רופאים', stuckDoctors.length],
+          ] as const
+        ).map(([k, label, n]) => (
+          <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={classNames('min-h-[44px] rounded-lg px-1 text-sm font-medium', tab === k ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-600')}>
+            {label}
+            {n > 0 && <span className="ms-1 rounded-full bg-red-600 px-1.5 text-[11px] font-semibold text-white">{n}</span>}
+          </button>
+        ))}
+      </div>
+
+      <div className={show('today')}>
+        <TodayBlock />
+      </div>
 
       {/* MAKO scans */}
-      <section id="home-scans" className="card scroll-mt-20 p-4 sm:p-5">
-        <SectionTitle icon={<ScanLine size={18} />} title="סריקות MAKO" to="/scans" linkLabel="לכל הסריקות" />
+      {!scansEmpty && (
+        <HomeSection
+          id="home-scans"
+          icon={<ScanLine size={18} />}
+          title="סריקות MAKO"
+          summary={scans.data ? (scansNeed > 0 ? `${scansNeed} דורשים טיפול · ${scanAlerts.upcoming.length} CT בשבוע הקרוב` : `${homeScans.length} מטופלים · אין מה לטפל`) : 'טוען…'}
+          alert={scansNeed > 0}
+          to="/scans"
+          linkLabel="לכל הסריקות"
+          open={openIds.includes('home-scans')}
+          onToggle={() => toggleOpen('home-scans')}
+          phone={phone}
+          className={show('scans')}
+        >
         <select
           className="input mb-3 sm:!w-auto"
           value={hospitalFilter}
@@ -551,123 +744,71 @@ export default function Home() {
             <More shown={10} total={scanAlerts.noDiskSoon.length} />
           </Fold>
         )}
-      </section>
+        </HomeSection>
+      )}
 
-      {/* follow-ups */}
-      <section id="home-meetings" className="card scroll-mt-20 p-4 sm:p-5">
-        <SectionTitle icon={<Clock size={18} />} title="מעקב פגישות" to="/meetings" linkLabel="כל הפגישות" />
-        {meetings.isLoading ? (
-          <Spinner />
-        ) : meetings.error && !meetings.data ? (
-          <ErrorState error={meetings.error} />
-        ) : followups.length === 0 && reminders.soon.length === 0 && reminders.missed.length === 0 && favFollow.length === 0 ? (
-          <p className="text-sm text-slate-600">אין פגישות השבוע ואין פגישות שממתינות למעקב.</p>
-        ) : (
-          <>
-            {reminders.missed.length > 0 && (
-              <>
-                <SubHead tone="red">עבר מועד הפגישה ({reminders.missed.length}) — עדכן סיכום וסטטוס או קבע מועד חדש</SubHead>
-                <ul className="divide-y divide-red-100">
-                  {reminders.missed.map((m) =>
-                    reminderRow(m, `${formatDate(m.meeting_date)} · עבר`, 'border-red-200 bg-red-50 text-red-600'),
-                  )}
-                </ul>
-              </>
-            )}
-            {reminders.soon.length > 0 && (
-              <>
-                <SubHead tone="sky">פגישות בשבוע הקרוב ({reminders.soon.length})</SubHead>
-                <ul className="divide-y divide-slate-100">
-                  {reminders.soon.map((m) => {
-                    const when = inDaysLabel(daysUntil(m.meeting_date) ?? 0)
-                    return reminderRow(m, `${when} · ${formatDate(m.meeting_date)}`, 'border-sky-200 bg-sky-50 text-sky-700')
-                  })}
-                </ul>
-              </>
-            )}
-            {favFollow.length > 0 && (
-              <>
-                <SubHead id="home-fav-follow">מעקב רופאים מועדפים ({favFollow.length})</SubHead>
-                <ul className="divide-y divide-slate-100">
-                  {favFollow.map(({ d, info, nextDate, isFollowup, status }) => {
-                    const chip =
-                      status === 'none'
-                        ? 'לא תואמה פגישה הבאה'
-                        : `${isFollowup ? 'מעקב' : 'פגישה'}: ${formatDate(nextDate)}${status === 'overdue' ? ' · באיחור' : ''}`
-                    const chipClass = {
-                      overdue: 'border-red-200 bg-red-50 text-red-600',
-                      none: 'border-amber-200 bg-amber-50 text-amber-700',
-                      soon: 'border-sky-200 bg-sky-50 text-sky-700',
-                      later: 'border-slate-200 bg-white text-slate-600',
-                    }[status]
-                    return (
-                      <li key={d.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 py-2">
-                        <Link to={`/doctors/${d.id}`} className="flex min-h-[44px] min-w-0 flex-1 basis-full flex-col justify-center hover:underline sm:basis-48">
-                          <p dir="auto" className="truncate text-sm font-medium text-slate-700">
-                            {d.title} {d.name}
-                          </p>
-                          <p className="truncate text-xs text-slate-600">
-                            {info?.last ? `פגישה אחרונה ${formatDate(info.last)} (${agoLabel(-(daysUntil(info.last) ?? 0))})` : 'עדיין לא התקיימו פגישות'}
-                          </p>
-                        </Link>
-                        <span className="flex flex-wrap items-center gap-2">
-                          <span className={classNames('chip', chipClass)}>{chip}</span>
-                          {(status === 'none' || status === 'overdue') && (
-                            <button className="btn-secondary !px-3 !py-1 text-xs" onClick={() => setScheduleFor(d.id)} aria-label={`קבע פגישה עם ${d.title} ${d.name}`}>
-                              קבע פגישה
-                            </button>
-                          )}
-                        </span>
-                      </li>
-                    )
-                  })}
-                </ul>
-              </>
-            )}
-            {followups.length > 0 && (
-              <>
-                <SubHead>תאריכי מעקב ({followups.length})</SubHead>
-                <ul className="divide-y divide-slate-100">
-                  {followups.map((m) => {
-                    const overdue = isOverdue(m.next_followup_date)
-                    return (
-                      <li key={m.id}>
-                        <Link
-                          to={`/meetings/${m.id}`}
-                          className="flex min-h-[44px] flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-lg px-1 py-2 hover:bg-slate-50"
-                        >
-                          <div className="min-w-0 flex-1 basis-40">
-                            <p dir="auto" className="line-clamp-2 break-words text-sm font-medium text-slate-700">
-                              {m.subject || 'פגישה'}
-                            </p>
-                            <p dir="auto" className="line-clamp-2 break-words text-xs text-slate-600">
-                              {m.meeting_doctors
-                                .map((d) => d.doctor && `${d.doctor.title} ${d.doctor.name}`)
-                                .filter(Boolean)
-                                .join(', ') || '—'}
-                            </p>
-                          </div>
-                          <span
-                            className={classNames(
-                              'chip shrink-0',
-                              overdue
-                                ? 'border-red-200 bg-red-50 text-red-600'
-                                : 'border-amber-200 bg-amber-50 text-amber-700',
-                            )}
-                          >
-                            {overdue ? 'באיחור · ' : ''}
-                            {formatDate(m.next_followup_date)}
-                          </span>
-                        </Link>
-                      </li>
-                    )
-                  })}
-                </ul>
-              </>
-            )}
-          </>
-        )}
-      </section>
+      {/* follow-ups: only what needs an action; the rest is folded */}
+      {!meetingsEmpty && (
+        <HomeSection
+          id="home-meetings"
+          icon={<Clock size={18} />}
+          title="מעקב פגישות"
+          summary={meetingsNeed > 0 ? `${meetingsNeed} דורשים טיפול` : reminders.soon.length > 0 ? `${reminders.soon.length} פגישות בשבוע הקרוב` : 'הכל מעודכן'}
+          alert={meetingsNeed > 0}
+          to="/meetings"
+          linkLabel="כל הפגישות"
+          open={openIds.includes('home-meetings')}
+          onToggle={() => toggleOpen('home-meetings')}
+          phone={phone}
+          className={show('follow')}
+        >
+          {meetings.isLoading ? (
+            <Spinner />
+          ) : meetings.error && !meetings.data ? (
+            <ErrorState error={meetings.error} />
+          ) : (
+            <>
+              {reminders.missed.length > 0 && (
+                <>
+                  <SubHead tone="red">עבר מועד הפגישה ({reminders.missed.length}) — עדכן סיכום וסטטוס או קבע מועד חדש</SubHead>
+                  <ul className="divide-y divide-red-100">{capped(reminders.missed, 5).map((m) => reminderRow(m, `${formatDate(m.meeting_date)} · עבר`, 'border-red-200 bg-red-50 text-red-600'))}</ul>
+                  {moreLink(reminders.missed.length, 5, '/meetings', 'כל הפגישות')}
+                </>
+              )}
+              {favNeed.length > 0 && (
+                <>
+                  <SubHead id="home-fav-follow">רופאים מועדפים שצריך לתאם ({favNeed.length})</SubHead>
+                  <ul className="divide-y divide-slate-100">{capped(favNeed, 5).map(favRow)}</ul>
+                  {moreLink(favNeed.length, 5, '/doctors', 'כל הרופאים')}
+                </>
+              )}
+              {followOverdue.length > 0 && (
+                <>
+                  <SubHead>תאריכי מעקב שעברו ({followOverdue.length})</SubHead>
+                  <ul className="divide-y divide-slate-100">{capped(followOverdue, 5).map(followRow)}</ul>
+                  {moreLink(followOverdue.length, 5, '/meetings', 'כל הפגישות')}
+                </>
+              )}
+              {meetingsNeed === 0 && <p className="text-sm text-slate-600">אין פגישות שממתינות לטיפול.</p>}
+              {reminders.soon.length > 0 && (
+                <Fold title="פגישות בשבוע הקרוב" count={reminders.soon.length} tone="sky">
+                  <ul className="divide-y divide-slate-100">
+                    {reminders.soon.map((m) => reminderRow(m, `${inDaysLabel(daysUntil(m.meeting_date) ?? 0)} · ${formatDate(m.meeting_date)}`, 'border-sky-200 bg-sky-50 text-sky-700'))}
+                  </ul>
+                </Fold>
+              )}
+              {favLater.length + followLater.length > 0 && (
+                <Fold title="בהמשך: מעקבים ופגישות עתידיות" count={favLater.length + followLater.length} tone="amber">
+                  <ul className="divide-y divide-slate-100">
+                    {favLater.map(favRow)}
+                    {followLater.map(followRow)}
+                  </ul>
+                </Fold>
+              )}
+            </>
+          )}
+        </HomeSection>
+      )}
 
       {newMeeting && <MeetingFormModal open onClose={() => setNewMeeting(false)} />}
       {newTask && <TaskFormModal onClose={() => setNewTask(false)} />}
@@ -690,51 +831,57 @@ export default function Home() {
         <ScanFormModal initial={scanPrefill.draft} notices={scanPrefill.notices} onClose={() => setScanPrefill(null)} />
       )}
 
-      {/* potential doctors */}
-      {potentialDoctors.length > 0 && (
-        <section className="card p-4 sm:p-5">
-          <h2 className="mb-2 flex items-center gap-2 text-base font-semibold text-brand-800 sm:text-lg">
-            <Target size={18} aria-hidden className="shrink-0 text-amber-500" />
-            רופאים פוטנציאליים במעקב ({potentialDoctors.length})
-          </h2>
-          <ul className="divide-y divide-slate-100">
-            {(allPotential ? potentialDoctors : potentialDoctors.slice(0, 5)).map((d) => (
-              <li key={d.id}>
-                <Link
-                  to={`/doctors/${d.id}`}
-                  className="block min-h-[44px] rounded-lg px-1 py-2 hover:bg-slate-50"
-                >
-                  <p dir="auto" className="break-words text-sm font-medium text-slate-700">
-                    {d.title} {d.name}
-                  </p>
-                  {d.doctor_hospitals.length > 0 && (
-                    <p className="break-words text-xs text-slate-600">
-                      {d.doctor_hospitals
-                        .map((h) => h.hospital?.name)
-                        .filter(Boolean)
-                        .join(', ')}
+
+      <div className={classNames('space-y-5 sm:space-y-6', show('doctors'))}>
+        {/* potential doctors: only the ones that need a push */}
+        {stuckDoctors.length > 0 && (
+          <HomeSection
+            id="home-potential"
+            icon={<Target size={18} />}
+            title="רופאים פוטנציאליים שדורשים תשומת לב"
+            summary={`${stuckDoctors.length} תקועים מתוך ${potentialDoctors.length} במעקב`}
+            alert
+            to="/doctors?status=potential"
+            linkLabel={`כל ${potentialDoctors.length} הפוטנציאליים`}
+            open={openIds.includes('home-potential')}
+            onToggle={() => toggleOpen('home-potential')}
+            phone={phone}
+          >
+            <ul className="divide-y divide-slate-100">
+              {capped(stuckDoctors, 5).map(({ d, reasons }) => (
+                <li key={d.id}>
+                  <Link to={`/doctors/${d.id}`} className="block min-h-[44px] rounded-lg px-1 py-2 hover:bg-slate-50">
+                    <p dir="auto" className="break-words text-sm font-medium text-slate-700">
+                      {d.title} {d.name}
                     </p>
-                  )}
-                  {d.tracking_notes && (
-                    <p dir="auto" className="line-clamp-2 break-words text-xs text-slate-500">
-                      {d.tracking_notes}
+                    <p className="mt-0.5 flex flex-wrap gap-1.5">
+                      {reasons.map((r) => (
+                        <span key={r.key} className="chip border-amber-200 bg-amber-50 !py-0 text-xs text-amber-700">
+                          {r.label}
+                        </span>
+                      ))}
                     </p>
-                  )}
-                </Link>
-              </li>
-            ))}
-          </ul>
-          {potentialDoctors.length > 5 && (
-            <button className="btn-ghost mt-1 w-full text-sm" onClick={() => setAllPotential((v) => !v)} aria-expanded={allPotential}>
-              {allPotential ? 'הצג פחות' : `הצג את כל ${potentialDoctors.length}`}
-            </button>
-          )}
-        </section>
-      )}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            {moreLink(stuckDoctors.length, 5, '/doctors?status=potential', 'כל הפוטנציאליים')}
+          </HomeSection>
+        )}
 
       {/* favorite doctor cards */}
-      <section id="home-favorites" className="scroll-mt-20">
-        <SectionTitle icon={<Stethoscope size={18} />} title="הרופאים המועדפים שלי" to="/doctors" linkLabel="כל הרופאים" />
+      <HomeSection
+        id="home-favorites"
+        icon={<Stethoscope size={18} />}
+        title="הרופאים המועדפים שלי"
+        summary={`${favDoctors.length} רופאים${favNeed.length > 0 ? ` · ${favNeed.length} לתיאום פגישה` : ''}`}
+        alert={favNeed.length > 0}
+        to="/doctors"
+        linkLabel="כל הרופאים"
+        open={openIds.includes('home-favorites')}
+        onToggle={() => toggleOpen('home-favorites')}
+        phone={phone}
+      >
 
         {favorites.isLoading || doctors.isLoading ? (
           <Spinner />
@@ -760,7 +907,7 @@ export default function Home() {
           />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {favDoctors.map((d) => {
+            {(showAllFav ? favDoctors : favDoctors.slice(0, 6)).map((d) => {
               const info = meetingInfoByDoctor.get(d.id)
               const nextDate = info?.next ?? info?.followup
               const nextIsFollowup = !info?.next && !!info?.followup
@@ -840,7 +987,13 @@ export default function Home() {
             })}
           </div>
         )}
-      </section>
+        {favDoctors.length > 6 && (
+          <button type="button" className="btn-ghost mt-2 w-full text-sm" aria-expanded={showAllFav} onClick={() => setShowAllFav((v) => !v)}>
+            {showAllFav ? 'הצג פחות' : `הצג את כל ${favDoctors.length}`}
+          </button>
+        )}
+      </HomeSection>
+
 
       {/* favorites picker */}
       <details ref={pickerRef} open={pickerOpen} onToggle={(e) => setPickerOpen(e.currentTarget.open)} className="card group p-4 sm:p-5">
@@ -897,6 +1050,7 @@ export default function Home() {
           </ul>
         )}
       </details>
+      </div>
     </div>
   )
 }
