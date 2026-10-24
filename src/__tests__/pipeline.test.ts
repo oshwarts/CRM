@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { funnelStats, lostSummary, stageSinceMap, stuckPotentials, type HistoryRow } from '../lib/pipelineStats'
 
 const NOW = new Date('2026-10-18T10:00:00')
@@ -30,8 +30,11 @@ describe('funnelStats', () => {
 })
 
 describe('stuckPotentials', () => {
-  vi.useFakeTimers({ toFake: ['Date'] })
-  vi.setSystemTime(NOW)
+  // the clock is set before every test (afterEach above puts the real one back, and the tests must not depend on today's date)
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(NOW)
+  })
   const doc = (id: string, stage: string, step: string, date: string | null, status = 'potential') => ({ id, name: id, title: '', status, pipeline_stage: stage, next_step: step, next_step_date: date, created_by: null, doctor_hospitals: [] })
   const since = new Map([
     ['a', { stage: 'ב', since: day(-20) }],
