@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { Bot, Building2, CalendarDays, Map as MapIcon, Package, ScanLine, Stethoscope, User } from 'lucide-react'
+import { Bot, Building2, CalendarDays, Map as MapIcon, MapPin, Package, ScanLine, Stethoscope, User } from 'lucide-react'
 import { useMapData, useMeetings, usePatientScans } from '../lib/api'
 import { usePlannedSurgeries } from '../lib/plannedSurgeries'
 import { HospitalActions } from '../components/HospitalActions'
@@ -9,13 +9,14 @@ import { ContactsSection } from '../components/ContactsSection'
 import { LinkedTasks, useLinkedTasks } from '../components/LinkedTasks'
 import { CompetitorSection } from '../components/CompetitorSection'
 import { CaseVolumesEditor } from '../components/CaseVolumesEditor'
+import { HospitalInfo, Locations } from '../components/HospitalInfo'
 import { EmptyState, ErrorState, Spinner, Tab, TabList, TabPanel, Tabs } from '../components/ui'
 import { DOCTOR_STATUS_LABELS, MEETING_STATUS_LABELS, SCAN_PROCEDURE_LABELS, SECTOR_LABELS } from '../lib/types'
 import { classNames, daysUntil, formatDate, todayISO } from '../lib/utils'
 import { DAY_NAMES, formatDays } from '../lib/clinics'
 import { heldMeetings, lastMetByDoctor, nextMeeting as findNextMeeting, surgeryList, volumeComparison } from '../lib/hospitalView'
 
-const TABS = ['overview', 'doctors', 'contacts', 'meetings', 'surgeries', 'volumes', 'tasks', 'competitors']
+const TABS = ['overview', 'doctors', 'contacts', 'meetings', 'surgeries', 'info', 'volumes', 'tasks', 'competitors']
 
 export default function HospitalView() {
   const { id } = useParams<{ id: string }>()
@@ -173,6 +174,7 @@ export default function HospitalView() {
           <Tab id="contacts">אנשי קשר ({h.contacts.length})</Tab>
           <Tab id="meetings">פגישות ({meetings.length})</Tab>
           <Tab id="surgeries">ניתוחים ({upcoming.length})</Tab>
+          <Tab id="info">מידע ומיקומים</Tab>
           <Tab id="volumes">כמויות מקרים</Tab>
           <Tab id="tasks">משימות ({linkedTasks.open.length})</Tab>
           <Tab id="competitors">מתחרים</Tab>
@@ -228,6 +230,13 @@ export default function HospitalView() {
                   })}
                 </ul>
               )}
+            </Section>
+
+            <Section title="איפה נמצאים" icon={MapPin} className="lg:col-span-2">
+              <Locations hospitalId={h.id} compact />
+              <button type="button" className="mt-1 inline-flex min-h-[40px] items-center text-sm font-medium text-brand-600 hover:underline" onClick={() => setTab('info')}>
+                מידע, הערכת מקרים ומיקומים ←
+              </button>
             </Section>
 
             <Section title="פגישות אחרונות" icon={CalendarDays} className="lg:col-span-2">
@@ -305,6 +314,10 @@ export default function HospitalView() {
               ))}
             </div>
           )}
+        </TabPanel>
+
+        <TabPanel id="info">
+          <HospitalInfo hospitalId={h.id} />
         </TabPanel>
 
         <TabPanel id="volumes">
