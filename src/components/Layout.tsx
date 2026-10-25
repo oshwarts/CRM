@@ -43,7 +43,7 @@ const TABS = ['/', '/doctors', '/tasks', '/schedule']
 // scroll position of each visited page, so that going back returns to the same place
 const scrollOf = new Map<string, number>()
 
-const VERSION = 'v151 · פרויקטים: כל הכרטיסיות באותו גודל, והפרטים מיושרים באותו מקום בכל כרטיס'
+const VERSION = 'v152 · פרויקטים במחשב: כרטיסיות קומפקטיות בשלוש עמודות, שורת סיכום דקה, סרגל כלים מיושר, בלי כפתור צף'
 
 // a failure of the shell itself (not of one screen) also ends in a message with a way out, never in a blank page
 export function Layout() {

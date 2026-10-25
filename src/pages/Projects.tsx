@@ -52,19 +52,19 @@ export default function Projects() {
     const late = !!p.target_date && p.status !== 'done' && (left ?? 0) < 0
     const level = attention({ p, stats }, today)
     return (
-      <li key={p.id} className="h-full">
+      <li key={p.id} className="flex">
         {/* every card has the same parts in the same places (a title of two lines, the details, then the progress, the chips and the next step at the bottom), so the cards of a row are one height */}
         <Link
           to={`/projects/${p.id}`}
-          className={classNames('card flex h-full min-h-[15rem] flex-col border-s-4 p-4 transition hover:border-brand-300 hover:shadow-sm', level === 'high' ? 'border-s-red-500' : level === 'medium' ? 'border-s-amber-400' : 'border-s-transparent')}
+          className={classNames('card flex min-h-[11rem] w-full flex-col border-s-4 p-3.5 transition hover:border-brand-300 hover:shadow-sm', level === 'high' ? 'border-s-red-500' : level === 'medium' ? 'border-s-amber-400' : 'border-s-transparent')}
         >
           <div className="flex items-start justify-between gap-2">
-            <p dir="auto" className="line-clamp-2 min-h-[3rem] min-w-0 break-words text-base font-semibold leading-6 text-slate-800">
+            <p dir="auto" className="line-clamp-2 min-h-[2.5rem] min-w-0 break-words text-[15px] font-semibold leading-5 text-slate-800">
               {p.name}
             </p>
             {p.status !== 'active' && <span className="chip shrink-0 border-slate-200 bg-slate-50 !px-2 !py-0 text-xs text-slate-600">{PROJECT_STATUS[p.status]}</span>}
           </div>
-          <p className="mt-1 flex min-h-[2.5rem] flex-wrap content-start items-start gap-x-3 gap-y-1 text-xs text-slate-500">
+          <p className="mt-1.5 flex min-h-[2rem] flex-wrap content-start items-start gap-x-3 gap-y-0.5 text-xs text-slate-500">
             {p.hospital && (
               <span className="inline-flex items-center gap-1">
                 <Building2 size={12} aria-hidden="true" /> {p.hospital.name}
@@ -78,14 +78,14 @@ export default function Projects() {
               </span>
             )}
           </p>
-          <div className="mt-auto pt-3">
+          <div className="mt-auto pt-2.5">
             <div className="flex items-center gap-3">
-              <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label="התקדמות הפרויקט" aria-valuemin={0} aria-valuemax={100} aria-valuenow={stats.percent}>
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label="התקדמות הפרויקט" aria-valuemin={0} aria-valuemax={100} aria-valuenow={stats.percent}>
                 <div className="h-full bg-emerald-500 transition-all" style={{ width: `${stats.percent}%` }} />
               </div>
               <span className="shrink-0 text-xs font-medium text-slate-600">{stats.total ? `${stats.done}/${stats.total} · ${stats.percent}%` : 'אין משימות'}</span>
             </div>
-            <div className="mt-2 flex min-h-[1.5rem] flex-wrap gap-1.5">
+            <div className="mt-1.5 flex min-h-[1.5rem] flex-wrap items-center gap-1.5">
               {stats.blocked.length > 0 && (
                 <span className="chip border-red-200 bg-red-50 !px-2 !py-0.5 text-xs text-red-600">
                   <AlertTriangle size={11} aria-hidden="true" /> {stats.blocked.length} תקועות
@@ -93,7 +93,7 @@ export default function Projects() {
               )}
               {stats.overdue.length > 0 && <span className="chip border-amber-200 bg-amber-50 !px-2 !py-0.5 text-xs text-amber-700">{stats.overdue.length} באיחור</span>}
             </div>
-            <p dir="auto" className="mt-2 line-clamp-2 min-h-[2.75rem] text-sm text-slate-600">
+            <p dir="auto" className="mt-1 line-clamp-1 min-h-[1.25rem] text-sm text-slate-600">
               {stats.next[0] ? (
                 <>
                   <span className="text-xs text-slate-500">הצעד הבא: </span>
@@ -110,18 +110,18 @@ export default function Projects() {
   }
 
   const stat = (label: string, value: number, tone = '') => (
-    <div className="rounded-xl bg-slate-50 px-3 py-2">
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className={classNames('font-semibold', tone)}>{value}</p>
+    <div className="flex items-baseline gap-1.5">
+      <span className={classNames('text-lg font-semibold leading-none', tone || 'text-slate-800')}>{value}</span>
+      <span className="text-xs text-slate-500">{label}</span>
     </div>
   )
   const statusBtn = (k: ProjectFilters['status'], label: string, n: number) => (
-    <button key={k} type="button" role="radio" aria-checked={filters.status === k} onClick={() => patch({ status: k })} className={classNames('min-h-[44px] rounded-lg px-2 text-sm font-medium transition', filters.status === k ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-600 hover:text-slate-800')}>
+    <button key={k} type="button" role="radio" aria-checked={filters.status === k} onClick={() => patch({ status: k })} className={classNames('min-h-[44px] rounded-lg px-3 text-sm font-medium transition lg:min-h-[36px]', filters.status === k ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-600 hover:text-slate-800')}>
       {label} <span className="text-xs text-slate-500">{n}</span>
     </button>
   )
   const chip = (on: boolean, label: string, onClick: () => void) => (
-    <button type="button" aria-pressed={on} onClick={onClick} className={classNames('min-h-[40px] rounded-full border px-3 text-sm font-medium', on ? 'border-brand-500 bg-brand-500 text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50')}>
+    <button type="button" aria-pressed={on} onClick={onClick} className={classNames('!min-h-[40px] rounded-full border px-3 text-sm font-medium lg:!min-h-[36px]', on ? 'border-brand-500 bg-brand-500 text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50')}>
       {label}
     </button>
   )
@@ -146,28 +146,27 @@ export default function Projects() {
 
       {rows.length > 0 && (
         <>
-          <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+          <div className="flex flex-wrap items-center gap-x-8 gap-y-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm">
             {stat('פרויקטים פתוחים', totals.open)}
             {stat('דורשים תשומת לב', totals.needAttention, totals.needAttention ? 'text-red-700' : '')}
             {stat('משימות תקועות', totals.blocked, totals.blocked ? 'text-red-700' : '')}
             {stat('משימות באיחור', totals.overdue, totals.overdue ? 'text-amber-700' : '')}
           </div>
 
-          <div role="radiogroup" aria-label="אילו פרויקטים להציג" className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1 sm:max-w-md">
+          <div className="flex flex-wrap items-center gap-2">
+          <div role="radiogroup" aria-label="אילו פרויקטים להציג" className="grid w-full grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1 sm:w-auto sm:min-w-[19rem]">
             {statusBtn('open', 'פתוחים', totals.open)}
             {statusBtn('done', 'הושלמו', totals.done)}
             {statusBtn('all', 'הכל', totals.open + totals.done)}
           </div>
-
-          <div className="flex flex-wrap items-center gap-2">
             <label className="relative block w-full sm:w-64">
               <Search size={16} aria-hidden className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input type="search" className="input !pr-9" aria-label="חיפוש בפרויקטים" placeholder="חיפוש: פרויקט, בית חולים, אחראי" value={filters.q} onChange={(e) => patch({ q: e.target.value })} />
+              <input type="search" className="input !pr-9 lg:!py-1.5" aria-label="חיפוש בפרויקטים" placeholder="חיפוש: פרויקט, בית חולים, אחראי" value={filters.q} onChange={(e) => patch({ q: e.target.value })} />
             </label>
             {chip(filters.attentionOnly, 'דורשים תשומת לב', () => patch({ attentionOnly: !filters.attentionOnly }))}
             {chip(filters.mine, 'שלי', () => patch({ mine: !filters.mine }))}
             {hospitals.length > 1 && (
-              <select className="input !w-full sm:!w-auto" aria-label="בית חולים" value={filters.hospitalId} onChange={(e) => patch({ hospitalId: e.target.value })}>
+              <select className="input !w-full sm:!w-auto lg:!py-1.5" aria-label="בית חולים" value={filters.hospitalId} onChange={(e) => patch({ hospitalId: e.target.value })}>
                 <option value="">כל בתי החולים</option>
                 {hospitals.map(([id, name]) => (
                   <option key={id} value={id}>
@@ -176,7 +175,7 @@ export default function Projects() {
                 ))}
               </select>
             )}
-            <select className="input !w-full sm:!w-auto" aria-label="מיון" value={filters.sort} onChange={(e) => patch({ sort: e.target.value as ProjectSort })}>
+            <select className="input !w-full sm:!w-auto lg:!py-1.5" aria-label="מיון" value={filters.sort} onChange={(e) => patch({ sort: e.target.value as ProjectSort })}>
               {(Object.keys(SORTS) as ProjectSort[]).map((k) => (
                 <option key={k} value={k}>
                   מיון: {SORTS[k]}
@@ -198,10 +197,12 @@ export default function Projects() {
           />
         )
       ) : (
-        <ul className="grid gap-3 lg:grid-cols-2">{shown.map(card)}</ul>
+        <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{shown.map(card)}</ul>
       )}
 
-      <AddFab label="פרויקט חדש" onClick={() => setCreating(true)} />
+      <div className="lg:hidden">
+        <AddFab label="פרויקט חדש" onClick={() => setCreating(true)} />
+      </div>
       {creating && <ProjectFormModal onClose={() => setCreating(false)} onSaved={(id) => navigate(`/projects/${id}`)} />}
     </div>
   )
