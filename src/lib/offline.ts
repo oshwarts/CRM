@@ -6,7 +6,7 @@ import type { PersistedClient, Persister } from '@tanstack/react-query-persist-c
    Writing without a network is not supported: such requests fail at once with a clear message (see supabase.ts). */
 
 export const OFFLINE_MESSAGE = 'אין חיבור לרשת — אפשר לצפות בנתונים אך לא לשמור שינויים. נסה שוב כשהחיבור חוזר.'
-export const CACHE_MAX_AGE = 1000 * 60 * 60 * 24 * 7 // a week
+export const CACHE_MAX_AGE = 1000 * 60 * 60 * 24 * 30 // a month
 /** bump to throw away every saved cache after a change of data shape */
 export const CACHE_BUSTER = 'v1'
 

@@ -1,6 +1,6 @@
 // Service worker: lets the installed app open without a network connection.
 // - the app shell (index.html) is network-first and falls back to the saved copy when offline
-// - build files (/assets) and the OCR language files are cached the first time they are used
+// - the files of the build are saved when the worker installs (the list is precache.json, made by the build), the OCR language files the first time they are used
 // - data never goes through here: Supabase / API calls are left alone (data is kept by the app itself)
 
 const BUILD = new URL(self.location.href).searchParams.get('v') || 'dev'
@@ -8,11 +8,26 @@ const SHELL = `ami-shell-${BUILD}`
 const ASSETS = `ami-assets-${BUILD}`
 const OCR = 'ami-ocr-v1' // large and never changes — kept across versions
 
+async function precacheBuild() {
+  try {
+    const res = await fetch('/precache.json', { cache: 'no-store' })
+    if (!res.ok) return
+    const files = await res.json()
+    const cache = await caches.open(ASSETS)
+    await Promise.allSettled(files.map((f) => cache.add(f)))
+  } catch {
+    /* no list (an old build or no network): the files are saved when first used */
+  }
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
       .open(SHELL)
       .then((c) => c.addAll(['/', '/manifest.webmanifest', '/favicon.svg', '/icon-192.png']))
+      // every file of the app (the list is made by the build): a page that was never opened still opens without a network.
+      // A failure here never stops the installation: what is missing is saved when it is first used.
+      .then(precacheBuild)
       .then(() => self.skipWaiting()),
   )
 })

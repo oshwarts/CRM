@@ -12,6 +12,11 @@ import { outboxSize } from '../lib/outbox'
 import { queryClient } from '../lib/queryClient'
 import { idbPersister } from '../lib/offline'
 import type { Profile } from '../lib/types'
+import { cacheProfile, pickSession, readCachedProfile, readStoredSession, setAwaitingRefresh } from '../lib/offlineAuth'
+
+// a call to the server that never answers must not keep the app on the loading screen
+const WAIT_MS = 8000
+const timeoutSignal = () => (typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal ? AbortSignal.timeout(WAIT_MS) : undefined)
 
 type AuthContextValue = {
   session: Session | null
@@ -45,30 +50,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [recovering, setRecovering] = useState(openedFromResetLink)
 
   async function loadProfile(userId: string) {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle()
+    // without a network the profile saved on this device is used (the role decides what the screens show; the server still decides what is allowed)
+    let data: Profile | null = null
+    let unreachable = false
+    try {
+      const q = supabase.from('profiles').select('*').eq('id', userId)
+      const sig = timeoutSignal()
+      const r = await (sig ? q.abortSignal(sig) : q).maybeSingle()
+      if (r.error) unreachable = true
+      else data = r.data
+    } catch {
+      unreachable = true
+    }
+    if (unreachable || (!data && !navigator.onLine)) data = readCachedProfile<Profile>(localStorage, userId)
+    else if (data) cacheProfile(localStorage, userId, data)
+
     let eff: Profile | null = null
     if (data?.is_developer && data.impersonating_id) {
-      const r = await supabase.from('profiles').select('*').eq('id', data.impersonating_id).maybeSingle()
-      eff = r.data ?? null
+      try {
+        const r = await supabase.from('profiles').select('*').eq('id', data.impersonating_id).maybeSingle()
+        eff = r.error ? readCachedProfile<Profile>(localStorage, data.impersonating_id) : (r.data ?? null)
+        if (r.data) cacheProfile(localStorage, data.impersonating_id, r.data)
+      } catch {
+        eff = readCachedProfile<Profile>(localStorage, data.impersonating_id)
+      }
     }
     setActingId(eff?.id ?? null)
     setImpersonating(eff)
-    setRealProfile(data ?? null)
+    setRealProfile(data)
   }
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data }) => {
-      setSession(data.session)
-      if (data.session?.user) await loadProfile(data.session.user.id)
+    // the saved session opens the app also when the server cannot be reached (an hour-old token cannot be renewed without a network)
+    const waited = new Promise<{ data: { session: null }; error: { message: string } }>((res) => setTimeout(() => res({ data: { session: null }, error: { message: 'timeout' } }), WAIT_MS))
+    Promise.race([supabase.auth.getSession(), waited]).then(async ({ data, error }) => {
+      const start = pickSession(data.session, error, readStoredSession(localStorage), navigator.onLine)
+      setSession(start)
+      setAwaitingRefresh(!!start && start !== data.session) // the saved session stands in until the client renews the token
+      if (start?.user) await loadProfile(start.user.id)
       setLoading(false)
     })
 
     const { data: sub } = supabase.auth.onAuthStateChange((event, next) => {
       if (event === 'PASSWORD_RECOVERY') setRecovering(true)
+      if (next) setAwaitingRefresh(false)
       setSession(next)
       // supabase calls made straight inside this callback can deadlock the client: continue on the next tick
       setTimeout(() => {
@@ -81,7 +106,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }, 0)
     })
 
-    return () => sub.subscription.unsubscribe()
+    // the network is back: renew the token at once (otherwise it happens at the next tick of the client)
+    const onOnline = () => void supabase.auth.getSession()
+    window.addEventListener('online', onOnline)
+
+    return () => {
+      sub.subscription.unsubscribe()
+      window.removeEventListener('online', onOnline)
+    }
   }, [])
 
   const profile = impersonating ?? realProfile

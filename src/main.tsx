@@ -7,6 +7,7 @@ import { AuthProvider } from './context/AuthProvider'
 import { configError, supabase } from './lib/supabase'
 import { CACHE_BUSTER, CACHE_MAX_AGE, idbPersister, registerServiceWorker } from './lib/offline'
 import { queryClient } from './lib/queryClient'
+import { clearCachedProfiles } from './lib/offlineAuth'
 import { ToastHost } from './components/ToastHost'
 import './index.css'
 
@@ -15,6 +16,7 @@ supabase.auth.onAuthStateChange((event) => {
   if (event === 'SIGNED_OUT') {
     queryClient.clear()
     void idbPersister.removeClient()
+    clearCachedProfiles(localStorage)
     // unsaved form drafts belong to the person who wrote them, not to the next one using this device
     try {
       for (const k of Object.keys(localStorage)) if (k.startsWith('ami.draft.')) localStorage.removeItem(k)

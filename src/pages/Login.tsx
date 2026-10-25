@@ -212,6 +212,6 @@ function translateAuthError(msg: string): string {
   if (m.includes('already registered')) return 'האימייל כבר רשום במערכת'
   if (m.includes('password')) return 'הסיסמה חייבת להכיל לפחות 6 תווים'
   if (m.includes('rate limit') || m.includes('too many')) return 'יותר מדי ניסיונות. נסה שוב בעוד כמה דקות.'
-  if (m.includes('failed to fetch') || m.includes('network')) return 'אין חיבור לאינטרנט. בדוק את החיבור ונסה שוב.'
+  if (m.includes('failed to fetch') || m.includes('network')) return 'אין חיבור לאינטרנט. הכניסה הראשונה במכשיר דורשת חיבור; אחרי שנכנסת פעם אחת האפליקציה נפתחת גם בלי אינטרנט. בדוק את החיבור ונסה שוב.'
   return msg
 }
