@@ -36,6 +36,7 @@ import { cadenceLabel, contactState } from '../lib/cadence'
 import { CompetitorSection } from '../components/CompetitorSection'
 import { InvestigationsSection } from '../components/InvestigationsSection'
 import { DoctorDigest } from '../components/DoctorDigest'
+import { DoctorExtras } from '../components/DoctorExtras'
 import { openCount, useInvestigations } from '../lib/investigations'
 import { ContactsSection } from '../components/ContactsSection'
 import { CaseVolumesEditor } from '../components/CaseVolumesEditor'
@@ -314,6 +315,9 @@ export default function DoctorProfile() {
         </TabPanel>
 
         <TabPanel id="details">
+          <div className="mb-4">
+            <DoctorExtras doctorId={d.id} privateHospital={d.doctor_hospitals.some((h) => h.sector === 'private')} />
+          </div>
           <div className="card space-y-4 p-4 sm:p-5">
             <section>
               <h2 className="mb-1 text-sm font-semibold text-slate-600">הערות מעקב (תהליך)</h2>
