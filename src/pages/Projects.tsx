@@ -52,18 +52,19 @@ export default function Projects() {
     const late = !!p.target_date && p.status !== 'done' && (left ?? 0) < 0
     const level = attention({ p, stats }, today)
     return (
-      <li key={p.id}>
+      <li key={p.id} className="h-full">
+        {/* every card has the same parts in the same places (a title of two lines, the details, then the progress, the chips and the next step at the bottom), so the cards of a row are one height */}
         <Link
           to={`/projects/${p.id}`}
-          className={classNames('card block border-s-4 p-4 transition hover:border-brand-300 hover:shadow-sm', level === 'high' ? 'border-s-red-500' : level === 'medium' ? 'border-s-amber-400' : 'border-s-transparent')}
+          className={classNames('card flex h-full min-h-[15rem] flex-col border-s-4 p-4 transition hover:border-brand-300 hover:shadow-sm', level === 'high' ? 'border-s-red-500' : level === 'medium' ? 'border-s-amber-400' : 'border-s-transparent')}
         >
           <div className="flex items-start justify-between gap-2">
-            <p dir="auto" className="min-w-0 break-words text-base font-semibold text-slate-800">
+            <p dir="auto" className="line-clamp-2 min-h-[3rem] min-w-0 break-words text-base font-semibold leading-6 text-slate-800">
               {p.name}
             </p>
             {p.status !== 'active' && <span className="chip shrink-0 border-slate-200 bg-slate-50 !px-2 !py-0 text-xs text-slate-600">{PROJECT_STATUS[p.status]}</span>}
           </div>
-          <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+          <p className="mt-1 flex min-h-[2.5rem] flex-wrap content-start items-start gap-x-3 gap-y-1 text-xs text-slate-500">
             {p.hospital && (
               <span className="inline-flex items-center gap-1">
                 <Building2 size={12} aria-hidden="true" /> {p.hospital.name}
@@ -77,14 +78,14 @@ export default function Projects() {
               </span>
             )}
           </p>
-          <div className="mt-3 flex items-center gap-3">
-            <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label="התקדמות הפרויקט" aria-valuemin={0} aria-valuemax={100} aria-valuenow={stats.percent}>
-              <div className="h-full bg-emerald-500 transition-all" style={{ width: `${stats.percent}%` }} />
+          <div className="mt-auto pt-3">
+            <div className="flex items-center gap-3">
+              <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label="התקדמות הפרויקט" aria-valuemin={0} aria-valuemax={100} aria-valuenow={stats.percent}>
+                <div className="h-full bg-emerald-500 transition-all" style={{ width: `${stats.percent}%` }} />
+              </div>
+              <span className="shrink-0 text-xs font-medium text-slate-600">{stats.total ? `${stats.done}/${stats.total} · ${stats.percent}%` : 'אין משימות'}</span>
             </div>
-            <span className="shrink-0 text-xs font-medium text-slate-600">{stats.total ? `${stats.done}/${stats.total} · ${stats.percent}%` : 'אין משימות'}</span>
-          </div>
-          {(stats.blocked.length > 0 || stats.overdue.length > 0) && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
+            <div className="mt-2 flex min-h-[1.5rem] flex-wrap gap-1.5">
               {stats.blocked.length > 0 && (
                 <span className="chip border-red-200 bg-red-50 !px-2 !py-0.5 text-xs text-red-600">
                   <AlertTriangle size={11} aria-hidden="true" /> {stats.blocked.length} תקועות
@@ -92,13 +93,17 @@ export default function Projects() {
               )}
               {stats.overdue.length > 0 && <span className="chip border-amber-200 bg-amber-50 !px-2 !py-0.5 text-xs text-amber-700">{stats.overdue.length} באיחור</span>}
             </div>
-          )}
-          {stats.next[0] && (
-            <p dir="auto" className="mt-2 line-clamp-2 text-sm text-slate-600">
-              <span className="text-xs text-slate-500">הצעד הבא: </span>
-              {stats.next[0].description}
+            <p dir="auto" className="mt-2 line-clamp-2 min-h-[2.75rem] text-sm text-slate-600">
+              {stats.next[0] ? (
+                <>
+                  <span className="text-xs text-slate-500">הצעד הבא: </span>
+                  {stats.next[0].description}
+                </>
+              ) : (
+                <span className="text-xs text-slate-400">אין צעד הבא</span>
+              )}
             </p>
-          )}
+          </div>
         </Link>
       </li>
     )
