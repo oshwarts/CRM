@@ -1,9 +1,9 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { Bot, Building2, CalendarDays, Map as MapIcon, MapPin, Package, ScanLine, Stethoscope, User } from 'lucide-react'
+import { Bot, Building2, CalendarDays, Map as MapIcon, MapPin, Package, Phone, ScanLine, Stethoscope, User } from 'lucide-react'
 import { useMapData, useMeetings, usePatientScans } from '../lib/api'
 import { usePlannedSurgeries } from '../lib/plannedSurgeries'
-import { HospitalActions } from '../components/HospitalActions'
+import { HospitalActions, NavButtons } from '../components/HospitalActions'
 import { HospitalCommercial } from '../components/HospitalCommercial'
 import { ContactsSection } from '../components/ContactsSection'
 import { LinkedTasks, useLinkedTasks } from '../components/LinkedTasks'
@@ -16,19 +16,31 @@ import { classNames, daysUntil, formatDate, todayISO } from '../lib/utils'
 import { DAY_NAMES, formatDays } from '../lib/clinics'
 import { heldMeetings, lastMetByDoctor, nextMeeting as findNextMeeting, surgeryList, volumeComparison } from '../lib/hospitalView'
 
-const TABS = ['overview', 'doctors', 'contacts', 'meetings', 'surgeries', 'info', 'volumes', 'tasks', 'competitors']
+const TABS = ['overview', 'doctors', 'contacts', 'meetings', 'tasks', 'surgeries', 'info', 'volumes', 'competitors']
 
 export default function HospitalView() {
   const { id } = useParams<{ id: string }>()
   const [params, setParams] = useSearchParams()
   const tab = TABS.includes(params.get('tab') ?? '') ? (params.get('tab') as string) : 'overview'
-  const setTab = (t: string) => setParams(t === 'overview' ? {} : { tab: t }, { replace: true })
 
   const map = useMapData()
   const allMeetings = useMeetings()
   const surgeries = usePlannedSurgeries()
   const scans = usePatientScans()
   const linkedTasks = useLinkedTasks({ hospitalId: id })
+
+  // the header, the next step and the numbers fill the first phone screen: opening a tab brings its content to the top
+  const tabsTop = useRef<HTMLDivElement>(null)
+  const setTab = (t: string) => {
+    setParams(t === 'overview' ? {} : { tab: t }, { replace: true })
+    requestAnimationFrame(() => tabsTop.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }))
+  }
+  // a link with ?tab=… (e.g. from the home screen) lands on the tab, not above it
+  const firstTab = useRef(tab)
+  const loaded = !!(map.data ?? []).find((x) => x.id === id)
+  useEffect(() => {
+    if (loaded && firstTab.current !== 'overview') requestAnimationFrame(() => tabsTop.current?.scrollIntoView({ block: 'start' }))
+  }, [loaded])
 
   const h = (map.data ?? []).find((x) => x.id === id) ?? null
   const today = todayISO()
@@ -89,6 +101,8 @@ export default function HospitalView() {
   const robotics = h.hospital_robotic_systems.map((r) => r.system?.name).filter((x): x is string => !!x)
   const hasMako = robotics.some((r) => r.toUpperCase().includes('MAKO'))
   const doctors = h.doctor_hospitals.filter((dh) => dh.doctor)
+  // who to call: the contact that coordinates the CT appointments, else the first contact with a phone
+  const callContact = h.contacts.find((c) => c.id === h.scan_contact_id && c.phone) ?? h.contacts.find((c) => c.phone) ?? null
 
   const pastMeetings = heldMeetings(meetings, today)
   const lastMeeting = pastMeetings[0]?.meeting_date ?? null
@@ -104,10 +118,10 @@ export default function HospitalView() {
     <div className="space-y-3 sm:space-y-5">
       <div className="card overflow-hidden">
         <div aria-hidden className="h-1.5 bg-gradient-to-l from-[#00326d] via-[#1863dc] to-[#cc3366]" />
-        <div className="space-y-3 p-4 sm:space-y-4 sm:p-5">
+        <div className="space-y-3 p-3.5 sm:space-y-4 sm:p-5">
           <div className="flex min-w-0 items-start gap-3 sm:gap-4">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#00326d] text-white sm:h-16 sm:w-16">
-              <Building2 size={22} />
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#00326d] text-white sm:h-16 sm:w-16">
+              <Building2 size={20} />
             </span>
             <div className="min-w-0">
               <h1 className="no-accent break-words text-xl font-semibold leading-snug text-brand-800 sm:text-3xl">{h.name}</h1>
@@ -132,9 +146,24 @@ export default function HospitalView() {
             </div>
           </div>
 
-          <HospitalActions hospital={h} />
+          {/* get there / call: the two things done on the way to a hospital */}
+          <div className="flex flex-wrap items-center gap-2">
+            <NavButtons hospital={h} />
+            {callContact && (
+              <a
+                href={`tel:${callContact.phone}`}
+                className="inline-flex min-h-[40px] items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
+                aria-label={`התקשר ל${callContact.name}`}
+              >
+                <Phone size={15} aria-hidden />
+                <span className="max-w-[10rem] truncate">{callContact.name}</span>
+              </a>
+            )}
+          </div>
 
-          <div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-slate-100 pt-2 text-sm sm:pt-4">
+          <HospitalActions hospital={h} header />
+
+          <div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-slate-100 pt-1 text-sm">
             <Link to={`/map?hospital=${h.id}`} className="inline-flex min-h-[40px] items-center gap-1 font-medium text-brand-600 hover:underline">
               <MapIcon size={14} /> הצג במפה
             </Link>
@@ -154,7 +183,7 @@ export default function HospitalView() {
 
       <HospitalCommercial hospital={h} />
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3" role="group" aria-label="מדדים מהירים">
         <Kpi label="רופאים" value={doctors.length} onClick={() => setTab('doctors')} />
         <Kpi
           label="פגישה אחרונה"
@@ -163,20 +192,21 @@ export default function HospitalView() {
           warn={daysSince == null || daysSince > 60}
           onClick={() => setTab('meetings')}
         />
-        <Kpi label="ניתוחים ב-30 הימים הקרובים" value={in30} onClick={() => setTab('surgeries')} />
+        <Kpi label="ניתוחים ב-30 יום" value={in30} onClick={() => setTab('surgeries')} />
         <Kpi label="משימות פתוחות" value={linkedTasks.open.length} warn={linkedTasks.open.length > 0} onClick={() => setTab('tasks')} />
       </div>
 
+      <div ref={tabsTop} className="scroll-mt-16" />
       <Tabs value={tab} onChange={setTab}>
         <TabList>
           <Tab id="overview">סקירה</Tab>
           <Tab id="doctors">רופאים ({doctors.length})</Tab>
           <Tab id="contacts">אנשי קשר ({h.contacts.length})</Tab>
           <Tab id="meetings">פגישות ({meetings.length})</Tab>
+          <Tab id="tasks">משימות ({linkedTasks.open.length})</Tab>
           <Tab id="surgeries">ניתוחים ({upcoming.length})</Tab>
           <Tab id="info">מידע ומיקומים</Tab>
           <Tab id="volumes">כמויות מקרים</Tab>
-          <Tab id="tasks">משימות ({linkedTasks.open.length})</Tab>
           <Tab id="competitors">מתחרים</Tab>
         </TabList>
 
@@ -264,7 +294,7 @@ export default function HospitalView() {
                         <span className="chip border-amber-200 bg-amber-50 text-amber-700">{DOCTOR_STATUS_LABELS.potential}</span>
                       )}
                     </p>
-                    <p className="text-sm text-slate-500">{dh.role_at_hospital || d.position || '—'}</p>
+                    {(dh.role_at_hospital || d.position) && <p className="text-sm text-slate-500">{dh.role_at_hospital || d.position}</p>}
                     {dh.clinic_days?.length > 0 && (
                       <p className="mt-0.5 text-xs text-brand-700">
                         מרפאה: {formatDays(dh.clinic_days)}
@@ -345,10 +375,12 @@ export default function HospitalView() {
 
 function Kpi({ label, value, hint, warn, onClick }: { label: string; value: string | number; hint?: string; warn?: boolean; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="card px-3 py-2.5 text-right transition hover:border-brand-200 sm:p-4">
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className={classNames('text-lg font-semibold leading-tight sm:mt-1 sm:text-xl', warn ? 'text-amber-700' : 'text-brand-800')}>{value}</p>
-      {hint && <p className="text-xs text-slate-500">{hint}</p>}
+    <button type="button" onClick={onClick} className="card flex min-h-[52px] flex-col justify-center px-3 py-1.5 text-right transition hover:border-brand-200 sm:p-4">
+      <span className="text-xs leading-tight text-slate-500">{label}</span>
+      <span className="flex flex-wrap items-baseline gap-x-2">
+        <span className={classNames('text-base font-semibold leading-tight sm:mt-1 sm:text-xl', warn ? 'text-amber-700' : 'text-brand-800')}>{value}</span>
+        {hint && <span className="text-xs text-slate-500">{hint}</span>}
+      </span>
     </button>
   )
 }
@@ -376,7 +408,7 @@ function MeetingList({ meetings }: { meetings: NonNullable<ReturnType<typeof use
         return (
           <Link key={m.id} to={`/meetings/${m.id}`} className="card block p-3 hover:border-brand-200">
             <div className="flex items-start justify-between gap-3">
-              <p className="min-w-0 break-words font-medium text-slate-800">{m.subject || 'פגישה'}</p>
+              <p className="line-clamp-2 min-w-0 break-words font-medium text-slate-800">{m.subject || 'פגישה'}</p>
               <span className="shrink-0 text-sm text-slate-400">{formatDate(m.meeting_date)}</span>
             </div>
             <p className="text-sm text-slate-500">
@@ -404,15 +436,18 @@ function ClinicSchedule({ doctors }: { doctors: { clinic_days: number[]; clinic_
         {byDay.map(({ name, list }) => (
           <div key={name} className="contents">
             <dt className="font-medium text-slate-700">{name}</dt>
-            <dd className="min-w-0 text-slate-600">
-              {list.map((dh, i) => (
-                <span key={dh.doctor!.id}>
-                  {i > 0 && ', '}
+            <dd className="min-w-0 space-y-0.5 text-slate-600">
+              {list.map((dh) => (
+                <div key={dh.doctor!.id} className="flex flex-wrap items-baseline gap-x-2">
                   <Link to={`/doctors/${dh.doctor!.id}`} className="inline-flex min-h-[40px] items-center hover:underline sm:min-h-[24px]">
                     {dh.doctor!.title} {dh.doctor!.name}
                   </Link>
-                  {dh.clinic_hours ? <span className="text-xs text-slate-500" dir="ltr"> {dh.clinic_hours}</span> : null}
-                </span>
+                  {dh.clinic_hours ? (
+                    <span className="text-xs text-slate-500" dir="ltr">
+                      {dh.clinic_hours}
+                    </span>
+                  ) : null}
+                </div>
               ))}
             </dd>
           </div>

@@ -6,6 +6,7 @@ import {
   useEffect,
   useId,
   useRef,
+  useState,
   type ReactNode,
   type RefObject,
 } from 'react'
@@ -149,11 +150,27 @@ export function TabList({ children }: { children: ReactNode }) {
     const el = box?.querySelector<HTMLElement>('[aria-selected="true"]')
     if (box && el && box.scrollWidth > box.clientWidth) el.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
   }, [ctx?.value])
+  // a fade at the end of the row tells that more tabs wait beyond the edge (the phone shows about four of nine)
+  const [more, setMore] = useState(false)
+  const measure = () => {
+    const box = ref.current
+    if (!box) return
+    const rtl = getComputedStyle(box).direction === 'rtl'
+    const away = rtl ? -box.scrollLeft : box.scrollLeft // how far the row is scrolled from its start
+    setMore(box.scrollWidth - box.clientWidth - away > 4)
+  }
+  useEffect(() => {
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [ctx?.value, children])
   return (
+    <div className="relative mb-4">
     <div
       ref={ref}
       role="tablist"
-      className="mb-4 flex flex-nowrap gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1 [scrollbar-width:none] sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden"
+      onScroll={measure}
+      className="flex flex-nowrap gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1 [scrollbar-width:none] sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden"
       // arrow keys move between the tabs (in a right-to-left page the right arrow is the previous one), Home / End jump to the ends
       onKeyDown={(e) => {
         const tabs = [...e.currentTarget.querySelectorAll<HTMLElement>('[role="tab"]')]
@@ -168,6 +185,8 @@ export function TabList({ children }: { children: ReactNode }) {
       }}
     >
       {children}
+    </div>
+    {more && <span aria-hidden className="pointer-events-none absolute inset-y-0 end-0 w-10 rounded-e-xl bg-gradient-to-l from-slate-100 to-transparent sm:hidden rtl:bg-gradient-to-r" />}
     </div>
   )
 }
