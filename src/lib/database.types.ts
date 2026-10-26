@@ -485,6 +485,7 @@ export type Database = {
           name: string
           organization_id: string | null
           scan_contact_id: string | null
+          surgery_days: number[]
           sector: string
         }
         Insert: {
@@ -500,6 +501,7 @@ export type Database = {
           name: string
           organization_id?: string | null
           scan_contact_id?: string | null
+          surgery_days?: number[]
           sector?: string
         }
         Update: {
@@ -515,6 +517,7 @@ export type Database = {
           name?: string
           organization_id?: string | null
           scan_contact_id?: string | null
+          surgery_days?: number[]
           sector?: string
         }
         Relationships: []

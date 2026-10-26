@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { SurgeryDays } from './SurgeryDays'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useProcedures } from '../lib/api'
 import { toast } from '../lib/toast'
@@ -302,9 +303,10 @@ function LocationForm({ initial, saving, onCancel, onSave }: { initial: Partial<
 }
 
 /** the tab of a hospital: estimated cases, general information and the places */
-export function HospitalInfo({ hospitalId }: { hospitalId: string }) {
+export function HospitalInfo({ hospitalId, surgeryDays }: { hospitalId: string; surgeryDays?: number[] | null }) {
   return (
     <div className="space-y-4">
+      <SurgeryDays hospitalId={hospitalId} days={surgeryDays} />
       <Locations hospitalId={hospitalId} />
       <Estimates hospitalId={hospitalId} />
       <GeneralInfo hospitalId={hospitalId} />

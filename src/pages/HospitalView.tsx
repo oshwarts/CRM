@@ -10,6 +10,7 @@ import { LinkedTasks, useLinkedTasks } from '../components/LinkedTasks'
 import { CompetitorSection } from '../components/CompetitorSection'
 import { CaseVolumesEditor } from '../components/CaseVolumesEditor'
 import { HospitalInfo, Locations } from '../components/HospitalInfo'
+import { SurgeryDays } from '../components/SurgeryDays'
 import { EmptyState, ErrorState, Spinner, Tab, TabList, TabPanel, Tabs } from '../components/ui'
 import { DOCTOR_STATUS_LABELS, MEETING_STATUS_LABELS, SCAN_PROCEDURE_LABELS, SECTOR_LABELS } from '../lib/types'
 import { classNames, daysUntil, formatDate, todayISO } from '../lib/utils'
@@ -290,6 +291,11 @@ export default function HospitalView() {
                     <span className="text-slate-400">אין ניתוחים מתוכננים</span>
                   )}
                 </li>
+                {(h.surgery_days ?? []).length > 0 && (
+                  <li>
+                    ימי ניתוחים: <span className="font-medium">{formatDays(h.surgery_days)}</span>
+                  </li>
+                )}
               </ul>
             </Section>
 
@@ -377,6 +383,9 @@ export default function HospitalView() {
         </TabPanel>
 
         <TabPanel id="surgeries">
+          <div className="mb-3">
+            <SurgeryDays hospitalId={h.id} days={h.surgery_days} />
+          </div>
           {surgeryRows.length === 0 ? (
             <EmptyState title="אין ניתוחים בבית חולים זה" hint="ניתוח חדש — בכפתור 'ניתוח' למעלה" />
           ) : (
@@ -403,7 +412,7 @@ export default function HospitalView() {
         </TabPanel>
 
         <TabPanel id="info">
-          <HospitalInfo hospitalId={h.id} />
+          <HospitalInfo hospitalId={h.id} surgeryDays={h.surgery_days} />
         </TabPanel>
 
         <TabPanel id="volumes">

@@ -126,11 +126,11 @@ export function buildHospitalRows(input: { hospitals: MapHospital[]; meetings: M
   })
 }
 
-/** the commercial status and the next step of a hospital */
+/** the commercial status, the next step and the surgery days of a hospital */
 export function useSetHospitalCommercial() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, ...patch }: { id: string; commercial_status?: CommercialStatus | ''; next_step?: string; next_step_date?: string | null }) => {
+    mutationFn: async ({ id, ...patch }: { id: string; commercial_status?: CommercialStatus | ''; next_step?: string; next_step_date?: string | null; surgery_days?: number[] }) => {
       const { error } = await supabase.from('hospitals').update(patch).eq('id', id)
       if (error) throw error
     },
