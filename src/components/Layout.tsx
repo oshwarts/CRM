@@ -15,6 +15,7 @@ import {
 import { useAuth } from '../context/AuthProvider'
 import { ProfileModal } from './ProfileModal'
 import { SuggestionModal } from './SuggestionModal'
+import { useAutoUpdate } from '../lib/autoUpdate'
 import { RefreshButton } from './RefreshButton'
 import { OfflineBanner } from './OfflineBanner'
 import { DeveloperBar, DeveloperSwitcher } from './DeveloperSwitch'
@@ -43,7 +44,7 @@ const TABS = ['/', '/doctors', '/tasks', '/schedule']
 // scroll position of each visited page, so that going back returns to the same place
 const scrollOf = new Map<string, number>()
 
-const VERSION = 'v154 · רופא: הסדרים עם קופות חולים וביטוחים פרטיים (לרופא בבית חולים פרטי) ותפקידים נוספים, למשל יו״ר האגודה'
+const VERSION = 'v155 · עדכון גרסה אוטומטי כשהאפליקציה חוזרת לחזית, עמוד בית חולים קומפקטי לטלפון, איש קשר לתיאום סריקות, תאריך יעד לשלבי משימה'
 
 // a failure of the shell itself (not of one screen) also ends in a message with a way out, never in a blank page
 export function Layout() {
@@ -55,6 +56,7 @@ export function Layout() {
 }
 
 function Shell() {
+  useAutoUpdate()
   const { profile, signOut, impersonating, isDeveloper } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
