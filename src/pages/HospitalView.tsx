@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { Bot, Building2, CalendarDays, Map as MapIcon, MapPin, Package, Phone, ScanLine, Stethoscope, User } from 'lucide-react'
+import { Bot, Building2, CalendarDays, ChevronDown, Map as MapIcon, MapPin, Package, Phone, ScanLine, Stethoscope, User } from 'lucide-react'
 import { useMapData, useMeetings, usePatientScans } from '../lib/api'
 import { usePlannedSurgeries } from '../lib/plannedSurgeries'
 import { HospitalActions, NavButtons } from '../components/HospitalActions'
@@ -16,7 +16,9 @@ import { classNames, daysUntil, formatDate, todayISO } from '../lib/utils'
 import { DAY_NAMES, formatDays } from '../lib/clinics'
 import { heldMeetings, lastMetByDoctor, nextMeeting as findNextMeeting, surgeryList, volumeComparison } from '../lib/hospitalView'
 
-const TABS = ['overview', 'doctors', 'contacts', 'meetings', 'tasks', 'surgeries', 'info', 'volumes', 'competitors']
+const PRIMARY_TABS = ['overview', 'doctors', 'contacts', 'tasks']
+const MORE_TABS = ['meetings', 'surgeries', 'info', 'volumes', 'competitors']
+const TABS = [...PRIMARY_TABS, ...MORE_TABS]
 
 export default function HospitalView() {
   const { id } = useParams<{ id: string }>()
@@ -31,7 +33,9 @@ export default function HospitalView() {
 
   // the header, the next step and the numbers fill the first phone screen: opening a tab brings its content to the top
   const tabsTop = useRef<HTMLDivElement>(null)
+  const [moreOpen, setMoreOpen] = useState(false) // phone: the rarely used tabs behind "עוד"
   const setTab = (t: string) => {
+    setMoreOpen(false)
     setParams(t === 'overview' ? {} : { tab: t }, { replace: true })
     requestAnimationFrame(() => tabsTop.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }))
   }
@@ -113,6 +117,19 @@ export default function HospitalView() {
 
   // case volumes: the latest year next to the year before
   const { year, prevYear, rows: volumeRows } = volumeComparison(h.case_volumes)
+
+  const tabLabel: Record<string, string> = {
+    overview: 'סקירה',
+    doctors: `רופאים (${doctors.length})`,
+    contacts: `אנשי קשר (${h.contacts.length})`,
+    tasks: `משימות (${linkedTasks.open.length})`,
+    meetings: `פגישות (${meetings.length})`,
+    surgeries: `ניתוחים (${upcoming.length})`,
+    info: 'מידע ומיקומים',
+    volumes: 'כמויות מקרים',
+    competitors: 'מתחרים',
+  }
+  const moreInTab = MORE_TABS.includes(tab)
 
   return (
     <div className="space-y-3 sm:space-y-5">
@@ -198,17 +215,56 @@ export default function HospitalView() {
 
       <div ref={tabsTop} className="scroll-mt-16" />
       <Tabs value={tab} onChange={setTab}>
-        <TabList>
-          <Tab id="overview">סקירה</Tab>
-          <Tab id="doctors">רופאים ({doctors.length})</Tab>
-          <Tab id="contacts">אנשי קשר ({h.contacts.length})</Tab>
-          <Tab id="meetings">פגישות ({meetings.length})</Tab>
-          <Tab id="tasks">משימות ({linkedTasks.open.length})</Tab>
-          <Tab id="surgeries">ניתוחים ({upcoming.length})</Tab>
-          <Tab id="info">מידע ומיקומים</Tab>
-          <Tab id="volumes">כמויות מקרים</Tab>
-          <Tab id="competitors">מתחרים</Tab>
-        </TabList>
+        {/* a phone: the four everyday tabs and "עוד" (a grid of the rest) instead of nine tabs that scroll sideways; a wide screen: all of them */}
+        <div className="sm:hidden [&_[role=tab]]:!px-1.5 [&_[role=tab]]:!text-[13px]">
+          <TabList>
+            {PRIMARY_TABS.map((t) => (
+              <Tab key={t} id={t}>
+                {t === 'doctors' ? 'רופאים' : t === 'contacts' ? 'אנשי קשר' : tabLabel[t]}
+              </Tab>
+            ))}
+            <button
+              type="button"
+              aria-haspopup="true"
+              aria-expanded={moreOpen}
+              onClick={() => setMoreOpen((v) => !v)}
+              className={classNames(
+                'inline-flex min-h-[40px] flex-1 shrink-0 items-center justify-center gap-0.5 whitespace-nowrap rounded-lg px-1.5 py-2 text-[13px] font-medium transition',
+                moreInTab ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-500 hover:text-slate-700',
+              )}
+            >
+              {moreInTab ? tabLabel[tab] : 'עוד'}
+              <ChevronDown size={14} aria-hidden className={classNames('transition', moreOpen && 'rotate-180')} />
+            </button>
+          </TabList>
+          {moreOpen && (
+            <div role="group" aria-label="עוד לשוניות" className="-mt-2 mb-4 grid grid-cols-2 gap-2" onKeyDown={(e) => e.key === 'Escape' && setMoreOpen(false)}>
+              {MORE_TABS.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  aria-current={tab === t ? 'true' : undefined}
+                  onClick={() => setTab(t)}
+                  className={classNames(
+                    'min-h-[44px] rounded-xl border px-3 py-2 text-sm font-medium',
+                    tab === t ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-slate-200 bg-white text-slate-700',
+                  )}
+                >
+                  {tabLabel[t]}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="hidden sm:block">
+          <TabList>
+            {TABS.map((t) => (
+              <Tab key={t} id={t}>
+                {tabLabel[t]}
+              </Tab>
+            ))}
+          </TabList>
+        </div>
 
         <TabPanel id="overview">
           <div className="grid gap-4 lg:grid-cols-2">
