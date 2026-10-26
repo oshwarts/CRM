@@ -1,4 +1,5 @@
 import { memo } from 'react'
+import { ScanContactLine } from './ScanContactField'
 import { CalendarClock, CalendarPlus, Check, Pencil, Phone, Trash2 } from 'lucide-react'
 import { PendingMark } from './PendingMark'
 import { ConfirmButton } from './ui'
@@ -120,6 +121,7 @@ export const ScanCard = memo(function ScanCard({
           <p className="text-sm text-slate-600 [overflow-wrap:anywhere]">
             {[s.hospital?.name, what, surgeon].filter(Boolean).join(' · ')}
           </p>
+          <ScanContactLine hospitalId={s.hospital_id} className="text-xs text-slate-500" />
         </div>
       </div>
 

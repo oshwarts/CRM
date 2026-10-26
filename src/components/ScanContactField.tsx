@@ -43,3 +43,25 @@ export function ScanContactField({ hospitalId }: { hospitalId: string }) {
     </Field>
   )
 }
+
+/** the coordinator of the CT appointments at a hospital, as a short line for the scan lists */
+export function ScanContactLine({ hospitalId, className }: { hospitalId: string | undefined; className?: string }) {
+  const hospitals = useHospitals()
+  const contacts = useContacts()
+  const id = hospitals.data?.find((h) => h.id === hospitalId)?.scan_contact_id
+  const c = id ? contacts.data?.find((x) => x.id === id) : undefined
+  if (!c) return null
+  return (
+    <div className={className} title="איש קשר לתיאום תורים">
+      תיאום: {c.name}
+      {c.phone && (
+        <>
+          {' · '}
+          <a href={`tel:${c.phone}`} dir="ltr" className="underline" onClick={(e) => e.stopPropagation()}>
+            {c.phone}
+          </a>
+        </>
+      )}
+    </div>
+  )
+}

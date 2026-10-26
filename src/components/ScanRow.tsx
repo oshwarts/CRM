@@ -1,4 +1,5 @@
 import { memo } from 'react'
+import { ScanContactLine } from './ScanContactField'
 import { CalendarClock, CalendarPlus, Pencil, Trash2 } from 'lucide-react'
 import { ConfirmButton } from './ui'
 import { MaskedValue } from './MaskedValue'
@@ -57,7 +58,10 @@ export const ScanRow = memo(function ScanRow({
           </span>
         )}
       </td>
-      <td className="whitespace-nowrap p-2 text-slate-700">{s.hospital?.name}</td>
+      <td className="whitespace-nowrap p-2 text-slate-700">
+        {s.hospital?.name}
+        <ScanContactLine hospitalId={s.hospital_id} className="text-xs text-slate-500" />
+      </td>
       <td className="whitespace-nowrap p-2 font-medium text-slate-800">{s.patient_name} <PendingMark id={s.id} /></td>
       <td className="whitespace-nowrap p-2 text-slate-500">
         <MaskedValue value={s.patient_id_number} />
