@@ -901,7 +901,7 @@ export function useMapData() {
         await supabase
           .from('hospitals')
           .select(
-            '*, organization:organizations(*), hospital_agents(agent:profiles(id, full_name)), hospital_robotic_systems(system:robotic_systems(*)), case_volumes(procedure_id, year, count, procedure:procedures(name)), contacts(*), doctor_hospitals(role_at_hospital, sector, clinic_days, clinic_hours, clinic_note, doctor:doctors(id, name, title, position, status))',
+            '*, organization:organizations(*), hospital_agents(agent:profiles(id, full_name)), hospital_robotic_systems(system:robotic_systems(*)), case_volumes(procedure_id, year, count, procedure:procedures(name)), contacts:contacts!contacts_hospital_id_fkey(*), doctor_hospitals(role_at_hospital, sector, clinic_days, clinic_hours, clinic_note, doctor:doctors(id, name, title, position, status))',
           )
           .order('name'),
       ),
