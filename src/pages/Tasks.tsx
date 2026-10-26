@@ -7,6 +7,7 @@ import {
   useAddSubtask,
   useAgents,
   useSaveTask,
+  useSetSubtaskDue,
   useSetTaskDone,
   useTasks,
   useToggleSubtask,
@@ -37,6 +38,7 @@ export default function Tasks() {
   const setDone = useSetTaskDone()
   const toggleSub = useToggleSubtask()
   const addSub = useAddSubtask()
+  const setSubDue = useSetSubtaskDue()
   const quick = useSaveTask()
   const quickSending = useRef(false) // two Enter presses before the screen re-renders must add one task
 
@@ -50,6 +52,7 @@ export default function Tasks() {
   const [adding, setAdding] = useState(false)
   const [open, setOpen] = useState<Set<string>>(new Set())
   const [subText, setSubText] = useState<Record<string, string>>({})
+  const [subDue, setSubDue_] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
 
   const dq = useDeferredValue(q) // typing stays smooth while a long list is re-filtered
@@ -248,26 +251,49 @@ export default function Tasks() {
         </div>
 
         {total > 0 && (
-          <div className="mr-11 mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
-            <div className="h-full bg-emerald-500 transition-all" style={{ width: `${(done / total) * 100}%` }} />
+          <div className="mr-11 mt-1 flex items-center gap-2">
+            <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done} aria-label="התקדמות בשלבים">
+              <div className="h-full bg-emerald-500 transition-all" style={{ width: `${(done / total) * 100}%` }} />
+            </div>
+            <span className="shrink-0 text-xs font-medium text-slate-500">
+              {done}/{total} · {Math.round((done / total) * 100)}%
+            </span>
           </div>
         )}
 
         {expanded && (
           <div className="mr-11 mt-2 space-y-1">
-            {t.subtasks.map((s) => (
-              <label key={s.id} className="flex min-h-[36px] items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  className="h-5 w-5 shrink-0 accent-emerald-600"
-                  checked={s.is_done}
-                  onChange={(e) => toggleSub.mutate({ id: s.id, is_done: e.target.checked }, { onError: fail })}
-                />
-                <span dir="auto" className={s.is_done ? 'text-slate-400 line-through' : 'text-slate-700'}>
-                  {s.text}
-                </span>
-              </label>
-            ))}
+            {t.subtasks.map((s) => {
+              const sd = s.is_done ? null : daysFrom(s.due_date)
+              const late = sd !== null && sd < 0
+              return (
+                <div key={s.id} className="flex min-h-[44px] flex-wrap items-center gap-x-2 gap-y-1 border-b border-slate-100 py-1 last:border-0">
+                  <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      className="h-6 w-6 shrink-0 accent-emerald-600"
+                      checked={s.is_done}
+                      onChange={(e) => toggleSub.mutate({ id: s.id, is_done: e.target.checked }, { onError: fail })}
+                      aria-label={`${s.is_done ? 'פתח מחדש' : 'סמן כבוצע'}: ${s.text.slice(0, 60)}`}
+                    />
+                    <span dir="auto" className={classNames('min-w-0 [overflow-wrap:anywhere]', s.is_done ? 'text-slate-400 line-through' : 'text-slate-700')}>
+                      {s.text}
+                    </span>
+                  </label>
+                  <label className={classNames('flex shrink-0 items-center gap-1 text-xs', late ? 'font-medium text-red-600' : 'text-slate-500')}>
+                    <CalendarDays size={12} aria-hidden />
+                    {s.due_date && <span>{dueLabel(s.due_date)}</span>}
+                    <input
+                      type="date"
+                      className="w-[7.5rem] rounded-lg border border-slate-200 bg-white px-1.5 py-1 text-xs text-slate-600"
+                      aria-label={`תאריך יעד לשלב: ${s.text.slice(0, 40)}`}
+                      value={s.due_date ?? ''}
+                      onChange={(e) => setSubDue.mutate({ id: s.id, due_date: e.target.value || null }, { onError: fail })}
+                    />
+                  </label>
+                </div>
+              )
+            })}
             <form
               className="flex gap-2 pt-1"
               onSubmit={(e) => {
@@ -275,8 +301,8 @@ export default function Tasks() {
                 const text = (subText[t.id] ?? '').trim()
                 if (!text) return
                 addSub.mutate(
-                  { taskId: t.id, text, sort: t.subtasks.length },
-                  { onSuccess: () => setSubText((x) => ({ ...x, [t.id]: '' })), onError: fail },
+                  { taskId: t.id, text, sort: t.subtasks.length, due_date: subDue[t.id] || null },
+                  { onSuccess: () => { setSubText((x) => ({ ...x, [t.id]: '' })); setSubDue_((x) => ({ ...x, [t.id]: '' })) }, onError: fail },
                 )
               }}
             >
@@ -288,6 +314,13 @@ export default function Tasks() {
                 placeholder="הוסף שלב…"
                 value={subText[t.id] ?? ''}
                 onChange={(e) => setSubText((x) => ({ ...x, [t.id]: e.target.value }))}
+              />
+              <input
+                type="date"
+                className="input !w-auto !py-1.5 text-sm"
+                aria-label="תאריך יעד לשלב החדש"
+                value={subDue[t.id] ?? ''}
+                onChange={(e) => setSubDue_((x) => ({ ...x, [t.id]: e.target.value }))}
               />
               <button className="btn-secondary !px-3" aria-label="הוסף שלב">
                 <Plus size={16} />

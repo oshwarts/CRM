@@ -54,7 +54,7 @@ export function TaskFormModal({
           assignee_id: task.assignee_id,
           coordinator_contact_id: task.coordinator_contact_id,
           coordinator_text: task.coordinator_text,
-          subtasks: task.subtasks.map((s) => ({ id: s.id, text: s.text, is_done: s.is_done })),
+          subtasks: task.subtasks.map((s) => ({ id: s.id, text: s.text, is_done: s.is_done, due_date: s.due_date })),
         }
       : { ...emptyForm(user?.id ?? null), ...defaults }
   // a new task is kept as a draft on the device while it is written (not when it starts from a doctor's card)
@@ -199,10 +199,10 @@ export function TaskFormModal({
           <span className="label">שלבים / תתי-משימות</span>
           <ul className="space-y-2">
             {d.subtasks.map((s, i) => (
-              <li key={s.id ?? i} className="flex items-center gap-2">
-                <input type="checkbox" className="h-5 w-5 shrink-0" aria-label={`שלב ${i + 1} בוצע`} checked={s.is_done} onChange={(e) => setSub(i, { is_done: e.target.checked })} />
+              <li key={s.id ?? i} className="flex flex-wrap items-center gap-2">
+                <input type="checkbox" className="h-6 w-6 shrink-0 accent-emerald-600" aria-label={`שלב ${i + 1} בוצע`} checked={s.is_done} onChange={(e) => setSub(i, { is_done: e.target.checked })} />
                 <input
-                  className="input !py-1.5"
+                  className="input min-w-0 flex-1 !py-1.5"
                   dir="auto"
                   value={s.text}
                   aria-label={`שלב ${i + 1}`}
@@ -210,6 +210,7 @@ export function TaskFormModal({
                   placeholder="שלב"
                   onChange={(e) => setSub(i, { text: e.target.value })}
                 />
+                <input type="date" className="input !w-auto !py-1.5 text-sm" aria-label={`תאריך יעד לשלב ${i + 1}`} value={s.due_date ?? ''} onChange={(e) => setSub(i, { due_date: e.target.value || null })} />
                 <button type="button" className="btn-ghost !px-2 text-slate-500" onClick={() => set({ subtasks: d.subtasks.filter((_, k) => k !== i) })} aria-label="הסר שלב">
                   <X size={16} />
                 </button>

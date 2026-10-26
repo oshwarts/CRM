@@ -1916,7 +1916,7 @@ export type TaskFormData = {
   /** the AMI coordinator: a contact and/or free text */
   coordinator_contact_id?: string | null
   coordinator_text?: string
-  subtasks: { id?: string; text: string; is_done: boolean }[]
+  subtasks: { id?: string; text: string; is_done: boolean; due_date?: string | null }[]
 }
 
 function invalidateTasks(qc: ReturnType<typeof useQueryClient>) {
@@ -2264,7 +2264,7 @@ export function useToggleMeetingTask() {
 
 /* ---------- tasks: create / edit with sub-tasks ---------- */
 
-type TaskSaveData = Omit<TaskFormData, 'id' | 'subtasks'> & { id: string; subtasks: { id: string; text: string; is_done: boolean }[] }
+type TaskSaveData = Omit<TaskFormData, 'id' | 'subtasks'> & { id: string; subtasks: { id: string; text: string; is_done: boolean; due_date: string | null }[] }
 type TaskSavePayload = {
   data: TaskSaveData
   isNew: boolean
@@ -2310,7 +2310,7 @@ async function execTaskSave(p: TaskSavePayload): Promise<ExecResult> {
   if (drop.length) unwrap(await supabase.from('task_subtasks').delete().in('id', drop))
   const rows = d.subtasks
     .filter((s) => s.text.trim())
-    .map((s, i) => ({ id: s.id, task_id: d.id, text: s.text.trim(), is_done: s.is_done, sort: i }))
+    .map((s, i) => ({ id: s.id, task_id: d.id, text: s.text.trim(), is_done: s.is_done, due_date: s.due_date || null, sort: i }))
   if (rows.length) unwrap(await supabase.from('task_subtasks').upsert(rows))
   return result
 }
@@ -2325,7 +2325,7 @@ export function useSaveTask() {
       const data: TaskSaveData = {
         ...d,
         id: d.id ?? newId(),
-        subtasks: d.subtasks.map((s) => ({ id: s.id ?? newId(), text: s.text, is_done: s.is_done })),
+        subtasks: d.subtasks.map((s) => ({ id: s.id ?? newId(), text: s.text, is_done: s.is_done, due_date: s.due_date || null })),
       }
       const cached = queryClient.getQueryData<TaskRow[]>(['tasks'])?.find((t) => t.id === data.id)
       const payload: TaskSavePayload = {
@@ -2365,7 +2365,7 @@ export function useSaveTask() {
               coordinator: contacts.find((c) => c.id === data.coordinator_contact_id) ?? null,
               subtasks: data.subtasks
                 .filter((s) => s.text.trim())
-                .map((s, i) => ({ id: s.id, task_id: data.id, text: s.text.trim(), is_done: s.is_done, sort: i, created_at: now })),
+                .map((s, i) => ({ id: s.id, task_id: data.id, text: s.text.trim(), is_done: s.is_done, due_date: s.due_date, sort: i, created_at: now })),
             } as TaskRow
             return prev ? old?.map((t) => (t.id === data.id ? row : t)) : [row, ...(old ?? [])]
           })
@@ -2386,8 +2386,11 @@ export function useSaveTask() {
 registerExecutor<{ id: string; is_done: boolean }>('subtask.toggle', async (p) => {
   unwrap(await supabase.from('task_subtasks').update({ is_done: p.is_done }).eq('id', p.id))
 })
-registerExecutor<{ id: string; taskId: string; text: string; sort: number }>('subtask.add', async (p) => {
-  unwrap(await supabase.from('task_subtasks').upsert({ id: p.id, task_id: p.taskId, text: p.text, sort: p.sort }))
+registerExecutor<{ id: string; taskId: string; text: string; sort: number; due_date?: string | null }>('subtask.add', async (p) => {
+  unwrap(await supabase.from('task_subtasks').upsert({ id: p.id, task_id: p.taskId, text: p.text, sort: p.sort, due_date: p.due_date ?? null }))
+})
+registerExecutor<{ id: string; due_date: string | null }>('subtask.due', async (p) => {
+  unwrap(await supabase.from('task_subtasks').update({ due_date: p.due_date }).eq('id', p.id))
 })
 
 export function useToggleSubtask() {
@@ -2411,18 +2414,39 @@ export function useToggleSubtask() {
   })
 }
 
+export function useSetSubtaskDue() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (p: { id: string; due_date: string | null }) => {
+      const show = () =>
+        queryClient.setQueryData<TaskRow[]>(['tasks'], (old) =>
+          old?.map((t) => ({ ...t, subtasks: t.subtasks.map((s) => (s.id === p.id ? { ...s, due_date: p.due_date } : s)) })),
+        )
+      await runOrQueue(
+        { kind: 'subtask.due', label: 'תאריך יעד לשלב', recordIds: [p.id], payload: p },
+        async () => {
+          unwrap(await supabase.from('task_subtasks').update({ due_date: p.due_date }).eq('id', p.id))
+        },
+        show,
+      )
+      show()
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
+  })
+}
+
 export function useAddSubtask() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (p: { taskId: string; text: string; sort: number }) => {
-      const payload = { id: newId(), taskId: p.taskId, text: p.text.trim(), sort: p.sort }
+    mutationFn: async (p: { taskId: string; text: string; sort: number; due_date?: string | null }) => {
+      const payload = { id: newId(), taskId: p.taskId, text: p.text.trim(), sort: p.sort, due_date: p.due_date || null }
       const show = () =>
         queryClient.setQueryData<TaskRow[]>(['tasks'], (old) =>
           old?.map((t) =>
             t.id === p.taskId && !t.subtasks.some((x) => x.id === payload.id)
               ? {
                   ...t,
-                  subtasks: [...t.subtasks, { id: payload.id, task_id: p.taskId, text: payload.text, is_done: false, sort: payload.sort, created_at: new Date().toISOString() }],
+                  subtasks: [...t.subtasks, { id: payload.id, task_id: p.taskId, text: payload.text, is_done: false, due_date: payload.due_date, sort: payload.sort, created_at: new Date().toISOString() }],
                 }
               : t,
           ),
@@ -2430,7 +2454,7 @@ export function useAddSubtask() {
       await runOrQueue(
         { kind: 'subtask.add', label: `שלב חדש: ${short(payload.text)}`, recordIds: [p.taskId, payload.id], payload },
         async () => {
-          unwrap(await supabase.from('task_subtasks').upsert({ id: payload.id, task_id: payload.taskId, text: payload.text, sort: payload.sort }))
+          unwrap(await supabase.from('task_subtasks').upsert({ id: payload.id, task_id: payload.taskId, text: payload.text, sort: payload.sort, due_date: payload.due_date }))
         },
         show,
       )

@@ -13,7 +13,7 @@ import { toast } from './toast'
    - changing an existing record is merged field by field: a field is overwritten only if nobody else changed it
      meanwhile; a real conflict (both changed the same field to different values) waits for the user's decision. */
 
-export type OpKind = 'task.done' | 'task.save' | 'subtask.toggle' | 'subtask.add' | 'scan.patch' | 'count.save' | 'meeting.save'
+export type OpKind = 'task.done' | 'task.save' | 'subtask.toggle' | 'subtask.add' | 'subtask.due' | 'scan.patch' | 'count.save' | 'meeting.save'
 export type Conflict = { field: string; server: unknown; mine: unknown }
 export type Op = {
   id: string
