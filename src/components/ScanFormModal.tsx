@@ -15,6 +15,7 @@ import {
 import { Field, Modal } from './ui'
 import { implantFieldsOf, optionsForField } from '../lib/implants'
 import { ImportContactButton } from './ImportContactButton'
+import { ScanContactField } from './ScanContactField'
 export type ScanDraft = {
   hospital_id: string
   surgery_date: string
@@ -283,6 +284,7 @@ export function ScanFormModal({
             <Field label="תאריך ושעה מרדים" className="col-span-2 sm:col-span-1">
               <input className="input" value={d.anaesthesia_note} onChange={(e) => set({ anaesthesia_note: e.target.value })} placeholder="לדוגמה: 12.8.26 שעה 10:20" />
             </Field>
+            <ScanContactField hospitalId={d.hospital_id} />
           </div>
 
           <div className="grid grid-cols-1 gap-x-6 sm:grid-cols-3">

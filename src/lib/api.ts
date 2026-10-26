@@ -731,6 +731,19 @@ export function useUpsertHospital() {
   })
 }
 
+/** the contact at a hospital who coordinates the CT appointments */
+export function useSetHospitalScanContact() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ hospitalId, contactId }: { hospitalId: string; contactId: string | null }) =>
+      unwrap(await supabase.from('hospitals').update({ scan_contact_id: contactId }).eq('id', hospitalId)),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['hospitals'] })
+      qc.invalidateQueries({ queryKey: ['hospital'] })
+    },
+  })
+}
+
 export function useDeleteHospital() {
   const qc = useQueryClient()
   return useMutation({

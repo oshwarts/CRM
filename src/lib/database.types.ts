@@ -484,6 +484,7 @@ export type Database = {
           lng: number | null
           name: string
           organization_id: string | null
+          scan_contact_id: string | null
           sector: string
         }
         Insert: {
@@ -498,6 +499,7 @@ export type Database = {
           lng?: number | null
           name: string
           organization_id?: string | null
+          scan_contact_id?: string | null
           sector?: string
         }
         Update: {
@@ -512,6 +514,7 @@ export type Database = {
           lng?: number | null
           name?: string
           organization_id?: string | null
+          scan_contact_id?: string | null
           sector?: string
         }
         Relationships: []
