@@ -126,11 +126,11 @@ export function buildHospitalRows(input: { hospitals: MapHospital[]; meetings: M
   })
 }
 
-/** the commercial status, the next step and the surgery days of a hospital */
+/** a few small settings of a hospital saved from its screens: commercial status, next step, surgery days, how scans are coordinated */
 export function useSetHospitalCommercial() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, ...patch }: { id: string; commercial_status?: CommercialStatus | ''; next_step?: string; next_step_date?: string | null; surgery_days?: number[] }) => {
+    mutationFn: async ({ id, ...patch }: { id: string; commercial_status?: CommercialStatus | ''; next_step?: string; next_step_date?: string | null; surgery_days?: number[]; scan_contact_id?: string | null; scan_center_name?: string; scan_hours?: string; scan_notes?: string; scan_phone?: string; scan_email?: string; scan_whatsapp_name?: string; scan_whatsapp_url?: string }) => {
       const { error } = await supabase.from('hospitals').update(patch).eq('id', id)
       if (error) throw error
     },

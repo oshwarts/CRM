@@ -1,4 +1,5 @@
 import { PipelineStagesSettings } from '../components/PipelineStagesSettings'
+import { AmiSecretarySettings } from '../components/AmiSecretarySettings'
 import { RobotLinks } from '../components/RobotLinks'
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -130,6 +131,7 @@ export default function Settings() {
               useDelete={useDeleteOrganization}
             />
             <PipelineStagesSettings />
+            <AmiSecretarySettings />
             <SimpleListSettings
               title="מערכות רובוטיקה"
               placeholder="MAKO / VELYS / ROSA…"

@@ -1,5 +1,5 @@
 import { memo } from 'react'
-import { ScanContactLine } from './ScanContactField'
+import { ScanContactLine } from './ScanCoordination'
 import { CalendarClock, CalendarPlus, Check, Pencil, Phone, Trash2 } from 'lucide-react'
 import { PendingMark } from './PendingMark'
 import { ConfirmButton } from './ui'

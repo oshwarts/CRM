@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { ScanCoordination } from './ScanCoordination'
 import { SurgeryDays } from './SurgeryDays'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useProcedures } from '../lib/api'
@@ -307,6 +308,9 @@ export function HospitalInfo({ hospitalId, surgeryDays }: { hospitalId: string; 
   return (
     <div className="space-y-4">
       <SurgeryDays hospitalId={hospitalId} days={surgeryDays} />
+      <div className="grid">
+        <ScanCoordination hospitalId={hospitalId} />
+      </div>
       <Locations hospitalId={hospitalId} />
       <Estimates hospitalId={hospitalId} />
       <GeneralInfo hospitalId={hospitalId} />

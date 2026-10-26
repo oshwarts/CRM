@@ -486,6 +486,13 @@ export type Database = {
           organization_id: string | null
           scan_contact_id: string | null
           surgery_days: number[]
+          scan_center_name: string
+          scan_hours: string
+          scan_notes: string
+          scan_phone: string
+          scan_email: string
+          scan_whatsapp_name: string
+          scan_whatsapp_url: string
           sector: string
         }
         Insert: {
@@ -502,6 +509,13 @@ export type Database = {
           organization_id?: string | null
           scan_contact_id?: string | null
           surgery_days?: number[]
+          scan_center_name?: string
+          scan_hours?: string
+          scan_notes?: string
+          scan_phone?: string
+          scan_email?: string
+          scan_whatsapp_name?: string
+          scan_whatsapp_url?: string
           sector?: string
         }
         Update: {
@@ -518,6 +532,13 @@ export type Database = {
           organization_id?: string | null
           scan_contact_id?: string | null
           surgery_days?: number[]
+          scan_center_name?: string
+          scan_hours?: string
+          scan_notes?: string
+          scan_phone?: string
+          scan_email?: string
+          scan_whatsapp_name?: string
+          scan_whatsapp_url?: string
           sector?: string
         }
         Relationships: []
