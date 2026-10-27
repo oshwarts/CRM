@@ -163,6 +163,7 @@ export default function Roster() {
   }, [avail.data, assignments.data])
 
   function doCloseWeek() {
+    if (closeWeek.isPending) return // a second tap on the confirm dialog, before the first close lands
     closeWeek.mutate({
       weekStart,
       agentIds: agentsInWeek,
@@ -176,6 +177,7 @@ export default function Roster() {
 
   // "copy last week": for me (availability), or for the whole roster (assignments) — only into slots nothing is reported/assigned for yet
   function copyMyAvailability() {
+    if (fetchPrevAvail.isPending) return
     const myId = user?.id ?? ''
     fetchPrevAvail.mutate(prevDates, {
       onSuccess: (rows) => {
@@ -188,6 +190,7 @@ export default function Roster() {
     })
   }
   function copyLastWeekAssignments() {
+    if (fetchPrevAssign.isPending || bulkAssign.isPending) return
     fetchPrevAssign.mutate(prevDates, {
       onSuccess: (rows) => {
         const typed = rows.map((r) => ({ agent_id: r.agent_id, date: r.date, shift: r.shift as RosterShift, hospital_id: r.hospital_id, area: r.area, work_type: r.work_type as AssignmentRow['work_type'], note: r.note }))
@@ -200,6 +203,7 @@ export default function Roster() {
     })
   }
   function autoFillBySuggestions() {
+    if (bulkAssign.isPending) return
     const plan: Parameters<typeof bulkAssign.mutate>[0] = []
     for (const a of agentList)
       for (const d of dates)
