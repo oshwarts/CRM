@@ -22,8 +22,8 @@ import {
   SHIFT_LABELS,
   WORK_TYPE_LABELS,
   assignmentShort,
-  availabilityLine,
   dayAvailability,
+  shiftLine,
   overloaded,
   suggestionsFor,
   teamLoad,
@@ -251,8 +251,8 @@ export default function Roster() {
                             )}
                           </p>
                           <p className={classNames('flex items-center gap-1.5 text-xs', unavailable ? 'text-red-600' : 'text-slate-500')}>
-                            <span aria-hidden className={classNames('h-1.5 w-1.5 shrink-0 rounded-full', DOT[dayAvailability(dayRows.filter((r) => r.shift === shift))])} />
-                            {availabilityLine(dayRows.filter((r) => r.shift === shift))}
+                            <span aria-hidden className={classNames('h-1.5 w-1.5 shrink-0 rounded-full', !shiftRow ? DOT.unset : unavailable ? DOT.none : DOT.full)} />
+                            {shiftLine(shiftRow)}
                           </p>
                           {assignment && (assignment.hospital_id || assignment.area || assignment.work_type !== 'field') && (
                             <p className="text-xs font-medium text-brand-700">
@@ -469,12 +469,13 @@ function WeekMatrix({
                 const evening = assignByKey.get(`${a.id}|${d}|evening`)
                 const mShort = assignmentShort(morning, hospitalName)
                 const eShort = assignmentShort(evening, hospitalName)
+                const title = [mShort && `בוקר: ${mShort}`, eShort && eShort !== mShort && `אחה״צ: ${eShort}`].filter(Boolean).join(' · ')
                 return (
-                  <td key={d} className="p-1 text-center align-top">
-                    <button type="button" className="mx-auto flex min-h-[44px] w-full flex-col items-center gap-0.5 rounded-lg px-1 py-1 hover:bg-slate-50" onClick={() => onPick(d)}>
+                  <td key={d} className="w-20 min-w-[80px] p-1 text-center align-top">
+                    <button type="button" title={title || undefined} className="mx-auto flex min-h-[44px] w-full flex-col items-center gap-0.5 rounded-lg px-1 py-1 hover:bg-slate-50" onClick={() => onPick(d)}>
                       <span aria-hidden className={classNames('h-2 w-2 rounded-full', DOT[dayAvailability(rows)])} />
-                      {mShort && <span className="text-[11px] leading-tight text-brand-700 [overflow-wrap:anywhere]">{mShort}</span>}
-                      {eShort && eShort !== mShort && <span className="text-[11px] leading-tight text-brand-500 [overflow-wrap:anywhere]">{eShort}</span>}
+                      {mShort && <span className="w-full truncate text-[11px] leading-tight text-brand-700">{mShort}</span>}
+                      {eShort && eShort !== mShort && <span className="w-full truncate text-[11px] leading-tight text-brand-500">{eShort}</span>}
                     </button>
                   </td>
                 )

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assignmentChangeMessage, assignmentShort, availabilityLine, dayAvailability, overloaded, suggestionsFor, teamLoad, weekDates, weekStartOf } from '../lib/roster'
+import { assignmentChangeMessage, assignmentShort, availabilityLine, dayAvailability, overloaded, shiftLine, suggestionsFor, teamLoad, weekDates, weekStartOf } from '../lib/roster'
 
 describe('weekDates', () => {
   it('returns Sunday through Saturday of the week holding the anchor', () => {
@@ -184,5 +184,16 @@ describe('assignmentShort', () => {
   })
   it('office/training falls back to the kind of work', () => {
     expect(assignmentShort({ hospital_id: null, area: '', work_type: 'office' }, names)).toBe('משרד')
+  })
+})
+
+describe('shiftLine', () => {
+  it('not reported', () => { expect(shiftLine(undefined)).toBe('לא דווח') })
+  it('available, with no mention of the shift itself (the heading already names it)', () => {
+    expect(shiftLine({ status: 'available', reason: '' })).toBe('זמין')
+  })
+  it('unavailable, with the reason when there is one', () => {
+    expect(shiftLine({ status: 'unavailable', reason: '' })).toBe('לא זמין')
+    expect(shiftLine({ status: 'unavailable', reason: 'חופשה' })).toBe('לא זמין — חופשה')
   })
 })

@@ -57,6 +57,13 @@ export function availabilityLine(rows: Pick<AvailabilityRow, 'shift' | 'status' 
   return `זמין ${SHIFT_LABELS[a].split(' (')[0]} בלבד`
 }
 
+/** the status of one shift on its own (the day view already names the shift in its own heading, so this does not repeat it) */
+export function shiftLine(row: Pick<AvailabilityRow, 'status' | 'reason'> | undefined): string {
+  if (!row) return 'לא דווח'
+  if (row.status === 'available') return 'זמין'
+  return row.reason.trim() ? `לא זמין — ${row.reason.trim()}` : 'לא זמין'
+}
+
 /** how many field-work shifts each agent already has in the week — so a manager can see who is loaded and who is free */
 export function teamLoad(assignments: Pick<AssignmentRow, 'agent_id' | 'work_type'>[], agentIds: string[]): Map<string, number> {
   const m = new Map(agentIds.map((id) => [id, 0]))

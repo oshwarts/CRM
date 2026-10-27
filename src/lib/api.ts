@@ -2866,6 +2866,8 @@ export function useCloseWeek() {
         )
     },
     onSuccess: (_d, p) => {
+      // set the result directly: a refetch (over a slow or just-recovered connection) is not what shows "closed" first
+      qc.setQueryData<RosterWeek>(['roster-week', p.weekStart], { week_start: p.weekStart, closed_at: new Date().toISOString(), closed_by: null })
       qc.invalidateQueries({ queryKey: ['roster-week', p.weekStart] })
       qc.invalidateQueries({ queryKey: ['roster-notifications'] })
     },
@@ -2896,8 +2898,13 @@ export function useRosterNotifications() {
 
 export function useMarkNotificationRead() {
   const qc = useQueryClient()
+  const { user } = useAuth()
   return useMutation({
     mutationFn: async (id: string) => unwrap(await supabase.from('roster_notifications').update({ read_at: new Date().toISOString() }).eq('id', id)),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['roster-notifications'] }),
+    onSuccess: (_d, id) => {
+      // mark it read on the screen right away: waiting for a refetch (slow / just-back-online) would leave it looking unread
+      qc.setQueryData<RosterNotification[]>(['roster-notifications', user?.id], (old) => old?.map((n) => (n.id === id ? { ...n, read_at: new Date().toISOString() } : n)))
+      qc.invalidateQueries({ queryKey: ['roster-notifications'] })
+    },
   })
 }

@@ -197,7 +197,7 @@ export function RosterAssignmentModal({
               ביטול
             </button>
             <button type="button" className="btn-primary" disabled={save.isPending} onClick={submit}>
-              שמירה
+              {save.isPending ? 'שומר…' : 'שמירה'}
             </button>
           </div>
         </div>
