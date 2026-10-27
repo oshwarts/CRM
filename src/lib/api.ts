@@ -44,6 +44,8 @@ import type {
   Competitor,
   RosterAssignmentRow,
   RosterAvailabilityRow,
+  RosterWeek,
+  RosterNotification,
 } from './types'
 import { SCAN_PROCEDURE_TO_NAME } from './types'
 import { infoStorage } from './largeFiles'
@@ -2835,5 +2837,67 @@ export function useClearAssignment() {
     mutationFn: async (p: { agent_id: string; date: string; shift: 'morning' | 'evening' }) =>
       unwrap(await supabase.from('schedule_assignments').delete().eq('agent_id', p.agent_id).eq('date', p.date).eq('shift', p.shift)),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['roster-assignments'] }),
+  })
+}
+
+/* ============================ Roster: closing a week, and the per-agent notifications it drops ============================ */
+
+export function useRosterWeek(weekStart: string) {
+  return useQuery({
+    queryKey: ['roster-week', weekStart],
+    enabled: !!weekStart,
+    queryFn: async () => {
+      const rows = unwrap<RosterWeek[]>(await supabase.from('roster_weeks').select('*').eq('week_start', weekStart))
+      return rows[0] ?? null
+    },
+  })
+}
+
+export function useCloseWeek() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (p: { weekStart: string; agentIds: string[]; message: string }) => {
+      unwrap(await supabase.from('roster_weeks').insert({ week_start: p.weekStart }))
+      if (p.agentIds.length > 0)
+        unwrap(
+          await supabase.from('roster_notifications').insert(
+            p.agentIds.map((agent_id) => ({ agent_id, week_start: p.weekStart, kind: 'week_closed', message: p.message })),
+          ),
+        )
+    },
+    onSuccess: (_d, p) => {
+      qc.invalidateQueries({ queryKey: ['roster-week', p.weekStart] })
+      qc.invalidateQueries({ queryKey: ['roster-notifications'] })
+    },
+  })
+}
+
+/** sent after a week is closed, when an agent's assignment is still changed */
+export function useNotifyAssignmentChange() {
+  return useMutation({
+    mutationFn: async (p: { agent_id: string; week_start: string; date: string; shift: 'morning' | 'evening'; message: string }) =>
+      unwrap(await supabase.from('roster_notifications').insert({ agent_id: p.agent_id, week_start: p.week_start, kind: 'assignment_changed', date: p.date, shift: p.shift, message: p.message })),
+    meta: { silent: true }, // rides along with the assignment save, which already says "נשמר" on its own
+  })
+}
+
+/** the signed-in agent's own roster notifications, unread first */
+export function useRosterNotifications() {
+  const { user } = useAuth()
+  return useQuery({
+    queryKey: ['roster-notifications', user?.id],
+    enabled: !!user?.id,
+    queryFn: async () =>
+      unwrap<RosterNotification[]>(
+        await supabase.from('roster_notifications').select('*').eq('agent_id', user!.id).order('created_at', { ascending: false }).limit(50),
+      ),
+  })
+}
+
+export function useMarkNotificationRead() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => unwrap(await supabase.from('roster_notifications').update({ read_at: new Date().toISOString() }).eq('id', id)),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['roster-notifications'] }),
   })
 }

@@ -148,3 +148,26 @@ export function suggestionsFor(params: {
 
   return [...byHospital.values()].sort((a, b) => b.score - a.score).slice(0, 3)
 }
+
+export const WORK_TYPE_SHORT: Record<WorkType, string> = { field: 'שטח', office: 'משרד', training: 'הדרכה', other: 'אחר' }
+
+/** what one cell of the week matrix shows: the day's availability and a short label per shift that has an assignment */
+export function assignmentShort(a: Pick<AssignmentRow, 'hospital_id' | 'area' | 'work_type'> | undefined, hospitalName: (id: string) => string | undefined): string {
+  if (!a) return ''
+  if (a.hospital_id) return hospitalName(a.hospital_id) ?? '?'
+  if (a.area) return a.area
+  return a.work_type === 'field' ? '' : WORK_TYPE_SHORT[a.work_type]
+}
+
+/** the Sunday (yyyy-mm-dd) that holds this date — the key a closed week is stored and looked up by */
+export function weekStartOf(dateISO: string): string {
+  return weekDates(dateISO)[0]
+}
+
+/** the message put in an agent's roster inbox for one shift's assignment, after the week it falls in was closed */
+export function assignmentChangeMessage(date: string, shift: RosterShift, a: AssignmentRow | null): string {
+  const when = `${SHIFT_LABELS[shift].split(' (')[0]} ${date}`
+  if (!a) return `השיבוץ שלך ל${when} בוטל`
+  const where = a.hospital_id ? null : a.area || (a.work_type !== 'field' ? WORK_TYPE_LABELS[a.work_type] : '')
+  return `השיבוץ שלך ל${when} עודכן${where ? `: ${where}` : ''}`
+}

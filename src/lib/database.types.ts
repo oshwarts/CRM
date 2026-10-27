@@ -429,6 +429,51 @@ export type Database = {
         }
         Relationships: []
       }
+      roster_weeks: {
+        Row: { week_start: string; closed_at: string; closed_by: string | null }
+        Insert: { week_start: string; closed_at?: string; closed_by?: string | null }
+        Update: { week_start?: string; closed_at?: string; closed_by?: string | null }
+        Relationships: []
+      }
+      roster_notifications: {
+        Row: {
+          id: string
+          agent_id: string
+          week_start: string
+          kind: string
+          message: string
+          date: string | null
+          shift: string | null
+          created_by: string | null
+          created_at: string
+          read_at: string | null
+        }
+        Insert: {
+          id?: string
+          agent_id: string
+          week_start: string
+          kind: string
+          message?: string
+          date?: string | null
+          shift?: string | null
+          created_by?: string | null
+          created_at?: string
+          read_at?: string | null
+        }
+        Update: {
+          id?: string
+          agent_id?: string
+          week_start?: string
+          kind?: string
+          message?: string
+          date?: string | null
+          shift?: string | null
+          created_by?: string | null
+          created_at?: string
+          read_at?: string | null
+        }
+        Relationships: []
+      }
       equipment_items: {
         Row: {
           catalog_number: string

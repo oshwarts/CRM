@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { availabilityLine, dayAvailability, overloaded, suggestionsFor, teamLoad, weekDates } from '../lib/roster'
+import { assignmentChangeMessage, assignmentShort, availabilityLine, dayAvailability, overloaded, suggestionsFor, teamLoad, weekDates, weekStartOf } from '../lib/roster'
 
 describe('weekDates', () => {
   it('returns Sunday through Saturday of the week holding the anchor', () => {
@@ -146,5 +146,43 @@ describe('suggestionsFor', () => {
     const r = suggestionsFor({ agentId, date, tasks, meetings: [], scans: [], hospitalsOfAgent: hospitals })
     expect(r).toHaveLength(3)
     expect(r[0].hospitalId).toBe('h1') // the urgent one
+  })
+})
+
+describe('weekStartOf', () => {
+  it('matches the first day weekDates gives for the same date', () => {
+    expect(weekStartOf('2026-10-27')).toBe('2026-10-25')
+    expect(weekStartOf('2026-10-25')).toBe('2026-10-25')
+  })
+})
+
+describe('assignmentChangeMessage', () => {
+  const date = '2026-10-27'
+  it('a cleared assignment', () => {
+    expect(assignmentChangeMessage(date, 'morning', null)).toBe('השיבוץ שלך למשמרת בוקר 2026-10-27 בוטל')
+  })
+  it('an assignment at a hospital does not repeat the hospital name (the agent sees it in the list)', () => {
+    const msg = assignmentChangeMessage(date, 'evening', { agent_id: 'a', date, shift: 'evening', hospital_id: 'h1', area: '', work_type: 'field', task_id: null, meeting_id: null, note: '' })
+    expect(msg).toBe('השיבוץ שלך למשמרת אחה״צ 2026-10-27 עודכן')
+  })
+  it('an office/training day names the kind of work', () => {
+    const msg = assignmentChangeMessage(date, 'morning', { agent_id: 'a', date, shift: 'morning', hospital_id: null, area: '', work_type: 'office', task_id: null, meeting_id: null, note: '' })
+    expect(msg).toContain('משרד')
+  })
+})
+
+describe('assignmentShort', () => {
+  const names = (id: string) => ({ h1: 'שיבא' })[id as 'h1']
+  it('a hospital assignment shows its name', () => {
+    expect(assignmentShort({ hospital_id: 'h1', area: '', work_type: 'field' }, names)).toBe('שיבא')
+  })
+  it('no assignment at all is blank', () => {
+    expect(assignmentShort(undefined, names)).toBe('')
+  })
+  it('plain field work with nothing else set is blank (nothing worth showing)', () => {
+    expect(assignmentShort({ hospital_id: null, area: '', work_type: 'field' }, names)).toBe('')
+  })
+  it('office/training falls back to the kind of work', () => {
+    expect(assignmentShort({ hospital_id: null, area: '', work_type: 'office' }, names)).toBe('משרד')
   })
 })
