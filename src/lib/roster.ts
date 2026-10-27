@@ -248,3 +248,15 @@ export function coverageGaps(params: {
   }
   return out
 }
+
+/** every (day, shift) of the week an agent has not reported anything for yet — what "mark the whole week available" fills in */
+export function unreportedShifts(dates: string[], alreadyReported: (date: string, shift: RosterShift) => boolean): { date: string; shift: RosterShift }[] {
+  const out: { date: string; shift: RosterShift }[] = []
+  for (const date of dates) for (const shift of SHIFTS) if (!alreadyReported(date, shift)) out.push({ date, shift })
+  return out
+}
+
+/** a shift someone is assigned to, that the agent themselves reported they can't work — shown as a flag, never blocked */
+export function assignmentConflicts(assigned: boolean, status: AvailabilityStatus | 'unset'): boolean {
+  return assigned && status === 'unavailable'
+}

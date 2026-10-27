@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assignmentChangeMessage, assignmentShort, availabilityLine, availabilityToCopy, assignmentsToCopy, coverageGaps, dayAvailability, fillableShift, overloaded, shiftLine, suggestionsFor, teamLoad, weekDates, weekStartOf } from '../lib/roster'
+import { assignmentChangeMessage, assignmentConflicts, assignmentShort, availabilityLine, availabilityToCopy, assignmentsToCopy, coverageGaps, dayAvailability, fillableShift, overloaded, shiftLine, suggestionsFor, teamLoad, unreportedShifts, weekDates, weekStartOf } from '../lib/roster'
 
 describe('weekDates', () => {
   it('returns Sunday through Saturday of the week holding the anchor', () => {
@@ -284,5 +284,34 @@ describe('coverageGaps', () => {
       isAssigned: () => false,
     })
     expect(gaps).toEqual([])
+  })
+})
+
+describe('unreportedShifts', () => {
+  const dates = ['2026-11-01', '2026-11-02']
+  it('lists every shift with nothing reported, both shifts of each day', () => {
+    const out = unreportedShifts(dates, () => false)
+    expect(out).toHaveLength(4)
+    expect(out).toContainEqual({ date: '2026-11-01', shift: 'morning' })
+    expect(out).toContainEqual({ date: '2026-11-02', shift: 'evening' })
+  })
+  it('skips a shift already reported, available or not', () => {
+    const out = unreportedShifts(dates, (date, shift) => date === '2026-11-01' && shift === 'morning')
+    expect(out).toHaveLength(3)
+    expect(out).not.toContainEqual({ date: '2026-11-01', shift: 'morning' })
+  })
+  it('a fully reported week has nothing left to fill', () => {
+    expect(unreportedShifts(dates, () => true)).toEqual([])
+  })
+})
+
+describe('assignmentConflicts', () => {
+  it('flags an assignment against a reported "unavailable"', () => {
+    expect(assignmentConflicts(true, 'unavailable')).toBe(true)
+  })
+  it('no conflict when nothing is assigned, or availability is anything else', () => {
+    expect(assignmentConflicts(false, 'unavailable')).toBe(false)
+    expect(assignmentConflicts(true, 'available')).toBe(false)
+    expect(assignmentConflicts(true, 'unset')).toBe(false)
   })
 })

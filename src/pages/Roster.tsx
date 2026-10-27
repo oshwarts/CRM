@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Bell, CalendarDays, ChevronLeft, ChevronRight, ClipboardCopy, Lightbulb, Lock, LockOpen, Pencil, Sparkles, Table2 } from 'lucide-react'
+import { AlertTriangle, Bell, CalendarDays, CalendarCheck, ChevronLeft, ChevronRight, ClipboardCopy, Lightbulb, Lock, LockOpen, Pencil, Sparkles, Table2 } from 'lucide-react'
 import {
   useAgents,
   useBulkSaveAssignments,
@@ -24,6 +24,7 @@ import {
   SHIFTS,
   SHIFT_LABELS,
   WORK_TYPE_LABELS,
+  assignmentConflicts,
   assignmentShort,
   assignmentsToCopy,
   availabilityToCopy,
@@ -34,6 +35,7 @@ import {
   overloaded,
   suggestionsFor,
   teamLoad,
+  unreportedShifts,
   weekDates,
   type AssignmentRow,
   type AvailabilityRow,
@@ -337,6 +339,11 @@ export default function Roster() {
                               {assignment.area ? ` · ${assignment.area}` : ''}
                             </p>
                           )}
+                          {assignmentConflicts(!!assignment, shiftRow?.status ?? 'unset') && (
+                            <p className="flex items-center gap-1 text-xs font-medium text-red-600">
+                              <AlertTriangle size={11} aria-hidden /> סותר דיווח אי-זמינות
+                            </p>
+                          )}
                           {!assignment && sugg[0] && (
                             <p className="flex items-center gap-1 text-xs text-amber-700">
                               <Lightbulb size={11} aria-hidden /> מוצע: {sugg[0].hospitalName}
@@ -566,7 +573,16 @@ function WeekMatrix({
     const evening = assignByKey.get(`${agentId}|${d}|evening`)
     const mShort = assignmentShort(morning, hospitalName)
     const eShort = assignmentShort(evening, hospitalName)
-    return { dot: DOT[dayAvailability(rows)], mShort, eShort, title: [mShort && `בוקר: ${mShort}`, eShort && eShort !== mShort && `אחה״צ: ${eShort}`].filter(Boolean).join(' · ') }
+    const mStatus = rows.find((r) => r.shift === 'morning')?.status ?? 'unset'
+    const eStatus = rows.find((r) => r.shift === 'evening')?.status ?? 'unset'
+    const conflict = assignmentConflicts(!!morning, mStatus) || assignmentConflicts(!!evening, eStatus)
+    return {
+      dot: DOT[dayAvailability(rows)],
+      mShort,
+      eShort,
+      conflict,
+      title: [mShort && `בוקר: ${mShort}`, eShort && eShort !== mShort && `אחה״צ: ${eShort}`, conflict && 'סותר דיווח אי-זמינות'].filter(Boolean).join(' · '),
+    }
   }
 
   if (agents.length === 0)
@@ -599,12 +615,13 @@ function WeekMatrix({
                     type="button"
                     title={c.title || undefined}
                     onClick={() => onPick(d)}
-                    className="flex min-h-[52px] w-[23%] min-w-[70px] flex-col items-center justify-center gap-0.5 rounded-lg border border-slate-200 px-1 py-1 text-center hover:bg-slate-50"
+                    className={classNames('flex min-h-[52px] w-[23%] min-w-[70px] flex-col items-center justify-center gap-0.5 rounded-lg border px-1 py-1 text-center hover:bg-slate-50', c.conflict ? 'border-red-300 bg-red-50/60' : 'border-slate-200')}
                   >
                     <span className="text-[11px] font-medium text-slate-500">
                       {DAY_SHORT[i]} {formatDate(d).slice(0, 5)}
                     </span>
                     <span aria-hidden className={classNames('h-2 w-2 rounded-full', c.dot)} />
+                    {c.conflict && <AlertTriangle size={11} className="text-red-600" aria-hidden />}
                     {c.mShort && <span className="w-full truncate text-[10px] leading-tight text-brand-700">{c.mShort}</span>}
                     {c.eShort && c.eShort !== c.mShort && <span className="w-full truncate text-[10px] leading-tight text-brand-500">{c.eShort}</span>}
                   </button>
@@ -641,8 +658,9 @@ function WeekMatrix({
                   const c = cellOf(a.id, d)
                   return (
                     <td key={d} className="w-20 min-w-[80px] p-1 text-center align-top">
-                      <button type="button" title={c.title || undefined} className="mx-auto flex min-h-[44px] w-full flex-col items-center gap-0.5 rounded-lg px-1 py-1 hover:bg-slate-50" onClick={() => onPick(d)}>
+                      <button type="button" title={c.title || undefined} className={classNames('mx-auto flex min-h-[44px] w-full flex-col items-center gap-0.5 rounded-lg px-1 py-1 hover:bg-slate-50', c.conflict && 'bg-red-50/60 ring-1 ring-red-300')} onClick={() => onPick(d)}>
                         <span aria-hidden className={classNames('h-2 w-2 rounded-full', c.dot)} />
+                        {c.conflict && <AlertTriangle size={11} className="text-red-600" aria-hidden />}
                         {c.mShort && <span className="w-full truncate text-[11px] leading-tight text-brand-700">{c.mShort}</span>}
                         {c.eShort && c.eShort !== c.mShort && <span className="w-full truncate text-[11px] leading-tight text-brand-500">{c.eShort}</span>}
                       </button>
@@ -688,6 +706,12 @@ function MyAvailability({
     saveAvail.mutate([{ agent_id: myId, date, shift, status, reason, note: '' }])
   const setWholeDay = (date: string, status: AvailabilityStatus) =>
     saveAvail.mutate(SHIFTS.map((shift) => ({ agent_id: myId, date, shift, status, reason: '', note: '' })))
+  // only fills what nobody reported yet — a day already marked unavailable, with a reason, is never touched
+  function markWeekAvailable() {
+    const toFill = unreportedShifts(dates, (date, shift) => (availByAgentDay.get(`${myId}|${date}`) ?? []).some((r) => r.shift === shift))
+    if (toFill.length === 0) return toast('כל השבוע כבר מדווח', { kind: 'info' })
+    saveAvail.mutate(toFill.map((s) => ({ agent_id: myId, date: s.date, shift: s.shift, status: 'available' as const, reason: '', note: '' })))
+  }
 
   return (
     <section className="card space-y-2 p-3.5 sm:p-4" aria-label="הזמינות שלי">
@@ -701,9 +725,14 @@ function MyAvailability({
           )}
         </h2>
         {!locked && (
-          <button type="button" className="btn-ghost !py-1 text-xs" disabled={copying} onClick={onCopyLastWeek}>
-            <ClipboardCopy size={13} aria-hidden /> {copying ? 'מעתיק…' : 'העתק מהשבוע שעבר'}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="btn-ghost !py-1 text-xs" onClick={markWeekAvailable}>
+              <CalendarCheck size={13} aria-hidden /> כל השבוע זמין
+            </button>
+            <button type="button" className="btn-ghost !py-1 text-xs" disabled={copying} onClick={onCopyLastWeek}>
+              <ClipboardCopy size={13} aria-hidden /> {copying ? 'מעתיק…' : 'העתק מהשבוע שעבר'}
+            </button>
+          </div>
         )}
       </div>
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-7">
