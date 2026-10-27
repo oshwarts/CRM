@@ -441,57 +441,101 @@ function WeekMatrix({
   onPick: (date: string) => void
 }) {
   const hospitalName = (id: string) => hospitalMap.get(id)
+  const cellOf = (agentId: string, d: string) => {
+    const rows = availByAgentDay.get(`${agentId}|${d}`) ?? []
+    const morning = assignByKey.get(`${agentId}|${d}|morning`)
+    const evening = assignByKey.get(`${agentId}|${d}|evening`)
+    const mShort = assignmentShort(morning, hospitalName)
+    const eShort = assignmentShort(evening, hospitalName)
+    return { dot: DOT[dayAvailability(rows)], mShort, eShort, title: [mShort && `בוקר: ${mShort}`, eShort && eShort !== mShort && `אחה״צ: ${eShort}`].filter(Boolean).join(' · ') }
+  }
+
+  if (agents.length === 0)
+    return (
+      <section className="card p-4 text-center text-sm text-slate-400" aria-label="תצוגה שבועית">
+        אין סוכנים פעילים
+      </section>
+    )
+
   return (
-    <section className="card overflow-x-auto p-2" aria-label="תצוגה שבועית">
-      <table className="w-full min-w-[640px] border-collapse text-sm">
-        <thead>
-          <tr>
-            <th className="p-2 text-start text-xs font-semibold text-slate-500">סוכן</th>
-            {dates.map((d, i) => (
-              <th key={d} className="p-2 text-center text-xs font-semibold text-slate-500">
-                <button type="button" className="rounded-lg px-1.5 py-1 hover:bg-slate-100" onClick={() => onPick(d)}>
-                  {DAY_SHORT[i]} {formatDate(d).slice(0, 5)}
-                </button>
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {agents.map((a) => (
-            <tr key={a.id}>
-              <td className="whitespace-nowrap p-2 font-medium text-slate-800">
-                {a.full_name}
-                {overloadedIds.has(a.id) && <span className="mr-1 text-amber-600">●</span>}
-              </td>
-              {dates.map((d) => {
-                const rows = availByAgentDay.get(`${a.id}|${d}`) ?? []
-                const morning = assignByKey.get(`${a.id}|${d}|morning`)
-                const evening = assignByKey.get(`${a.id}|${d}|evening`)
-                const mShort = assignmentShort(morning, hospitalName)
-                const eShort = assignmentShort(evening, hospitalName)
-                const title = [mShort && `בוקר: ${mShort}`, eShort && eShort !== mShort && `אחה״צ: ${eShort}`].filter(Boolean).join(' · ')
+    <>
+      {/* phone: a card per agent, the week's seven days as chips that wrap — nothing to scroll sideways through */}
+      <div className="space-y-2 sm:hidden" aria-label="תצוגה שבועית">
+        {agents.map((a) => (
+          <section key={a.id} className="card space-y-2 p-3" aria-label={a.full_name}>
+            <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-800">
+              {a.full_name}
+              {overloadedIds.has(a.id) && (
+                <span className="chip border-amber-200 bg-amber-50 text-amber-700" title="עומס שטח גבוה מהממוצע השבוע">
+                  עומס
+                </span>
+              )}
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {dates.map((d, i) => {
+                const c = cellOf(a.id, d)
                 return (
-                  <td key={d} className="w-20 min-w-[80px] p-1 text-center align-top">
-                    <button type="button" title={title || undefined} className="mx-auto flex min-h-[44px] w-full flex-col items-center gap-0.5 rounded-lg px-1 py-1 hover:bg-slate-50" onClick={() => onPick(d)}>
-                      <span aria-hidden className={classNames('h-2 w-2 rounded-full', DOT[dayAvailability(rows)])} />
-                      {mShort && <span className="w-full truncate text-[11px] leading-tight text-brand-700">{mShort}</span>}
-                      {eShort && eShort !== mShort && <span className="w-full truncate text-[11px] leading-tight text-brand-500">{eShort}</span>}
-                    </button>
-                  </td>
+                  <button
+                    key={d}
+                    type="button"
+                    title={c.title || undefined}
+                    onClick={() => onPick(d)}
+                    className="flex min-h-[52px] w-[23%] min-w-[70px] flex-col items-center justify-center gap-0.5 rounded-lg border border-slate-200 px-1 py-1 text-center hover:bg-slate-50"
+                  >
+                    <span className="text-[11px] font-medium text-slate-500">
+                      {DAY_SHORT[i]} {formatDate(d).slice(0, 5)}
+                    </span>
+                    <span aria-hidden className={classNames('h-2 w-2 rounded-full', c.dot)} />
+                    {c.mShort && <span className="w-full truncate text-[10px] leading-tight text-brand-700">{c.mShort}</span>}
+                    {c.eShort && c.eShort !== c.mShort && <span className="w-full truncate text-[10px] leading-tight text-brand-500">{c.eShort}</span>}
+                  </button>
                 )
               })}
-            </tr>
-          ))}
-          {agents.length === 0 && (
+            </div>
+          </section>
+        ))}
+      </div>
+
+      {/* wider screens: everyone in one table */}
+      <section className="card hidden overflow-x-auto p-2 sm:block" aria-label="תצוגה שבועית">
+        <table className="w-full min-w-[640px] border-collapse text-sm">
+          <thead>
             <tr>
-              <td colSpan={8} className="p-3 text-center text-sm text-slate-400">
-                אין סוכנים פעילים
-              </td>
+              <th className="p-2 text-start text-xs font-semibold text-slate-500">סוכן</th>
+              {dates.map((d, i) => (
+                <th key={d} className="p-2 text-center text-xs font-semibold text-slate-500">
+                  <button type="button" className="rounded-lg px-1.5 py-1 hover:bg-slate-100" onClick={() => onPick(d)}>
+                    {DAY_SHORT[i]} {formatDate(d).slice(0, 5)}
+                  </button>
+                </th>
+              ))}
             </tr>
-          )}
-        </tbody>
-      </table>
-    </section>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {agents.map((a) => (
+              <tr key={a.id}>
+                <td className="whitespace-nowrap p-2 font-medium text-slate-800">
+                  {a.full_name}
+                  {overloadedIds.has(a.id) && <span className="mr-1 text-amber-600">●</span>}
+                </td>
+                {dates.map((d) => {
+                  const c = cellOf(a.id, d)
+                  return (
+                    <td key={d} className="w-20 min-w-[80px] p-1 text-center align-top">
+                      <button type="button" title={c.title || undefined} className="mx-auto flex min-h-[44px] w-full flex-col items-center gap-0.5 rounded-lg px-1 py-1 hover:bg-slate-50" onClick={() => onPick(d)}>
+                        <span aria-hidden className={classNames('h-2 w-2 rounded-full', c.dot)} />
+                        {c.mShort && <span className="w-full truncate text-[11px] leading-tight text-brand-700">{c.mShort}</span>}
+                        {c.eShort && c.eShort !== c.mShort && <span className="w-full truncate text-[11px] leading-tight text-brand-500">{c.eShort}</span>}
+                      </button>
+                    </td>
+                  )
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+    </>
   )
 }
 
