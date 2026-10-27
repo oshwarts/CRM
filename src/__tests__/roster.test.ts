@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assignmentChangeMessage, assignmentConflicts, assignmentShort, availabilityLine, availabilityToCopy, assignmentsToCopy, coverageGaps, dayAvailability, fillableShift, overloaded, shiftLine, suggestionsFor, teamLoad, unreportedShifts, weekDates, weekStartOf } from '../lib/roster'
+import { assignmentChangeMessage, assignmentConflicts, assignmentShort, availabilityLine, availabilityToCopy, assignmentsToCopy, coverageGaps, dayAvailability, fillableShift, groupByHospital, overloaded, shiftLine, suggestionsFor, teamLoad, unreportedShifts, weekDates, weekStartOf } from '../lib/roster'
 
 describe('weekDates', () => {
   it('returns Sunday through Saturday of the week holding the anchor', () => {
@@ -313,5 +313,48 @@ describe('assignmentConflicts', () => {
     expect(assignmentConflicts(false, 'unavailable')).toBe(false)
     expect(assignmentConflicts(true, 'available')).toBe(false)
     expect(assignmentConflicts(true, 'unset')).toBe(false)
+  })
+})
+
+describe('groupByHospital', () => {
+  const agentName = (id: string) => ({ a1: 'דנה', a2: 'משה' })[id as 'a1' | 'a2']
+  const hospitalName = (id: string) => ({ h1: 'איכילוב', h2: 'תל השומר' })[id as 'h1' | 'h2']
+
+  it('groups assignments by hospital, sorted alphabetically', () => {
+    const out = groupByHospital(
+      [
+        { agent_id: 'a1', shift: 'morning', hospital_id: 'h2', area: '', work_type: 'field' },
+        { agent_id: 'a2', shift: 'morning', hospital_id: 'h1', area: '', work_type: 'field' },
+      ],
+      agentName,
+      hospitalName,
+    )
+    expect(out.map((g) => g.hospitalName)).toEqual(['איכילוב', 'תל השומר'])
+  })
+  it('puts assignments with no hospital in a trailing "ללא בית חולים" group', () => {
+    const out = groupByHospital(
+      [
+        { agent_id: 'a1', shift: 'morning', hospital_id: 'h1', area: '', work_type: 'field' },
+        { agent_id: 'a2', shift: 'morning', hospital_id: null, area: '', work_type: 'office' },
+      ],
+      agentName,
+      hospitalName,
+    )
+    expect(out.at(-1)?.hospitalName).toBe('ללא בית חולים')
+    expect(out.at(-1)?.hospitalId).toBeNull()
+  })
+  it('within a hospital, sorts morning before evening', () => {
+    const out = groupByHospital(
+      [
+        { agent_id: 'a1', shift: 'evening', hospital_id: 'h1', area: '', work_type: 'field' },
+        { agent_id: 'a2', shift: 'morning', hospital_id: 'h1', area: '', work_type: 'field' },
+      ],
+      agentName,
+      hospitalName,
+    )
+    expect(out[0].entries.map((e) => e.shift)).toEqual(['morning', 'evening'])
+  })
+  it('no assignments means no groups', () => {
+    expect(groupByHospital([], agentName, hospitalName)).toEqual([])
   })
 })

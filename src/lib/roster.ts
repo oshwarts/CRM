@@ -260,3 +260,24 @@ export function unreportedShifts(dates: string[], alreadyReported: (date: string
 export function assignmentConflicts(assigned: boolean, status: AvailabilityStatus | 'unset'): boolean {
   return assigned && status === 'unavailable'
 }
+
+export type HospitalGroupEntry = { agentId: string; agentName: string; shift: RosterShift; workType: WorkType; area: string }
+export type HospitalGroup = { hospitalId: string | null; hospitalName: string; entries: HospitalGroupEntry[] }
+
+/** "who is where today": one day's assignments grouped by site instead of by agent, site work first (alphabetical), non-site work (office/training/other) last */
+export function groupByHospital(
+  assignments: Pick<AssignmentRow, 'agent_id' | 'shift' | 'hospital_id' | 'area' | 'work_type'>[],
+  agentName: (id: string) => string | undefined,
+  hospitalName: (id: string) => string | undefined,
+): HospitalGroup[] {
+  const groups = new Map<string, HospitalGroup>()
+  for (const a of assignments) {
+    const key = a.hospital_id ?? ''
+    if (!groups.has(key)) groups.set(key, { hospitalId: a.hospital_id, hospitalName: a.hospital_id ? hospitalName(a.hospital_id) ?? '—' : 'ללא בית חולים', entries: [] })
+    groups.get(key)!.entries.push({ agentId: a.agent_id, agentName: agentName(a.agent_id) ?? '—', shift: a.shift, workType: a.work_type, area: a.area })
+  }
+  const list = [...groups.values()]
+  list.sort((x, y) => (x.hospitalId === null ? 1 : y.hospitalId === null ? -1 : x.hospitalName.localeCompare(y.hospitalName, 'he')))
+  for (const g of list) g.entries.sort((x, y) => (x.shift === y.shift ? x.agentName.localeCompare(y.agentName, 'he') : x.shift === 'morning' ? -1 : 1))
+  return list
+}

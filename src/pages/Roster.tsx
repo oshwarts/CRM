@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Bell, CalendarDays, CalendarCheck, ChevronDown, ChevronLeft, ChevronRight, ClipboardCopy, Lightbulb, Lock, LockOpen, Pencil, Sparkles, Table2, UserCog } from 'lucide-react'
+import { AlertTriangle, Bell, Building2, CalendarDays, CalendarCheck, ChevronDown, ChevronLeft, ChevronRight, ClipboardCopy, Lightbulb, Lock, LockOpen, Pencil, Sparkles, Table2, UserCog, Users } from 'lucide-react'
 import {
   useAgents,
   useBulkSaveAssignments,
@@ -31,6 +31,7 @@ import {
   coverageGaps,
   dayAvailability,
   fillableShift,
+  groupByHospital,
   shiftLine,
   overloaded,
   suggestionsFor,
@@ -100,6 +101,8 @@ export default function Roster() {
     [dates, avail.data, user?.id],
   )
   useEffect(() => setView(isClosed ? 'week' : myUnreported.length > 0 ? 'mine' : 'day'), [isClosed, weekStart]) // eslint-disable-line react-hooks/exhaustive-deps -- only the deliberate re-pick on a week change, not every time myUnreported recomputes
+  // within day view: "who is where" grouped by agent (default) or by site
+  const [dayGroupBy, setDayGroupBy] = useState<'agent' | 'hospital'>('agent')
 
   const loading = agents.isLoading || hospitals.isLoading || tasks.isLoading || meetings.isLoading || scans.isLoading
   const failed = (agents.error || tasks.error || meetings.error) && !agents.data
@@ -158,6 +161,11 @@ export default function Roster() {
 
   const [editing, setEditing] = useState<{ agentId: string; agentName: string; shift: RosterShift } | null>(null)
   const hospitalMap = useMemo(() => new Map((hospitals.data ?? []).map((h) => [h.id, h.name])), [hospitals.data])
+  const agentNameMap = useMemo(() => new Map((agents.data ?? []).map((a) => [a.id, a.full_name])), [agents.data])
+  const dayByHospital = useMemo(
+    () => groupByHospital([...assignByKey.values()].filter((a) => a.date === day), (id) => agentNameMap.get(id), (id) => hospitalMap.get(id)),
+    [assignByKey, day, agentNameMap, hospitalMap],
+  )
 
   // who to notify when the week is closed: everyone who already has something on it this week
   const agentsInWeek = useMemo(() => {
@@ -326,18 +334,65 @@ export default function Roster() {
           </div>
 
           <div className="space-y-3">
-            <div>
-              <h2 className="text-base font-semibold text-slate-800">
-                {DAY_NAMES[new Date(day).getDay()]}, {formatDate(day)}
-              </h2>
-              {dayStats.total > 0 && (
-                <p className="text-xs text-slate-500">
-                  {dayStats.assigned}/{dayStats.total} משמרות משובצות
-                  {dayStats.unavailable > 0 ? ` · ${dayStats.unavailable} דיווחי אי-זמינות` : ''}
-                </p>
-              )}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 className="text-base font-semibold text-slate-800">
+                  {DAY_NAMES[new Date(day).getDay()]}, {formatDate(day)}
+                </h2>
+                {dayStats.total > 0 && (
+                  <p className="text-xs text-slate-500">
+                    {dayStats.assigned}/{dayStats.total} משמרות משובצות
+                    {dayStats.unavailable > 0 ? ` · ${dayStats.unavailable} דיווחי אי-זמינות` : ''}
+                  </p>
+                )}
+              </div>
+              <div role="tablist" aria-label="קיבוץ תצוגה יומית" className="flex gap-1 rounded-xl bg-slate-100 p-1">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={dayGroupBy === 'agent'}
+                  className={classNames('inline-flex min-h-[32px] items-center gap-1 rounded-lg px-2.5 text-xs font-medium', dayGroupBy === 'agent' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-500')}
+                  onClick={() => setDayGroupBy('agent')}
+                >
+                  <Users size={13} aria-hidden /> לפי סוכן
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={dayGroupBy === 'hospital'}
+                  className={classNames('inline-flex min-h-[32px] items-center gap-1 rounded-lg px-2.5 text-xs font-medium', dayGroupBy === 'hospital' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-500')}
+                  onClick={() => setDayGroupBy('hospital')}
+                >
+                  <Building2 size={13} aria-hidden /> לפי בית חולים
+                </button>
+              </div>
             </div>
-            {SHIFTS.map((shift) => (
+            {dayGroupBy === 'hospital' ? (
+              <div className="space-y-2">
+                {dayByHospital.map((g) => (
+                  <section key={g.hospitalId ?? '—'} className="card space-y-2 p-3.5 sm:p-4" aria-label={g.hospitalName}>
+                    <h3 className="flex items-center gap-1.5 text-sm font-semibold text-brand-800">
+                      <Building2 size={14} aria-hidden /> {g.hospitalName}
+                    </h3>
+                    <ul className="divide-y divide-slate-100">
+                      {g.entries.map((e, i) => (
+                        <li key={`${e.agentId}-${e.shift}-${i}`} className="flex items-center justify-between gap-2 py-2 text-sm">
+                          <span className="font-medium text-slate-800">{e.agentName}</span>
+                          <span className="text-xs text-slate-500">
+                            {SHIFT_LABELS[e.shift]}
+                            {e.area ? ` · ${e.area}` : ''}
+                            {g.hospitalId === null ? ` · ${WORK_TYPE_LABELS[e.workType]}` : ''}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ))}
+                {dayByHospital.length === 0 && <p className="card p-4 text-center text-sm text-slate-400">אין שיבוצים ביום זה</p>}
+              </div>
+            ) : (
+              <>
+                {SHIFTS.map((shift) => (
               <section key={shift} className="card space-y-2 p-3.5 sm:p-4" aria-label={SHIFT_LABELS[shift]}>
                 <h3 className="text-sm font-semibold text-brand-800">{SHIFT_LABELS[shift]}</h3>
                 <ul className="divide-y divide-slate-100">
@@ -390,7 +445,9 @@ export default function Roster() {
                   {agentList.length === 0 && <li className="py-3 text-sm text-slate-400">אין סוכנים פעילים</li>}
                 </ul>
               </section>
-            ))}
+                ))}
+              </>
+            )}
           </div>
         </>
       )}

@@ -44,7 +44,7 @@ const TABS = ['/', '/doctors', '/tasks', '/schedule']
 // scroll position of each visited page, so that going back returns to the same place
 const scrollOf = new Map<string, number>()
 
-const VERSION = 'v164 · מערכת שעות: עיצוב מחדש לנוחות עבודה — תצוגות יומי/שבועי/הזמינות שלי כטאבים עם ברירת מחדל חכמה, תפריט כלי ניהול מתקפל, שורת פערי כיסוי ועדכונים מצומצמת, שורת סיכום ליום הנבחר'
+const VERSION = 'v165 · מערכת שעות: תצוגה יומית "לפי בית חולים" — מי נמצא איפה היום, לצד התצוגה הרגילה לפי סוכן'
 
 // a failure of the shell itself (not of one screen) also ends in a message with a way out, never in a blank page
 export function Layout() {
