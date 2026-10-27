@@ -348,6 +348,87 @@ export type Database = {
         Update: { key?: string; updated_at?: string; value?: string }
         Relationships: []
       }
+      agent_availability: {
+        Row: {
+          id: string
+          agent_id: string
+          date: string
+          shift: string
+          status: string
+          reason: string
+          note: string
+          updated_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          agent_id: string
+          date: string
+          shift: string
+          status?: string
+          reason?: string
+          note?: string
+          updated_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          agent_id?: string
+          date?: string
+          shift?: string
+          status?: string
+          reason?: string
+          note?: string
+          updated_by?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      schedule_assignments: {
+        Row: {
+          id: string
+          agent_id: string
+          date: string
+          shift: string
+          hospital_id: string | null
+          area: string
+          work_type: string
+          task_id: string | null
+          meeting_id: string | null
+          note: string
+          updated_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          agent_id: string
+          date: string
+          shift: string
+          hospital_id?: string | null
+          area?: string
+          work_type?: string
+          task_id?: string | null
+          meeting_id?: string | null
+          note?: string
+          updated_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          agent_id?: string
+          date?: string
+          shift?: string
+          hospital_id?: string | null
+          area?: string
+          work_type?: string
+          task_id?: string | null
+          meeting_id?: string | null
+          note?: string
+          updated_by?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       equipment_items: {
         Row: {
           catalog_number: string

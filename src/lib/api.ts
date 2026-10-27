@@ -42,6 +42,8 @@ import type {
   AuditEntry,
   CompetitorIntelRow,
   Competitor,
+  RosterAssignmentRow,
+  RosterAvailabilityRow,
 } from './types'
 import { SCAN_PROCEDURE_TO_NAME } from './types'
 import { infoStorage } from './largeFiles'
@@ -2764,5 +2766,74 @@ export function useSaveEquipmentItem() {
       qc.invalidateQueries({ queryKey: ['equipment-items'] })
       qc.invalidateQueries({ queryKey: ['doctor-equipment'] })
     },
+  })
+}
+
+/* ============================ Roster: weekly availability and assignments ============================ */
+
+export function useWeekAvailability(dates: string[]) {
+  const from = dates[0]
+  const to = dates[dates.length - 1]
+  return useQuery({
+    queryKey: ['roster-availability', from, to],
+    enabled: !!from && !!to,
+    queryFn: async () =>
+      unwrap<RosterAvailabilityRow[]>(
+        await supabase.from('agent_availability').select('*').gte('date', from).lte('date', to),
+      ),
+  })
+}
+
+export function useSaveAvailability() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (rows: { agent_id: string; date: string; shift: 'morning' | 'evening'; status: 'available' | 'unavailable'; reason: string; note: string }[]) =>
+      unwrap(await supabase.from('agent_availability').upsert(rows.map((r) => ({ ...r, reason: r.reason.trim(), note: r.note.trim() })), { onConflict: 'agent_id,date,shift' })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['roster-availability'] }),
+  })
+}
+
+export function useWeekAssignments(dates: string[]) {
+  const from = dates[0]
+  const to = dates[dates.length - 1]
+  return useQuery({
+    queryKey: ['roster-assignments', from, to],
+    enabled: !!from && !!to,
+    queryFn: async () =>
+      unwrap<RosterAssignmentRow[]>(
+        await supabase.from('schedule_assignments').select('*').gte('date', from).lte('date', to),
+      ),
+  })
+}
+
+export function useSaveAssignment() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (a: {
+      agent_id: string
+      date: string
+      shift: 'morning' | 'evening'
+      hospital_id: string | null
+      area: string
+      work_type: 'field' | 'office' | 'training' | 'other'
+      task_id: string | null
+      meeting_id: string | null
+      note: string
+    }) =>
+      unwrap(
+        await supabase
+          .from('schedule_assignments')
+          .upsert({ ...a, area: a.area.trim(), note: a.note.trim() }, { onConflict: 'agent_id,date,shift' }),
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['roster-assignments'] }),
+  })
+}
+
+export function useClearAssignment() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (p: { agent_id: string; date: string; shift: 'morning' | 'evening' }) =>
+      unwrap(await supabase.from('schedule_assignments').delete().eq('agent_id', p.agent_id).eq('date', p.date).eq('shift', p.shift)),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['roster-assignments'] }),
   })
 }

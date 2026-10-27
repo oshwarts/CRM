@@ -55,6 +55,8 @@ export type TaskRow = MeetingTask & {
   meeting: { id: string; subject: string } | null
 }
 export type Contact = Tables<'contacts'>
+export type RosterAvailabilityRow = Tables<'agent_availability'>
+export type RosterAssignmentRow = Tables<'schedule_assignments'>
 export type CaseVolume = Tables<'case_volumes'>
 export type Organization = Tables<'organizations'>
 export type RoboticSystem = Tables<'robotic_systems'>

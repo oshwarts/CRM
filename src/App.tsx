@@ -26,6 +26,7 @@ const load = {
   Reports: () => import('./pages/Reports'),
   Scans: () => import('./pages/Scans'),
   Schedule: () => import('./pages/Schedule'),
+  Roster: () => import('./pages/Roster'),
   Info: () => import('./pages/Info'),
   Consumables: () => import('./pages/Consumables'),
   Settings: () => import('./pages/Settings'),
@@ -58,6 +59,7 @@ const HospitalView = lazy(load.HospitalView)
 const Reports = lazy(load.Reports)
 const Scans = lazy(load.Scans)
 const Schedule = lazy(load.Schedule)
+const Roster = lazy(load.Roster)
 const Info = lazy(load.Info)
 const Consumables = lazy(load.Consumables)
 const Settings = lazy(load.Settings)
@@ -138,6 +140,7 @@ export default function App() {
         <Route path="/pipeline" element={<Navigate to="/doctors?status=potential" replace />} />
         <Route path="/scans" element={<Page><Scans /></Page>} />
         <Route path="/schedule" element={<Page><Schedule /></Page>} />
+        <Route path="/roster" element={<Page><Roster /></Page>} />
         <Route path="/info" element={<Page><Info /></Page>} />
         <Route path="/consumables" element={<Page><Consumables /></Page>} />
         <Route path="/reports" element={<Page><Reports /></Page>} />
