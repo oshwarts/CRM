@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { Lightbulb, Lock } from 'lucide-react'
+import { AlertTriangle, Lightbulb, Lock } from 'lucide-react'
 import { useClearAssignment, useHospitals, useNotifyAssignmentChange, useSaveAssignment } from '../lib/api'
-import { assignmentChangeMessage, SHIFT_LABELS, WORK_TYPES, WORK_TYPE_LABELS, type AssignmentRow, type RosterShift, type Suggestion } from '../lib/roster'
+import { assignmentChangeMessage, SHIFT_LABELS, WORK_TYPES, WORK_TYPE_LABELS, type AssignmentRow, type AvailabilityStatus, type RosterShift, type Suggestion } from '../lib/roster'
 import { formatDate } from '../lib/utils'
 import { Field, Modal } from './ui'
 
@@ -16,6 +16,7 @@ export function RosterAssignmentModal({
   weekStart,
   isClosed,
   current,
+  availability,
   suggestions,
   taskOptions,
   meetingOptions,
@@ -29,6 +30,8 @@ export function RosterAssignmentModal({
   /** the week this shift falls in was already closed by a manager: saving now notifies the agent */
   isClosed: boolean
   current: AssignmentRow | null
+  /** what the agent reported for this exact shift, if anything — assigning them anyway is allowed, just warned about */
+  availability: { status: AvailabilityStatus; reason: string } | null
   suggestions: Suggestion[]
   taskOptions: LinkOption[]
   meetingOptions: LinkOption[]
@@ -87,6 +90,15 @@ export function RosterAssignmentModal({
         {isClosed && (
           <p className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
             <Lock size={13} aria-hidden /> השבוע הזה כבר נסגר ופורסם. שמירה כאן עדיין אפשרית, ותשלח עדכון אישי ל{agentName}.
+          </p>
+        )}
+
+        {availability?.status === 'unavailable' && (
+          <p className="flex items-start gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+            <AlertTriangle size={13} className="mt-px shrink-0" aria-hidden />
+            <span>
+              דיווח אי-זמינות של {agentName} למשמרת זו{availability.reason ? ` (${availability.reason})` : ''}. אפשר לשבץ בכל זאת, אך כדאי לוודא קודם.
+            </span>
           </p>
         )}
 

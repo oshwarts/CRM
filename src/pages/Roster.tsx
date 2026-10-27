@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Bell, CalendarDays, ChevronLeft, ChevronRight, Lightbulb, Lock, LockOpen, Pencil, Table2 } from 'lucide-react'
+import { AlertTriangle, Bell, CalendarDays, ChevronLeft, ChevronRight, ClipboardCopy, Lightbulb, Lock, LockOpen, Pencil, Sparkles, Table2 } from 'lucide-react'
 import {
   useAgents,
+  useBulkSaveAssignments,
   useCloseWeek,
+  useFetchWeekAssignments,
+  useFetchWeekAvailability,
   useHospitalAgents,
   useHospitals,
   useMarkNotificationRead,
@@ -22,7 +25,11 @@ import {
   SHIFT_LABELS,
   WORK_TYPE_LABELS,
   assignmentShort,
+  assignmentsToCopy,
+  availabilityToCopy,
+  coverageGaps,
   dayAvailability,
+  fillableShift,
   shiftLine,
   overloaded,
   suggestionsFor,
@@ -31,6 +38,7 @@ import {
   type AssignmentRow,
   type AvailabilityRow,
   type AvailabilityStatus,
+  type CoverageGap,
   type RecMeeting,
   type RecScan,
   type RecTask,
@@ -39,6 +47,7 @@ import {
 import { RosterAssignmentModal, type LinkOption } from '../components/RosterAssignmentModal'
 import { ConfirmButton, Spinner, ErrorState } from '../components/ui'
 import { classNames, formatDate, todayISO } from '../lib/utils'
+import { toast } from '../lib/toast'
 
 const DOT: Record<ReturnType<typeof dayAvailability>, string> = {
   full: 'bg-emerald-500',
@@ -76,6 +85,10 @@ export default function Roster() {
   const isClosed = !!week.data
   const notifications = useRosterNotifications()
   const markRead = useMarkNotificationRead()
+  const fetchPrevAvail = useFetchWeekAvailability()
+  const fetchPrevAssign = useFetchWeekAssignments()
+  const bulkAssign = useBulkSaveAssignments()
+  const prevDates = useMemo(() => weekDates(addDaysISO(weekStart, -7)), [weekStart])
 
   // a closed week is the published roster — the week-at-a-glance view is the sensible default for it; an open week defaults to editing one day
   const [view, setView] = useState<'day' | 'week'>('day')
@@ -159,6 +172,55 @@ export default function Roster() {
     setEditing({ agentId, agentName, shift })
   }
 
+  // "copy last week": for me (availability), or for the whole roster (assignments) — only into slots nothing is reported/assigned for yet
+  function copyMyAvailability() {
+    const myId = user?.id ?? ''
+    fetchPrevAvail.mutate(prevDates, {
+      onSuccess: (rows) => {
+        const mine = rows.filter((r) => r.agent_id === myId).map((r) => ({ date: r.date, shift: r.shift as RosterShift, status: r.status as AvailabilityStatus, reason: r.reason }))
+        const toCopy = availabilityToCopy(mine, dates, prevDates, (date, shift) => (availByAgentDay.get(`${myId}|${date}`) ?? []).some((r) => r.shift === shift))
+        if (toCopy.length === 0) return toast('אין מה להעתיק — כבר דיווחת על כל ימי השבוע', { kind: 'info' })
+        saveAvail.mutate(toCopy.map((c) => ({ agent_id: myId, ...c, note: '' })))
+      },
+      onError: () => toast('ההעתקה נכשלה', { kind: 'error' }),
+    })
+  }
+  function copyLastWeekAssignments() {
+    fetchPrevAssign.mutate(prevDates, {
+      onSuccess: (rows) => {
+        const typed = rows.map((r) => ({ agent_id: r.agent_id, date: r.date, shift: r.shift as RosterShift, hospital_id: r.hospital_id, area: r.area, work_type: r.work_type as AssignmentRow['work_type'], note: r.note }))
+        const plan = assignmentsToCopy(typed, dates, prevDates, (agentId, date, shift) => assignByKey.has(`${agentId}|${date}|${shift}`))
+        if (plan.length === 0) return toast('אין שיבוצים חדשים להעתיק מהשבוע הקודם', { kind: 'info' })
+        if (!window.confirm(`להעתיק ${plan.length} שיבוצים מהשבוע הקודם לשבוע הנוכחי?`)) return
+        bulkAssign.mutate(plan)
+      },
+      onError: () => toast('ההעתקה נכשלה', { kind: 'error' }),
+    })
+  }
+  function autoFillBySuggestions() {
+    const plan: Parameters<typeof bulkAssign.mutate>[0] = []
+    for (const a of agentList)
+      for (const d of dates)
+        for (const shift of SHIFTS) {
+          const assigned = assignByKey.has(`${a.id}|${d}|${shift}`)
+          const row = (availByAgentDay.get(`${a.id}|${d}`) ?? []).find((r) => r.shift === shift)
+          if (!fillableShift(assigned, row?.status ?? 'unset')) continue
+          const top = suggestionsFor({ agentId: a.id, date: d, tasks: recTasks, meetings: recMeetings, scans: recScans, hospitalsOfAgent: hospitalsOfAgent.get(a.id) ?? [] })[0]
+          if (top) plan.push({ agent_id: a.id, date: d, shift, hospital_id: top.hospitalId, area: '', work_type: 'field', task_id: null, meeting_id: null, note: '' })
+        }
+    if (plan.length === 0) return toast('אין כרגע הצעות למשמרות פנויות', { kind: 'info' })
+    if (!window.confirm(`למלא ${plan.length} משמרות פנויות לפי ההמלצות החזקות ביותר?`)) return
+    bulkAssign.mutate(plan)
+  }
+
+  const gaps = useMemo(() => {
+    if (!isAdmin) return []
+    const covered = new Set((hospitalAgents.data ?? []).map((r) => r.hospital_id))
+    const hospList = (hospitals.data ?? []).map((h) => ({ id: h.id, name: h.name, covered: covered.has(h.id) }))
+    const isAssigned = (hospitalId: string, date: string) => [...assignByKey.values()].some((a) => a.date === date && a.hospital_id === hospitalId)
+    return coverageGaps({ dates, hospitals: hospList, scans: recScans, isAssigned })
+  }, [isAdmin, hospitals.data, hospitalAgents.data, assignByKey, dates, recScans])
+
   if (loading) return <Spinner />
   if (failed) return <ErrorState error={agents.error ?? tasks.error ?? meetings.error} />
 
@@ -179,16 +241,31 @@ export default function Roster() {
         isClosed={isClosed}
         isAdmin={isAdmin}
         closing={closeWeek.isPending}
+        copying={fetchPrevAssign.isPending || bulkAssign.isPending}
+        filling={bulkAssign.isPending}
         onShift={setAnchor}
         onToday={() => setAnchor(todayISO())}
         onClose={doCloseWeek}
+        onCopyLastWeek={copyLastWeekAssignments}
+        onAutoFill={autoFillBySuggestions}
         view={view}
         onViewChange={setView}
       />
 
       <RosterInbox myId={user?.id ?? ''} notifications={notifications.data ?? []} markRead={markRead} onOpenDate={(d) => { setAnchor(d); setDay(d); setView('day') }} />
 
-      <MyAvailability dates={dates} myId={user?.id ?? ''} isAdmin={isAdmin} isClosed={isClosed} availByAgentDay={availByAgentDay} saveAvail={saveAvail} />
+      {isAdmin && <CoverageGapsBanner gaps={gaps} onOpenDate={(d) => { setDay(d); setView('day') }} />}
+
+      <MyAvailability
+        dates={dates}
+        myId={user?.id ?? ''}
+        isAdmin={isAdmin}
+        isClosed={isClosed}
+        availByAgentDay={availByAgentDay}
+        saveAvail={saveAvail}
+        onCopyLastWeek={copyMyAvailability}
+        copying={fetchPrevAvail.isPending}
+      />
 
       {view === 'week' ? (
         <WeekMatrix
@@ -285,6 +362,7 @@ export default function Roster() {
       {editing &&
         (() => {
           const { taskOptions, meetingOptions } = linkOptionsFor(editing.agentId, day)
+          const availRow = (availByAgentDay.get(`${editing.agentId}|${day}`) ?? []).find((r) => r.shift === editing.shift)
           return (
             <RosterAssignmentModal
               agentId={editing.agentId}
@@ -294,6 +372,7 @@ export default function Roster() {
               weekStart={weekStart}
               isClosed={isClosed}
               current={assignByKey.get(`${editing.agentId}|${day}|${editing.shift}`) ?? null}
+              availability={availRow ? { status: availRow.status, reason: availRow.reason } : null}
               suggestions={suggestionsFor({ agentId: editing.agentId, date: day, tasks: recTasks, meetings: recMeetings, scans: recScans, hospitalsOfAgent: hospitalsOfAgent.get(editing.agentId) ?? [] })}
               taskOptions={taskOptions}
               meetingOptions={meetingOptions}
@@ -310,9 +389,13 @@ function WeekHeader({
   isClosed,
   isAdmin,
   closing,
+  copying,
+  filling,
   onShift,
   onToday,
   onClose,
+  onCopyLastWeek,
+  onAutoFill,
   view,
   onViewChange,
 }: {
@@ -320,9 +403,13 @@ function WeekHeader({
   isClosed: boolean
   isAdmin: boolean
   closing: boolean
+  copying: boolean
+  filling: boolean
   onShift: (d: string) => void
   onToday: () => void
   onClose: () => void
+  onCopyLastWeek: () => void
+  onAutoFill: () => void
   view: 'day' | 'week'
   onViewChange: (v: 'day' | 'week') => void
 }) {
@@ -359,12 +446,44 @@ function WeekHeader({
           </button>
         </div>
         {isAdmin && !isClosed && (
-          <ConfirmButton className="btn-secondary !py-1.5 text-sm" message="לסגור את הלוז לשבוע זה? הוא יפורסם, וכל סוכן שיש לו משהו בשבוע הזה יקבל על כך הודעה. עריכה אחרי הסגירה עדיין אפשרית ותתריע לסוכן על כל שינוי." onConfirm={onClose}>
-            <LockOpen size={15} aria-hidden /> {closing ? 'סוגר…' : 'סגור שבוע'}
-          </ConfirmButton>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="btn-ghost !py-1.5 text-sm" disabled={copying} onClick={onCopyLastWeek}>
+              <ClipboardCopy size={15} aria-hidden /> {copying ? 'מעתיק…' : 'העתק שיבוצים משבוע שעבר'}
+            </button>
+            <button type="button" className="btn-ghost !py-1.5 text-sm" disabled={filling} onClick={onAutoFill}>
+              <Sparkles size={15} aria-hidden /> {filling ? 'ממלא…' : 'מלא לפי המלצות'}
+            </button>
+            <ConfirmButton className="btn-secondary !py-1.5 text-sm" message="לסגור את הלוז לשבוע זה? הוא יפורסם, וכל סוכן שיש לו משהו בשבוע הזה יקבל על כך הודעה. עריכה אחרי הסגירה עדיין אפשרית ותתריע לסוכן על כל שינוי." onConfirm={onClose}>
+              <LockOpen size={15} aria-hidden /> {closing ? 'סוגר…' : 'סגור שבוע'}
+            </ConfirmButton>
+          </div>
         )}
       </div>
     </div>
+  )
+}
+
+/** hospitals with a MAKO scan or surgery today and nobody assigned there — the system's own flag that the roster still needs attention */
+function CoverageGapsBanner({ gaps, onOpenDate }: { gaps: CoverageGap[]; onOpenDate: (date: string) => void }) {
+  if (gaps.length === 0) return null
+  return (
+    <section className="card space-y-1.5 border border-amber-200 bg-amber-50 p-3" aria-label="פערי כיסוי">
+      <p className="flex items-center gap-1.5 text-sm font-semibold text-amber-800">
+        <AlertTriangle size={15} aria-hidden /> פערי כיסוי השבוע
+      </p>
+      <ul className="space-y-1">
+        {gaps.map((g) => (
+          <li key={`${g.hospitalId}-${g.date}`}>
+            <button type="button" className="flex min-h-[36px] w-full items-center justify-between gap-2 rounded-lg px-2 py-1 text-start text-sm hover:bg-amber-100/60" onClick={() => onOpenDate(g.date)}>
+              <span className="min-w-0 [overflow-wrap:anywhere]">
+                <span className="font-medium text-slate-800">{g.hospitalName}</span>
+                <span className="text-slate-600"> · {formatDate(g.date)} · {g.reasons.join(', ')} ואין שיבוץ</span>
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 
@@ -547,6 +666,8 @@ function MyAvailability({
   isClosed,
   availByAgentDay,
   saveAvail,
+  onCopyLastWeek,
+  copying,
 }: {
   dates: string[]
   myId: string
@@ -554,6 +675,8 @@ function MyAvailability({
   isClosed: boolean
   availByAgentDay: Map<string, AvailabilityRow[]>
   saveAvail: ReturnType<typeof useSaveAvailability>
+  onCopyLastWeek: () => void
+  copying: boolean
 }) {
   const [reasonFor, setReasonFor] = useState<string | null>(null) // `${date}|${shift}` currently editing a reason
   const [reasonText, setReasonText] = useState('')
@@ -568,14 +691,21 @@ function MyAvailability({
 
   return (
     <section className="card space-y-2 p-3.5 sm:p-4" aria-label="הזמינות שלי">
-      <h2 className="flex items-center gap-1.5 text-sm font-semibold text-brand-800">
-        הזמינות שלי
-        {locked && (
-          <span className="chip border-slate-300 bg-slate-100 text-slate-600" title="השבוע נסגר — פנה למנהל אם משהו צריך להשתנות">
-            <Lock size={11} aria-hidden /> נעול
-          </span>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="flex items-center gap-1.5 text-sm font-semibold text-brand-800">
+          הזמינות שלי
+          {locked && (
+            <span className="chip border-slate-300 bg-slate-100 text-slate-600" title="השבוע נסגר — פנה למנהל אם משהו צריך להשתנות">
+              <Lock size={11} aria-hidden /> נעול
+            </span>
+          )}
+        </h2>
+        {!locked && (
+          <button type="button" className="btn-ghost !py-1 text-xs" disabled={copying} onClick={onCopyLastWeek}>
+            <ClipboardCopy size={13} aria-hidden /> {copying ? 'מעתיק…' : 'העתק מהשבוע שעבר'}
+          </button>
         )}
-      </h2>
+      </div>
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-7">
         {dates.map((d, i) => {
           const rows = availByAgentDay.get(`${myId}|${d}`) ?? []

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assignmentChangeMessage, assignmentShort, availabilityLine, dayAvailability, overloaded, shiftLine, suggestionsFor, teamLoad, weekDates, weekStartOf } from '../lib/roster'
+import { assignmentChangeMessage, assignmentShort, availabilityLine, availabilityToCopy, assignmentsToCopy, coverageGaps, dayAvailability, fillableShift, overloaded, shiftLine, suggestionsFor, teamLoad, weekDates, weekStartOf } from '../lib/roster'
 
 describe('weekDates', () => {
   it('returns Sunday through Saturday of the week holding the anchor', () => {
@@ -195,5 +195,94 @@ describe('shiftLine', () => {
   it('unavailable, with the reason when there is one', () => {
     expect(shiftLine({ status: 'unavailable', reason: '' })).toBe('לא זמין')
     expect(shiftLine({ status: 'unavailable', reason: 'חופשה' })).toBe('לא זמין — חופשה')
+  })
+})
+
+describe('availabilityToCopy', () => {
+  const thisWeek = ['2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-07']
+  const prevWeek = ['2026-10-25', '2026-10-26', '2026-10-27', '2026-10-28', '2026-10-29', '2026-10-30', '2026-10-31']
+
+  it('maps each previous-week day to the same weekday this week', () => {
+    const prevRows = [{ date: '2026-10-27', shift: 'morning' as const, status: 'available' as const, reason: '' }]
+    const out = availabilityToCopy(prevRows, thisWeek, prevWeek, () => false)
+    expect(out).toEqual([{ date: '2026-11-03', shift: 'morning', status: 'available', reason: '' }])
+  })
+  it('never overwrites a day already reported this week', () => {
+    const prevRows = [{ date: '2026-10-27', shift: 'morning' as const, status: 'unavailable' as const, reason: 'חופשה' }]
+    expect(availabilityToCopy(prevRows, thisWeek, prevWeek, () => true)).toEqual([])
+  })
+  it('ignores a previous-week row outside the given week', () => {
+    const prevRows = [{ date: '2026-10-18', shift: 'morning' as const, status: 'available' as const, reason: '' }]
+    expect(availabilityToCopy(prevRows, thisWeek, prevWeek, () => false)).toEqual([])
+  })
+})
+
+describe('assignmentsToCopy', () => {
+  const thisWeek = ['2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-07']
+  const prevWeek = ['2026-10-25', '2026-10-26', '2026-10-27', '2026-10-28', '2026-10-29', '2026-10-30', '2026-10-31']
+
+  it('carries the hospital and work type, never the task/meeting link', () => {
+    const prevRows = [{ agent_id: 'a1', date: '2026-10-27', shift: 'morning' as const, hospital_id: 'h1', area: '', work_type: 'field' as const, note: 'הערה' }]
+    const out = assignmentsToCopy(prevRows, thisWeek, prevWeek, () => false)
+    expect(out).toEqual([{ agent_id: 'a1', date: '2026-11-03', shift: 'morning', hospital_id: 'h1', area: '', work_type: 'field', task_id: null, meeting_id: null, note: 'הערה' }])
+  })
+  it('skips a slot someone already assigned this week', () => {
+    const prevRows = [{ agent_id: 'a1', date: '2026-10-27', shift: 'morning' as const, hospital_id: 'h1', area: '', work_type: 'field' as const, note: '' }]
+    expect(assignmentsToCopy(prevRows, thisWeek, prevWeek, () => true)).toEqual([])
+  })
+})
+
+describe('fillableShift', () => {
+  it('fills an open, unreported or available shift', () => {
+    expect(fillableShift(false, 'unset')).toBe(true)
+    expect(fillableShift(false, 'available')).toBe(true)
+  })
+  it('never an already-assigned shift, or one the agent said they cannot work', () => {
+    expect(fillableShift(true, 'available')).toBe(false)
+    expect(fillableShift(false, 'unavailable')).toBe(false)
+  })
+})
+
+describe('coverageGaps', () => {
+  const dates = ['2026-10-27', '2026-10-28']
+  const h1 = { id: 'h1', name: 'שיבא', covered: true }
+  it('flags a covered hospital with an imminent scan and nobody assigned there that day', () => {
+    const gaps = coverageGaps({
+      dates,
+      hospitals: [h1],
+      scans: [{ hospital_id: 'h1', hospital_name: 'שיבא', ct_date: '2026-10-27', surgery_date: null, status: 'planned' }],
+      isAssigned: () => false,
+    })
+    expect(gaps).toEqual([{ date: '2026-10-27', hospitalId: 'h1', hospitalName: 'שיבא', reasons: ['סריקת/ניתוח MAKO היום'] }])
+  })
+  it('not a gap once someone is assigned there that day', () => {
+    const gaps = coverageGaps({
+      dates,
+      hospitals: [h1],
+      scans: [{ hospital_id: 'h1', hospital_name: 'שיבא', ct_date: '2026-10-27', surgery_date: null, status: 'planned' }],
+      isAssigned: (id, d) => id === 'h1' && d === '2026-10-27',
+    })
+    expect(gaps).toEqual([])
+  })
+  it('a hospital nobody covers at all is not a roster gap', () => {
+    const gaps = coverageGaps({
+      dates,
+      hospitals: [{ id: 'h2', name: 'איכילוב', covered: false }],
+      scans: [{ hospital_id: 'h2', hospital_name: 'איכילוב', ct_date: '2026-10-27', surgery_date: null, status: 'planned' }],
+      isAssigned: () => false,
+    })
+    expect(gaps).toEqual([])
+  })
+  it('a done or cancelled scan does not count', () => {
+    const gaps = coverageGaps({
+      dates,
+      hospitals: [h1],
+      scans: [
+        { hospital_id: 'h1', hospital_name: 'שיבא', ct_date: '2026-10-27', surgery_date: null, status: 'done' },
+        { hospital_id: 'h1', hospital_name: 'שיבא', ct_date: '2026-10-28', surgery_date: null, status: 'cancelled' },
+      ],
+      isAssigned: () => false,
+    })
+    expect(gaps).toEqual([])
   })
 })

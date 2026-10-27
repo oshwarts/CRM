@@ -2908,3 +2908,34 @@ export function useMarkNotificationRead() {
     },
   })
 }
+
+/** a week's availability, fetched once on demand (not kept live) — used by "copy last week" */
+export function useFetchWeekAvailability() {
+  return useMutation({
+    mutationFn: async (dates: string[]) =>
+      unwrap<RosterAvailabilityRow[]>(
+        await supabase.from('agent_availability').select('*').gte('date', dates[0]).lte('date', dates[dates.length - 1]),
+      ),
+  })
+}
+
+/** a week's assignments, fetched once on demand — used by "copy last week" */
+export function useFetchWeekAssignments() {
+  return useMutation({
+    mutationFn: async (dates: string[]) =>
+      unwrap<RosterAssignmentRow[]>(
+        await supabase.from('schedule_assignments').select('*').gte('date', dates[0]).lte('date', dates[dates.length - 1]),
+      ),
+  })
+}
+
+/** several assignments at once — copying last week's roster forward, or auto-filling by suggestion */
+export function useBulkSaveAssignments() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (
+      rows: { agent_id: string; date: string; shift: 'morning' | 'evening'; hospital_id: string | null; area: string; work_type: 'field' | 'office' | 'training' | 'other'; task_id: string | null; meeting_id: string | null; note: string }[],
+    ) => unwrap(await supabase.from('schedule_assignments').upsert(rows, { onConflict: 'agent_id,date,shift' })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['roster-assignments'] }),
+  })
+}

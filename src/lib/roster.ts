@@ -178,3 +178,73 @@ export function assignmentChangeMessage(date: string, shift: RosterShift, a: Ass
   const where = a.hospital_id ? null : a.area || (a.work_type !== 'field' ? WORK_TYPE_LABELS[a.work_type] : '')
   return `השיבוץ שלך ל${when} עודכן${where ? `: ${where}` : ''}`
 }
+
+/** last week's availability rows that are worth carrying into this week: only shifts the agent has not yet reported (never overwrites) */
+export function availabilityToCopy(
+  prevRows: Pick<AvailabilityRow, 'date' | 'shift' | 'status' | 'reason'>[],
+  thisWeekDates: string[],
+  prevWeekDates: string[],
+  alreadyReported: (date: string, shift: RosterShift) => boolean,
+): { date: string; shift: RosterShift; status: AvailabilityStatus; reason: string }[] {
+  const dayIndex = new Map(prevWeekDates.map((d, i) => [d, i]))
+  const out: { date: string; shift: RosterShift; status: AvailabilityStatus; reason: string }[] = []
+  for (const r of prevRows) {
+    const i = dayIndex.get(r.date)
+    if (i === undefined) continue
+    const date = thisWeekDates[i]
+    if (alreadyReported(date, r.shift)) continue
+    out.push({ date, shift: r.shift, status: r.status, reason: r.reason })
+  }
+  return out
+}
+
+/** last week's assignments that are worth carrying into this week: only agent/shift slots nobody has assigned yet (the task/meeting link is week-specific and never copied) */
+export function assignmentsToCopy(
+  prevRows: Pick<AssignmentRow, 'agent_id' | 'date' | 'shift' | 'hospital_id' | 'area' | 'work_type' | 'note'>[],
+  thisWeekDates: string[],
+  prevWeekDates: string[],
+  alreadyAssigned: (agentId: string, date: string, shift: RosterShift) => boolean,
+): { agent_id: string; date: string; shift: RosterShift; hospital_id: string | null; area: string; work_type: WorkType; task_id: null; meeting_id: null; note: string }[] {
+  const dayIndex = new Map(prevWeekDates.map((d, i) => [d, i]))
+  const out: ReturnType<typeof assignmentsToCopy> = []
+  for (const r of prevRows) {
+    const i = dayIndex.get(r.date)
+    if (i === undefined) continue
+    const date = thisWeekDates[i]
+    if (alreadyAssigned(r.agent_id, date, r.shift)) continue
+    out.push({ agent_id: r.agent_id, date, shift: r.shift, hospital_id: r.hospital_id, area: r.area, work_type: r.work_type, task_id: null, meeting_id: null, note: r.note })
+  }
+  return out
+}
+
+/** a shift is worth auto-filling only when nobody assigned it yet and the agent did not say they can't work it */
+export function fillableShift(assigned: boolean, status: AvailabilityStatus | 'unset'): boolean {
+  return !assigned && status !== 'unavailable'
+}
+
+export type CoverageGap = { date: string; hospitalId: string; hospitalName: string; reasons: string[] }
+
+/**
+ * Hospitals with a MAKO scan or surgery coming up in the next couple of days that, on that very day, nobody is assigned
+ * to (neither shift). A hospital nobody covers at all does not count — that is a staffing decision, not a roster gap.
+ */
+export function coverageGaps(params: {
+  dates: string[]
+  hospitals: { id: string; name: string; covered: boolean }[]
+  scans: RecScan[]
+  isAssigned: (hospitalId: string, date: string) => boolean
+}): CoverageGap[] {
+  const out: CoverageGap[] = []
+  for (const date of params.dates) {
+    for (const h of params.hospitals) {
+      if (!h.covered || params.isAssigned(h.id, date)) continue
+      let near = 0
+      for (const sc of params.scans) {
+        if (sc.hospital_id !== h.id || sc.status === 'cancelled' || sc.status === 'done') continue
+        if (sc.ct_date === date || sc.surgery_date === date) near++
+      }
+      if (near > 0) out.push({ date, hospitalId: h.id, hospitalName: h.name, reasons: [near === 1 ? 'סריקת/ניתוח MAKO היום' : `${near} סריקות/ניתוחי MAKO היום`] })
+    }
+  }
+  return out
+}
