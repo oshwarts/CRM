@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Bell, CalendarDays, CalendarCheck, ChevronLeft, ChevronRight, ClipboardCopy, Lightbulb, Lock, LockOpen, Pencil, Sparkles, Table2 } from 'lucide-react'
+import { AlertTriangle, Bell, CalendarDays, CalendarCheck, ChevronDown, ChevronLeft, ChevronRight, ClipboardCopy, Lightbulb, Lock, LockOpen, Pencil, Sparkles, Table2, UserCog } from 'lucide-react'
 import {
   useAgents,
   useBulkSaveAssignments,
@@ -92,9 +92,14 @@ export default function Roster() {
   const bulkAssign = useBulkSaveAssignments()
   const prevDates = useMemo(() => weekDates(addDaysISO(weekStart, -7)), [weekStart])
 
-  // a closed week is the published roster — the week-at-a-glance view is the sensible default for it; an open week defaults to editing one day
-  const [view, setView] = useState<'day' | 'week'>('day')
-  useEffect(() => setView(isClosed ? 'week' : 'day'), [isClosed, weekStart])
+  // a closed week is the published roster — the week-at-a-glance view is the sensible default for it; an agent who has not reported
+  // anything yet for an open week lands straight on "my availability"; otherwise the day being looked at, for everyone else
+  const [view, setView] = useState<'day' | 'week' | 'mine'>('day')
+  const myUnreported = useMemo(
+    () => (user?.id ? unreportedShifts(dates, (date, shift) => (avail.data ?? []).some((r) => r.agent_id === user.id && r.date === date && r.shift === shift)) : []),
+    [dates, avail.data, user?.id],
+  )
+  useEffect(() => setView(isClosed ? 'week' : myUnreported.length > 0 ? 'mine' : 'day'), [isClosed, weekStart]) // eslint-disable-line react-hooks/exhaustive-deps -- only the deliberate re-pick on a week change, not every time myUnreported recomputes
 
   const loading = agents.isLoading || hospitals.isLoading || tasks.isLoading || meetings.isLoading || scans.isLoading
   const failed = (agents.error || tasks.error || meetings.error) && !agents.data
@@ -240,6 +245,14 @@ export default function Roster() {
     return { taskOptions, meetingOptions }
   }
 
+  // a one-line orientation before the full list: how full is this day, at a glance
+  const dayStats = { total: agentList.length * SHIFTS.length, assigned: 0, unavailable: 0 }
+  for (const a of agentList)
+    for (const shift of SHIFTS) {
+      if (assignByKey.has(`${a.id}|${day}|${shift}`)) dayStats.assigned++
+      if ((availByAgentDay.get(`${a.id}|${day}`) ?? []).find((r) => r.shift === shift)?.status === 'unavailable') dayStats.unavailable++
+    }
+
   return (
     <div className="space-y-4">
       <WeekHeader
@@ -256,24 +269,28 @@ export default function Roster() {
         onAutoFill={autoFillBySuggestions}
         view={view}
         onViewChange={setView}
+        myUnreportedCount={myUnreported.length}
       />
 
-      <RosterInbox myId={user?.id ?? ''} notifications={notifications.data ?? []} markRead={markRead} onOpenDate={(d) => { setAnchor(d); setDay(d); setView('day') }} />
+      {(notifications.data ?? []).length > 0 || gaps.length > 0 ? (
+        <div className="grid gap-2 sm:grid-cols-2">
+          <RosterInbox myId={user?.id ?? ''} notifications={notifications.data ?? []} markRead={markRead} onOpenDate={(d) => { setAnchor(d); setDay(d); setView('day') }} />
+          {isAdmin && <CoverageGapsBanner gaps={gaps} onOpenDate={(d) => { setDay(d); setView('day') }} />}
+        </div>
+      ) : null}
 
-      {isAdmin && <CoverageGapsBanner gaps={gaps} onOpenDate={(d) => { setDay(d); setView('day') }} />}
-
-      <MyAvailability
-        dates={dates}
-        myId={user?.id ?? ''}
-        isAdmin={isAdmin}
-        isClosed={isClosed}
-        availByAgentDay={availByAgentDay}
-        saveAvail={saveAvail}
-        onCopyLastWeek={copyMyAvailability}
-        copying={fetchPrevAvail.isPending}
-      />
-
-      {view === 'week' ? (
+      {view === 'mine' ? (
+        <MyAvailability
+          dates={dates}
+          myId={user?.id ?? ''}
+          isAdmin={isAdmin}
+          isClosed={isClosed}
+          availByAgentDay={availByAgentDay}
+          saveAvail={saveAvail}
+          onCopyLastWeek={copyMyAvailability}
+          copying={fetchPrevAvail.isPending}
+        />
+      ) : view === 'week' ? (
         <WeekMatrix
           dates={dates}
           agents={agentList}
@@ -309,9 +326,17 @@ export default function Roster() {
           </div>
 
           <div className="space-y-3">
-            <h2 className="text-base font-semibold text-slate-800">
-              {DAY_NAMES[new Date(day).getDay()]}, {formatDate(day)}
-            </h2>
+            <div>
+              <h2 className="text-base font-semibold text-slate-800">
+                {DAY_NAMES[new Date(day).getDay()]}, {formatDate(day)}
+              </h2>
+              {dayStats.total > 0 && (
+                <p className="text-xs text-slate-500">
+                  {dayStats.assigned}/{dayStats.total} משמרות משובצות
+                  {dayStats.unavailable > 0 ? ` · ${dayStats.unavailable} דיווחי אי-זמינות` : ''}
+                </p>
+              )}
+            </div>
             {SHIFTS.map((shift) => (
               <section key={shift} className="card space-y-2 p-3.5 sm:p-4" aria-label={SHIFT_LABELS[shift]}>
                 <h3 className="text-sm font-semibold text-brand-800">{SHIFT_LABELS[shift]}</h3>
@@ -409,6 +434,7 @@ function WeekHeader({
   onAutoFill,
   view,
   onViewChange,
+  myUnreportedCount,
 }: {
   dates: string[]
   isClosed: boolean
@@ -421,9 +447,11 @@ function WeekHeader({
   onClose: () => void
   onCopyLastWeek: () => void
   onAutoFill: () => void
-  view: 'day' | 'week'
-  onViewChange: (v: 'day' | 'week') => void
+  view: 'day' | 'week' | 'mine'
+  onViewChange: (v: 'day' | 'week' | 'mine') => void
+  myUnreportedCount: number
 }) {
+  const [tools, setTools] = useState(false)
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -448,25 +476,33 @@ function WeekHeader({
         </div>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
-          <button type="button" className={classNames('inline-flex min-h-[36px] items-center gap-1 rounded-lg px-2.5 text-sm font-medium', view === 'day' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-500')} onClick={() => onViewChange('day')}>
-            <CalendarDays size={14} aria-hidden /> יומי
-          </button>
-          <button type="button" className={classNames('inline-flex min-h-[36px] items-center gap-1 rounded-lg px-2.5 text-sm font-medium', view === 'week' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-500')} onClick={() => onViewChange('week')}>
-            <Table2 size={14} aria-hidden /> שבועי
-          </button>
+        <div role="tablist" aria-label="תצוגה" className="flex gap-1 rounded-xl bg-slate-100 p-1">
+          <ViewTab view={view} v="day" icon={CalendarDays} label="יומי" onViewChange={onViewChange} />
+          <ViewTab view={view} v="week" icon={Table2} label="שבועי" onViewChange={onViewChange} />
+          <ViewTab view={view} v="mine" icon={UserCog} label="הזמינות שלי" badge={myUnreportedCount} onViewChange={onViewChange} />
         </div>
         {isAdmin && !isClosed && (
-          <div className="flex flex-wrap gap-2">
-            <button type="button" className="btn-ghost !py-1.5 text-sm" disabled={copying} onClick={onCopyLastWeek}>
-              <ClipboardCopy size={15} aria-hidden /> {copying ? 'מעתיק…' : 'העתק שיבוצים משבוע שעבר'}
+          <div className="relative">
+            <button type="button" className="btn-ghost !py-1.5 text-sm" aria-expanded={tools} onClick={() => setTools((v) => !v)}>
+              כלי ניהול <ChevronDown size={14} className={classNames('transition', tools && 'rotate-180')} aria-hidden />
             </button>
-            <button type="button" className="btn-ghost !py-1.5 text-sm" disabled={filling} onClick={onAutoFill}>
-              <Sparkles size={15} aria-hidden /> {filling ? 'ממלא…' : 'מלא לפי המלצות'}
-            </button>
-            <ConfirmButton className="btn-secondary !py-1.5 text-sm" message="לסגור את הלוז לשבוע זה? הוא יפורסם, וכל סוכן שיש לו משהו בשבוע הזה יקבל על כך הודעה. עריכה אחרי הסגירה עדיין אפשרית ותתריע לסוכן על כל שינוי." onConfirm={onClose}>
-              <LockOpen size={15} aria-hidden /> {closing ? 'סוגר…' : 'סגור שבוע'}
-            </ConfirmButton>
+            {tools && (
+              <div className="absolute right-0 top-full z-10 mt-1 w-64 max-w-[calc(100vw-2rem)] space-y-1 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+                <button type="button" className="btn-ghost !w-full !justify-start text-sm" disabled={copying} onClick={onCopyLastWeek}>
+                  <ClipboardCopy size={15} aria-hidden /> {copying ? 'מעתיק…' : 'העתק שיבוצים משבוע שעבר'}
+                </button>
+                <button type="button" className="btn-ghost !w-full !justify-start text-sm" disabled={filling} onClick={onAutoFill}>
+                  <Sparkles size={15} aria-hidden /> {filling ? 'ממלא…' : 'מלא לפי המלצות'}
+                </button>
+                <ConfirmButton
+                  className="btn-secondary !w-full !justify-start text-sm"
+                  message="לסגור את הלוז לשבוע זה? הוא יפורסם, וכל סוכן שיש לו משהו בשבוע הזה יקבל על כך הודעה. עריכה אחרי הסגירה עדיין אפשרית ותתריע לסוכן על כל שינוי."
+                  onConfirm={onClose}
+                >
+                  <LockOpen size={15} aria-hidden /> {closing ? 'סוגר…' : 'סגור שבוע'}
+                </ConfirmButton>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -495,6 +531,22 @@ function CoverageGapsBanner({ gaps, onOpenDate }: { gaps: CoverageGap[]; onOpenD
         ))}
       </ul>
     </section>
+  )
+}
+
+/** one tab of the view switcher (day / week / my availability), with an optional count badge */
+function ViewTab<V extends string>({ view, v, icon: Icon, label, badge, onViewChange }: { view: V; v: V; icon: typeof CalendarDays; label: string; badge?: number; onViewChange: (v: V) => void }) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={view === v}
+      className={classNames('inline-flex min-h-[36px] items-center gap-1 rounded-lg px-2.5 text-sm font-medium', view === v ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-500')}
+      onClick={() => onViewChange(v)}
+    >
+      <Icon size={14} aria-hidden /> {label}
+      {!!badge && <span className="chip !min-h-0 border-amber-200 bg-amber-100 px-1.5 py-0 text-amber-800">{badge}</span>}
+    </button>
   )
 }
 
