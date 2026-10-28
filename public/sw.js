@@ -77,3 +77,39 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(cacheFirst(req, ASSETS).catch(() => caches.match(req)))
   }
 })
+
+// a task reminder arriving from the server, even with the app closed
+self.addEventListener('push', (event) => {
+  let data = { title: 'תזכורת', body: '' }
+  try {
+    data = event.data.json()
+  } catch {
+    /* no payload or not JSON: show the generic title */
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'תזכורת', {
+      body: data.body || '',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      dir: 'rtl',
+      data: { taskId: data.taskId || null },
+    }),
+  )
+})
+
+// tapping the notification: focus an already-open tab if there is one, otherwise open a new one, both landing on the task
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  const url = event.notification.data?.taskId ? `/tasks?open=${event.notification.data.taskId}` : '/tasks'
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      for (const c of clients) {
+        if ('focus' in c) {
+          c.navigate(url)
+          return c.focus()
+        }
+      }
+      return self.clients.openWindow(url)
+    }),
+  )
+})

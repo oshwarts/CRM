@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useDraft } from '../lib/useDraft'
 import { QuickDates } from './QuickDates'
 import { SearchSelect } from './SearchSelect'
-import { ChevronDown, ChevronUp, Plus, X } from 'lucide-react'
+import { Bell, BellOff, BellRing, ChevronDown, ChevronUp, Plus, X } from 'lucide-react'
 import { useAgents, useDeleteTask, useDoctors, useHospitals, useSaveTask, type TaskFormData } from '../lib/api'
 import { useAuth } from '../context/AuthProvider'
 import type { TaskRow } from '../lib/types'
@@ -10,6 +10,8 @@ import { ConfirmButton, Field, Modal } from './ui'
 import { TaskSuggestions, useTaskGuess } from './TaskSuggestions'
 import { CoordinatorField } from './CoordinatorField'
 import { taskError } from '../lib/taskLogic'
+import { isoToLocalInput, localInputToIso } from '../lib/utils'
+import { enablePush, pushStatus } from '../lib/push'
 
 const emptyForm = (assignee: string | null): TaskFormData => ({
   description: '',
@@ -20,6 +22,7 @@ const emptyForm = (assignee: string | null): TaskFormData => ({
   hospital_id: null,
   recurrence: 'none',
   assignee_id: assignee,
+  reminder_at: null,
   subtasks: [],
 })
 
@@ -54,6 +57,7 @@ export function TaskFormModal({
           assignee_id: task.assignee_id,
           coordinator_contact_id: task.coordinator_contact_id,
           coordinator_text: task.coordinator_text,
+          reminder_at: task.reminder_at,
           subtasks: task.subtasks.map((s) => ({ id: s.id, text: s.text, is_done: s.is_done, due_date: s.due_date })),
         }
       : { ...emptyForm(user?.id ?? null), ...defaults }
@@ -66,6 +70,14 @@ export function TaskFormModal({
   const [triedSave, setTriedSave] = useState(false)
   const guess = useTaskGuess(task ? '' : d.description) // suggestions only for a new task
   const set = (p: Partial<TaskFormData>) => setD((x) => ({ ...x, ...p }))
+
+  const [notif, setNotif] = useState<'unsupported' | 'denied' | 'subscribed' | 'off' | 'loading'>('loading')
+  useEffect(() => {
+    pushStatus().then(setNotif)
+  }, [])
+  async function turnOnNotifications() {
+    setNotif(await enablePush())
+  }
 
   // focus the text field after the dialog has noted which button opened it (React's autoFocus runs earlier and would hide the opener,
   // so that closing the dialog could not give the focus back to it)
@@ -141,6 +153,47 @@ export function TaskFormModal({
             </select>
           </Field>
         </div>
+
+        <Field label="תזכורת בטלפון (אופציונלי)">
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="datetime-local"
+              className="input !w-auto"
+              value={isoToLocalInput(d.reminder_at)}
+              onChange={(e) => set({ reminder_at: localInputToIso(e.target.value) })}
+            />
+            {d.reminder_at && (
+              <button type="button" className="btn-ghost !px-2 text-slate-500" onClick={() => set({ reminder_at: null })} aria-label="הסר תזכורת">
+                <X size={16} />
+              </button>
+            )}
+          </div>
+          {d.reminder_at && notif !== 'loading' && notif !== 'subscribed' && (
+            <p className="mt-1.5 flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800">
+              {notif === 'unsupported' ? (
+                <>
+                  <BellOff size={13} aria-hidden /> הדפדפן הזה לא תומך בהתראות פוש
+                </>
+              ) : notif === 'denied' ? (
+                <>
+                  <BellOff size={13} aria-hidden /> ההתראות חסומות בדפדפן — יש לאשר אותן בהגדרות הדפדפן כדי שהתזכורת תקפוץ
+                </>
+              ) : (
+                <>
+                  <Bell size={13} aria-hidden /> כדי שהתזכורת תקפוץ בטלפון צריך להפעיל התראות למכשיר הזה
+                  <button type="button" className="font-medium underline" onClick={turnOnNotifications}>
+                    הפעלת התראות
+                  </button>
+                </>
+              )}
+            </p>
+          )}
+          {d.reminder_at && notif === 'subscribed' && (
+            <p className="mt-1.5 flex items-center gap-1.5 text-xs text-emerald-700">
+              <BellRing size={13} aria-hidden /> התראות פעילות במכשיר הזה
+            </p>
+          )}
+        </Field>
 
         <button type="button" className="flex min-h-[40px] w-full items-center justify-between gap-2 rounded-xl border border-brand-200 bg-white px-3 text-right text-sm font-medium text-brand-700 hover:bg-brand-50" onClick={() => setMore((m) => !m)} aria-expanded={more}>
           <span>{more ? 'פחות פרטים' : 'עוד פרטים'}</span>

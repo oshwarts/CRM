@@ -1,7 +1,7 @@
 import { SwipeToComplete } from '../components/SwipeToComplete'
-import { useDeferredValue, useMemo, useRef, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from '../lib/toast'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Building2, CalendarDays, ChevronDown, ChevronLeft, Flame, ListChecks, Pencil, Plus, Repeat, Search, Stethoscope, User } from 'lucide-react'
 import {
   useAddSubtask,
@@ -54,6 +54,18 @@ export default function Tasks() {
   const [subText, setSubText] = useState<Record<string, string>>({})
   const [subDue, setSubDue_] = useState<Record<string, string>>({})
   const [error, setError] = useState('')
+
+  // a push notification ("open this task") lands here as ?open=<id> — open it once, then drop the param
+  const [params, setParams] = useSearchParams()
+  const openId = params.get('open')
+  useEffect(() => {
+    if (!openId) return
+    const t = (tasks.data ?? []).find((x) => x.id === openId)
+    if (t) {
+      setEditing(t)
+      setParams((p) => { p.delete('open'); return p }, { replace: true })
+    }
+  }, [openId, tasks.data, setParams])
 
   const dq = useDeferredValue(q) // typing stays smooth while a long list is re-filtered
   const list = useMemo(() => {
@@ -124,6 +136,7 @@ export default function Tasks() {
         hospital_id: quickGuess?.hospital_id ?? null,
         recurrence: quickGuess?.recurrence ?? 'none',
         assignee_id: isAdmin && who !== 'me' && who !== 'all' ? who : (user?.id ?? null),
+        reminder_at: null,
         subtasks: [],
       },
       { onSuccess: () => setQuickText(''), onError: fail, onSettled: () => (quickSending.current = false) },

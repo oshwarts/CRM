@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { classNames, csvCell, daysUntil, formatDate, isOverdue, todayISO } from '../lib/utils'
+import { classNames, csvCell, daysUntil, formatDate, isOverdue, isoToLocalInput, localInputToIso, todayISO } from '../lib/utils'
 
 afterEach(() => vi.useRealTimers())
 
@@ -40,5 +40,19 @@ describe('csvCell', () => {
 describe('classNames', () => {
   it('joins the real classes only', () => {
     expect(classNames('a', false, null, undefined, 'b')).toBe('a b')
+  })
+})
+
+describe('isoToLocalInput / localInputToIso', () => {
+  it('round-trips an ISO instant through a datetime-local value', () => {
+    const iso = new Date('2026-11-03T14:30:00.000Z').toISOString()
+    const local = isoToLocalInput(iso)
+    expect(localInputToIso(local)).toBe(iso)
+  })
+  it('empty or missing input gives empty/null', () => {
+    expect(isoToLocalInput(null)).toBe('')
+    expect(isoToLocalInput(undefined)).toBe('')
+    expect(isoToLocalInput('not a date')).toBe('')
+    expect(localInputToIso('')).toBeNull()
   })
 })

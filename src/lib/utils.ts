@@ -1,5 +1,19 @@
 import { addDays, format, isBefore, isValid, parseISO, startOfDay } from 'date-fns'
 
+/** an ISO instant (UTC) as the value a <input type="datetime-local"> wants: local wall-clock time, no timezone */
+export function isoToLocalInput(value: string | null | undefined): string {
+  if (!value) return ''
+  const d = parseISO(value)
+  return isValid(d) ? format(d, "yyyy-MM-dd'T'HH:mm") : ''
+}
+
+/** the reverse: what a <input type="datetime-local"> holds (local wall-clock time) back to an ISO instant */
+export function localInputToIso(value: string): string | null {
+  if (!value) return null
+  const d = new Date(value)
+  return isValid(d) ? d.toISOString() : null
+}
+
 export function todayISO(): string {
   return format(new Date(), 'yyyy-MM-dd')
 }

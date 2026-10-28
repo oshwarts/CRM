@@ -1907,6 +1907,8 @@ export type TaskFormData = {
   /** the AMI coordinator: a contact and/or free text */
   coordinator_contact_id?: string | null
   coordinator_text?: string
+  /** when set, a phone push notification is sent to the assignee at this time */
+  reminder_at: string | null
   subtasks: { id?: string; text: string; is_done: boolean; due_date?: string | null }[]
 }
 
@@ -2264,7 +2266,7 @@ type TaskSavePayload = {
   baseSubIds: string[] | null
   userId: string
 }
-const TASK_FIELDS = ['description', 'notes', 'due_date', 'priority', 'doctor_id', 'hospital_id', 'recurrence', 'coordinator_contact_id', 'coordinator_text']
+const TASK_FIELDS = ['description', 'notes', 'due_date', 'priority', 'doctor_id', 'hospital_id', 'recurrence', 'coordinator_contact_id', 'coordinator_text', 'reminder_at']
 
 const taskFields = (d: TaskSaveData) => ({
   description: d.description.trim(),
@@ -2276,6 +2278,7 @@ const taskFields = (d: TaskSaveData) => ({
   recurrence: d.recurrence,
   coordinator_contact_id: d.coordinator_contact_id ?? null,
   coordinator_text: (d.coordinator_text ?? '').trim(),
+  reminder_at: d.reminder_at || null,
 })
 
 async function execTaskSave(p: TaskSavePayload): Promise<ExecResult> {

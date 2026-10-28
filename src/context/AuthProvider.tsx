@@ -128,7 +128,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async switchUser(id) {
       if (!realProfile?.is_developer) return
       if (outboxSize() > 0) throw new Error('יש שינויים שממתינים לשליחה — המתן לסנכרון לפני החלפת משתמש')
-      const { error } = await supabase.rpc('set_impersonation', { target: id })
+      // the database function accepts NULL (clears impersonation) even though its uuid parameter type looks non-nullable here
+      const { error } = await supabase.rpc('set_impersonation', { target: id as string })
       if (error) throw error
       // nothing of the previous user stays on the device: start the app again as the new user
       queryClient.clear()
