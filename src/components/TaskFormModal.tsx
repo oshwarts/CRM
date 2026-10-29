@@ -71,7 +71,7 @@ export function TaskFormModal({
   const guess = useTaskGuess(task ? '' : d.description) // suggestions only for a new task
   const set = (p: Partial<TaskFormData>) => setD((x) => ({ ...x, ...p }))
 
-  const [notif, setNotif] = useState<'unsupported' | 'denied' | 'subscribed' | 'off' | 'loading'>('loading')
+  const [notif, setNotif] = useState<'unsupported' | 'denied' | 'subscribed' | 'off' | 'loading' | 'error'>('loading')
   useEffect(() => {
     pushStatus().then(setNotif)
   }, [])
@@ -159,6 +159,7 @@ export function TaskFormModal({
             <input
               type="datetime-local"
               className="input !w-auto"
+              min={isoToLocalInput(new Date().toISOString())}
               value={isoToLocalInput(d.reminder_at)}
               onChange={(e) => set({ reminder_at: localInputToIso(e.target.value) })}
             />
@@ -177,6 +178,13 @@ export function TaskFormModal({
               ) : notif === 'denied' ? (
                 <>
                   <BellOff size={13} aria-hidden /> ההתראות חסומות בדפדפן — יש לאשר אותן בהגדרות הדפדפן כדי שהתזכורת תקפוץ
+                </>
+              ) : notif === 'error' ? (
+                <>
+                  <BellOff size={13} aria-hidden /> ההפעלה לא הצליחה להישמר — נסה שוב
+                  <button type="button" className="font-medium underline" onClick={turnOnNotifications}>
+                    נסה שוב
+                  </button>
                 </>
               ) : (
                 <>

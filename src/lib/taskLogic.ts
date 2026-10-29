@@ -59,6 +59,21 @@ export function nextDue(due: string, recurrence: string, today: Date = new Date(
   return iso(recurrence === 'weekly' ? addDays(from, 7) : addMonths(from, 1))
 }
 
+/**
+ * a repeating task's reminder, carried forward to its next occurrence: same gap (in days + time-of-day) from the
+ * due date as before. Dropped (not carried forward into the past) when that gap no longer fits before the new due
+ * date — e.g. a task finished very late, where `nextDue` jumps to today instead of "due date + one interval".
+ */
+export function nextReminder(oldDue: string, oldReminder: string | null, newDue: string, now: Date = new Date()): string | null {
+  if (!oldReminder) return null
+  const oldDueStart = startOfDay(parseISO(oldDue))
+  const reminder = parseISO(oldReminder)
+  if (!isValid(oldDueStart) || !isValid(reminder)) return null
+  const offsetMs = reminder.getTime() - oldDueStart.getTime()
+  const candidate = new Date(startOfDay(parseISO(newDue)).getTime() + offsetMs)
+  return candidate.getTime() > now.getTime() ? candidate.toISOString() : null
+}
+
 /** a Hebrew message for a failed task write (the database's own text is English and means nothing to the user) */
 export function taskError(e: unknown, fallback: string): string {
   const msg = e instanceof Error ? e.message : typeof e === 'object' && e && 'message' in e ? String((e as { message: unknown }).message) : ''

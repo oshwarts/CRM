@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bucketOf, compareOpen, dueLabel, nextCopyId, nextDue, stableUuid, taskError } from '../lib/taskLogic'
+import { bucketOf, compareOpen, dueLabel, nextCopyId, nextDue, nextReminder, stableUuid, taskError } from '../lib/taskLogic'
 
 // Tuesday 2026-10-20, a quarter past midnight: the local day must be used (not UTC)
 const now = new Date(2026, 9, 20, 0, 15)
@@ -66,6 +66,27 @@ describe('nextDue', () => {
   })
   it('a task due today repeats from today', () => {
     expect(nextDue('2026-10-20', 'weekly', now)).toBe('2026-10-27')
+  })
+})
+
+describe('nextReminder', () => {
+  it('carries the reminder forward by the same gap from the due date', () => {
+    // due 2026-10-23, reminder a day before at 09:00 → next due 2026-10-30 → reminder 2026-10-29 09:00
+    const oldReminder = new Date(2026, 9, 22, 9, 0).toISOString()
+    const got = nextReminder('2026-10-23', oldReminder, '2026-10-30', now)
+    expect(got).toBe(new Date(2026, 9, 29, 9, 0).toISOString())
+  })
+  it('no reminder on the source task means none on the next one', () => {
+    expect(nextReminder('2026-10-23', null, '2026-10-30', now)).toBeNull()
+  })
+  it('dropped (not fired immediately) when the carried-forward time would already be in the past', () => {
+    // a task finished very late: nextDue jumps to "today", but the old gap would land before now
+    const oldReminder = new Date(2026, 8, 1, 9, 0).toISOString() // 2026-09-01 09:00
+    const got = nextReminder('2026-09-01', oldReminder, '2026-10-27', now) // now is 2026-10-20
+    expect(got).toBe(new Date(2026, 9, 27, 9, 0).toISOString())
+    // but if the new due date itself is today/very soon, the same-gap time can still be in the past
+    const pastCase = nextReminder('2026-09-01', oldReminder, '2026-10-20', new Date(2026, 9, 20, 12, 0))
+    expect(pastCase).toBeNull()
   })
 })
 

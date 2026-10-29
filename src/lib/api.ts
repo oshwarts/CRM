@@ -3,7 +3,7 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
-import { nextCopyId, nextDue, stableUuid } from './taskLogic'
+import { nextCopyId, nextDue, nextReminder, stableUuid } from './taskLogic'
 import { supabase } from './supabase'
 import { syncMeetingIntel } from './meetingIntel'
 import { withParentNames } from './procedures'
@@ -2139,7 +2139,8 @@ function mapMeetingCaches(fn: (m: MeetingWithRelations) => MeetingWithRelations)
 type DoneTask = Pick<
   MeetingTask,
   'id' | 'is_done' | 'description' | 'notes' | 'priority' | 'doctor_id' | 'hospital_id' | 'recurrence' | 'assignee_id' | 'created_by' | 'due_date'
-> & Partial<Pick<MeetingTask, 'project_id' | 'area_id' | 'coordinator_contact_id' | 'coordinator_text'>> & { subtasks?: { text: string }[] }
+> &
+  Partial<Pick<MeetingTask, 'project_id' | 'area_id' | 'coordinator_contact_id' | 'coordinator_text' | 'reminder_at'>> & { subtasks?: { text: string }[] }
 type TaskDonePayload = { task: DoneTask; done: boolean; nextId: string; at: string }
 
 async function execTaskDone({ task, done, nextId, at }: TaskDonePayload): Promise<ExecResult> {
@@ -2149,6 +2150,7 @@ async function execTaskDone({ task, done, nextId, at }: TaskDonePayload): Promis
     // a retry or an offline replay finds the copy that is already there and makes no second one
     const exists = unwrap<{ id: string }[]>(await supabase.from('meeting_tasks').select('id').eq('id', nextId).retry(false)).length > 0
     if (!exists) {
+      const nextDueDate = nextDue(task.due_date, task.recurrence)
       unwrap(
         await supabase.from('meeting_tasks').upsert({
           id: nextId,
@@ -2160,12 +2162,14 @@ async function execTaskDone({ task, done, nextId, at }: TaskDonePayload): Promis
           recurrence: task.recurrence,
           assignee_id: task.assignee_id,
           created_by: (await currentUserId()) || task.created_by,
-          due_date: nextDue(task.due_date, task.recurrence),
+          due_date: nextDueDate,
           // the next one stays in the same project / area and with the same AMI coordinator
           project_id: task.project_id ?? null,
           area_id: task.area_id ?? null,
           coordinator_contact_id: task.coordinator_contact_id ?? null,
           coordinator_text: task.coordinator_text ?? '',
+          // the reminder, if any, carries forward at the same gap from the due date (dropped if that would land in the past)
+          reminder_at: nextReminder(task.due_date, task.reminder_at ?? null, nextDueDate),
         }),
       )
     }
@@ -2195,6 +2199,7 @@ async function setTaskDoneOffline(task: DoneTask & { subtasks?: { text: string }
       area_id: task.area_id,
       coordinator_contact_id: task.coordinator_contact_id,
       coordinator_text: task.coordinator_text,
+      reminder_at: task.reminder_at,
       subtasks: task.subtasks?.map((s) => ({ text: s.text })),
     },
     done,

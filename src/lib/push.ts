@@ -25,7 +25,7 @@ export async function pushStatus(): Promise<'unsupported' | 'denied' | 'subscrib
 }
 
 /** asks for permission (if needed) and saves this device's subscription — call from a click handler, not on load */
-export async function enablePush(): Promise<'subscribed' | 'denied' | 'unsupported'> {
+export async function enablePush(): Promise<'subscribed' | 'denied' | 'unsupported' | 'error'> {
   const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY
   if (!pushSupported() || !vapidKey) return 'unsupported'
   const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission()
@@ -37,10 +37,11 @@ export async function enablePush(): Promise<'subscribed' | 'denied' | 'unsupport
     (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(vapidKey) as BufferSource }))
 
   const json = sub.toJSON()
+  // the user actually signed in as (not the real auth.uid() — matters while a developer is impersonating someone else)
   const userId = await currentUserId()
-  if (!userId || !json.keys?.p256dh || !json.keys?.auth) return 'denied'
-  await supabase
+  if (!userId || !json.keys?.p256dh || !json.keys?.auth) return 'error'
+  const { error } = await supabase
     .from('push_subscriptions')
     .upsert({ user_id: userId, endpoint: sub.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth, user_agent: navigator.userAgent }, { onConflict: 'endpoint' })
-  return 'subscribed'
+  return error ? 'error' : 'subscribed'
 }
