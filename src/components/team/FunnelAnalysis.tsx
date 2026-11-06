@@ -24,8 +24,8 @@ export function FunnelAnalysis({ model, className }: { model: TeamModel; classNa
             <tr key={s.stage} className="border-b border-slate-100">
               <td className="py-1.5 text-slate-700">{s.stage}</td>
               <td className="py-1.5 text-center font-semibold text-brand-800">{s.reached}</td>
-              <td className={classNames('py-1.5 text-center', s.toNextPct !== null && s.toNextPct < 40 && 'font-semibold text-amber-700')}>{s.toNextPct === null ? <span className="text-slate-300">—</span> : `${s.toNextPct}%`}</td>
-              <td className="py-1.5 text-center">{s.avgDays === null ? <span className="text-slate-300">—</span> : s.avgDays}</td>
+              <td className={classNames('py-1.5 text-center', s.toNextPct !== null && s.toNextPct < 40 && 'font-semibold text-amber-700')}>{s.toNextPct === null ? <span className="text-slate-400">—</span> : `${s.toNextPct}%`}</td>
+              <td className="py-1.5 text-center">{s.avgDays === null ? <span className="text-slate-400">—</span> : s.avgDays}</td>
             </tr>
           ))}
         </tbody>

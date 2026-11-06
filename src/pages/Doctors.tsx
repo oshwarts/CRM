@@ -274,15 +274,15 @@ const TableRow = memo(function TableRow({ r, fav, cases, since, windowLabel, a }
       <td className="p-2.5 text-xs text-slate-600">
         {r.robots.length > 0 && <p>רובוט: {r.robots.join(' · ')}</p>}
         {r.companies.length > 0 && <p>{r.companies.join(' · ')}</p>}
-        {r.robots.length === 0 && r.companies.length === 0 && <span className="text-slate-300">—</span>}
+        {r.robots.length === 0 && r.companies.length === 0 && <span className="text-slate-400">—</span>}
       </td>
       <td className="p-2.5">
         <ContactCell row={r} onPatch={a.onPatch} />
       </td>
       <td className="p-2.5 text-center text-base font-semibold text-brand-800" title={`ניתוחים (${windowLabel})`}>
-        {r.surgeries || <span className="text-slate-300">0</span>}
+        {r.surgeries || <span className="text-slate-400">0</span>}
       </td>
-      <td className="p-2.5">{r.loyalty ? <span className={classNames('chip !px-2 !py-0 text-[12px]', LOYALTY_CHIP[r.loyalty])}>{LOYALTY_SHORT[r.loyalty]}</span> : <span className="text-xs text-slate-300">לא ידוע</span>}</td>
+      <td className="p-2.5">{r.loyalty ? <span className={classNames('chip !px-2 !py-0 text-[12px]', LOYALTY_CHIP[r.loyalty])}>{LOYALTY_SHORT[r.loyalty]}</span> : <span className="text-xs text-slate-400">לא ידוע</span>}</td>
       <td className="whitespace-nowrap p-2.5">
         <Actions row={r} fav={fav} onFav={() => a.onFav(r.d.id, fav)} onMeeting={() => a.onMeeting(r.d.id)} onTask={() => a.onTask(r.d.id)} />
       </td>

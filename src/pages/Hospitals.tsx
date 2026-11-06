@@ -382,7 +382,7 @@ export default function Hospitals() {
                           <td className="p-2.5 text-center">{r.doctors}</td>
                           <td className="p-2.5 text-xs">{lastText(r)}</td>
                           <td className="p-2.5 text-center font-medium">{r.surgeries30}</td>
-                          <td className="p-2.5 text-center">{r.upcoming30 || <span className="text-slate-300">—</span>}</td>
+                          <td className="p-2.5 text-center">{r.upcoming30 || <span className="text-slate-400">—</span>}</td>
                           <td className="p-2.5">
                             <RowActions row={r} onMeeting={() => setModal({ kind: 'meeting', hospitalId: r.h.id })} onSurgery={() => setModal({ kind: 'surgery', hospitalId: r.h.id })} />
                           </td>

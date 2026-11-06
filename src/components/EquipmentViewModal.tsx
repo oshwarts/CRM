@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Check, Copy, ImageOff, Search, X } from 'lucide-react'
 import { useEquipmentImageUrl } from '../lib/api'
 import { itemImages, type EquipmentItemWithCompany } from '../lib/types'
@@ -14,6 +14,13 @@ export function EquipmentViewModal({ item, onClose }: { item: EquipmentItemWithC
   const [q, setQ] = useState('')
   const [zoom, setZoom] = useState(false)
   const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    if (!zoom) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setZoom(false)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [zoom])
 
   const parts = [...(item.parts ?? [])].sort((a, b) => a.sort - b.sort)
   const needle = q.trim().toLowerCase()

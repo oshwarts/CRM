@@ -290,7 +290,7 @@ export function ProjectUpdates({ projectId, taskId, taskNames }: { projectId: st
                             <button className="btn-ghost !px-1.5 text-xs text-slate-400 hover:text-brand-600" onClick={() => setEditing(u.id)}>
                               <Pencil size={13} /> ערוך
                             </button>
-                            <ConfirmButton className="btn-ghost !px-1.5 text-slate-300 hover:text-red-500" message="למחוק את העדכון והקבצים שצורפו אליו?" onConfirm={() => del.mutate(u.id)}>
+                            <ConfirmButton className="btn-ghost !px-1.5 text-slate-400 hover:text-red-500" message="למחוק את העדכון והקבצים שצורפו אליו?" onConfirm={() => del.mutate(u.id)}>
                               <Trash2 size={14} />
                             </ConfirmButton>
                           </span>

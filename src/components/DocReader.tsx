@@ -56,7 +56,7 @@ export function DocReader({ doc, onClose, onGenerate }: { doc: InfoDocument; onC
           <div className="max-h-[65vh] space-y-4 overflow-y-auto rounded-xl border border-slate-200 bg-white p-4">
             {pages.map((p, i) => (
               <section key={i}>
-                {pages.length > 1 && <p className="mb-1 text-[11px] font-semibold text-slate-300">עמוד {i + 1}</p>}
+                {pages.length > 1 && <p className="mb-1 text-[11px] font-semibold text-slate-400">עמוד {i + 1}</p>}
                 <p dir="auto" className="whitespace-pre-wrap text-sm leading-relaxed text-slate-800">
                   <Highlighted text={p} query={query} />
                 </p>

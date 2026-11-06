@@ -4,7 +4,7 @@ import { Eye, EyeOff } from 'lucide-react'
 /** a sensitive number (an ID) shows only its last digits until the person asks to see it: a screen shared or glanced at does not give it away */
 export function MaskedValue({ value, visible = 3, label = 'ת״ז' }: { value: string; visible?: number; label?: string }) {
   const [shown, setShown] = useState(false)
-  if (!value) return <span className="text-slate-300">—</span>
+  if (!value) return <span className="text-slate-400">—</span>
   const masked = value.length <= visible ? '•'.repeat(value.length) : `${'•'.repeat(value.length - visible)}${value.slice(-visible)}`
   return (
     <span className="inline-flex items-center gap-1.5">

@@ -71,7 +71,7 @@ export function Spark({ values, className }: { values: number[]; className?: str
 }
 
 export function Meter({ pct, label, tone }: { pct: number | null; label?: string; tone?: 'auto' | string }) {
-  if (pct === null) return <span className="text-xs text-slate-300">—</span>
+  if (pct === null) return <span className="text-xs text-slate-400">—</span>
   const color = tone && tone !== 'auto' ? tone : pct >= 80 ? 'bg-emerald-500' : pct >= 40 ? 'bg-brand-500' : 'bg-red-500'
   return (
     <span className="flex items-center gap-2">

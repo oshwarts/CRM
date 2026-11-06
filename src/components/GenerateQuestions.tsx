@@ -114,7 +114,7 @@ export function GenerateQuestions({
                   <label className="flex items-center gap-2 text-xs font-semibold text-slate-500">
                     <input type="checkbox" checked={d.keep} onChange={(e) => patch(i, { keep: e.target.checked })} /> שאלה {i + 1}
                   </label>
-                  <button className="text-slate-300 hover:text-red-500" aria-label="מחק" onClick={() => setDrafts((x) => x!.filter((_, k) => k !== i))}>
+                  <button className="text-slate-400 hover:text-red-500" aria-label="מחק" onClick={() => setDrafts((x) => x!.filter((_, k) => k !== i))}>
                     <Trash2 size={14} />
                   </button>
                 </div>

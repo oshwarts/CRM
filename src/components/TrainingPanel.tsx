@@ -24,7 +24,7 @@ export const scopeTone = (state: { started: boolean; complete: boolean; stuck: b
       ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
       : state.started
         ? 'border-amber-200 bg-amber-50 text-amber-700'
-        : 'border-slate-200 bg-white text-slate-300'
+        : 'border-slate-200 bg-white text-slate-400'
 
 function CompletionModal({ agentId, stage, existing, onClose }: { agentId: string; stage: TrainingStage; existing: AgentTraining | null; onClose: () => void }) {
   const save = useSaveCompletion()

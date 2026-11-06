@@ -140,7 +140,7 @@ export function ManagementReport({ model }: { model: TeamModel }) {
                     <td className="py-1.5 text-center">{r.m.meetings_held}</td>
                     <td className="py-1.5 text-center">{r.m.surgeries_covered}</td>
                     <td className="py-1.5 text-center">{r.m.tasks_done}</td>
-                    <td className="py-1.5">{r.goalsCount > 0 ? <Meter pct={r.goalsAvg} /> : <span className="text-xs text-slate-300">לא הוגדרו</span>}</td>
+                    <td className="py-1.5">{r.goalsCount > 0 ? <Meter pct={r.goalsAvg} /> : <span className="text-xs text-slate-400">לא הוגדרו</span>}</td>
                     <td className="py-1.5">
                       <Meter pct={r.training.pct} />
                     </td>

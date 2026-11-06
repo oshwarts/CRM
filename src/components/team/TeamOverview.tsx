@@ -48,7 +48,7 @@ function AgentCard({ r }: { r: AgentRow }) {
       <div className="space-y-1.5">
         <div className="flex items-center gap-2 text-xs text-slate-500">
           <span className="w-12 shrink-0">יעדים</span>
-          <div className="flex-1">{r.goalsCount > 0 ? <Meter pct={r.goalsAvg} /> : <span className="text-slate-300">לא הוגדרו</span>}</div>
+          <div className="flex-1">{r.goalsCount > 0 ? <Meter pct={r.goalsAvg} /> : <span className="text-slate-400">לא הוגדרו</span>}</div>
         </div>
         <div className="flex items-center gap-2 text-xs text-slate-500">
           <span className="w-12 shrink-0">הכשרה</span>
@@ -103,7 +103,7 @@ function AgentsTable({ model }: { model: TeamModel }) {
               {cell(r.m.tasks_done)}
               {cell(r.m.scans_created)}
               {cell(r.m.consumable_counts)}
-              <td className="p-2.5 text-center">{r.goalsCount === 0 ? <span className="text-slate-300">—</span> : <span className="text-xs">{r.goalsAvg}% ({r.goalsCount})</span>}</td>
+              <td className="p-2.5 text-center">{r.goalsCount === 0 ? <span className="text-slate-400">—</span> : <span className="text-xs">{r.goalsAvg}% ({r.goalsCount})</span>}</td>
             </tr>
           ))}
         </tbody>
