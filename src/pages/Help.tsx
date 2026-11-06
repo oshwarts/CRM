@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { ChevronDown, LifeBuoy, Search } from 'lucide-react'
 import { normalizeHe } from '../lib/contactMatch'
 import { useAuth } from '../context/AuthProvider'
@@ -119,6 +120,10 @@ export default function Help() {
           </ul>
         </details>
       ))}
+      <p className="flex justify-center gap-4 pt-2 text-xs text-slate-500">
+        <Link to="/privacy" className="hover:text-brand-600 hover:underline">מדיניות פרטיות</Link>
+        <Link to="/accessibility" className="hover:text-brand-600 hover:underline">הצהרת נגישות</Link>
+      </p>
     </div>
   )
 }

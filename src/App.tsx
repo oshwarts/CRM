@@ -44,6 +44,8 @@ const load = {
   Help: () => import('./pages/Help'),
   LearnTopic: () => import('./pages/LearnTopic'),
   LearnReview: () => import('./pages/LearnReview'),
+  PrivacyPolicy: () => import('./pages/PrivacyPolicy'),
+  AccessibilityStatement: () => import('./pages/AccessibilityStatement'),
 }
 const Doctors = lazy(load.Doctors)
 const DoctorProfile = lazy(load.DoctorProfile)
@@ -77,6 +79,8 @@ const Now = lazy(load.Now)
 const Help = lazy(load.Help)
 const LearnTopic = lazy(load.LearnTopic)
 const LearnReview = lazy(load.LearnReview)
+const PrivacyPolicy = lazy(load.PrivacyPolicy)
+const AccessibilityStatement = lazy(load.AccessibilityStatement)
 
 function Page({ children }: { children: ReactNode }) {
   return <Suspense fallback={<Spinner />}>{children}</Suspense>
@@ -111,6 +115,8 @@ export default function App() {
     return (
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/privacy" element={<Page><PrivacyPolicy /></Page>} />
+        <Route path="/accessibility" element={<Page><AccessibilityStatement /></Page>} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     )
@@ -126,6 +132,8 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/now" element={<Page><Now /></Page>} />
         <Route path="/help" element={<Page><Help /></Page>} />
+        <Route path="/privacy" element={<Page><PrivacyPolicy /></Page>} />
+        <Route path="/accessibility" element={<Page><AccessibilityStatement /></Page>} />
         <Route path="/doctors" element={<Page><Doctors /></Page>} />
         <Route path="/activity" element={<Page><Activity /></Page>} />
         <Route path="/processes" element={<Page><Processes /></Page>} />

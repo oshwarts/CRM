@@ -44,7 +44,7 @@ const TABS = ['/', '/doctors', '/tasks', '/schedule']
 // scroll position of each visited page, so that going back returns to the same place
 const scrollOf = new Map<string, number>()
 
-const VERSION = 'v167 · אבטחת מידע: ניתוק אוטומטי ממכשיר שנשאר מחובר וללא פעילות 30 דקות'
+const VERSION = 'v168 · דפי מדיניות פרטיות והצהרת נגישות, נגישים גם ממסך ההתחברות'
 
 // a failure of the shell itself (not of one screen) also ends in a message with a way out, never in a blank page
 export function Layout() {

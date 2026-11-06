@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
 import { BrandLogo } from '../components/BrandLogo'
 import { PasswordInput } from '../components/PasswordInput'
@@ -201,6 +202,10 @@ export default function Login() {
             </button>
           )}
         </div>
+        <p className="mt-4 flex justify-center gap-3 text-xs text-white/80">
+          <Link to="/privacy" className="hover:underline">מדיניות פרטיות</Link>
+          <Link to="/accessibility" className="hover:underline">הצהרת נגישות</Link>
+        </p>
       </div>
     </main>
   )
