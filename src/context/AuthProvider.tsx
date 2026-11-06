@@ -16,6 +16,8 @@ import { cacheProfile, pickSession, readCachedProfile, readStoredSession, setAwa
 
 // a call to the server that never answers must not keep the app on the loading screen
 const WAIT_MS = 8000
+// a device left signed in and unattended signs itself out after this long (data-security control)
+const IDLE_SIGNOUT_MS = 30 * 60 * 1000
 const timeoutSignal = () => (typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal ? AbortSignal.timeout(WAIT_MS) : undefined)
 
 type AuthContextValue = {
@@ -115,6 +117,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('online', onOnline)
     }
   }, [])
+
+  // a device left signed in and unattended signs itself out after a while — a device-left-unlocked control for the
+  // personal data this app holds. Never fires mid-sync: an unsent offline change keeps the session alive until it sends.
+  useEffect(() => {
+    if (!session) return
+    let last = Date.now()
+    const bump = () => {
+      last = Date.now()
+    }
+    const events: (keyof WindowEventMap)[] = ['mousedown', 'keydown', 'touchstart', 'wheel']
+    events.forEach((e) => window.addEventListener(e, bump, { passive: true }))
+    const check = setInterval(() => {
+      if (Date.now() - last >= IDLE_SIGNOUT_MS && outboxSize() === 0) void supabase.auth.signOut()
+    }, 60_000)
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, bump))
+      clearInterval(check)
+    }
+  }, [session])
 
   const profile = impersonating ?? realProfile
   const value: AuthContextValue = {
