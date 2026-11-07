@@ -46,6 +46,7 @@ const load = {
   LearnReview: () => import('./pages/LearnReview'),
   PrivacyPolicy: () => import('./pages/PrivacyPolicy'),
   AccessibilityStatement: () => import('./pages/AccessibilityStatement'),
+  VoiceTask: () => import('./pages/VoiceTask'),
 }
 const Doctors = lazy(load.Doctors)
 const DoctorProfile = lazy(load.DoctorProfile)
@@ -81,6 +82,7 @@ const LearnTopic = lazy(load.LearnTopic)
 const LearnReview = lazy(load.LearnReview)
 const PrivacyPolicy = lazy(load.PrivacyPolicy)
 const AccessibilityStatement = lazy(load.AccessibilityStatement)
+const VoiceTask = lazy(load.VoiceTask)
 
 function Page({ children }: { children: ReactNode }) {
   return <Suspense fallback={<Spinner />}>{children}</Suspense>
@@ -134,6 +136,7 @@ export default function App() {
         <Route path="/help" element={<Page><Help /></Page>} />
         <Route path="/privacy" element={<Page><PrivacyPolicy /></Page>} />
         <Route path="/accessibility" element={<Page><AccessibilityStatement /></Page>} />
+        <Route path="/voice-task" element={<Page><VoiceTask /></Page>} />
         <Route path="/doctors" element={<Page><Doctors /></Page>} />
         <Route path="/activity" element={<Page><Activity /></Page>} />
         <Route path="/processes" element={<Page><Processes /></Page>} />

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronDown, LifeBuoy, Search } from 'lucide-react'
+import { ChevronDown, LifeBuoy, Mic, Search } from 'lucide-react'
 import { normalizeHe } from '../lib/contactMatch'
 import { useAuth } from '../context/AuthProvider'
 
@@ -101,6 +101,15 @@ export default function Help() {
         </h1>
         <p className="mt-1 text-sm text-slate-600">מה עושים בכל מסך, ומה קל לפספס.</p>
       </div>
+      <Link to="/voice-task" className="card flex items-center gap-3 p-3 hover:bg-brand-50/40">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-700">
+          <Mic size={18} aria-hidden />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold text-slate-800">הוספת משימה בקול (בלי לגעת בטלפון)</span>
+          <span className="block text-xs text-slate-500">לדוגמה מהרכב — חיבור חד-פעמי ל-Siri</span>
+        </span>
+      </Link>
       <label className="relative block">
         <span className="sr-only">חיפוש במדריך</span>
         <Search size={18} aria-hidden className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
