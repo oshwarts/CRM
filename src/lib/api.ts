@@ -1911,6 +1911,9 @@ export type TaskFormData = {
   reminder_at: string | null
   /** personal organization, not shared with other agents: personal / work / study */
   category: TaskCategory
+  /** the project this task belongs to (optional) — still shows in the regular task list too, with a chip linking to it */
+  project_id: string | null
+  area_id: string | null
   subtasks: { id?: string; text: string; is_done: boolean; due_date?: string | null }[]
 }
 
@@ -2275,7 +2278,7 @@ type TaskSavePayload = {
   baseSubIds: string[] | null
   userId: string
 }
-const TASK_FIELDS = ['description', 'notes', 'due_date', 'priority', 'doctor_id', 'hospital_id', 'recurrence', 'coordinator_contact_id', 'coordinator_text', 'reminder_at', 'category']
+const TASK_FIELDS = ['description', 'notes', 'due_date', 'priority', 'doctor_id', 'hospital_id', 'recurrence', 'coordinator_contact_id', 'coordinator_text', 'reminder_at', 'category', 'project_id', 'area_id']
 
 const taskFields = (d: TaskSaveData) => ({
   description: d.description.trim(),
@@ -2289,6 +2292,8 @@ const taskFields = (d: TaskSaveData) => ({
   coordinator_text: (d.coordinator_text ?? '').trim(),
   reminder_at: d.reminder_at || null,
   category: d.category,
+  project_id: d.project_id || null,
+  area_id: d.project_id ? d.area_id || null : null,
 })
 
 async function execTaskSave(p: TaskSavePayload): Promise<ExecResult> {
@@ -2344,11 +2349,14 @@ export function useSaveTask() {
           const hospitals = queryClient.getQueryData<HospitalListItem[]>(['hospitals']) ?? []
           const agents = queryClient.getQueryData<Profile[]>(['agents']) ?? []
           const contacts = queryClient.getQueryData<NonNullable<TaskRow['coordinator']>[]>(['contacts']) ?? []
+          const projects = queryClient.getQueryData<{ id: string; name: string; areas: { id: string; name: string }[] }[]>(['projects']) ?? []
           const now = new Date().toISOString()
           queryClient.setQueryData<TaskRow[]>(['tasks'], (old) => {
             const prev = old?.find((t) => t.id === data.id)
             const doctor = doctors.find((x) => x.id === data.doctor_id)
             const hospital = hospitals.find((x) => x.id === data.hospital_id)
+            const project = projects.find((x) => x.id === data.project_id)
+            const area = project?.areas.find((x) => x.id === data.area_id)
             const assigneeId = data.assignee_id || prev?.assignee_id || userId
             const assignee = agents.find((a) => a.id === assigneeId)
             const row = {
@@ -2364,6 +2372,8 @@ export function useSaveTask() {
               assignee_id: assigneeId,
               doctor: doctor ? { id: doctor.id, name: doctor.name, title: doctor.title } : null,
               hospital: hospital ? { id: hospital.id, name: hospital.name } : null,
+              project: project ? { id: project.id, name: project.name } : null,
+              area: area ? { id: area.id, name: area.name } : null,
               assignee: assignee ? { id: assignee.id, full_name: assignee.full_name } : (prev?.assignee ?? null),
               meeting: prev?.meeting ?? null,
               coordinator: contacts.find((c) => c.id === data.coordinator_contact_id) ?? null,

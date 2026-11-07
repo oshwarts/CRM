@@ -4,6 +4,7 @@ import { QuickDates } from './QuickDates'
 import { SearchSelect } from './SearchSelect'
 import { Bell, BellOff, BellRing, Briefcase, ChevronDown, ChevronUp, GraduationCap, Plus, User, X } from 'lucide-react'
 import { useAgents, useDeleteTask, useDoctors, useHospitals, useSaveTask, type TaskFormData } from '../lib/api'
+import { useProjects } from '../lib/projectsApi'
 import { useAuth } from '../context/AuthProvider'
 import type { TaskRow } from '../lib/types'
 import { ConfirmButton, Field, Modal } from './ui'
@@ -26,6 +27,8 @@ const emptyForm = (assignee: string | null): TaskFormData => ({
   assignee_id: assignee,
   reminder_at: null,
   category: 'work',
+  project_id: null,
+  area_id: null,
   subtasks: [],
 })
 
@@ -43,6 +46,7 @@ export function TaskFormModal({
   const agents = useAgents()
   const doctors = useDoctors()
   const hospitals = useHospitals()
+  const projects = useProjects()
   const save = useSaveTask()
   const del = useDeleteTask()
 
@@ -62,6 +66,8 @@ export function TaskFormModal({
           coordinator_text: task.coordinator_text,
           reminder_at: task.reminder_at,
           category: (task.category as TaskFormData['category']) ?? 'work',
+          project_id: task.project_id,
+          area_id: task.area_id,
           subtasks: task.subtasks.map((s) => ({ id: s.id, text: s.text, is_done: s.is_done, due_date: s.due_date })),
         }
       : { ...emptyForm(user?.id ?? null), ...defaults }
@@ -263,6 +269,30 @@ export function TaskFormModal({
           <Field label="בית חולים (אופציונלי)">
             <SearchSelect options={(hospitals.data ?? []).map((x) => ({ id: x.id, label: x.name }))} value={d.hospital_id} onChange={(id) => set({ hospital_id: id })} placeholder="בחר בית חולים…" />
           </Field>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="פרויקט (אופציונלי)">
+            <SearchSelect
+              options={(projects.data ?? []).map((p) => ({ id: p.id, label: p.name }))}
+              value={d.project_id}
+              onChange={(id) => set({ project_id: id, area_id: id === d.project_id ? d.area_id : null })}
+              placeholder="שייך לפרויקט…"
+            />
+            <p className="mt-1 text-xs text-slate-500">המשימה תמשיך להופיע גם כאן וגם בתוך הפרויקט.</p>
+          </Field>
+          {d.project_id && (
+            <Field label="אזור בפרויקט">
+              <select className="input" value={d.area_id ?? ''} onChange={(e) => set({ area_id: e.target.value || null })}>
+                <option value="">ללא אזור</option>
+                {(projects.data?.find((p) => p.id === d.project_id)?.areas ?? []).map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
         </div>
 
         {isAdmin && (

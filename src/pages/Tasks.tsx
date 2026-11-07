@@ -158,6 +158,8 @@ export default function Tasks() {
         assignee_id: isAdmin && who !== 'me' && who !== 'all' ? who : (user?.id ?? null),
         reminder_at: null,
         category: 'work',
+        project_id: null,
+        area_id: null,
         subtasks: [],
       },
       { onSuccess: () => setQuickText(''), onError: fail, onSettled: () => (quickSending.current = false) },

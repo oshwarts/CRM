@@ -56,4 +56,11 @@ if (new URLSearchParams(window.location.search).has('many')) {
 setTimeout(() => {
   seed(['tasks'], tasks)
   seed(['contacts'], [{ id: 'c1', name: 'דנה מלוגיסטיקה', role: 'מתאמת', hospital_id: null }, { id: 'c2', name: 'אבי', role: '', hospital_id: null }])
+  seed(
+    ['projects'],
+    [
+      { id: 'p1', name: 'פרויקט מקו', description: '', status: 'active', hospital_id: null, hospital: null, owner_id: 'u-me', owner: me, start_date: null, target_date: null, template_key: '', created_at: ts(-30), areas: [{ id: 'a1', project_id: 'p1', name: 'אזור צפון', sort: 0 }, { id: 'a2', project_id: 'p1', name: 'אזור מרכז', sort: 1, contact_id: null, contact_text: '' }] },
+      { id: 'p2', name: 'השקת מערכת חדשה', description: '', status: 'active', hospital_id: null, hospital: null, owner_id: 'u-me', owner: me, start_date: null, target_date: null, template_key: '', created_at: ts(-10), areas: [] },
+    ],
+  )
 }, 400)
