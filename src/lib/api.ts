@@ -3,7 +3,7 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
-import { nextCopyId, nextDue, nextReminder, stableUuid } from './taskLogic'
+import { nextCopyId, nextDue, nextReminder, stableUuid, type TaskCategory } from './taskLogic'
 import { supabase } from './supabase'
 import { syncMeetingIntel } from './meetingIntel'
 import { withParentNames } from './procedures'
@@ -1909,6 +1909,8 @@ export type TaskFormData = {
   coordinator_text?: string
   /** when set, a phone push notification is sent to the assignee at this time */
   reminder_at: string | null
+  /** personal organization, not shared with other agents: personal / work / study */
+  category: TaskCategory
   subtasks: { id?: string; text: string; is_done: boolean; due_date?: string | null }[]
 }
 
@@ -2140,7 +2142,7 @@ type DoneTask = Pick<
   MeetingTask,
   'id' | 'is_done' | 'description' | 'notes' | 'priority' | 'doctor_id' | 'hospital_id' | 'recurrence' | 'assignee_id' | 'created_by' | 'due_date'
 > &
-  Partial<Pick<MeetingTask, 'project_id' | 'area_id' | 'coordinator_contact_id' | 'coordinator_text' | 'reminder_at'>> & { subtasks?: { text: string }[] }
+  Partial<Pick<MeetingTask, 'project_id' | 'area_id' | 'coordinator_contact_id' | 'coordinator_text' | 'reminder_at' | 'category'>> & { subtasks?: { text: string }[] }
 type TaskDonePayload = { task: DoneTask; done: boolean; nextId: string; at: string }
 
 async function execTaskDone({ task, done, nextId, at }: TaskDonePayload): Promise<ExecResult> {
@@ -2170,6 +2172,7 @@ async function execTaskDone({ task, done, nextId, at }: TaskDonePayload): Promis
           coordinator_text: task.coordinator_text ?? '',
           // the reminder, if any, carries forward at the same gap from the due date (dropped if that would land in the past)
           reminder_at: nextReminder(task.due_date, task.reminder_at ?? null, nextDueDate),
+          category: task.category ?? 'work',
         }),
       )
     }
@@ -2200,6 +2203,7 @@ async function setTaskDoneOffline(task: DoneTask & { subtasks?: { text: string }
       coordinator_contact_id: task.coordinator_contact_id,
       coordinator_text: task.coordinator_text,
       reminder_at: task.reminder_at,
+      category: task.category,
       subtasks: task.subtasks?.map((s) => ({ text: s.text })),
     },
     done,
@@ -2271,7 +2275,7 @@ type TaskSavePayload = {
   baseSubIds: string[] | null
   userId: string
 }
-const TASK_FIELDS = ['description', 'notes', 'due_date', 'priority', 'doctor_id', 'hospital_id', 'recurrence', 'coordinator_contact_id', 'coordinator_text', 'reminder_at']
+const TASK_FIELDS = ['description', 'notes', 'due_date', 'priority', 'doctor_id', 'hospital_id', 'recurrence', 'coordinator_contact_id', 'coordinator_text', 'reminder_at', 'category']
 
 const taskFields = (d: TaskSaveData) => ({
   description: d.description.trim(),
@@ -2284,6 +2288,7 @@ const taskFields = (d: TaskSaveData) => ({
   coordinator_contact_id: d.coordinator_contact_id ?? null,
   coordinator_text: (d.coordinator_text ?? '').trim(),
   reminder_at: d.reminder_at || null,
+  category: d.category,
 })
 
 async function execTaskSave(p: TaskSavePayload): Promise<ExecResult> {

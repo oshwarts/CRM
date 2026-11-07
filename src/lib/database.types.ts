@@ -2790,6 +2790,7 @@ export type Database = {
         Row: {
           area_id: string | null
           assignee_id: string | null
+          category: string
           contact_id: string | null
           coordinator_contact_id: string | null
           coordinator_text: string
@@ -2821,6 +2822,7 @@ export type Database = {
         Insert: {
           area_id?: string | null
           assignee_id?: string | null
+          category?: string
           contact_id?: string | null
           coordinator_contact_id?: string | null
           coordinator_text?: string
@@ -2852,6 +2854,7 @@ export type Database = {
         Update: {
           area_id?: string | null
           assignee_id?: string | null
+          category?: string
           contact_id?: string | null
           coordinator_contact_id?: string | null
           coordinator_text?: string

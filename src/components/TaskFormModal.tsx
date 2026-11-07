@@ -2,16 +2,18 @@ import { useEffect, useRef, useState } from 'react'
 import { useDraft } from '../lib/useDraft'
 import { QuickDates } from './QuickDates'
 import { SearchSelect } from './SearchSelect'
-import { Bell, BellOff, BellRing, ChevronDown, ChevronUp, Plus, X } from 'lucide-react'
+import { Bell, BellOff, BellRing, Briefcase, ChevronDown, ChevronUp, GraduationCap, Plus, User, X } from 'lucide-react'
 import { useAgents, useDeleteTask, useDoctors, useHospitals, useSaveTask, type TaskFormData } from '../lib/api'
 import { useAuth } from '../context/AuthProvider'
 import type { TaskRow } from '../lib/types'
 import { ConfirmButton, Field, Modal } from './ui'
 import { TaskSuggestions, useTaskGuess } from './TaskSuggestions'
 import { CoordinatorField } from './CoordinatorField'
-import { taskError } from '../lib/taskLogic'
-import { isoToLocalInput, localInputToIso } from '../lib/utils'
+import { taskError, TASK_CATEGORIES, TASK_CATEGORY_LABELS, type TaskCategory } from '../lib/taskLogic'
+import { classNames, isoToLocalInput, localInputToIso } from '../lib/utils'
 import { enablePush, pushStatus } from '../lib/push'
+
+const CATEGORY_ICON: Record<TaskCategory, typeof Briefcase> = { work: Briefcase, personal: User, study: GraduationCap }
 
 const emptyForm = (assignee: string | null): TaskFormData => ({
   description: '',
@@ -23,6 +25,7 @@ const emptyForm = (assignee: string | null): TaskFormData => ({
   recurrence: 'none',
   assignee_id: assignee,
   reminder_at: null,
+  category: 'work',
   subtasks: [],
 })
 
@@ -58,6 +61,7 @@ export function TaskFormModal({
           coordinator_contact_id: task.coordinator_contact_id,
           coordinator_text: task.coordinator_text,
           reminder_at: task.reminder_at,
+          category: (task.category as TaskFormData['category']) ?? 'work',
           subtasks: task.subtasks.map((s) => ({ id: s.id, text: s.text, is_done: s.is_done, due_date: s.due_date })),
         }
       : { ...emptyForm(user?.id ?? null), ...defaults }
@@ -153,6 +157,30 @@ export function TaskFormModal({
             </select>
           </Field>
         </div>
+
+        <Field label="קטגוריה">
+          <div role="radiogroup" aria-label="קטגוריה" className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1">
+            {TASK_CATEGORIES.map((c) => {
+              const Icon = CATEGORY_ICON[c]
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  role="radio"
+                  aria-checked={d.category === c}
+                  onClick={() => set({ category: c })}
+                  className={classNames(
+                    'flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg px-2 text-sm font-medium transition',
+                    d.category === c ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-600 hover:text-slate-800',
+                  )}
+                >
+                  <Icon size={15} aria-hidden />
+                  {TASK_CATEGORY_LABELS[c]}
+                </button>
+              )
+            })}
+          </div>
+        </Field>
 
         <Field label="תזכורת בטלפון (אופציונלי)">
           <div className="flex flex-wrap items-center gap-2">

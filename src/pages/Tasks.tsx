@@ -2,7 +2,7 @@ import { SwipeToComplete } from '../components/SwipeToComplete'
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from '../lib/toast'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Building2, CalendarDays, ChevronDown, ChevronLeft, Flame, ListChecks, Pencil, Plus, Repeat, Search, Stethoscope, User } from 'lucide-react'
+import { Briefcase, Building2, CalendarDays, ChevronDown, ChevronLeft, Flame, GraduationCap, ListChecks, Pencil, Plus, Repeat, Search, Stethoscope, User } from 'lucide-react'
 import {
   useAddSubtask,
   useAgents,
@@ -21,7 +21,9 @@ import { EmptyState, ErrorState, Spinner } from '../components/ui'
 import { normalizeHe } from '../lib/contactMatch'
 import type { TaskRow } from '../lib/types'
 import { classNames, formatDate } from '../lib/utils'
-import { bucketOf, compareOpen, daysFrom, dueLabel, taskError, type Bucket } from '../lib/taskLogic'
+import { bucketOf, compareOpen, daysFrom, dueLabel, taskError, TASK_CATEGORIES, TASK_CATEGORY_LABELS, type Bucket, type TaskCategory } from '../lib/taskLogic'
+
+const CATEGORY_ICON: Record<TaskCategory, typeof Briefcase> = { work: Briefcase, personal: User, study: GraduationCap }
 
 const BUCKETS: { key: Bucket; label: string; tone: string }[] = [
   { key: 'overdue', label: 'באיחור', tone: 'text-red-600' },
@@ -44,6 +46,8 @@ export default function Tasks() {
 
   const [who, setWho] = useState('me') // admin: me | all | <agent id>
   const [status, setStatus] = useState<'open' | 'done' | 'all'>('open')
+  // personal organization, only shown and applied while looking at "my" tasks — not a shared filter for other agents' work
+  const [category, setCategory] = useState<TaskCategory | 'all'>('all')
   const [urgentOnly, setUrgentOnly] = useState(false)
   const [q, setQ] = useState('')
   const [quickText, setQuickText] = useState('')
@@ -67,16 +71,19 @@ export default function Tasks() {
     }
   }, [openId, tasks.data, setParams])
 
+  const isMine = !isAdmin || who === 'me'
   const dq = useDeferredValue(q) // typing stays smooth while a long list is re-filtered
   const list = useMemo(() => {
     const words = normalizeHe(dq).split(' ').filter(Boolean)
     return (tasks.data ?? []).filter((t) => {
-      if (!isAdmin || who === 'me') {
+      if (isMine) {
         if (t.assignee_id !== user?.id) return false
       } else if (who !== 'all' && t.assignee_id !== who) return false
       if (status === 'open' && t.is_done) return false
       if (status === 'done' && !t.is_done) return false
       if (urgentOnly && t.priority !== 'urgent') return false
+      // category is a personal organization tool, so it only ever filters your own tasks view
+      if (isMine && category !== 'all' && (t.category ?? 'work') !== category) return false
       if (words.length) {
         const hay = normalizeHe(
           [t.description, t.notes, t.doctor?.name, t.hospital?.name, t.coordinator?.name, t.coordinator_text, t.meeting?.subject, t.project?.name, t.area?.name, t.waiting_for, t.assignee?.full_name, ...t.subtasks.map((s) => s.text)]
@@ -87,7 +94,7 @@ export default function Tasks() {
       }
       return true
     })
-  }, [tasks.data, who, status, urgentOnly, dq, isAdmin, user?.id])
+  }, [tasks.data, who, status, urgentOnly, category, isMine, dq, user?.id])
 
   const openList = list.filter((t) => !t.is_done)
   const doneList = list
@@ -110,6 +117,19 @@ export default function Tasks() {
     }
     return { open, done }
   }, [tasks.data, who, isAdmin, user?.id])
+
+  // how many of my own tasks (matching the current status filter) fall in each category
+  const categoryCounts = useMemo(() => {
+    const c: Record<TaskCategory, number> = { work: 0, personal: 0, study: 0 }
+    if (!isMine) return c
+    for (const t of tasks.data ?? []) {
+      if (t.assignee_id !== user?.id) continue
+      if (status === 'open' && t.is_done) continue
+      if (status === 'done' && !t.is_done) continue
+      c[(t.category as TaskCategory) ?? 'work']++
+    }
+    return c
+  }, [tasks.data, isMine, status, user?.id])
 
   const mine = (tasks.data ?? []).filter((t) => !t.is_done && t.assignee_id === user?.id)
   const filtered = q.trim() !== '' || urgentOnly
@@ -137,6 +157,7 @@ export default function Tasks() {
         recurrence: quickGuess?.recurrence ?? 'none',
         assignee_id: isAdmin && who !== 'me' && who !== 'all' ? who : (user?.id ?? null),
         reminder_at: null,
+        category: 'work',
         subtasks: [],
       },
       { onSuccess: () => setQuickText(''), onError: fail, onSettled: () => (quickSending.current = false) },
@@ -161,6 +182,8 @@ export default function Tasks() {
     const done = t.subtasks.filter((s) => s.is_done).length
     const expanded = open.has(t.id)
     const due = daysFrom(t.due_date)
+    const taskCategory = (t.category as TaskCategory) ?? 'work'
+    const CategoryIcon = CATEGORY_ICON[taskCategory]
     return (
       <li key={t.id}>
         <SwipeToComplete disabled={t.is_done} onComplete={() => markDone(t, true)}>
@@ -201,6 +224,11 @@ export default function Tasks() {
               {t.recurrence !== 'none' && (
                 <span className="chip border-slate-200 bg-slate-50 !px-2 !py-0 text-slate-600">
                   <Repeat size={12} /> {t.recurrence === 'weekly' ? 'שבועית' : 'חודשית'}
+                </span>
+              )}
+              {isMine && category === 'all' && taskCategory !== 'work' && (
+                <span className="chip border-violet-200 bg-violet-50 !px-2 !py-0 text-violet-700">
+                  <CategoryIcon size={12} /> {TASK_CATEGORY_LABELS[taskCategory]}
                 </span>
               )}
               {(t.coordinator || t.coordinator_text) && (
@@ -450,6 +478,38 @@ export default function Tasks() {
             </button>
           ))}
         </div>
+        {isMine && (
+          <div role="radiogroup" aria-label="קטגוריה" className="grid grid-cols-4 gap-1 rounded-xl bg-slate-100 p-1">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={category === 'all'}
+              onClick={() => setCategory('all')}
+              className={classNames('min-h-[44px] rounded-lg px-1 text-sm font-medium transition', category === 'all' ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-600 hover:text-slate-800')}
+            >
+              הכול
+            </button>
+            {TASK_CATEGORIES.map((c) => {
+              const Icon = CATEGORY_ICON[c]
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  role="radio"
+                  aria-checked={category === c}
+                  onClick={() => setCategory(c)}
+                  className={classNames(
+                    'flex min-h-[44px] flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-xs font-medium transition',
+                    category === c ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-600 hover:text-slate-800',
+                  )}
+                >
+                  <Icon size={14} aria-hidden />
+                  {TASK_CATEGORY_LABELS[c]} <span className="text-slate-500">({categoryCounts[c]})</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
           {chip(urgentOnly, 'דחוף בלבד', () => setUrgentOnly((v) => !v))}
        </div>

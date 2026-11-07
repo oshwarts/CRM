@@ -3,6 +3,10 @@ import { addDays, addMonths, format, isValid, parseISO, startOfDay } from 'date-
 
 export type Bucket = 'overdue' | 'today' | 'week' | 'later' | 'none'
 
+export type TaskCategory = 'personal' | 'work' | 'study'
+export const TASK_CATEGORIES: TaskCategory[] = ['work', 'personal', 'study']
+export const TASK_CATEGORY_LABELS: Record<TaskCategory, string> = { personal: 'אישי', work: 'עבודה', study: 'לימודים' }
+
 /** whole local days from `today` to the date (negative = past); null for no / invalid date */
 export function daysFrom(due: string | null | undefined, today: Date = new Date()): number | null {
   if (!due) return null
