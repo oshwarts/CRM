@@ -229,12 +229,12 @@ export default function Tasks() {
                 </span>
               )}
               {isMine && category === 'all' && taskCategory !== 'work' && (
-                <span className="chip border-violet-200 bg-violet-50 !px-2 !py-0 text-violet-700">
+                <span className="chip border-slate-200 bg-slate-50 !px-2 !py-0 text-slate-600">
                   <CategoryIcon size={12} /> {TASK_CATEGORY_LABELS[taskCategory]}
                 </span>
               )}
               {(t.coordinator || t.coordinator_text) && (
-                <span className="chip border-violet-200 bg-violet-50 !px-2 !py-0 text-violet-700">
+                <span className="chip border-slate-200 bg-slate-50 !px-2 !py-0 text-slate-600">
                   מתאם אמי: {[t.coordinator?.name, t.coordinator_text].filter(Boolean).join(" · ")}
                 </span>
               )}
@@ -249,7 +249,7 @@ export default function Tasks() {
                 </span>
               )}
               {t.project && (
-                <Link to={`/projects/${t.project.id}`} className="chip border-violet-200 bg-violet-50 !px-2 !py-0 text-violet-700 hover:underline max-sm:!min-h-10">
+                <Link to={`/projects/${t.project.id}`} className="chip border-brand-200 bg-brand-50 !px-2 !py-0 text-brand-700 hover:underline max-sm:!min-h-10">
                   פרויקט: {t.project.name}
                   {t.area ? ` · ${t.area.name}` : ''}
                 </Link>
@@ -257,12 +257,12 @@ export default function Tasks() {
               {t.status === 'blocked' && !t.is_done && <span className="chip border-red-200 bg-red-50 !px-2 !py-0 text-red-600">תקוע</span>}
               {t.waiting_for && !t.is_done && <span className="chip border-amber-200 bg-amber-50 !px-2 !py-0 text-amber-700">ממתין ל: {t.waiting_for}</span>}
               {t.meeting && (
-                <Link to={`/meetings/${t.meeting.id}`} className="chip border-slate-200 bg-slate-50 !px-2 !py-0 text-slate-600 hover:underline max-sm:!min-h-10">
+                <Link to={`/meetings/${t.meeting.id}`} className="chip border-brand-200 bg-brand-50 !px-2 !py-0 text-brand-700 hover:underline max-sm:!min-h-10">
                   פגישה: {t.meeting.subject}
                 </Link>
               )}
               {isAdmin && t.assignee && t.assignee.id !== user?.id && (
-                <span className="chip border-violet-200 bg-violet-50 !px-2 !py-0 text-violet-700">
+                <span className="chip border-slate-200 bg-slate-50 !px-2 !py-0 text-slate-600">
                   <User size={12} /> {t.assignee.full_name}
                 </span>
               )}
@@ -480,40 +480,19 @@ export default function Tasks() {
             </button>
           ))}
         </div>
-        {isMine && (
-          <div role="radiogroup" aria-label="קטגוריה" className="grid grid-cols-4 gap-1 rounded-xl bg-slate-100 p-1">
-            <button
-              type="button"
-              role="radio"
-              aria-checked={category === 'all'}
-              onClick={() => setCategory('all')}
-              className={classNames('min-h-[44px] rounded-lg px-1 text-sm font-medium transition', category === 'all' ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-600 hover:text-slate-800')}
-            >
-              הכול
-            </button>
-            {TASK_CATEGORIES.map((c) => {
-              const Icon = CATEGORY_ICON[c]
-              return (
-                <button
-                  key={c}
-                  type="button"
-                  role="radio"
-                  aria-checked={category === c}
-                  onClick={() => setCategory(c)}
-                  className={classNames(
-                    'flex min-h-[44px] flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-xs font-medium transition',
-                    category === c ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-600 hover:text-slate-800',
-                  )}
-                >
-                  <Icon size={14} aria-hidden />
-                  {TASK_CATEGORY_LABELS[c]} <span className="text-slate-500">({categoryCounts[c]})</span>
-                </button>
-              )
-            })}
-          </div>
-        )}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
           {chip(urgentOnly, 'דחוף בלבד', () => setUrgentOnly((v) => !v))}
+          {isMine && (
+            <>
+              <span aria-hidden className="mx-0.5 h-4 w-px shrink-0 bg-slate-200" />
+              <div role="radiogroup" aria-label="קטגוריה" className="flex shrink-0 items-center gap-1.5">
+                {category !== 'all' &&
+                  chip(true, `${TASK_CATEGORY_LABELS[category]} (${categoryCounts[category]})`, () => setCategory('all'))}
+                {category === 'all' &&
+                  TASK_CATEGORIES.filter((c) => categoryCounts[c] > 0).map((c) => chip(false, `${TASK_CATEGORY_LABELS[c]} (${categoryCounts[c]})`, () => setCategory(c)))}
+              </div>
+            </>
+          )}
        </div>
       </div>
 
