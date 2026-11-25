@@ -44,7 +44,7 @@ const TABS = ['/', '/doctors', '/tasks', '/schedule']
 // scroll position of each visited page, so that going back returns to the same place
 const scrollOf = new Map<string, number>()
 
-const VERSION = 'v172 · מסך משימות: פוליש עיצובי — פחות שורות סינון כפולות, פחות צבעים מתחרים בתגיות'
+const VERSION = 'v173 · דף הבית: הוסרו עיגולים דקורטיביים מבאנר הכותרת'
 
 // a failure of the shell itself (not of one screen) also ends in a message with a way out, never in a blank page
 export function Layout() {

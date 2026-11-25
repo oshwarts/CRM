@@ -515,8 +515,6 @@ export default function Home() {
     <div className="space-y-5 sm:space-y-6">
       <div className="space-y-3 sm:space-y-4">
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-l from-[#00326d] via-[#0d4090] to-[#1863dc] p-4 text-white shadow-pop sm:p-7">
-          <span aria-hidden className="pointer-events-none absolute -left-12 -top-14 h-48 w-48 rounded-full bg-white/10" />
-          <span aria-hidden className="pointer-events-none absolute -bottom-16 left-24 h-40 w-40 rounded-full bg-[#cc3366]/30" />
           <div className="relative space-y-3 sm:space-y-4">
             <div>
               <p className="text-sm font-medium text-white/80">{dateLabel}</p>
